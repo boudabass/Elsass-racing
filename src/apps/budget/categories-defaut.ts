@@ -22,3 +22,6 @@ export const CATEGORIES_DEPENSE = [
 export const CATEGORIES_RECETTE = ["Partenaire", "Don", "Apport personnel", "Prime ou prix", "Vente", "Subvention", "Divers"] as const
 
 export const NOM_CAISSE_TEAM = "Caisse de la team"
+
+// Clé stable de certaines catégories (les liaisons avec Saison s'appuient sur elle, jamais sur le nom).
+export const CLE_CATEGORIE: Record<string, string> = { Engagement: "engagement" }

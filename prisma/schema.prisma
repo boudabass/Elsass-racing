@@ -1780,6 +1780,7 @@ model BudgetCategory {
   icone    String?
   ordre    Int        @default(0)
   active   Boolean    @default(true)
+  cle      String?
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)

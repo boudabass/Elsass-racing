@@ -1,5 +1,10 @@
 import { LIBELLE_STATUT_RESULTAT } from "@/apps/saison/libelles"
 
+const formatEuro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" })
+function formaterEuros(centimes: number): string {
+  return formatEuro.format(centimes / 100)
+}
+
 // Écran de fin d'épreuve : construit uniquement avec des données validées et existantes.
 // Garde-fous de l'article 953 : du positif seulement, rien de bloquant. Le coût n'apparaît pas
 // tant que Budget n'existe pas (pas de zéro trompeur).
@@ -15,6 +20,7 @@ export function FinEpreuve({
   aDebrief,
   peutDebriefer,
   sansPreuve,
+  coutEpreuve,
 }: {
   epreuve: string
   statutFinal: string
@@ -26,6 +32,8 @@ export function FinEpreuve({
   aDebrief: boolean
   peutDebriefer: boolean
   sansPreuve: boolean
+  // Coût de l'épreuve (centimes), fourni par Budget ; null tant qu'aucune dépense ne la concerne.
+  coutEpreuve: number | null
 }) {
   return (
     <section aria-labelledby="fin-epreuve" className="flex flex-col gap-3 rounded-lg border border-etat-ok bg-surface p-4">
@@ -48,6 +56,12 @@ export function FinEpreuve({
         </dd>
         <dt className="text-texte-discret">Km chronométrés</dt>
         <dd className="tabular-nums">{kmChronometres ? `${kmChronometres} km` : "—"}</dd>
+        {coutEpreuve !== null && (
+          <>
+            <dt className="text-texte-discret">Coût de l'épreuve</dt>
+            <dd className="tabular-nums">{formaterEuros(coutEpreuve)}</dd>
+          </>
+        )}
         <dt className="text-texte-discret">Total de la saison</dt>
         <dd className="tabular-nums">{kmSaison.toFixed(1)} km chronométrés</dd>
       </dl>

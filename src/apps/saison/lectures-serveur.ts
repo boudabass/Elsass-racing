@@ -616,3 +616,14 @@ export async function lireReconnaissances(eventId: string) {
       : null,
   }
 }
+
+// Kilomètres chronométrés des résultats validés d'une saison (lecture pour Budget : coût du km). Jamais les
+// résultats saisis ou à valider : seuls les validés comptent.
+export async function lireKmChronometresValides(saisonId: string): Promise<number> {
+  const { ctx } = await accesSaison("lecture")
+  const lignes = await prismaPourTeam(ctx.teamId, ctx.userId).saisonResult.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null, validation: "valide", entry: { teamId: ctx.teamId, event: { seasonId: saisonId } } },
+    select: { kmChronometres: true },
+  })
+  return Math.round(lignes.reduce((total, ligne) => total + Number(ligne.kmChronometres ?? 0), 0) * 10) / 10
+}

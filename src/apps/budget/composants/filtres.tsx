@@ -1,10 +1,15 @@
 "use client"
 
+import { useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
 import { CHAMP } from "./classes"
 
 // Filtres des mouvements : appliqués dès qu'on change un choix, gardés dans l'URL (partageables).
+// Sur PC, ils sont en ligne. Sur téléphone, un bouton « Filtres » ouvre le même formulaire dans un tiroir du
+// bas (même composant que le menu +).
 export function FiltresMouvements({
   saisons,
   epreuves,
@@ -12,6 +17,7 @@ export function FiltresMouvements({
   membres,
   valeurs,
   afficherMembres,
+  nombreActifs,
 }: {
   saisons: Array<{ id: string; annee: number }>
   epreuves: Array<{ id: string; nom: string }>
@@ -19,10 +25,12 @@ export function FiltresMouvements({
   membres: Array<{ id: string; nom: string }>
   valeurs: { saison: string; epreuve: string; categorie: string; membre: string }
   afficherMembres: boolean
+  nombreActifs: number
 }) {
   const router = useRouter()
   const pathname = usePathname()
   const parametres = useSearchParams()
+  const [tiroirOuvert, setTiroirOuvert] = useState(false)
 
   function changer(cle: string, valeur: string) {
     const suivant = new URLSearchParams(parametres.toString())
@@ -32,8 +40,8 @@ export function FiltresMouvements({
     router.replace(`${pathname}${suivant.size > 0 ? `?${suivant.toString()}` : ""}`, { scroll: false })
   }
 
-  return (
-    <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Filtres des mouvements" onSubmit={(evenement) => evenement.preventDefault()}>
+  const controles = (
+    <>
       <label className="flex flex-col gap-1 text-sm">
         <span className="text-texte-discret">Saison</span>
         <select name="saison" value={valeurs.saison} onChange={(e) => changer("saison", e.target.value)} className={CHAMP}>
@@ -79,6 +87,37 @@ export function FiltresMouvements({
           </select>
         </label>
       )}
-    </form>
+    </>
+  )
+
+  return (
+    <>
+      <div className="hidden md:block">
+        <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Filtres des mouvements" onSubmit={(evenement) => evenement.preventDefault()}>
+          {controles}
+        </form>
+      </div>
+
+      <div className="md:hidden">
+        <button
+          type="button"
+          onClick={() => setTiroirOuvert(true)}
+          className="cible-tactile flex items-center gap-2 rounded-md border border-bordure bg-surface px-4 py-2 text-sm"
+          aria-haspopup="dialog"
+        >
+          Filtres{nombreActifs > 0 ? ` (${nombreActifs})` : ""}
+        </button>
+        <Sheet open={tiroirOuvert} onOpenChange={setTiroirOuvert}>
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto border-bordure bg-surface text-texte">
+            <SheetHeader>
+              <SheetTitle className="text-left text-texte-discret">Filtres</SheetTitle>
+            </SheetHeader>
+            <form className="mt-3 grid gap-3 pb-6" aria-label="Filtres des mouvements" onSubmit={(evenement) => evenement.preventDefault()}>
+              {controles}
+            </form>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </>
   )
 }

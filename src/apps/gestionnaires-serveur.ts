@@ -9,3 +9,4 @@
 import "@/core/actions/gestionnaires-serveur"
 import "@/apps/saison/services-serveur"
 import "@/apps/budget/services-serveur"
+import "@/apps/budget/liaisons-serveur"

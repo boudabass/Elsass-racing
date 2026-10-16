@@ -5,6 +5,9 @@ import { Lock } from "lucide-react"
 import { accesEcran } from "@/apps/saison/ecran"
 import { lireEpreuve, lirePreparation, lireReconnaissances, lireResultatsEpreuve, listerChoixEngagement, listerContacts } from "@/apps/saison/lectures-serveur"
 import { PanneauPreparation } from "@/apps/saison/composants/preparation"
+import { PanneauDepensesEpreuve } from "@/apps/budget/composants/depenses-epreuve"
+import { contexteQg } from "@/core/qg/donnees"
+import { ONGLETS_FICHE_EPREUVE, ongletsVisibles } from "@/core/sdk/onglets"
 import { PanneauReconnaissances } from "@/apps/saison/composants/reconnaissances"
 import { ProgrammeHorsLigne } from "@/apps/saison/composants/programme-hors-ligne"
 import {
@@ -63,6 +66,9 @@ export default async function PageEpreuve({
   if (!fiche) notFound()
 
   const { niveau, saisonCloturee, epreuve, infos, speciales, programme, engagements } = fiche
+  // Onglets apportés par d'autres apps (Budget : Dépenses), selon l'activation de l'app et le niveau du membre.
+  const { contexte } = await contexteQg()
+  const ongletsApps = await ongletsVisibles(contexte, ONGLETS_FICHE_EPREUVE)
   // Saison clôturée : plus aucun bouton d'écriture, nulle part dans la fiche.
   const peutEcrire = aAuMoins(niveau, "ecriture") && !saisonCloturee
   const choix = peutEcrire ? await listerChoixEngagement() : null
@@ -86,7 +92,7 @@ export default async function PageEpreuve({
         </p>
       </header>
 
-      <Onglets base={`/apps/saison/epreuves/${id}`} onglets={ONGLETS} actif={onglet} />
+      <Onglets base={`/apps/saison/epreuves/${id}`} onglets={[...ONGLETS, ...ongletsApps.map((tab) => ({ cle: tab.cle, libelle: tab.libelle }))]} actif={onglet} />
 
       {onglet === "infos" && (
         <div className="flex flex-col gap-6">
@@ -208,6 +214,7 @@ export default async function PageEpreuve({
           )}
         </div>
       )}
+      {onglet === "depenses" && ongletsApps.some((tab) => tab.cle === "depenses") && <PanneauDepensesEpreuve eventId={id} />}
       {onglet === "resultats" && resultats && (
         <div className="flex flex-col gap-4">
           {resultats.saisonCloturee && (

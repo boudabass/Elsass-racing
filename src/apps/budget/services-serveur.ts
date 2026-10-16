@@ -17,7 +17,9 @@ import { enregistrerGestionnaire, type EvenementRecu } from "@/core/evenements/g
 import { newId } from "@/core/ids"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 
-import { CATEGORIES_DEPENSE, CATEGORIES_RECETTE, NOM_CAISSE_TEAM } from "./categories-defaut"
+import { CATEGORIES_DEPENSE, CATEGORIES_RECETTE, CLE_CATEGORIE, NOM_CAISSE_TEAM } from "./categories-defaut"
+import { ErreurBudget, refus } from "./erreurs"
+import { modifierDepenseTx, supprimerDepenseTx } from "./depenses-tx"
 import {
   aRembourser,
   confirmeeDOffice,
@@ -47,17 +49,7 @@ export async function initialiserSiBesoin(ctx: ContexteTeam): Promise<void> {
   if (!caisse) await initialiserBudgetDans(ctx)
 }
 
-// Refus métier : le message est en français et s'affiche tel quel.
-export class ErreurBudget extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = "ErreurBudget"
-  }
-}
-
-function refus(message: string): never {
-  throw new ErreurBudget(message)
-}
+export { ErreurBudget } from "./erreurs"
 
 // Priorité de la demande de confirmation dans la boîte d'actions (1 à 9, 5 : utile, pas urgent).
 export const PRIORITE_MOUVEMENT_A_CONFIRMER = 5
@@ -261,11 +253,15 @@ export async function initialiserBudgetDans(ctx: ContexteTeam): Promise<void> {
 
   await client.budgetCategory.createMany({
     data: [
-      ...CATEGORIES_DEPENSE.map((nom, index) => ({ id: newId(), teamId: ctx.teamId, nom, sens: "depense" as const, ordre: index + 1, ...auteur })),
+      ...CATEGORIES_DEPENSE.map((nom, index) => ({ id: newId(), teamId: ctx.teamId, nom, sens: "depense" as const, ordre: index + 1, cle: CLE_CATEGORIE[nom] ?? null, ...auteur })),
       ...CATEGORIES_RECETTE.map((nom, index) => ({ id: newId(), teamId: ctx.teamId, nom, sens: "recette" as const, ordre: index + 1, ...auteur })),
     ],
     skipDuplicates: true,
   })
+  // Les teams déjà initialisées avant la clé : on la pose sur la catégorie par défaut.
+  for (const [nom, cle] of Object.entries(CLE_CATEGORIE)) {
+    await client.budgetCategory.updateMany({ where: { teamId: ctx.teamId, sens: "depense", nom, cle: null }, data: { cle } })
+  }
 
   const caisse = await client.budgetPayer.findFirst({ where: { teamId: ctx.teamId, type: "caisse_team", deletedAt: null }, select: { id: true } })
   if (!caisse) {
@@ -342,17 +338,7 @@ export async function creerDepenseDans(ctx: ContexteTeam, entree: EntreeDepense,
     },
   })
 
-  await emettre(ctx, "budget.depense_creee", {
-    depenseId: id,
-    montant: donnees.montant,
-    categoryId: donnees.categoryId,
-    payerId: payeur.id,
-    eventId: lieu?.eventId ?? null,
-    seasonId: saisonId,
-  })
-  await emettre(ctx, "budget.depense_confirmee", { depenseId: id, eventId: lieu?.eventId ?? null })
-  if (rembourse && payeur.personId) await emettre(ctx, "budget.solde_modifie", { personId: payeur.personId, depenseId: id })
-  if (saisonId) await verifierDepassement(ctx, client, { categoryId: donnees.categoryId, seasonId: saisonId, ajoute: donnees.montant })
+  await emettreDepenseCreee(ctx, id)
   return id
 }
 
@@ -673,7 +659,8 @@ export async function confirmerSuggestionDans(ctx: ContexteTeam, id: string, mod
   }
 
   const mouvementId = newId()
-  const origineRef = `${suggestion.appOrigine}:${suggestion.id}`
+  // Une proposition venant de Saison garde l'engagement comme référence : saison:<entryId> (aucune boucle).
+  const origineRef = suggestion.appOrigine === "saison" && suggestion.entryId ? `saison:${suggestion.entryId}` : `${suggestion.appOrigine}:${suggestion.id}`
   const lieu = await rattachement(client, ctx.teamId, suggestion.eventId)
   const saisonId = lieu?.seasonId ?? (await saisonPourDate(client, ctx.teamId, aujourdhui()))
 
@@ -702,16 +689,7 @@ export async function confirmerSuggestionDans(ctx: ContexteTeam, id: string, mod
         updatedBy: ctx.userId,
       },
     })
-    await emettre(ctx, "budget.depense_creee", {
-      depenseId: mouvementId,
-      montant: suggestion.montant,
-      categoryId: categorieId,
-      payerId: payeurId,
-      eventId: lieu?.eventId ?? null,
-      seasonId: saisonId,
-    })
-    await emettre(ctx, "budget.depense_confirmee", { depenseId: mouvementId, eventId: lieu?.eventId ?? null })
-    if (saisonId) await verifierDepassement(ctx, client, { categoryId: categorieId, seasonId: saisonId, ajoute: suggestion.montant })
+    await emettreDepenseCreee(ctx, mouvementId)
   } else {
     await client.budgetIncome.create({
       data: {
@@ -778,21 +756,38 @@ async function rouvrirAction(client: Client, ctx: ContexteTeam, cleUnicite: stri
   })
 }
 
-// Événements d'une dépense reçue par la synchro, émis une fois l'écriture validée : même règle qu'en ligne.
-export async function emettreDepenseSynchronisee(ctx: ContexteTeam, id: string): Promise<void> {
+// Événements d'une dépense créée (en ligne, par une suggestion confirmée, ou par la synchro). Une seule
+// source : la ligne lue, pour que les liaisons (engagement, origine) reçoivent les mêmes champs partout.
+export async function emettreDepenseCreee(ctx: ContexteTeam, id: string): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const depense = await client.budgetExpense.findFirst({
     where: { id, teamId: ctx.teamId, deletedAt: null },
-    select: { montant: true, categoryId: true, payerId: true, eventId: true, seasonId: true, payer: { select: { type: true, personId: true } } },
+    select: {
+      montant: true,
+      date: true,
+      categoryId: true,
+      payerId: true,
+      eventId: true,
+      seasonId: true,
+      entryId: true,
+      origineRef: true,
+      category: { select: { cle: true } },
+      payer: { select: { type: true, personId: true } },
+    },
   })
   if (!depense) return
   await emettre(ctx, "budget.depense_creee", {
     depenseId: id,
     montant: depense.montant,
+    date: depense.date.toISOString().slice(0, 10),
     categoryId: depense.categoryId,
+    categorieCle: depense.category.cle,
     payerId: depense.payerId,
+    personneId: depense.payer.personId,
     eventId: depense.eventId,
     seasonId: depense.seasonId,
+    entryId: depense.entryId,
+    origineRef: depense.origineRef,
   })
   await emettre(ctx, "budget.depense_confirmee", { depenseId: id, eventId: depense.eventId })
   if (depense.payer.type === "membre" && depense.payer.personId) {
@@ -803,5 +798,127 @@ export async function emettreDepenseSynchronisee(ctx: ContexteTeam, id: string):
   }
 }
 
+// Synchro : l'événement de la création, émis une fois la écriture validée.
+export async function emettreDepenseSynchronisee(ctx: ContexteTeam, id: string): Promise<void> {
+  return emettreDepenseCreee(ctx, id)
+}
+
 // Enregistré à l'import du module : l'app Budget reçoit les décisions de la boîte d'actions.
 enregistrerGestionnaire("budget", "core.action_decidee", appliquerDecisionBudget)
+
+// --- Tâche 2.7 : modifier et supprimer (section 0) ---------------------------------------------
+
+// Modifie une dépense (même règle qu'en synchro : depenses-tx.ts). Les soldes concernés sont prévenus.
+export async function modifierDepense(id: string, entree: EntreeDepense): Promise<void> {
+  const { ctx, niveau } = await accesBudget("contribution")
+  return modifierDepenseDans(ctx, id, entree, niveau)
+}
+
+export async function modifierDepenseDans(ctx: ContexteTeam, id: string, entree: EntreeDepense, niveau: Niveau = "ecriture"): Promise<void> {
+  const donnees = schemaDepense.parse(entree)
+  if (!donnees.payerId) refus("Indique qui a payé la dépense.")
+  const lieu = await rattachement(prismaPourTeam(ctx.teamId, ctx.userId), ctx.teamId, donnees.eventId)
+  const date = donnees.date ?? aujourdhui()
+  const saisonId = lieu?.seasonId ?? (await saisonPourDate(prismaPourTeam(ctx.teamId, ctx.userId), ctx.teamId, date))
+  const personnes = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    const categorie = await tx.budgetCategory.findFirst({ where: { id: donnees.categoryId, teamId: ctx.teamId, sens: "depense", active: true, deletedAt: null }, select: { nom: true } })
+    if (!categorie) refus("Catégorie de dépense introuvable ou inactive.")
+    return modifierDepenseTx(
+      tx,
+      ctx,
+      id,
+      {
+        montant: donnees.montant,
+        categoryId: donnees.categoryId,
+        libelle: donnees.libelle || categorie.nom,
+        payerId: donnees.payerId as string,
+        date,
+        eventId: lieu?.eventId ?? null,
+        entryId: donnees.entryId ?? null,
+        seasonId: saisonId,
+        moyen: donnees.moyen ?? null,
+      },
+      niveau,
+    )
+  })
+  for (const personneId of personnes.personnes) {
+    await emettre(ctx, "budget.solde_modifie", { personId: personneId, depenseId: id })
+  }
+}
+
+// Supprime une dépense (suppression douce). Une dépense remboursée ne se supprime pas.
+export async function supprimerDepense(id: string): Promise<void> {
+  const { ctx, niveau } = await accesBudget("contribution")
+  return supprimerDepenseDans(ctx, id, niveau)
+}
+
+export async function supprimerDepenseDans(ctx: ContexteTeam, id: string, niveau: Niveau = "ecriture"): Promise<void> {
+  const { personnes } = await executerPourTeam(ctx.teamId, ctx.userId, (tx) => supprimerDepenseTx(tx, ctx, id, niveau))
+  for (const personneId of personnes) {
+    await emettre(ctx, "budget.solde_modifie", { personId: personneId, depenseId: id })
+  }
+}
+
+// Solde d'une dépense modifiée ou supprimée depuis l'appareil : prévient le payeur membre.
+export async function emettreSoldeDepenseSynchronise(ctx: ContexteTeam, id: string): Promise<void> {
+  const depense = await prismaPourTeam(ctx.teamId, ctx.userId).budgetExpense.findFirst({
+    where: { id, teamId: ctx.teamId },
+    select: { payer: { select: { type: true, personId: true } } },
+  })
+  if (depense?.payer.type === "membre" && depense.payer.personId) {
+    await emettre(ctx, "budget.solde_modifie", { personId: depense.payer.personId, depenseId: id })
+  }
+}
+
+// Recettes : modifier (écriture) et supprimer (suppression douce). Le statut « encaissée » ne change pas ici.
+export async function modifierRecette(id: string, entree: EntreeRecette): Promise<void> {
+  const { ctx } = await accesBudget("ecriture")
+  return modifierRecetteDans(ctx, id, entree)
+}
+
+export async function modifierRecetteDans(ctx: ContexteTeam, id: string, entree: EntreeRecette): Promise<void> {
+  const donnees = schemaRecette.parse(entree)
+  if (donnees.enNature && (donnees.valeurEstimee === null || donnees.valeurEstimee === undefined || !donnees.descriptionNature)) {
+    refus("Une recette en nature demande sa description et sa valeur estimée.")
+  }
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const existante = await client.budgetIncome.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!existante) refus("Recette introuvable dans cette team.")
+  const categorie = await client.budgetCategory.findFirst({
+    where: { id: donnees.categoryId, teamId: ctx.teamId, sens: "recette", active: true, deletedAt: null },
+    select: { id: true },
+  })
+  if (!categorie) refus("Catégorie de recette introuvable ou inactive.")
+  const lieu = await rattachement(client, ctx.teamId, donnees.eventId)
+  const saisonId = lieu?.seasonId ?? (await saisonPourDate(client, ctx.teamId, donnees.date ?? aujourdhui()))
+  await client.budgetIncome.updateMany({
+    where: { id, teamId: ctx.teamId },
+    data: {
+      date: donnees.date ?? aujourdhui(),
+      montant: donnees.montant,
+      categoryId: donnees.categoryId,
+      libelle: donnees.libelle,
+      provenancePersonId: donnees.provenancePersonId ?? null,
+      enNature: donnees.enNature ?? false,
+      descriptionNature: donnees.descriptionNature ?? null,
+      valeurEstimee: donnees.valeurEstimee ?? null,
+      eventId: lieu?.eventId ?? null,
+      seasonId: saisonId,
+      rev: { increment: 1 },
+      updatedBy: ctx.userId,
+    },
+  })
+}
+
+export async function supprimerRecette(id: string): Promise<void> {
+  const { ctx } = await accesBudget("ecriture")
+  return supprimerRecetteDans(ctx, id)
+}
+
+export async function supprimerRecetteDans(ctx: ContexteTeam, id: string): Promise<void> {
+  const resultat = await prismaPourTeam(ctx.teamId, ctx.userId).budgetIncome.updateMany({
+    where: { id, teamId: ctx.teamId, deletedAt: null },
+    data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId },
+  })
+  if (resultat.count === 0) refus("Recette introuvable dans cette team.")
+}

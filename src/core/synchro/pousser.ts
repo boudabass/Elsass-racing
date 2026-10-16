@@ -76,7 +76,7 @@ async function appliquerUne(ctx: ContexteTeam, deviceId: string, operation: Oper
 
   // La transaction est validée : ce qui suit ne peut plus la défaire, et son échec ne change pas le résultat.
   if (ecrit.statut === "appliquee" && declaration.apresApplication) {
-    await declaration.apresApplication(ctx, operation.id).catch((erreur: unknown) => console.error("[synchro] suite non faite :", erreur))
+    await declaration.apresApplication(ctx, operation.id, operation.type).catch((erreur: unknown) => console.error("[synchro] suite non faite :", erreur))
   }
   return ecrit
 }

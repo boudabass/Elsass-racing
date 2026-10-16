@@ -41,6 +41,7 @@ export function enEuros(centimes: number): string {
 
 export interface OptionsDepense {
   categories: Array<{ id: string; nom: string }>
+  engagements: Array<{ id: string; eventId: string; libelle: string }>
   payeurs: Array<{ id: string; nom: string; type: string }>
   moiId: string | null
   epreuves: Array<{ id: string; nom: string }>
@@ -77,6 +78,7 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
     }
     const libelle = String(saisie.get("libelle") ?? "").trim()
     const eventId = String(saisie.get("eventId") ?? "")
+    const entryId = String(saisie.get("entryId") ?? "")
     setEnCours(true)
     try {
       await moteur.ecrireLocal("budget_expense", {
@@ -89,6 +91,7 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
           payerId,
           libelle: libelle || null,
           eventId: eventId || null,
+          entryId: entryId || null,
         },
       })
       formulaire.reset()
@@ -153,6 +156,19 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
               {options.epreuves.map((epreuve) => (
                 <option key={epreuve.id} value={epreuve.id}>
                   {epreuve.nom}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="entryId" className="text-sm text-texte-discret">
+              Engagement concerné (pour un engagement d'épreuve)
+            </label>
+            <select id="entryId" name="entryId" defaultValue="" className={CHAMP}>
+              <option value="">Aucun</option>
+              {options.engagements.map((entree) => (
+                <option key={entree.id} value={entree.id}>
+                  {entree.libelle}
                 </option>
               ))}
             </select>

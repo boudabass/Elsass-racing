@@ -23,6 +23,7 @@ export interface MouvementLu {
   seasonId: string | null
   // Dépense : confirmée ou non. Recette : statut « prevue » ou « encaissee ».
   statut: string
+  moyen: string | null
   remboursement: string | null
   origine: string
 }
@@ -76,6 +77,7 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
     eventNom: ligne.event?.nom ?? null,
     seasonId: ligne.seasonId,
     statut: ligne.confirmee ? "confirmee" : "a_confirmer",
+    moyen: ligne.moyen,
     remboursement: ligne.remboursement,
     origine: ligne.origine,
   }))
@@ -108,6 +110,7 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
       eventNom: ligne.event?.nom ?? null,
       seasonId: ligne.seasonId,
       statut: ligne.statut,
+      moyen: null,
       remboursement: null,
       origine: ligne.origine,
     }))
@@ -132,15 +135,17 @@ export async function lireChoix(): Promise<{
   epreuves: Array<{ id: string; nom: string; seasonId: string; dateDebut: string; dateFin: string }>
   epreuveEnCoursId: string | null
   saisons: Array<{ id: string; annee: number }>
+  engagements: Array<{ id: string; eventId: string; libelle: string }>
 }> {
   const { ctx } = await accesBudget("contribution")
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
-  const [categories, payeurs, epreuves, saisons, moi] = await Promise.all([
+  const [categories, payeurs, epreuves, saisons, moi, engagements] = await Promise.all([
     client.budgetCategory.findMany({ where: { teamId: ctx.teamId, active: true, deletedAt: null }, orderBy: [{ ordre: "asc" }, { nom: "asc" }], select: { id: true, nom: true, sens: true } }),
     client.budgetPayer.findMany({ where: { teamId: ctx.teamId, actif: true, deletedAt: null }, orderBy: [{ type: "asc" }, { nom: "asc" }], select: { id: true, nom: true, type: true, personId: true } }),
     client.coreEvent.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, orderBy: [{ dateDebut: "desc" }], select: { id: true, nom: true, seasonId: true, dateDebut: true, dateFin: true } }),
     client.coreSeason.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, orderBy: [{ annee: "desc" }], select: { id: true, annee: true } }),
     personneDuMembreDans(ctx),
+    client.coreEventEntry.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true, eventId: true, vehicle: { select: { nomCourt: true } }, event: { select: { nom: true } } } }),
   ])
   const aujourdhui = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)
   const enCours = epreuves.find((epreuve) => epreuve.dateDebut <= aujourdhui && epreuve.dateFin >= aujourdhui)
@@ -158,13 +163,22 @@ export async function lireChoix(): Promise<{
     })),
     epreuveEnCoursId: enCours?.id ?? null,
     saisons: saisons.map(({ id, annee }) => ({ id, annee })),
+    engagements: engagements.map((entree) => ({ id: entree.id, eventId: entree.eventId, libelle: `${entree.vehicle.nomCourt} · ${entree.event.nom}` })),
   }
 }
 
 // Coût réel de chaque épreuve de la saison, détail par catégorie, et moyenne des rallyes.
 export async function lireCoutsParEpreuve(saisonId: string): Promise<{
-  epreuves: Array<{ id: string; nom: string; type: string; total: number; parCategorie: Array<{ categorieId: string; nom: string; montant: number }> }>
+  epreuves: Array<{
+    id: string
+    nom: string
+    type: string
+    total: number
+    prevuCentimes: number | null
+    parCategorie: Array<{ categorieId: string; nom: string; montant: number }>
+  }>
   moyenneRallye: number | null
+  totalSaisonCentimes: number
 }> {
   const { ctx } = await accesBudget("lecture")
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
@@ -174,6 +188,13 @@ export async function lireCoutsParEpreuve(saisonId: string): Promise<{
     select: { montant: true, confirmee: true, eventId: true, categoryId: true, category: { select: { nom: true } } },
   })
   const lignes = depenses.map((depense) => ({ montant: depense.montant, confirmee: depense.confirmee, eventId: depense.eventId }))
+  // Prévu par épreuve : la somme des prévisionnels de l'épreuve, quand il en existe.
+  const previsions = await client.budgetForecast.groupBy({
+    by: ["eventId"],
+    where: { teamId: ctx.teamId, seasonId: saisonId, eventId: { not: null }, deletedAt: null },
+    _sum: { montant: true },
+  })
+  const prevuParEpreuve = new Map(previsions.map((ligne) => [ligne.eventId, ligne._sum.montant ?? 0]))
   const resultats = epreuves.map((epreuve) => {
     const parCategorieMap = new Map<string, { categorieId: string; nom: string; montant: number }>()
     for (const depense of depenses.filter((d) => d.eventId === epreuve.id)) {
@@ -186,11 +207,12 @@ export async function lireCoutsParEpreuve(saisonId: string): Promise<{
       nom: epreuve.nom,
       type: epreuve.type,
       total: coutParEpreuve(lignes, epreuve.id),
+      prevuCentimes: prevuParEpreuve.get(epreuve.id) ?? null,
       parCategorie: Array.from(parCategorieMap.values()).sort((a, b) => b.montant - a.montant),
     }
   })
   const rallyes = resultats.filter((epreuve) => epreuve.type === "rallye").map((epreuve) => epreuve.total)
-  return { epreuves: resultats, moyenneRallye: coutMoyen(rallyes) }
+  return { epreuves: resultats, moyenneRallye: coutMoyen(rallyes), totalSaisonCentimes: lignes.reduce((total, ligne) => total + ligne.montant, 0) }
 }
 
 // Solde par membre : avancé (dépenses confirmées à rembourser qu'il a payées), remboursé, solde.

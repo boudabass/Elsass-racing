@@ -12,7 +12,8 @@ import { aAuMoins } from "@/core/droits/niveaux"
 // Écrite dans la base locale : elle fonctionne hors ligne et part à la prochaine connexion.
 // Sans écriture, on ne peut payer qu'en son nom : la liste des payeurs se limite à « Moi ».
 
-export default async function PageNouvelleDepense() {
+export default async function PageNouvelleDepense({ searchParams }: { searchParams: Promise<{ epreuve?: string }> }) {
+  const parametres = await searchParams
   const acces = await accesEcran("contribution")
   if (!acces.ok) {
     return <EcranVide icone={Lock} titre={acces.titre} lignes={acces.lignes} action={{ libelle: "Retour au QG", href: "/qg" }} />
@@ -32,8 +33,9 @@ export default async function PageNouvelleDepense() {
           payeurs,
           moiId: choix.moiId,
           epreuves: choix.epreuves.map(({ id, nom }) => ({ id, nom })),
-          epreuveEnCoursId: choix.epreuveEnCoursId,
+          epreuveEnCoursId: choix.epreuves.some((epreuve) => epreuve.id === parametres.epreuve) ? (parametres.epreuve ?? null) : choix.epreuveEnCoursId,
           dateDuJour: jourDeParis(new Date()),
+          engagements: choix.engagements,
         }}
       />
     </section>

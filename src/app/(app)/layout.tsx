@@ -8,6 +8,7 @@ import { COOKIE_BANDEAU_TERRAIN } from "@/core/qg/cookies"
 import { modeTerrainDuMembre, terrainProposeJourEpreuve } from "@/apps/settings/preferences-serveur"
 import { libelleCompteARebours } from "@/core/actions/prochaine-etape"
 import { BarreHaute } from "@/components/qg/barre-haute"
+import { lireSoldeBarreHaute } from "@/apps/budget/liaisons-serveur"
 import { BandeauTerrain } from "@/components/qg/bandeau-terrain"
 import { BoiteActions } from "@/components/qg/boite-actions"
 import { BoutonProchaineEtape } from "@/components/qg/bouton-prochaine-etape"
@@ -34,6 +35,7 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
   const terrain = await modeTerrainDuMembre(contexte)
   const proposeBandeau = await terrainProposeJourEpreuve(contexte)
   const donnees = await donneesQg(terrain)
+  const solde = await lireSoldeBarreHaute()
   const maintenant = new Date()
   const aujourdhui = maintenant.toISOString().slice(0, 10)
 
@@ -91,6 +93,7 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
             : null,
           nombreActions: nombre,
           modeTerrain: terrain,
+          solde,
         }}
         boite={boite}
       />

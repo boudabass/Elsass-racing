@@ -17,7 +17,11 @@ import {
   definirPrevisionnel,
   encaisserRecette,
   ignorerSuggestion,
+  modifierDepense,
+  modifierRecette,
   rembourser,
+  supprimerDepense,
+  supprimerRecette,
 } from "./services-serveur"
 
 export type Resultat = { ok: true; id?: string } | { ok: false; message: string }
@@ -136,5 +140,41 @@ export async function confirmerSuggestionAction(_etat: Resultat | null, donnees:
 export async function ignorerSuggestionAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executer(async () => {
     await ignorerSuggestion(texte(donnees, "id"))
+  })
+}
+
+// Modification d'un mouvement (dépense ou recette selon le champ « type »).
+export async function modifierMouvementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(async () => {
+    const eventId = texteOuNull(donnees, "eventId")
+    const date = texteOuNull(donnees, "date") ?? undefined
+    if (texte(donnees, "type") === "recette") {
+      await modifierRecette(texte(donnees, "id"), {
+        montant: montantOuErreur(donnees, "montant"),
+        categoryId: texte(donnees, "categoryId"),
+        libelle: texte(donnees, "libelle"),
+        date,
+        eventId,
+      })
+      return
+    }
+    await modifierDepense(texte(donnees, "id"), {
+      montant: montantOuErreur(donnees, "montant"),
+      categoryId: texte(donnees, "categoryId"),
+      libelle: texteOuNull(donnees, "libelle") ?? undefined,
+      payerId: texte(donnees, "payerId"),
+      date,
+      eventId,
+      moyen: (texteOuNull(donnees, "moyen") as "carte" | "especes" | "cheque" | "virement" | null) ?? null,
+    })
+  })
+}
+
+// Suppression après confirmation explicite (case cochée).
+export async function supprimerMouvementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(async () => {
+    if (donnees.get("confirme") !== "on") throw new ErreurBudget("Coche la case pour confirmer la suppression.")
+    if (texte(donnees, "type") === "recette") await supprimerRecette(texte(donnees, "id"))
+    else await supprimerDepense(texte(donnees, "id"))
   })
 }

@@ -56,6 +56,17 @@ export default async function PageMouvements({
   const aConfirmer = aAuMoins(acces.niveau, "ecriture") ? await compterSuggestions() : 0
   const fiche = parametres.m ? await lireMouvement(parametres.m) : null
 
+  // Filtres actifs en pastilles retirables (la saison ne s'retire pas : c'est le choix de période).
+  const retirer = (cle: string) => {
+    const sansCle = new URLSearchParams(Object.entries(parametres).filter(([nom, valeur]) => nom !== "m" && nom !== cle && valeur) as [string, string][])
+    return `/apps/budget${sansCle.toString() ? `?${sansCle.toString()}` : ""}`
+  }
+  const pastilles = [
+    ...(parametres.epreuve ? [{ cle: "epreuve", libelle: choix.epreuves.find((epreuve) => epreuve.id === parametres.epreuve)?.nom ?? "Épreuve" }] : []),
+    ...(parametres.categorie ? [{ cle: "categorie", libelle: [...choix.categoriesDepense, ...choix.categoriesRecette].find((categorie) => categorie.id === parametres.categorie)?.nom ?? "Catégorie" }] : []),
+    ...(parametres.membre ? [{ cle: "membre", libelle: choix.payeurs.find((payeur) => payeur.id === parametres.membre)?.nom ?? "Membre" }] : []),
+  ].map((pastille) => ({ ...pastille, retirer: retirer(pastille.cle) }))
+
   const query = new URLSearchParams(Object.entries(parametres).filter(([cle, valeur]) => cle !== "m" && valeur) as [string, string][]).toString()
   const adresse = (id: string) => `/apps/budget?${query ? `${query}&` : ""}m=${id}`
 
@@ -85,7 +96,22 @@ export default async function PageMouvements({
         membres={choix.payeurs.filter((payeur) => payeur.type === "membre").map(({ id, nom }) => ({ id, nom }))}
         valeurs={{ saison: saisonId ?? "", epreuve: parametres.epreuve ?? "", categorie: parametres.categorie ?? "", membre: parametres.membre ?? "" }}
         afficherMembres={toutVisible}
+        nombreActifs={pastilles.length}
       />
+
+      {pastilles.length > 0 && (
+        <ul className="flex flex-wrap gap-2" aria-label="Filtres actifs">
+          {pastilles.map((pastille) => (
+            <li key={pastille.cle}>
+              <Link href={pastille.retirer} className="inline-flex min-h-9 items-center gap-2 rounded-full border border-bordure bg-surface px-3 py-1 text-sm">
+                {pastille.libelle}
+                <span aria-hidden>×</span>
+                <span className="sr-only">Retirer ce filtre</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <dl className="grid gap-3 text-sm sm:grid-cols-3" aria-label="Totaux de la sélection">
         <div className="rounded-lg border border-bordure bg-surface p-4">

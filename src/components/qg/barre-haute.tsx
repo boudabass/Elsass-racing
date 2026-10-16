@@ -8,12 +8,19 @@ import { basculerTerrainAction } from "@/core/actions/formulaires"
 import { IndicateurSynchro } from "./indicateur-synchro"
 import { Logo } from "./logo"
 
+const formatEuro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" })
+function formaterSolde(centimes: number): string {
+  return formatEuro.format(centimes / 100)
+}
+
 export interface BarreHauteDonnees {
   nomTeam: string
   saison: string | null
   prochaine: { nom: string; compteARebours: string } | null
   nombreActions: number
   modeTerrain: boolean
+  // Solde de Budget (saison en cours, ou « Mon solde » en contribution) ; null si rien à montrer.
+  solde: { libelle: string; montantCentimes: number } | null
 }
 
 // Barre haute : identité de la team, saison, prochaine épreuve, boîte d'actions, recherche,
@@ -36,7 +43,20 @@ export function BarreHaute({
           </span>
         </Link>
 
-        {/* Emplacement du solde de saison : à brancher avec l'app Budget (tâche ultérieure). */}
+        {donnees.solde && (
+          <Link
+            href="/apps/budget"
+            className="hidden flex-col leading-tight md:flex"
+            aria-label={`${donnees.solde.libelle} : ${formaterSolde(donnees.solde.montantCentimes)}`}
+          >
+            <span className="text-xs text-texte-discret">{donnees.solde.libelle}</span>
+            <span
+              className={`chiffre text-base font-medium ${donnees.solde.montantCentimes < 0 ? "text-etat-rouge" : "text-etat-ok"}`}
+            >
+              {formaterSolde(donnees.solde.montantCentimes)}
+            </span>
+          </Link>
+        )}
 
         <div className="ml-auto flex items-center gap-2">
           {donnees.prochaine && (

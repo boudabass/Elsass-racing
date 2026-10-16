@@ -19,6 +19,8 @@ import { exigerAcces } from "@/core/droits/garde-serveur"
 import type { Niveau } from "@/core/droits/niveaux"
 import { emettre } from "@/core/evenements/bus-serveur"
 import { newId } from "@/core/ids"
+import { ErreurBudget } from "@/apps/budget/erreurs"
+import { lireDepenseEngagementDans } from "@/apps/budget/liaisons-serveur"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 
 import {
@@ -1104,6 +1106,17 @@ async function appliquerDecision(ctx: ContexteTeam, evenement: { donnees: unknow
     }
   }
 
+  // Budget a enregistré une dépense d'engagement : on marque l'engagement payé avec ses données (Saison appelle
+  // la fonction de Budget, il ne lit pas ses tables). Un refus remet l'action en attente avec son motif.
+  if (donnees.type === "marquer_engagement_paye" && donnees.decision === "marquer_paye" && donnees.ficheId) {
+    try {
+      await marquerEngagementPayeDans(ctx, donnees.ficheId)
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSaison) && !(erreur instanceof ErreurBudget)) throw erreur
+      await rouvrirAction(client, ctx, donnees.cleUnicite, erreur.message)
+    }
+  }
+
   if (donnees.type === "cloture_saison_proposee" && donnees.decision === "cloturer" && donnees.ficheId) {
     try {
       await cloturerSaisonDans(ctx, donnees.ficheId)
@@ -1352,3 +1365,52 @@ async function recalculerRappels(ctx: ContexteTeam, saisonId: string, maintenant
     if (!cles.has(action.cleUnicite)) await leverAction(ctx, action.cleUnicite)
   }
 }
+
+// --- Tâche 2.7 : Budget enregistre une dépense d'engagement : proposer « Marquer payé » (section 2) ---
+
+// Une dépense d'engagement saisie dans Budget (pas une proposition venant de Saison : origine saison:<entryId>,
+// donc aucune boucle) propose de marquer l'engagement payé, si Saison ne le tient pas encore pour payé.
+async function proposerMarquagePaye(ctx: ContexteTeam, evenement: EvenementRecu): Promise<void> {
+  const donnees = evenement.donnees as { entryId?: string | null; categorieCle?: string | null; origineRef?: string | null }
+  if (donnees.categorieCle !== "engagement" || !donnees.entryId) return
+  if (donnees.origineRef?.startsWith("saison:")) return
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const inscription = await client.saisonRegistration.findFirst({ where: { entryId: donnees.entryId, teamId: ctx.teamId, deletedAt: null }, select: { payeLe: true } })
+  if (inscription?.payeLe) return
+  const engagement = await client.coreEventEntry.findFirst({
+    where: { id: donnees.entryId, teamId: ctx.teamId, deletedAt: null },
+    select: { eventId: true, event: { select: { nom: true } } },
+  })
+  if (!engagement) return
+  await emettre(ctx, "saison.action_requise", {
+    type: "marquer_engagement_paye",
+    cleUnicite: `marquer_paye:${donnees.entryId}`,
+    titre: `Marquer l'engagement comme payé ? (${engagement.event.nom})`,
+    contexte: engagement.event.nom,
+    ficheType: "engagement",
+    ficheId: donnees.entryId,
+    eventId: engagement.eventId,
+    destinataires: { roles: ["responsable", "equipage"] },
+    boutons: [
+      { cle: "marquer_paye", libelle: "Marquer payé" },
+      { cle: "ignorer", libelle: "Ignorer" },
+    ],
+    priorite: 5,
+    niveauRequis: "ecriture",
+    cleRegroupement: "engagements_a_marquer",
+  })
+}
+
+// La décision : enregistrer le paiement avec la date, le montant, le mode et le payeur de la dépense de Budget.
+async function marquerEngagementPayeDans(ctx: ContexteTeam, entryId: string): Promise<void> {
+  const depense = await lireDepenseEngagementDans(ctx, entryId)
+  await enregistrerPaiementDans(ctx, entryId, {
+    payeLe: depense.date,
+    mode: depense.mode,
+    payeurPersonId: depense.payeurPersonId,
+    montant: depense.montant,
+    devise: "EUR",
+  })
+}
+
+enregistrerGestionnaire("saison", "budget.depense_creee", proposerMarquagePaye)

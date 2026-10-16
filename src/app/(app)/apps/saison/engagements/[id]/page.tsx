@@ -8,6 +8,7 @@ import { FormulaireInscription, FormulairePaiement } from "@/apps/saison/composa
 import { FormulaireDebrief } from "@/apps/saison/composants/debrief"
 import { FinEpreuve } from "@/apps/saison/composants/fin-epreuve"
 import { STATUTS_PARTIS } from "@/apps/saison/regles-resultats"
+import { coutDeLEpreuve } from "@/apps/budget/liaisons-serveur"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { aAuMoins } from "@/core/droits/niveaux"
 import { LIBELLE_STATUT_ENGAGEMENT } from "@/apps/saison/libelles"
@@ -30,6 +31,8 @@ export default async function PageEngagement({ params }: { params: Promise<{ id:
   const choix = peutEcrire ? await listerChoixEngagement() : null
   // Fin d'épreuve : seulement pour un résultat validé. Débriefs : filtrés côté serveur selon le rôle.
   const fin = await lireFinDEpreuve(id)
+  // Coût de l'épreuve : Budget le fournit si l'app est activée et que le membre y a accès ; sinon rien.
+  const coutEpreuve = fin ? await coutDeLEpreuve(engagement.epreuve.id) : null
   const debriefs = await lireDebriefs(id)
   const apresEpreuve = (STATUTS_PARTIS as readonly string[]).includes(engagement.statut)
   const monDebrief = debriefs.find((debrief) => debrief.estMoi) ?? null
@@ -72,6 +75,7 @@ export default async function PageEngagement({ params }: { params: Promise<{ id:
           aDebrief={fin.aDebrief}
           peutDebriefer={peutEcrire}
           sansPreuve={fin.sansPreuve}
+          coutEpreuve={coutEpreuve}
         />
       )}
 

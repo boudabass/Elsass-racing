@@ -17,7 +17,8 @@ import type { ClientTeam, DeclarationSynchro, EtatLigneSynchro, Tx } from "@/cor
 import { prismaPourTeam } from "@/lib/prisma"
 
 import { aRembourser, confirmeeDOffice } from "./regles"
-import { emettreDepenseSynchronisee } from "./services-serveur"
+import { emettreDepenseSynchronisee, emettreSoldeDepenseSynchronise } from "./services-serveur"
+import { modifierDepenseTx, supprimerDepenseTx } from "./depenses-tx"
 
 const DATE_CIVILE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -43,6 +44,18 @@ function socle(ligne: Socle) {
   }
 }
 
+// Saison de la dépense : celle de l'épreuve, sinon celle dont les dates contiennent le jour.
+async function saisonDeLaDepense(tx: Tx, ctx: ContexteTeam, eventId: string | null, date: string): Promise<string | null> {
+  if (eventId) {
+    const epreuve = await tx.coreEvent.findFirst({ where: { id: eventId, teamId: ctx.teamId, deletedAt: null }, select: { seasonId: true } })
+    if (!epreuve) throw new RefusSynchro("Épreuve introuvable dans cette team.")
+    return epreuve.seasonId
+  }
+  const jour = new Date(`${date}T00:00:00Z`)
+  const saison = await tx.coreSeason.findFirst({ where: { teamId: ctx.teamId, deletedAt: null, dateDebut: { lte: jour }, dateFin: { gte: jour } }, select: { id: true } })
+  return saison?.id ?? null
+}
+
 function refusLectureSeule(): never {
   throw new RefusSynchro("Cette donnée se lit seulement hors ligne : elle ne s'écrit pas depuis l'appareil.")
 }
@@ -55,6 +68,7 @@ const schemaDepense = z
     libelle: z.string().trim().max(200, "Libellé trop long.").nullable().optional(),
     payerId: z.string().uuid(),
     eventId: z.string().uuid().nullable().optional(),
+    entryId: z.string().uuid().nullable().optional(),
     moyen: z.enum(["carte", "especes", "cheque", "virement"]).nullable().optional(),
   })
   .strict()
@@ -145,6 +159,7 @@ const budgetExpenseSynchro: DeclarationSynchro = {
         payerId: donnees.payerId,
         moyen: donnees.moyen ?? null,
         eventId: donnees.eventId ?? null,
+        entryId: donnees.entryId ?? null,
         seasonId,
         confirmee: confirmeeDOffice("saisie"),
         aRembourser: rembourse,
@@ -155,14 +170,41 @@ const budgetExpenseSynchro: DeclarationSynchro = {
       },
     })
   },
-  async modifier() {
-    throw new RefusSynchro("Une dépense saisie ne se modifie pas depuis l'appareil : corrige-la depuis l'écran en ligne.")
+  async modifier(tx: Tx, ctx: ContexteTeam, id, champs) {
+    const donnees = schemaDepense.parse(champs)
+    const niveau = await niveauDe(ctx, "budget")
+    const categorie = await tx.budgetCategory.findFirst({ where: { id: donnees.categoryId, teamId: ctx.teamId }, select: { nom: true } })
+    const seasonId = await saisonDeLaDepense(tx, ctx, donnees.eventId ?? null, donnees.date)
+    await modifierDepenseTx(
+      tx,
+      ctx,
+      id,
+      {
+        montant: donnees.montant,
+        categoryId: donnees.categoryId,
+        libelle: donnees.libelle || categorie?.nom || "",
+        payerId: donnees.payerId,
+        date: new Date(`${donnees.date}T00:00:00Z`),
+        eventId: donnees.eventId ?? null,
+        entryId: donnees.entryId ?? null,
+        seasonId,
+        moyen: donnees.moyen ?? null,
+      },
+      niveau,
+    )
+    return true
   },
-  async supprimer() {
-    throw new RefusSynchro("Une dépense saisie ne se supprime pas depuis l'appareil : demande-le depuis l'écran en ligne.")
+  async supprimer(tx: Tx, ctx: ContexteTeam, id) {
+    const niveau = await niveauDe(ctx, "budget")
+    await supprimerDepenseTx(tx, ctx, id, niveau)
+    return true
   },
-  // Après la validation : événements de la dépense (même règle qu'en ligne).
-  apresApplication: emettreDepenseSynchronisee,
+  // Après la validation : ce qui a été créé émet les événements de la dépense ; une modification ou une
+  // suppression prévient le solde du payeur (même règle qu'en ligne).
+  apresApplication: async (ctx: ContexteTeam, id: string, type: "creer" | "modifier" | "supprimer") => {
+    if (type === "creer") return emettreDepenseSynchronisee(ctx, id)
+    return emettreSoldeDepenseSynchronise(ctx, id)
+  },
 }
 
 // Référentiels lus hors ligne : catégories et payeurs de la team.
