@@ -42,6 +42,7 @@ Ce fichier ne contient que les règles, les pièges et l'état actuel. Le récit
 - CSP : `worker-src 'self'` explicite. `'strict-dynamic'` annule `'self'` dans `script-src`.
 - Une Server Action en vol ne survit pas à `router.replace`.
 - `pnpm-workspace.yaml` doit lister `allowBuilds` pour prisma, @prisma/engines et sharp.
+- Un `$` dans une valeur de `.env.local` doit être écrit `\$` : Next interprète les `$` comme des variables (dotenv-expand) alors que dotenv seul, utilisé par les scripts, ne le fait pas. Symptôme vécu : SMTP 535 dans l'app, envoi correct depuis un script. Dans Coolify, les variables ne sont pas expansées : y mettre la valeur brute.
 
 ## État actuel
 
