@@ -1,0 +1,24 @@
+// Règle de contribution : au niveau contribution, on n'écrit que ses propres lignes (celles dont
+// created_by est le compte courant). Au-dessus, on écrit toutes les lignes de la table.
+
+import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
+
+export type VerdictEcriture = { ok: true } | { ok: false; raison: string }
+
+export interface ParametresEcriture {
+  niveau: Niveau
+  contributionPropre: boolean
+  // Auteur de la ligne visée (created_by). Vide pour une création : c'est l'auteur qui sera posé.
+  auteurId: string | null
+  userId: string
+  creation: boolean
+}
+
+export function peutEcrire({ niveau, contributionPropre, auteurId, userId, creation }: ParametresEcriture): VerdictEcriture {
+  if (!aAuMoins(niveau, "contribution")) {
+    return { ok: false, raison: "Tu n'as pas le droit d'écrire ici." }
+  }
+  if (creation || !contributionPropre || niveau !== "contribution") return { ok: true }
+  if (auteurId !== userId) return { ok: false, raison: "Tu ne peux modifier que tes propres éléments." }
+  return { ok: true }
+}

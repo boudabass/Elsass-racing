@@ -15,6 +15,7 @@ import { ConteneurBoite } from "@/components/qg/conteneur-boite"
 import { Navigation } from "@/components/qg/navigation"
 import { entreesDuMenuPlus } from "@/components/qg/entrees-plus"
 import { RaccourciRecherche } from "@/components/qg/raccourci-recherche"
+import { SynchroProvider } from "@/core/synchro/client/react"
 import { Inbox } from "@/components/qg/icones"
 
 // Espace connecté : QG, apps, recherche. Charge une fois les données de la requête.
@@ -73,6 +74,7 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
   const afficherBandeau = enCours && proposeBandeau && !terrain && !bandeauRefuse
 
   return (
+    <SynchroProvider userId={contexte.userId} teamId={contexte.teamId}>
     <div className="min-h-dvh overflow-x-hidden bg-fond text-texte">
       <BarreHaute
         donnees={{
@@ -96,5 +98,6 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
       {afficherBandeau && epreuve && <BandeauTerrain epreuve={epreuve.nom} />}
       <RaccourciRecherche />
     </div>
+    </SynchroProvider>
   )
 }

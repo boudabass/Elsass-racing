@@ -1186,3 +1186,24 @@ model SettingsDeletionRequest {
   @@index([exportId])
   @@map("settings_deletion_request")
 }
+
+// Opérations de synchronisation déjà traitées. Une même idOperation rejouée n'est jamais
+// réappliquée : on renvoie le résultat déjà noté (cf. src/core/synchro/pousser.ts).
+model CoreSyncOperation {
+  id          String   @id @db.Uuid
+  teamId      String   @map("team_id") @db.Uuid
+  deviceId    String   @map("device_id") @db.Uuid
+  idOperation String   @unique @map("id_operation") @db.Uuid
+  resultat    Json
+  appliqueeAt DateTime @map("applique_at") @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  @@index([teamId])
+  @@map("core_sync_operation")
+}

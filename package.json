@@ -18,6 +18,7 @@
     "team:creer": "tsx scripts/creer-team.ts",
     "db:verifier-rls": "tsx scripts/verifier-cloisonnement.ts",
     "db:verifier-bus": "tsx scripts/verifier-bus.ts",
+    "db:verifier-synchro": "tsx scripts/verifier-synchro.ts",
     "donnees:koehling": "tsx scripts/donnees-koehling.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
@@ -54,6 +55,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "idb": "^8.0.4",
     "jose": "^6.2.12",
     "lucide-react": "^0.511.0",
     "next": "15.5.27",
