@@ -26,9 +26,11 @@ import {
   saisirDebrief,
   creerSaison,
   cloturerSaison,
+  enregistrerRecce,
   type EntreeInfos,
 } from "./services-serveur"
 import { parserDuree } from "./regles-resultats"
+import { instantParis } from "./regles"
 
 export type Resultat = { ok: true; id?: string } | { ok: false; message: string }
 
@@ -86,12 +88,12 @@ function dateCivile(donnees: FormData, cle: string): string | null {
   return textePlein(donnees, cle)
 }
 
-// Date et heure d'un champ datetime-local (fuseau de Paris), en ISO.
+// Date et heure d'un champ datetime-local (fuseau de Paris, heure d'été ou d'hiver), en ISO.
 function instant(donnees: FormData, cle: string): string | null {
   const brut = textePlein(donnees, cle)
   if (!brut) return null
-  const date = new Date(`${brut}:00+02:00`)
-  if (Number.isNaN(date.getTime())) throw new ErreurSaison("Date et heure invalides.")
+  const date = instantParis(brut)
+  if (!date) throw new ErreurSaison("Date et heure invalides.")
   return date.toISOString()
 }
 
@@ -262,4 +264,20 @@ export async function creerSaisonAction(_etat: Resultat | null, donnees: FormDat
 
 export async function cloturerSaisonAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executer(() => cloturerSaison(texte(donnees, "seasonId")))
+}
+
+// --- Tâche 2.4 : reconnaissances ---
+
+export async function enregistrerRecceAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(() =>
+    enregistrerRecce(texte(donnees, "eventId"), {
+      debutAutorise: instant(donnees, "debutAutorise"),
+      finAutorisee: instant(donnees, "finAutorisee"),
+      passagesAutorises: entier(donnees, "passagesAutorises"),
+      vitesseMax: entier(donnees, "vitesseMax"),
+      vehiculeId: textePlein(donnees, "vehiculeId"),
+      plaqueRecue: donnees.get("plaqueRecue") === "on",
+      consignes: textePlein(donnees, "consignes"),
+    }),
+  )
 }

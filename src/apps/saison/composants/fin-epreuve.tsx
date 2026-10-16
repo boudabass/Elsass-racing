@@ -1,12 +1,8 @@
+import { LIBELLE_STATUT_RESULTAT } from "@/apps/saison/libelles"
+
 // Écran de fin d'épreuve : construit uniquement avec des données validées et existantes.
 // Garde-fous de l'article 953 : du positif seulement, rien de bloquant. Le coût n'apparaît pas
 // tant que Budget n'existe pas (pas de zéro trompeur).
-const LIBELLE_STATUT: Record<string, string> = {
-  arrivee: "Arrivée",
-  abandon: "Abandon",
-  exclusion: "Exclusion",
-  forfait: "Forfait",
-}
 
 export function FinEpreuve({
   epreuve,
@@ -40,7 +36,7 @@ export function FinEpreuve({
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
         <dt className="text-texte-discret">Résultat officiel</dt>
         <dd className="font-medium">
-          {LIBELLE_STATUT[statutFinal] ?? statutFinal}
+          {LIBELLE_STATUT_RESULTAT[statutFinal as keyof typeof LIBELLE_STATUT_RESULTAT] ?? statutFinal}
           {sansPreuve ? " · sans preuve" : ""}
         </dd>
         <dt className="text-texte-discret">Classement général</dt>

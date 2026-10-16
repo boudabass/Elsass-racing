@@ -222,3 +222,76 @@ Bloc « Débrief de l'épreuve » en tête de la fiche engagement, seulement pou
 - **Recalcul de « clôture proposée »** : émise au recalcul, sans relance. Si le responsable écarte l'action, elle ne revient pas.
 - **Entrée « Résultats à valider » dans le menu de l'app** : le compteur et le lien sont sur le calendrier ; le menu d'app du manifeste n'est pas modifié.
 - **Rouverture de l'action** : si la règle refuse une décision, l'action redevient en attente, sans message à l'écran. Le membre la verra revenir.
+
+## Préparation, reconnaissances, rappels, widgets et hors ligne (tâche 2.4)
+
+### Retouches de la 2.3 (section 0 du brief)
+
+- **Clôture proposée sur une saison clôturée** : la clôture lève l'action `cloture_saison:<seasonId>`, et `clotureProposee(epreuves, saisonCloturee)` renvoie faux pour une saison clôturée (test dans `regles.test.ts`).
+- **Écritures sur une saison clôturée** : `lireEpreuve`, `lireEngagement` et `lireReconnaissances` renvoient `saisonCloturee`. Les écrans n'affichent aucun bouton d'écriture, Contester et Valider compris (`droitsResultat` reçoit l'état d'ouverture). Les services refusaient déjà.
+- **Libellés** : `src/apps/saison/libelles.ts` porte tous les libellés (statuts, types, modes de paiement, points, rôles). `libelles.test.ts` lit `prisma/schema.prisma` et vérifie que chaque valeur d'énumération Saison a son libellé.
+- **Onglets** : `composants/onglets.tsx` défile horizontalement ; l'onglet actif est ramené dans la vue.
+- **Refus de décision** : la règle refusée écrit son motif dans `core_action.message_refus` (migration `action_message_refus`) et remet l'action en attente. La carte de la boîte affiche le motif en alerte. Une nouvelle décision ou une réouverture efface le motif.
+- **Menu d'app** : Calendrier (`/`), Résultats à valider (`/a-valider`), Historique (`/historique`).
+- **Correctif** : les lectures figeaient le rôle de l'acteur à « responsable », ce qui donnait à l'équipage le droit de valider sa propre saisie dans l'écran. Le rôle réel est lu désormais.
+- **Correctif** : l'heure saisie (`instantParis`) suit l'heure d'été et d'hiver. Le décalage fixe à +02:00 était faux après le 25 octobre.
+
+### Prêt pour l'épreuve ?
+
+- Onglet de la fiche épreuve, un panneau par engagement (`composants/preparation.tsx`). Indice en grand, cinq points (paiement, licences, homologations, papiers, pièces), « Pas encore suivi » quand la ligne n'existe pas, et les éléments « à côté » (fiabilité, check-lists, présents) affichés « Pas encore suivi ».
+- Règle pure `preparation.ts` : le paiement existe toujours (lu sur l'inscription) ; un point non suivi n'entre pas dans l'indice. Pas d'indice sans point suivi.
+- Signaux (`services-serveur.ts`, `signalerPreparation`) : `equipe.licence_expire_bientot`, `equipe.homologation_expire_bientot`, `voiture.papier_expire_bientot`, `garage.piece_zone_rouge`. Charge utile : `{ detail?, regle?, vehicleId?, personId? }`. Sans `regle: true`, le point est ouvert ; avec, il est réglé. Périmètre : les engagements à venir (épreuve envisagée ou en cours, engagement envisagé, inscrit ou payé) de la voiture, de l'équipage (pilote ou copilote), ou de toute la team.
+- **À confirmer par les apps Équipe et Voiture** : cette charge utile est une convention de Saison. Le catalogue ne la décrit pas.
+
+### Reconnaissances
+
+- `saison_recce` : une par épreuve (créneau, passages, vitesse, véhicule de reco, plaque, consignes). Le véhicule doit être de type `reco`, actif, de la team.
+- `saison_recce_session` : sorties (date, présents, spéciales reconnues, passages, notes). Écrites par la synchro (voir hors ligne). Hors créneau : une information affichée, jamais un blocage (`reconnaissances.ts`).
+
+### Rappels
+
+- Règle pure `rappels.ts` (`rappelsDues`) : renvoie les clés attendues. `recalculerRappels`, appelée par `recalculerDans`, crée celles qui manquent et lève les autres (`action_levee`).
+- Une clé déjà présente, même décidée, n'est jamais recréée. Seule la relance de validation met à jour son action.
+- Fenêtres : clôture des engagements J-14 (de J-14 à J-8), puis J-7 (de J-7 au jour de clôture), tant qu'un engagement n'est pas payé ; reconnaissance J-3 ; programme du jour, le matin (ou dès qu'il existe) ; résultat à saisir à partir du lendemain de la fin, tant qu'il n'y a pas de résultat ; relance de validation 48 heures après la saisie, tant que le résultat n'est pas validé (même clé que la demande de validation, priorité 6).
+- Priorités : clôture et résultat à saisir 2, validation 3, reconnaissance et programme 7, relance 6 (table de l'article 960, `prochaine-etape.ts`).
+
+### Widgets et prochaine épreuve
+
+- `widgets-serveur.ts` : prochaine épreuve, préparation de la prochaine épreuve, résultats à valider, bilan de la saison. Pas d'affichage (le Tableau de bord arrive au lot 6). Les résumés sont dans `widgets.ts`.
+- **Source unique de la prochaine épreuve** : `prochaineEpreuveDeLEquipe` sert au QG (compte à rebours de la barre haute, bouton Prochaine étape) et au calendrier. Le QG ne fait plus sa propre requête.
+
+### Hors ligne (synchro)
+
+Déclarations dans `synchro-serveur.ts`, registre dans `registre.ts` :
+
+| Table | Lecture | Écriture | Note |
+|---|---|---|---|
+| `core_event` | lecture | non | lecture seule (`lectureSeule`) |
+| `saison_stage` | lecture | non | lecture seule |
+| `saison_schedule_item` | lecture | non | lecture seule |
+| `saison_recce` | lecture | non | lecture seule (les règles de reco s'écrivent en ligne) |
+| `saison_recce_session` | lecture | contribution propre | refusée si la saison est clôturée |
+| `saison_debrief` | niveau `contribution` | contribution propre | l'assistance ne reçoit jamais le débrief |
+
+- `lectureSeule` : `pousser.ts` refuse toute opération sur ces tables, avec un message en français.
+- Un refus métier levé dans la transaction (`RefusSynchro`) rend `refusee` avec son message ; rien n'est écrit.
+- Le client (`base.ts`) passe en version 2 de la base locale : les nouveaux magasins sont ajoutés à une base existante.
+- Écrans : programme et spéciales lus dans la base locale (`composants/programme-hors-ligne.tsx`, repli sur le rendu serveur) ; sorties de reco lues et écrites dans la base locale (`composants/reconnaissances.tsx`).
+- Préchargement du service worker : les pages `?onglet=programme` et `?onglet=reconnaissances` de la prochaine épreuve (`layout.tsx`, `enregistrement-sw.tsx`).
+
+### Vérifications
+
+- `pnpm test` : règles pures (préparation, rappels, reconnaissances, widgets, libellés, heure de Paris).
+- `db:verifier-bus` : signaux de préparation (papiers, pièces, licence), signal pour une autre voiture sans effet, refus d'une décision (action en attente, motif gardé), relance de validation après 48 heures.
+- `db:verifier-synchro` : registre, lecture seule refusée, sortie écrite par l'équipage, sortie refusée à l'assistance, débrief privé (jamais reçu par l'assistance), saison clôturée refusée.
+- `db:verifier-rls` : inchangé, aucune nouvelle table.
+- E2E `e2e/saison-hors-ligne.spec.ts` (projet « hors-ligne ») : programme affiché en mode avion ; sortie de reco saisie hors ligne, affichée tout de suite, puis en base au retour du réseau. Ce même fichier produit les captures `docs/captures/saison-pret-*` et `saison-reconnaissances-*`.
+
+### Non fait ou à trancher
+
+- **Saisie hors ligne du débrief** : la déclaration `saison_debrief` existe et est vérifiée, mais l'écran de débrief reste en ligne.
+- **Widgets** : les lectures sont écrites et leurs résumés testés ; les lectures en base ne sont pas couvertes par un test dédié (elles passent par le QG, couvert par les e2e).
+- **Charge utile des signaux de préparation** : à confirmer avec les apps Équipe et Voiture (voir plus haut).
+- **Destinataires figés par membership** : un équipier ajouté après l'émission ne reçoit pas les rappels déjà émis (accepté, limite connue).
+- **Clôture écartée** : la proposition de clôture n'est pas relancée une fois écartée (accepté, limite connue).
+- **Fichiers de preuve** : hors périmètre tant que le lot 5 n'envoie pas de fichiers.

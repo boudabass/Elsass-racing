@@ -72,6 +72,8 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
 
   // Bandeau « jour d'épreuve » : épreuve en cours aujourd'hui, pas en mode terrain, pas refusé aujourd'hui.
   const epreuve = donnees.prochaineEpreuve
+  // Pages de la prochaine épreuve, préchargées pour la spéciale (programme et reconnaissances).
+  const pagesHorsLigne = epreuve ? [`/apps/saison/epreuves/${epreuve.id}?onglet=programme`, `/apps/saison/epreuves/${epreuve.id}?onglet=reconnaissances`] : []
   const jour = new Date(`${aujourdhui}T00:00:00Z`)
   const enCours = epreuve !== null && epreuve.dateDebut <= jour && epreuve.dateFin >= jour
   const bandeauRefuse = magasin.get(COOKIE_BANDEAU_TERRAIN)?.value === aujourdhui
@@ -79,7 +81,7 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
 
   return (
     <SynchroProvider userId={contexte.userId} teamId={contexte.teamId}>
-    <EnregistrementSW />
+    <EnregistrementSW pages={pagesHorsLigne} />
     <NavigationHorsLigne />
     <div className="min-h-dvh overflow-x-hidden bg-fond text-texte">
       <BarreHaute

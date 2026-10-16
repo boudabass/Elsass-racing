@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  instantParis,
   causeAbandonEngagement,
   clotureProposee,
   indicePreparation,
@@ -299,6 +300,12 @@ describe("clotureProposee", () => {
   it("fausse sans épreuve active", () => {
     expect(clotureProposee([epreuve("2026-11-11", "annulee", [])])).toBe(false)
   })
+
+  it("ne propose jamais la clôture d'une saison déjà clôturée", () => {
+    const saison = [epreuve("2026-10-10", "terminee", [engagement("arrivee", "valide")])]
+    expect(clotureProposee(saison, false)).toBe(true)
+    expect(clotureProposee(saison, true)).toBe(false)
+  })
 })
 
 describe("masquerMontants", () => {
@@ -320,5 +327,19 @@ describe("masquerMontants", () => {
   it("ne modifie pas l'objet d'origine", () => {
     masquerMontants(registration, "lecture")
     expect(registration.montantDu).toBe(4500)
+  })
+})
+
+describe("instantParis", () => {
+  it("heure d'été : 10 h à Paris = 08 h UTC", () => {
+    expect(instantParis("2026-10-10T10:00")?.toISOString()).toBe("2026-10-10T08:00:00.000Z")
+  })
+
+  it("heure d'hiver : 10 h à Paris = 09 h UTC, après le retour à l'heure d'hiver", () => {
+    expect(instantParis("2026-10-26T10:00")?.toISOString()).toBe("2026-10-26T09:00:00.000Z")
+  })
+
+  it("une saisie invalide n'est pas une date", () => {
+    expect(instantParis("pas une date")).toBeNull()
   })
 })

@@ -6,18 +6,13 @@ import { compterResultatsAValider, listerEpreuves, listerSaisons } from "@/apps/
 import { FiltresCalendrier } from "@/apps/saison/composants/filtres"
 import { resteAFaire } from "@/apps/saison/reste-a-faire"
 import { jourCivil, jourDeParis, prochaineEpreuve, type StatutEpreuve } from "@/apps/saison/regles"
+import { LIBELLE_STATUT_EPREUVE, LIBELLE_TYPE_EPREUVE, libelle } from "@/apps/saison/libelles"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { aAuMoins } from "@/core/droits/niveaux"
 
 // Calendrier de Saison : liste par défaut, vue mois en bascule, filtres saison, type, statut.
 // Les filtres sont des formulaires GET : l'écran fonctionne sans JavaScript.
 
-const LIBELLE_STATUT: Record<StatutEpreuve, string> = {
-  envisagee: "À venir",
-  en_cours: "En cours",
-  terminee: "Terminée",
-  annulee: "Annulée",
-}
 
 const COULEUR_STATUT: Record<StatutEpreuve, string> = {
   envisagee: "text-texte-discret",
@@ -26,14 +21,6 @@ const COULEUR_STATUT: Record<StatutEpreuve, string> = {
   annulee: "text-etat-rouge",
 }
 
-const TYPES: Record<string, string> = {
-  rallye: "Rallye",
-  slalom: "Slalom",
-  course_de_cote: "Course de côte",
-  expo: "Expo",
-  roulage: "Roulage",
-  autre: "Autre",
-}
 
 const formatJour = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" })
 
@@ -133,8 +120,8 @@ export default async function PageCalendrier({
           saisonId={saisonId}
           type={parametres.type ?? ""}
           statut={parametres.statut ?? ""}
-          types={TYPES}
-          statuts={LIBELLE_STATUT}
+          types={LIBELLE_TYPE_EPREUVE}
+          statuts={LIBELLE_STATUT_EPREUVE}
         />
         <div className="ml-auto flex gap-2">
           <Link
@@ -171,12 +158,12 @@ export default async function PageCalendrier({
                   <span className="flex flex-col">
                     <span className="font-medium">{epreuve.nom}</span>
                     <span className="text-sm text-texte-discret">
-                      {TYPES[epreuve.type] ?? epreuve.type}
+                      {libelle(LIBELLE_TYPE_EPREUVE, epreuve.type)}
                       {epreuve.lieu ? ` · ${epreuve.lieu}` : ""}
                     </span>
                   </span>
                   <span className="flex flex-col items-start gap-1 text-sm sm:items-end">
-                    <span className={COULEUR_STATUT[epreuve.statut]}>{LIBELLE_STATUT[epreuve.statut]}</span>
+                    <span className={COULEUR_STATUT[epreuve.statut]}>{LIBELLE_STATUT_EPREUVE[epreuve.statut]}</span>
                     {reste && <span className="font-medium text-etat-orange">{reste}</span>}
                   </span>
                 </Link>

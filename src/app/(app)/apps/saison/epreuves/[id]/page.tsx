@@ -3,7 +3,10 @@ import { notFound } from "next/navigation"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/saison/ecran"
-import { lireEpreuve, lireResultatsEpreuve, listerChoixEngagement, listerContacts } from "@/apps/saison/lectures-serveur"
+import { lireEpreuve, lirePreparation, lireReconnaissances, lireResultatsEpreuve, listerChoixEngagement, listerContacts } from "@/apps/saison/lectures-serveur"
+import { PanneauPreparation } from "@/apps/saison/composants/preparation"
+import { PanneauReconnaissances } from "@/apps/saison/composants/reconnaissances"
+import { ProgrammeHorsLigne } from "@/apps/saison/composants/programme-hors-ligne"
 import {
   BoutonAnnulerEpreuve,
   FormulaireEngagement,
@@ -17,7 +20,15 @@ import {
   FormulairePreuve,
   FormulaireResultat,
 } from "@/apps/saison/composants/resultats"
-import { COULEUR_VALIDATION, LIBELLE_VALIDATION, formaterDuree } from "@/apps/saison/regles-resultats"
+import { COULEUR_VALIDATION, formaterDuree } from "@/apps/saison/regles-resultats"
+import {
+  LIBELLE_STATUT_ENGAGEMENT,
+  LIBELLE_STATUT_RESULTAT,
+  LIBELLE_TYPE_PROGRAMME,
+  LIBELLE_VALIDATION_RESULTAT,
+  libelle,
+} from "@/apps/saison/libelles"
+import { Onglets } from "@/apps/saison/composants/onglets"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { aAuMoins } from "@/core/droits/niveaux"
 
@@ -26,19 +37,12 @@ import { aAuMoins } from "@/core/droits/niveaux"
 const ONGLETS = [
   { cle: "infos", libelle: "Infos" },
   { cle: "engagements", libelle: "Engagements" },
+  { cle: "pret", libelle: "Prêt pour l'épreuve ?" },
   { cle: "programme", libelle: "Programme" },
+  { cle: "reconnaissances", libelle: "Reconnaissances" },
   { cle: "resultats", libelle: "Résultats" },
 ] as const
 
-const LIBELLE_ENGAGEMENT: Record<string, string> = {
-  envisage: "Envisagé",
-  inscrit: "Inscrit",
-  paye: "Payé",
-  parti: "Parti",
-  arrivee: "Arrivé",
-  abandon: "Abandon",
-  forfait: "Forfait",
-}
 
 const formatJour = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
 
@@ -58,11 +62,14 @@ export default async function PageEpreuve({
   const fiche = await lireEpreuve(id)
   if (!fiche) notFound()
 
-  const { niveau, epreuve, infos, speciales, programme, kmChronometresTotal, engagements } = fiche
-  const peutEcrire = aAuMoins(niveau, "ecriture")
+  const { niveau, saisonCloturee, epreuve, infos, speciales, programme, engagements } = fiche
+  // Saison clôturée : plus aucun bouton d'écriture, nulle part dans la fiche.
+  const peutEcrire = aAuMoins(niveau, "ecriture") && !saisonCloturee
   const choix = peutEcrire ? await listerChoixEngagement() : null
   const contacts = peutEcrire ? (await listerContacts()).contacts : []
   const resultats = onglet === "resultats" ? await lireResultatsEpreuve(id) : null
+  const preparation = onglet === "pret" ? await lirePreparation(id) : null
+  const reco = onglet === "reconnaissances" ? await lireReconnaissances(id) : null
   const annulee = epreuve.statut === "annulee"
 
   return (
@@ -79,18 +86,7 @@ export default async function PageEpreuve({
         </p>
       </header>
 
-      <nav className="flex gap-2 border-b border-bordure" aria-label="Onglets de l'épreuve">
-        {ONGLETS.map((tab) => (
-          <Link
-            key={tab.cle}
-            href={`/apps/saison/epreuves/${id}?onglet=${tab.cle}`}
-            aria-current={onglet === tab.cle ? "page" : undefined}
-            className={`min-h-11 px-3 py-2 ${onglet === tab.cle ? "border-b-2 border-marque font-medium" : "text-texte-discret"}`}
-          >
-            {tab.libelle}
-          </Link>
-        ))}
-      </nav>
+      <Onglets base={`/apps/saison/epreuves/${id}`} onglets={ONGLETS} actif={onglet} />
 
       {onglet === "infos" && (
         <div className="flex flex-col gap-6">
@@ -167,7 +163,7 @@ export default async function PageEpreuve({
                   <span className="text-sm text-texte-discret">
                     {[engagement.pilote, engagement.copilote].filter(Boolean).join(" / ") || "Équipage non renseigné"}
                     {" · "}
-                    {LIBELLE_ENGAGEMENT[engagement.statut] ?? engagement.statut}
+                    {LIBELLE_STATUT_ENGAGEMENT[engagement.statut as keyof typeof LIBELLE_STATUT_ENGAGEMENT] ?? engagement.statut}
                   </span>
                 </Link>
               </li>
@@ -182,42 +178,34 @@ export default async function PageEpreuve({
         </div>
       )}
 
+      {onglet === "pret" && preparation && (
+        <PanneauPreparation engagements={preparation.engagements} />
+      )}
+
+      {onglet === "reconnaissances" && reco && (
+        <PanneauReconnaissances
+          donnees={{
+            eventId: id,
+            peutEcrire: aAuMoins(reco.niveau, "ecriture") && !reco.saisonCloturee,
+            recce: reco.recce,
+            speciales: reco.speciales,
+            personnes: reco.personnes,
+            vehicules: reco.vehicules,
+          }}
+        />
+      )}
+
       {onglet === "programme" && (
         <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <h2 className="font-medium">Spéciales</h2>
-            <ul className="flex flex-col gap-1 text-sm">
-              {speciales.length === 0 && <li className="text-texte-discret">Aucune spéciale saisie.</li>}
-              {speciales.map((stage) => (
-                <li key={stage.id} className="tabular-nums">
-                  {stage.numero}. {stage.nom}
-                  {stage.longueurKm ? ` · ${stage.longueurKm.toString()} km` : ""}
-                  {stage.nbPassages ? ` · ${stage.nbPassages} passage(s)` : ""}
-                </li>
-              ))}
-              <li className="font-medium tabular-nums">Total chronométré : {kmChronometresTotal.toFixed(1)} km</li>
-            </ul>
-            {peutEcrire && !annulee && <FormulaireSpeciale eventId={id} />}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <h2 className="font-medium">Programme du week-end</h2>
-            <ul className="flex flex-col gap-1 text-sm">
-              {programme.length === 0 && <li className="text-texte-discret">Programme vide.</li>}
-              {programme.map((item) => (
-                <li key={item.id} className="tabular-nums">
-                  {item.heurePrevue
-                    ? new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }).format(item.heurePrevue)
-                    : "--:--"}{" "}
-                  · {item.type.replace(/_/g, " ")}
-                  {item.lieu ? ` · ${item.lieu}` : ""}
-                </li>
-              ))}
-            </ul>
-            {peutEcrire && !annulee && (
-              <FormulaireProgramme eventId={id} specialesIds={speciales.map((stage) => ({ id: stage.id, nom: stage.nom }))} />
-            )}
-          </div>
+          <ProgrammeHorsLigne
+            eventId={id}
+            specialesInitiales={speciales.map((stage) => ({ id: stage.id, numero: stage.numero, nom: stage.nom, longueurKm: stage.longueurKm?.toString() ?? null, nbPassages: stage.nbPassages }))}
+            programmeInitial={programme.map((item) => ({ id: item.id, type: item.type, heurePrevue: item.heurePrevue?.toISOString() ?? null, lieu: item.lieu }))}
+          />
+          {peutEcrire && !annulee && <FormulaireSpeciale eventId={id} />}
+          {peutEcrire && !annulee && (
+            <FormulaireProgramme eventId={id} specialesIds={speciales.map((stage) => ({ id: stage.id, nom: stage.nom }))} />
+          )}
         </div>
       )}
       {onglet === "resultats" && resultats && (
@@ -246,7 +234,7 @@ export default async function PageEpreuve({
                   </Link>
                   {resultat && (
                     <p className={`text-sm font-medium ${COULEUR_VALIDATION[resultat.validation] ?? ""}`}>
-                      {LIBELLE_VALIDATION[resultat.validation] ?? resultat.validation}
+                      {libelle(LIBELLE_VALIDATION_RESULTAT, resultat.validation)}
                       {resultat.validation === "valide" && !resultat.preuveLien ? " · sans preuve" : ""}
                     </p>
                   )}
@@ -255,7 +243,7 @@ export default async function PageEpreuve({
                 {resultat && (
                   <dl className="grid gap-1 text-sm sm:grid-cols-2">
                     <dt className="text-texte-discret">Statut final</dt>
-                    <dd>{resultat.statutFinal}</dd>
+                    <dd>{libelle(LIBELLE_STATUT_RESULTAT, resultat.statutFinal)}</dd>
                     <dt className="text-texte-discret">Classement général</dt>
                     <dd>{resultat.classementGeneral ?? "—"}</dd>
                     <dt className="text-texte-discret">Classement de classe</dt>

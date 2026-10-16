@@ -82,11 +82,25 @@ Une ligne lue plus tôt peut disparaître avant l'écriture (appareil déconnect
 - Poussée : une ligne disparue donne `refusee` « Cet élément n'existe plus. », sans journal de conflit.
 - Contrôles : `pnpm db:verifier-synchro` (appareil supprimé entre deux tirages, 401, aucun log ; curseur seul supprimé, recréé).
 
+
+## Tables de Saison hors ligne (tâche 2.4)
+
+Six tables de Saison suivent la procédure de `docs/app-sdk.md`, section 9 (registre, cinq fonctions par table, `TABLES_LOCALES`, schéma local, vérifications).
+
+- **Lecture seule** (`lectureSeule: true` dans la déclaration) : `core_event`, `saison_stage`, `saison_schedule_item`, `saison_recce`. `pousser.ts` refuse toute opération sur ces tables avant même de les lire : elles se reçoivent, elles ne s'écrivent pas depuis l'appareil.
+- **Contribution propre** : `saison_recce_session` (niveau de lecture « lecture », donc l'assistance les voit) et `saison_debrief` (niveau de lecture « contribution », donc l'assistance ne les reçoit jamais). Chacun ne modifie que ses lignes au niveau contribution.
+- **Refus métier** : une règle de Saison (saison clôturée, personne ou spéciale hors de la team ou de l'épreuve, débrief en double) lève `RefusSynchro`. La transaction est annulée, l'opération est notée `refusee` avec son message en français, et l'appareil le montre.
+- **Base locale** : version 2. Une base créée en version 1 reçoit les nouveaux magasins à l'ouverture. Les magasins existants ne sont pas touchés.
+- **Préchargement** : les pages `?onglet=programme` et `?onglet=reconnaissances` de la prochaine épreuve sont demandées au service worker avec les pages clés (`/qg`, `/notes`).
+
+Vérifications : `db:verifier-synchro` (registre, lecture seule refusée, sortie de l'équipage appliquée, sortie de l'assistance refusée, débrief jamais reçu par l'assistance, saison clôturée refusée) et `e2e/saison-hors-ligne.spec.ts` (programme en mode avion, sortie saisie hors ligne puis synchronisée au retour du réseau).
+
+Limite : la saisie hors ligne du débrief n'a pas d'écran à ce jour ; la déclaration existe et est vérifiée.
 ## Limites connues
 
 - Pas de worker en arrière-plan : la synchro tourne dans l'onglet ouvert, et le service worker ne rejoue rien seul.
 - Un changement de niveau ne relance pas un tirage complet : un membre promu garde son curseur, et ne reçoit pas rétroactivement les lignes des autres. À traiter avec un tirage complet lors d'un changement de niveau.
-- Une seule table synchronisable : `core_note`. Les autres apps viendront avec leurs écrans.
+- Tables synchronisables : `core_note` (equipe) et, depuis la tâche 2.4, six tables de Saison (voir la section suivante). Les autres apps viendront avec leurs écrans.
 - Les auteurs sont affichés « Toi » ou « Un membre » : pas encore de nom sur les notes.
 - Le conflit est visible dans le journal de la fiche, pas dans une interface dédiée.
 - Le rejeu d'une écriture n'est sûr que si le serveur a bien reçu la première : l'idempotence repose sur `idOperation`.

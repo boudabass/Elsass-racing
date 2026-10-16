@@ -104,7 +104,10 @@ function reseauDabord(requete) {
     }
     return reponse;
   }).catch(function () {
-    return caches.match(requete, { ignoreSearch: true }).then(function (trouvee) {
+    // Copie exacte d'abord (avec son onglet) ; à défaut, la même page sans paramètres.
+    return caches.match(requete).then(function (exacte) {
+      return exacte || caches.match(requete, { ignoreSearch: true });
+    }).then(function (trouvee) {
       if (trouvee) return trouvee;
       return new Response(PAGE_HORS_LIGNE, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
     });

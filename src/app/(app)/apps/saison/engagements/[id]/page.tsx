@@ -10,18 +10,10 @@ import { FinEpreuve } from "@/apps/saison/composants/fin-epreuve"
 import { STATUTS_PARTIS } from "@/apps/saison/regles-resultats"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { aAuMoins } from "@/core/droits/niveaux"
+import { LIBELLE_STATUT_ENGAGEMENT } from "@/apps/saison/libelles"
 
 // Fiche d'un engagement : voiture, équipage, puis l'inscription. Sous lecture (assistance),
 // l'inscription est lue sans montants ni moyens de paiement, et aucun bouton n'est rendu.
-const LIBELLE_STATUT: Record<string, string> = {
-  envisage: "Envisagé",
-  inscrit: "Inscrit",
-  paye: "Payé",
-  parti: "Parti",
-  arrivee: "Arrivé",
-  abandon: "Abandon",
-  forfait: "Forfait",
-}
 
 export default async function PageEngagement({ params }: { params: Promise<{ id: string }> }) {
   const acces = await accesEcran("lecture")
@@ -32,8 +24,9 @@ export default async function PageEngagement({ params }: { params: Promise<{ id:
   const fiche = await lireEngagement(id)
   if (!fiche) notFound()
 
-  const { niveau, engagement, inscription } = fiche
-  const peutEcrire = aAuMoins(niveau, "ecriture")
+  const { niveau, saisonCloturee, engagement, inscription } = fiche
+  // Saison clôturée : plus aucun bouton d'écriture, débrief compris.
+  const peutEcrire = aAuMoins(niveau, "ecriture") && !saisonCloturee
   const choix = peutEcrire ? await listerChoixEngagement() : null
   // Fin d'épreuve : seulement pour un résultat validé. Débriefs : filtrés côté serveur selon le rôle.
   const fin = await lireFinDEpreuve(id)
@@ -62,7 +55,7 @@ export default async function PageEngagement({ params }: { params: Promise<{ id:
       <header className="flex flex-col gap-1">
         <h1 className="font-titre text-2xl uppercase">{engagement.voiture}</h1>
         <p className="text-sm text-texte-discret">
-          {LIBELLE_STATUT[engagement.statut] ?? engagement.statut}
+          {LIBELLE_STATUT_ENGAGEMENT[engagement.statut as keyof typeof LIBELLE_STATUT_ENGAGEMENT] ?? engagement.statut}
           {engagement.numeroCourse ? ` · n° ${engagement.numeroCourse}` : ""}
         </p>
       </header>

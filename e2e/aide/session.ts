@@ -277,3 +277,12 @@ export async function donnerAccesSaison(equipe: Equipe, membre: Membre, niveau: 
     [newId(), equipe.teamId, membre.membershipId, niveau],
   )
 }
+
+// Sorties de reconnaissance de la team, à une date civile (tâche 2.4 : écrites hors ligne, puis synchronisées).
+export async function sortiesRecceEnBase(equipe: Equipe, date: string): Promise<number> {
+  const { rows } = await bd().query<{ n: number }>(
+    "SELECT count(*)::int AS n FROM saison_recce_session WHERE team_id = $1 AND date = $2::date AND deleted_at IS NULL",
+    [equipe.teamId, date],
+  )
+  return rows[0].n
+}

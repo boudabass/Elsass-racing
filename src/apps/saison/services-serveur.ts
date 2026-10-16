@@ -10,7 +10,9 @@ import { z } from "zod"
 
 import type { Prisma } from "@/generated/prisma/client"
 import type { EpreuvePourCloture } from "./regles"
-import { enregistrerGestionnaire } from "@/core/evenements/gestionnaires"
+import { enregistrerGestionnaire, type EvenementRecu } from "@/core/evenements/gestionnaires"
+import type { PointPreparation } from "./preparation"
+import { rappelsDues, type EpreuveRappel } from "./rappels"
 
 import type { ContexteTeam } from "@/core/contexte"
 import { exigerAcces } from "@/core/droits/garde-serveur"
@@ -696,6 +698,8 @@ export async function cloturerSaisonDans(ctx: ContexteTeam, seasonId: string): P
     data: { clotureeAt: new Date(), enCours: false, rev: { increment: 1 }, updatedBy: ctx.userId },
   })
   await emettre(ctx, "saison.saison_cloturee", { seasonId, annee: saison.annee })
+  // La proposition de clôture n'a plus lieu d'être : son action quitte la boîte.
+  await leverAction(ctx, cleClotureSaison(seasonId))
 }
 
 // --- Recalcul : statuts d'épreuves et d'engagements, prochaine épreuve --------------------
@@ -779,6 +783,7 @@ export async function recalculerDans(ctx: ContexteTeam): Promise<void> {
   }
 
   if (clotureProposee(pourCloture)) await proposerCloture(ctx, saison.id)
+  await recalculerRappels(ctx, saison.id, maintenant)
 
   // La prochaine épreuve se compare à celle du dernier événement émis : pas d'état à part.
   const prochaine = prochaineEpreuve(calculees, maintenant)
@@ -1102,14 +1107,23 @@ async function demanderValidation(ctx: ContexteTeam, entryId: string): Promise<v
   })
 }
 
+function cleClotureSaison(seasonId: string): string {
+  return `cloture_saison:${seasonId}`
+}
+
+// Lève une action de la boîte par sa clé unique (elle passe à annulée).
+async function leverAction(ctx: ContexteTeam, cleUnicite: string): Promise<void> {
+  await emettre(ctx, "saison.action_levee", { cleUnicite })
+}
+
 // Lève l'action de validation (validé ou contesté) : le membre n'a plus rien à faire ici.
 async function lever(ctx: ContexteTeam, entryId: string): Promise<void> {
-  await emettre(ctx, "saison.action_levee", { cleUnicite: cleValidation(entryId) })
+  await leverAction(ctx, cleValidation(entryId))
 }
 
 // Propose la clôture de la saison dans la boîte d'actions, une seule fois (la clé ne se duplique pas).
 async function proposerCloture(ctx: ContexteTeam, seasonId: string): Promise<void> {
-  const cle = `cloture_saison:${seasonId}`
+  const cle = cleClotureSaison(seasonId)
   const existante = await prismaPourTeam(ctx.teamId, ctx.userId).coreAction.findFirst({
     where: { teamId: ctx.teamId, cleUnicite: cle },
     select: { id: true },
@@ -1148,7 +1162,7 @@ async function appliquerDecision(ctx: ContexteTeam, evenement: { donnees: unknow
       await validerResultatDans(ctx, donnees.ficheId)
     } catch (erreur) {
       if (!(erreur instanceof ErreurSaison)) throw erreur
-      await rouvrirAction(client, ctx, donnees.cleUnicite)
+      await rouvrirAction(client, ctx, donnees.cleUnicite, erreur.message)
     }
   }
 
@@ -1157,18 +1171,246 @@ async function appliquerDecision(ctx: ContexteTeam, evenement: { donnees: unknow
       await cloturerSaisonDans(ctx, donnees.ficheId)
     } catch (erreur) {
       if (!(erreur instanceof ErreurSaison)) throw erreur
-      await rouvrirAction(client, ctx, donnees.cleUnicite)
+      await rouvrirAction(client, ctx, donnees.cleUnicite, erreur.message)
     }
   }
 }
 
-async function rouvrirAction(client: ReturnType<typeof prismaPourTeam>, ctx: ContexteTeam, cleUnicite: string | undefined): Promise<void> {
+// La règle a refusé la décision : l'action redevient en attente, avec le motif affiché dans la boîte.
+async function rouvrirAction(
+  client: ReturnType<typeof prismaPourTeam>,
+  ctx: ContexteTeam,
+  cleUnicite: string | undefined,
+  motif: string,
+): Promise<void> {
   if (!cleUnicite) return
   await client.coreAction.updateMany({
     where: { teamId: ctx.teamId, cleUnicite },
-    data: { statut: "en_attente", decision: null, decideeParMembershipId: null, decideeAt: null },
+    data: { statut: "en_attente", decision: null, decideeParMembershipId: null, decideeAt: null, messageRefus: motif, updatedBy: ctx.userId },
   })
 }
 
 // Enregistré à l'import du module : l'app Saison reçoit les décisions de la boîte d'actions.
 enregistrerGestionnaire("saison", "core.action_decidee", appliquerDecision)
+
+// --- Tâche 2.4 : préparation pour l'épreuve (signaux des autres apps) -----------------------------
+
+const schemaSignal = z.object({
+  detail: z.string().trim().max(300).optional(),
+  regle: z.boolean().optional(),
+  vehicleId: z.string().uuid().optional(),
+  personId: z.string().uuid().optional(),
+})
+
+// Un signal pose le point « ouvert » (« réglé » avec regle: true) sur les engagements à venir concernés :
+// ceux de la voiture (vehicleId), de l'équipage (personId), à défaut toute la team. Jamais les épreuves finies.
+export async function signalerPreparation(ctx: ContexteTeam, point: PointPreparation, evenement: EvenementRecu): Promise<void> {
+  const analyse = schemaSignal.safeParse(evenement.donnees ?? {})
+  if (!analyse.success) return
+  const { detail, regle, vehicleId, personId } = analyse.data
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const entrees = await client.coreEventEntry.findMany({
+    where: {
+      teamId: ctx.teamId,
+      deletedAt: null,
+      statut: { in: ["envisage", "inscrit", "paye"] },
+      event: { deletedAt: null, statut: { in: ["envisagee", "en_cours"] } },
+      ...(vehicleId ? { vehicleId } : {}),
+      ...(personId ? { OR: [{ piloteId: personId }, { copiloteId: personId }] } : {}),
+    },
+    select: { id: true },
+  })
+  const statut = regle ? "regle" : "ouvert"
+  for (const { id } of entrees) {
+    await client.saisonReadiness.upsert({
+      where: { entryId_point: { entryId: id, point } },
+      create: {
+        id: newId(),
+        teamId: ctx.teamId,
+        entryId: id,
+        point,
+        statut,
+        detail: detail ?? null,
+        source: evenement.nom,
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
+      },
+      update: { statut, detail: detail ?? null, source: evenement.nom, updatedBy: ctx.userId, rev: { increment: 1 } },
+    })
+  }
+}
+
+enregistrerGestionnaire("saison", "equipe.licence_expire_bientot", (ctx, evenement) => signalerPreparation(ctx, "licences", evenement))
+enregistrerGestionnaire("saison", "equipe.homologation_expire_bientot", (ctx, evenement) => signalerPreparation(ctx, "homologations", evenement))
+enregistrerGestionnaire("saison", "voiture.papier_expire_bientot", (ctx, evenement) => signalerPreparation(ctx, "papiers", evenement))
+enregistrerGestionnaire("saison", "garage.piece_zone_rouge", (ctx, evenement) => signalerPreparation(ctx, "pieces", evenement))
+
+// --- Tâche 2.4 : reconnaissances (règles de la reco, sorties de reco) ----------------------------
+
+const schemaRecce = z.object({
+  debutAutorise: z.string().datetime().nullable().optional(),
+  finAutorisee: z.string().datetime().nullable().optional(),
+  passagesAutorises: z.number().int().min(0).max(99).nullable().optional(),
+  vitesseMax: z.number().int().min(0).max(200).nullable().optional(),
+  vehiculeId: z.string().uuid().nullable().optional(),
+  plaqueRecue: z.boolean().optional(),
+  consignes: z.string().trim().max(2000).nullable().optional(),
+})
+export type EntreeRecce = z.input<typeof schemaRecce>
+
+export async function enregistrerRecce(eventId: string, entree: EntreeRecce): Promise<void> {
+  const { ctx } = await accesSaison("ecriture")
+  return enregistrerRecceDans(ctx, eventId, entree)
+}
+
+// Une seule reco par épreuve : créée à la première saisie, mise à jour ensuite.
+export async function enregistrerRecceDans(ctx: ContexteTeam, eventId: string, entree: EntreeRecce): Promise<void> {
+  const donnees = schemaRecce.parse(entree)
+  await garderSaisonOuverte(ctx, { eventId })
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const epreuve = await client.coreEvent.findFirst({ where: { id: eventId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!epreuve) refus("Épreuve introuvable dans cette team.")
+  if (donnees.vehiculeId) {
+    const vehicule = await client.coreVehicle.findFirst({
+      where: { id: donnees.vehiculeId, teamId: ctx.teamId, type: "reco", actif: true, deletedAt: null },
+      select: { id: true },
+    })
+    if (!vehicule) refus("Le véhicule de reconnaissance doit être un véhicule de type reco, actif, de la team.")
+  }
+
+  const champs = {
+    debutAutorise: donnees.debutAutorise ? new Date(donnees.debutAutorise) : null,
+    finAutorisee: donnees.finAutorisee ? new Date(donnees.finAutorisee) : null,
+    passagesAutorises: donnees.passagesAutorises ?? null,
+    vitesseMax: donnees.vitesseMax ?? null,
+    vehiculeId: donnees.vehiculeId ?? null,
+    plaqueRecue: donnees.plaqueRecue ?? false,
+    consignes: donnees.consignes ?? null,
+  }
+  const existante = await client.saisonRecce.findFirst({ where: { eventId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (existante) {
+    await client.saisonRecce.updateMany({
+      where: { id: existante.id, teamId: ctx.teamId },
+      data: { ...champs, rev: { increment: 1 }, updatedBy: ctx.userId },
+    })
+    return
+  }
+  await client.saisonRecce.create({
+    data: { id: newId(), teamId: ctx.teamId, eventId, ...champs, createdBy: ctx.userId, updatedBy: ctx.userId },
+  })
+}
+
+// --- Tâche 2.4 : rappels (article 960, section 3) ----------------------------------------------
+
+const PREFIXE_RAPPEL = "rappel:"
+
+// Crée les rappels dus qui n'existent pas encore, et lève ceux qui n'ont plus lieu d'être. Une clé
+// déjà présente (même décidée) n'est jamais recréée ; la relance de validation met à jour son action.
+async function recalculerRappels(ctx: ContexteTeam, saisonId: string, maintenant: Date): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const epreuves = await client.coreEvent.findMany({
+    where: { teamId: ctx.teamId, seasonId: saisonId, deletedAt: null, statut: { not: "annulee" } },
+    select: {
+      id: true,
+      nom: true,
+      statut: true,
+      dateDebut: true,
+      dateFin: true,
+      saisonInfo: { select: { engagementsCloture: true } },
+      saisonRecce: { select: { id: true } },
+      entries: {
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          statut: true,
+          piloteId: true,
+          copiloteId: true,
+          saisonResult: { select: { validation: true, createdAt: true, saisiParMembershipId: true } },
+        },
+      },
+    },
+  })
+
+  // Équipage engagé : chaque personne engagée est reliée à son membership actif, s'il en a un.
+  const personnes = Array.from(new Set(epreuves.flatMap((epreuve) => epreuve.entries.flatMap((entree) => [entree.piloteId, entree.copiloteId])))).filter(
+    (id): id is string => id !== null,
+  )
+  const memberships = personnes.length
+    ? await client.coreMembership.findMany({
+        where: { teamId: ctx.teamId, personId: { in: personnes }, statut: "actif", deletedAt: null },
+        select: { id: true, personId: true },
+      })
+    : []
+  const membershipDePersonne = new Map(memberships.map((membre) => [membre.personId, membre.id]))
+  const auteurDeResultat = new Map<string, string | null>()
+
+  const pourRappels: EpreuveRappel[] = epreuves.map((epreuve) => ({
+    id: epreuve.id,
+    nom: epreuve.nom,
+    statut: epreuve.statut as EpreuveRappel["statut"],
+    dateDebut: epreuve.dateDebut,
+    dateFin: epreuve.dateFin,
+    clotureEngagements: epreuve.saisonInfo?.engagementsCloture ?? null,
+    aUneReco: epreuve.saisonRecce !== null,
+    engagements: epreuve.entries.map((entree) => {
+      if (entree.saisonResult) auteurDeResultat.set(entree.id, entree.saisonResult.saisiParMembershipId)
+      return {
+        id: entree.id,
+        statut: entree.statut as StatutEngagement,
+        membershipsEquipage: [entree.piloteId, entree.copiloteId]
+          .map((personne) => (personne ? membershipDePersonne.get(personne) : undefined))
+          .filter((membre): membre is string => membre !== undefined),
+        resultat: entree.saisonResult
+          ? { validation: entree.saisonResult.validation as ValidationResultat, createdAt: entree.saisonResult.createdAt }
+          : null,
+      }
+    }),
+  }))
+
+  const existantes = await client.coreAction.findMany({
+    where: { teamId: ctx.teamId, appOrigine: "saison", cleUnicite: { startsWith: PREFIXE_RAPPEL } },
+    select: { cleUnicite: true },
+  })
+  const dejaCrees = new Set(existantes.map((action) => action.cleUnicite))
+  const dus = rappelsDues(pourRappels, maintenant, dejaCrees)
+
+  for (const rappel of dus) {
+    if (dejaCrees.has(rappel.cle) && !rappel.relance) continue
+    let destinataires: { roles?: string[]; memberships?: string[] }
+    if (rappel.destinataires.kind === "roles") {
+      destinataires = { roles: rappel.destinataires.roles }
+    } else if (rappel.destinataires.kind === "memberships") {
+      destinataires = { memberships: rappel.membershipsEquipage }
+    } else {
+      destinataires = { memberships: await destinatairesValidation(ctx, auteurDeResultat.get(rappel.entryId ?? "") ?? null) }
+    }
+    const membresVises = (destinataires.memberships ?? []).length + (destinataires.roles ?? []).length
+    if (membresVises === 0) continue
+
+    await emettre(ctx, "saison.action_requise", {
+      type: rappel.type,
+      cleUnicite: rappel.cle,
+      titre: rappel.titre,
+      contexte: pourRappels.find((epreuve) => epreuve.id === rappel.eventId)?.nom ?? "Saison",
+      ficheType: rappel.entryId ? "resultat" : "epreuve",
+      ficheId: rappel.entryId ?? rappel.eventId,
+      eventId: rappel.eventId,
+      destinataires,
+      boutons: [{ cle: "compris", libelle: "Compris" }],
+      priorite: rappel.priorite,
+      niveauRequis: "lecture",
+      terrain: rappel.terrain,
+      cleRegroupement: "rappels_saison",
+    })
+  }
+
+  // Levée : un rappel ouvert qui n'est plus dû disparaît de la boîte.
+  const cles = new Set(dus.map((rappel) => rappel.cle))
+  const ouverts = await client.coreAction.findMany({
+    where: { teamId: ctx.teamId, appOrigine: "saison", statut: "en_attente", cleUnicite: { startsWith: PREFIXE_RAPPEL } },
+    select: { cleUnicite: true },
+  })
+  for (const action of ouverts) {
+    if (!cles.has(action.cleUnicite)) await leverAction(ctx, action.cleUnicite)
+  }
+}

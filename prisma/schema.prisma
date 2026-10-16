@@ -931,6 +931,8 @@ model CoreAction {
   decideeParMembershipId String?          @map("decidee_par_membership_id") @db.Uuid
   decideeAt              DateTime?        @map("decidee_at") @db.Timestamptz(3)
   reporteeJusquAu        DateTime?        @map("reportee_jusqu_au") @db.Timestamptz(3)
+  // Refus de la décision par l'app d'origine (règle non remplie) : affiché tant que l'action reste en attente.
+  messageRefus           String?          @map("message_refus")
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)

@@ -26,6 +26,7 @@ function action(partiel: Partial<ActionBoite> & { id: string }): ActionBoite {
     createdAt: T0,
     reporteeJusquAu: null,
     statut: "en_attente",
+    messageRefus: null,
     ...partiel,
   }
 }

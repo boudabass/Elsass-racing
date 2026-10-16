@@ -4,7 +4,8 @@ import { Lock } from "lucide-react"
 import { accesEcran } from "@/apps/saison/ecran"
 import { listerResultatsAValider } from "@/apps/saison/lectures-serveur"
 import { BoutonValider } from "@/apps/saison/composants/resultats"
-import { COULEUR_VALIDATION, LIBELLE_VALIDATION } from "@/apps/saison/regles-resultats"
+import { COULEUR_VALIDATION } from "@/apps/saison/regles-resultats"
+import { LIBELLE_VALIDATION_RESULTAT } from "@/apps/saison/libelles"
 import { EcranVide } from "@/components/qg/ecran-vide"
 
 // Résultats à valider, toutes épreuves confondues, du plus ancien au plus récent. Valider en un geste
@@ -32,7 +33,7 @@ export default async function PageAValider() {
               <span className="font-medium">{resultat.epreuve}</span>
               <span className="text-sm text-texte-discret">{resultat.voiture}</span>
               <span className={`text-sm font-medium ${COULEUR_VALIDATION[resultat.validation] ?? ""}`}>
-                {LIBELLE_VALIDATION[resultat.validation] ?? resultat.validation}
+                {LIBELLE_VALIDATION_RESULTAT[resultat.validation as keyof typeof LIBELLE_VALIDATION_RESULTAT] ?? resultat.validation}
                 {resultat.sansPreuve ? " · sans preuve" : ""}
               </span>
             </Link>

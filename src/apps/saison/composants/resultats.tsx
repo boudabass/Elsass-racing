@@ -19,14 +19,11 @@ import { Message } from "./formulaires"
 // Onglet Résultats : la saisie tient en peu de champs ; « Plus de détails » déplie le reste.
 // Les décisions (valider, contester) passent par les mêmes règles que la boîte d'actions.
 
+import { LIBELLE_STATUT_RESULTAT } from "@/apps/saison/libelles"
+
 const CHAMP = "min-h-11 w-full rounded-md border border-bordure bg-surface px-3 py-2 text-texte focus:outline-none focus:ring-2 focus:ring-marque"
 
-const STATUTS_FINAUX = [
-  { valeur: "arrivee", libelle: "Arrivée" },
-  { valeur: "abandon", libelle: "Abandon" },
-  { valeur: "exclusion", libelle: "Exclusion" },
-  { valeur: "forfait", libelle: "Forfait" },
-]
+const STATUTS_FINAUX = Object.entries(LIBELLE_STATUT_RESULTAT).map(([valeur, libelle]) => ({ valeur, libelle }))
 
 interface ValeursResultat {
   statutFinal: string

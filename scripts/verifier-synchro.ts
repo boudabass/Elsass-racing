@@ -10,6 +10,7 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "../src/generated/prisma/client"
 import { newId } from "../src/core/ids"
 import { appliquerOperations } from "../src/core/synchro/pousser"
+import { declarationDe } from "../src/core/synchro/registre"
 import { memoriserSynchro, tirerPaquets } from "../src/core/synchro/tirer"
 import { ErreurAppareilRevoque } from "../src/core/synchro/erreurs"
 import { reponseErreurAcces } from "../src/core/synchro/reponses"
@@ -187,6 +188,68 @@ async function main(): Promise<void> {
     const recree = await bd.coreSyncCursor.count({ where: { deviceId: devD } })
     controle("un curseur disparu est recréé pour un appareil encore connecté", recree === 1)
     await bd.coreDevice.delete({ where: { id: devD } })
+
+    // 12. Saison hors ligne (article 949, section 9) : lecture seule, écriture par contribution propre, débrief privé.
+    controle(
+      "le registre déclare les tables de Saison hors ligne",
+      ["core_event", "saison_stage", "saison_schedule_item", "saison_recce", "saison_recce_session", "saison_debrief"].every((cle) => declarationDe(cle) !== undefined),
+    )
+    const saisonSync = newId()
+    await bd.coreSeason.create({
+      data: { id: saisonSync, teamId, annee: 2032, nom: "Saison synchro", dateDebut: new Date("2032-01-01"), dateFin: new Date("2032-12-31"), enCours: true },
+    })
+    const epreuveSync = newId()
+    await bd.coreEvent.create({
+      data: { id: epreuveSync, teamId, seasonId: saisonSync, type: "rallye", nom: "Rallye synchro", dateDebut: new Date("2032-06-01"), dateFin: new Date("2032-06-02") },
+    })
+    const recceSync = newId()
+    await bd.saisonRecce.create({ data: { id: recceSync, teamId, eventId: epreuveSync } })
+    const vehiculeSync = newId()
+    await bd.coreVehicle.create({ data: { id: vehiculeSync, teamId, type: "course", nomCourt: "Voiture synchro" } })
+    const entreeSync = newId()
+    await bd.coreEventEntry.create({ data: { id: entreeSync, teamId, eventId: epreuveSync, vehicleId: vehiculeSync, statut: "arrivee" } })
+
+    const refusLectureSeule = await appliquerOperations(ctxA, devA, [
+      operation({ table: "saison_stage", type: "modifier", id: newId(), revLue: 1, champs: { nom: "Écrit depuis l'appareil" } }),
+    ])
+    controle(
+      "une table de Saison en lecture seule refuse toute écriture depuis l'appareil",
+      refusLectureSeule[0]?.statut === "refusee" && (refusLectureSeule[0]?.raison ?? "").includes("se lit seulement"),
+    )
+
+    const idSortie = newId()
+    const creationSortie = await appliquerOperations(ctxEquipage, devA, [
+      operation({ table: "saison_recce_session", type: "creer", id: idSortie, champs: { recceId: recceSync, date: "2032-06-01", personnes: [], speciales: [], passages: 2, notes: "Reco test" } }),
+    ])
+    controle("l'équipage écrit une sortie de reco hors ligne : appliquée", creationSortie[0]?.statut === "appliquee")
+    const sortieBase = await bd.saisonRecceSession.findUnique({ where: { id: idSortie }, select: { createdBy: true, passages: true } })
+    controle("la sortie est en base, à l'auteur de la synchro", sortieBase?.createdBy === eqUserId && sortieBase?.passages === 2)
+
+    const sortieAssistance = await appliquerOperations(ctxB, devB, [
+      operation({ table: "saison_recce_session", type: "creer", id: newId(), champs: { recceId: recceSync, date: "2032-06-01", personnes: [], speciales: [], passages: null, notes: null } }),
+    ])
+    controle("l'assistance ne peut pas écrire de sortie de reco", sortieAssistance[0]?.statut === "refusee")
+
+    const idDebrief = newId()
+    const debriefEquipage = await appliquerOperations(ctxEquipage, devA, [
+      operation({
+        table: "saison_debrief",
+        type: "creer",
+        id: idDebrief,
+        champs: { entryId: entreeSync, ressenti: 4, pointsPositifs: "Bon départ", pointsAAmeliorer: null, problemesVoiture: null },
+      }),
+    ])
+    controle("l'équipage écrit son débrief hors ligne : appliqué", debriefEquipage[0]?.statut === "appliquee")
+    const tirageAssistance = await tirerPaquets(ctxB, {})
+    controle("l'assistance ne reçoit jamais les débriefs", (tirageAssistance.tables["saison_debrief"]?.lignes ?? []).length === 0)
+    const tirageEquipageDebrief = await tirerPaquets(ctxEquipage, {})
+    controle("l'équipage reçoit le débrief", (tirageEquipageDebrief.tables["saison_debrief"]?.lignes ?? []).some((ligne) => ligne.id === idDebrief))
+
+    await bd.coreSeason.update({ where: { id: saisonSync }, data: { clotureeAt: new Date(), enCours: false } })
+    const apresCloture = await appliquerOperations(ctxEquipage, devA, [
+      operation({ table: "saison_recce_session", type: "creer", id: newId(), champs: { recceId: recceSync, date: "2032-06-02", personnes: [], speciales: [], passages: null, notes: null } }),
+    ])
+    controle("une saison clôturée n'accepte plus de sortie hors ligne", apresCloture[0]?.statut === "refusee" && /clôturée/.test(apresCloture[0]?.raison ?? ""))
   } finally {
     await nettoyer([teamId, teamAutreId], [respUserId, assUserId, eqUserId], [devA, devB])
     console.log("Nettoyage fait.")

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { LIBELLE_MODE_PAIEMENT, LIBELLE_TYPE_EPREUVE, LIBELLE_TYPE_PROGRAMME } from "@/apps/saison/libelles"
 
 import {
   ajouterProgrammeAction,
@@ -22,7 +23,7 @@ import {
 // Formulaires de la fiche et du calendrier. Chacun appelle une Server Action et affiche le
 // message français de la garde ou de la règle. Aucun écran ne compte sur une vérification CSS.
 
-const CHAMP =
+export const CHAMP =
   "min-h-11 w-full rounded-md border border-bordure bg-surface px-3 py-2 text-texte focus:outline-none focus:ring-2 focus:ring-marque"
 
 export function Message({ resultat }: { resultat: Resultat | null }) {
@@ -38,7 +39,7 @@ export function Message({ resultat }: { resultat: Resultat | null }) {
   )
 }
 
-function Champ({ libelle, children, id }: { libelle: string; children: ReactNode; id: string }) {
+export function Champ({ libelle, children, id }: { libelle: string; children: ReactNode; id: string }) {
   return (
     <div className="flex flex-col gap-1">
       <Label htmlFor={id}>{libelle}</Label>
@@ -47,14 +48,7 @@ function Champ({ libelle, children, id }: { libelle: string; children: ReactNode
   )
 }
 
-const TYPES = [
-  { valeur: "rallye", libelle: "Rallye" },
-  { valeur: "slalom", libelle: "Slalom" },
-  { valeur: "course_de_cote", libelle: "Course de côte" },
-  { valeur: "expo", libelle: "Expo" },
-  { valeur: "roulage", libelle: "Roulage" },
-  { valeur: "autre", libelle: "Autre" },
-]
+const TYPES = Object.entries(LIBELLE_TYPE_EPREUVE).map(([valeur, libelle]) => ({ valeur, libelle }))
 
 // Nouvelle épreuve : trois champs. Après création, la fiche s'ouvre.
 export function FormulaireNouvelleEpreuve() {
@@ -299,11 +293,7 @@ export function FormulaireEngagement({ eventId, choix }: { eventId: string; choi
   )
 }
 
-const MODES = [
-  { valeur: "virement", libelle: "Virement" },
-  { valeur: "cheque", libelle: "Chèque" },
-  { valeur: "en_ligne", libelle: "En ligne" },
-]
+const MODES = Object.entries(LIBELLE_MODE_PAIEMENT).map(([valeur, libelle]) => ({ valeur, libelle }))
 
 // Paiement : montant prérempli avec le montant dû (en euros). Le statut se met à jour seul.
 export function FormulairePaiement({ entryId, montantDu, personnes }: { entryId: string; montantDu: number | null; personnes: Choix["personnes"] }) {
@@ -417,15 +407,11 @@ export function FormulaireProgramme({ eventId, specialesIds }: { eventId: string
       <input type="hidden" name="eventId" value={eventId} />
       <Champ id="type" libelle="Étape">
         <select id="type" name="type" required className={CHAMP} defaultValue="depart">
-          <option value="verif_administratives">Vérifications administratives</option>
-          <option value="verif_techniques">Vérifications techniques</option>
-          <option value="shakedown">Shakedown</option>
-          <option value="depart">Départ</option>
-          <option value="passage_speciale">Passage de spéciale</option>
-          <option value="regroupement">Regroupement</option>
-          <option value="assistance">Assistance</option>
-          <option value="arrivee">Arrivée</option>
-          <option value="remise_des_prix">Remise des prix</option>
+          {Object.entries(LIBELLE_TYPE_PROGRAMME).map(([valeur, libelle]) => (
+            <option key={valeur} value={valeur}>
+              {libelle}
+            </option>
+          ))}
         </select>
       </Champ>
       <Champ id="heurePrevue" libelle="Heure prévue">

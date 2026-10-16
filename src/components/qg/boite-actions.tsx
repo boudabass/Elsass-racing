@@ -62,6 +62,11 @@ function CarteAction({ action }: { action: ActionBoite }) {
       <h3 className="text-lg font-semibold leading-snug">{action.titre}</h3>
       <p className="mt-1 text-sm text-texte-discret">{ligne}</p>
       {action.contexte && <p className="mt-2 text-texte-discret">{action.contexte}</p>}
+      {action.messageRefus && (
+        <p role="alert" className="mt-2 rounded-md border border-etat-rouge px-3 py-2 text-sm text-etat-rouge">
+          {action.messageRefus}
+        </p>
+      )}
 
       <div className="mt-3 flex flex-wrap items-start gap-2">
         {boutons.map((bouton, index) => (

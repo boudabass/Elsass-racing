@@ -14,6 +14,7 @@ export type ValidationResultat = "saisi" | "a_verifier" | "valide" | "conteste"
 export type StatutEpreuve = "envisagee" | "en_cours" | "terminee" | "annulee"
 export type StatutPoint = "regle" | "ouvert"
 export type RoleMembre = "responsable" | "equipage" | "assistance" | "invite"
+export type TypeEpreuve = "rallye" | "slalom" | "course_de_cote" | "expo" | "roulage" | "autre"
 
 const HEURE_MS = 60 * 60 * 1000
 const DELAI_ROUGE_MS = 48 * HEURE_MS
@@ -218,8 +219,9 @@ export interface EpreuvePourCloture {
 const STATUTS_PARTIS: readonly StatutEngagement[] = ["parti", "arrivee", "abandon", "forfait"]
 
 // Vraie quand la dernière épreuve (hors annulées) a au moins un engagement parti, et que chacun
-// de ces engagements partis a un résultat validé.
-export function clotureProposee(epreuves: readonly EpreuvePourCloture[]): boolean {
+// de ces engagements partis a un résultat validé. Jamais pour une saison déjà clôturée.
+export function clotureProposee(epreuves: readonly EpreuvePourCloture[], saisonCloturee = false): boolean {
+  if (saisonCloturee) return false
   const actives = epreuves.filter((epreuve) => epreuve.statut !== "annulee")
   if (actives.length === 0) return false
 
@@ -239,4 +241,27 @@ export function masquerMontants<T extends object>(ligne: T, niveau: Niveau): Omi
   const copie: Record<string, unknown> = { ...(ligne as Record<string, unknown>) }
   for (const champ of CHAMPS_MONTANTS) delete copie[champ]
   return copie as Omit<T, (typeof CHAMPS_MONTANTS)[number]>
+}
+
+// Instant d'une heure saisie à Paris (« AAAA-MM-JJTHH:MM », champ datetime-local), en tenant compte
+// de l'heure d'été ou d'hiver du jour concerné. Null si la saisie n'est pas une date.
+export function instantParis(brut: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(brut)) return null
+  const naif = new Date(`${brut}:00Z`)
+  if (Number.isNaN(naif.getTime())) return null
+  const parties = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(naif)
+  const valeur = (type: string) => Number(parties.find((partie) => partie.type === type)?.value)
+  // Lue en UTC, l'heure de Paris à cet instant donne le décalage : on le retire à l'heure saisie.
+  const parisCommeUtc = Date.UTC(valeur("year"), valeur("month") - 1, valeur("day"), valeur("hour"), valeur("minute"), valeur("second"))
+  const decalage = parisCommeUtc - naif.getTime()
+  return new Date(naif.getTime() - decalage)
 }

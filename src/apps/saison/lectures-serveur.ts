@@ -10,6 +10,7 @@ import {
   masquerMontants,
   transitionResultat,
   type EpreuvePourCloture,
+  type RoleMembre,
   type StatutEngagement,
   type StatutEpreuve,
   type StatutResultat,
@@ -24,6 +25,7 @@ import {
   type ResultatCarriere,
 } from "./regles-resultats"
 import { accesSaison } from "./services-serveur"
+import { indicePourEngagement, pointsDePreparation } from "./preparation"
 
 
 export async function lireAcces(): Promise<{ niveau: Niveau }> {
@@ -99,6 +101,7 @@ export async function lireEpreuve(eventId: string) {
   const kmSpeciales = epreuve.saisonStages.reduce((total, stage) => total + Number(stage.longueurKm ?? 0) * (stage.nbPassages ?? 1), 0)
   return {
     niveau,
+    saisonCloturee: epreuve.season.clotureeAt !== null,
     epreuve: {
       id: epreuve.id,
       nom: epreuve.nom,
@@ -136,7 +139,7 @@ export async function lireEngagement(entryId: string) {
   const engagement = await client.coreEventEntry.findFirst({
     where: { id: entryId, teamId: ctx.teamId, deletedAt: null },
     include: {
-      event: { select: { id: true, nom: true, dateDebut: true, statut: true } },
+      event: { select: { id: true, nom: true, dateDebut: true, statut: true, season: { select: { clotureeAt: true } } } },
       vehicle: { select: { nomCourt: true } },
       pilote: { select: { prenom: true, nom: true } },
       copilote: { select: { prenom: true, nom: true } },
@@ -147,6 +150,7 @@ export async function lireEngagement(entryId: string) {
 
   return {
     niveau,
+    saisonCloturee: engagement.event.season.clotureeAt !== null,
     engagement: {
       id: engagement.id,
       statut: engagement.statut,
@@ -156,7 +160,7 @@ export async function lireEngagement(entryId: string) {
       voiture: engagement.vehicle.nomCourt,
       pilote: engagement.pilote ? `${engagement.pilote.prenom} ${engagement.pilote.nom}` : null,
       copilote: engagement.copilote ? `${engagement.copilote.prenom} ${engagement.copilote.nom}` : null,
-      epreuve: engagement.event,
+      epreuve: { id: engagement.event.id, nom: engagement.event.nom, dateDebut: engagement.event.dateDebut, statut: engagement.event.statut },
     },
     inscription: engagement.saisonRegistration ? masquerMontants(engagement.saisonRegistration, niveau) : null,
   }
@@ -186,12 +190,14 @@ export async function listerChoixEngagement() {
 const ENTREES_RESULTAT = ["saisi", "a_verifier", "conteste"] as const
 
 // Qui peut valider ce résultat, et s'il s'agit de sa propre saisie : même règle que le service.
+// Saison clôturée (ouverte = false) : rien ne se valide ni ne se conteste.
 function droitsResultat(
   resultat: { validation: string; saisiParMembershipId: string | null },
-  acteur: { membershipId: string; role: "responsable" | "equipage" | "assistance" | "invite" },
+  acteur: { membershipId: string; role: RoleMembre },
   niveau: Niveau,
+  ouverte = true,
 ) {
-  const ecriture = aAuMoins(niveau, "ecriture")
+  const ecriture = aAuMoins(niveau, "ecriture") && ouverte
   const valider = ecriture && transitionResultat(
     { validation: resultat.validation as "saisi", saisiParMembershipId: resultat.saisiParMembershipId },
     { type: "valider" },
@@ -251,7 +257,7 @@ export async function lireResultatsEpreuve(eventId: string) {
     select: { id: true, numero: true, nom: true },
     orderBy: { numero: "asc" },
   })
-  const acteur = { membershipId: ctx.membership.id, role: ctx.membership.role as "responsable" }
+  const acteur = { membershipId: ctx.membership.id, role: ctx.membership.role as RoleMembre }
   const saisonCloturee = epreuve.season.clotureeAt !== null
 
   return {
@@ -288,7 +294,7 @@ export async function lireResultatsEpreuve(eventId: string) {
                 commentaireContestation: resultat.commentaireContestation,
               }
             : null,
-          droits: resultat ? droitsResultat(resultat, acteur, niveau) : null,
+          droits: resultat ? droitsResultat(resultat, acteur, niveau, !saisonCloturee) : null,
         }
       }),
   }
@@ -297,9 +303,9 @@ export async function lireResultatsEpreuve(eventId: string) {
 // Résultats qui attendent une décision (saisis, à vérifier ou contestés), du plus ancien au plus récent.
 export async function listerResultatsAValider() {
   const { ctx, niveau } = await accesSaison("lecture")
-  const acteur = { membershipId: ctx.membership.id, role: ctx.membership.role as "responsable" }
+  const acteur = { membershipId: ctx.membership.id, role: ctx.membership.role as RoleMembre }
   const resultats = await prismaPourTeam(ctx.teamId, ctx.userId).saisonResult.findMany({
-    where: { teamId: ctx.teamId, deletedAt: null, validation: { in: [...ENTREES_RESULTAT] } },
+    where: { teamId: ctx.teamId, deletedAt: null, validation: { in: [...ENTREES_RESULTAT] }, entry: { event: { season: { clotureeAt: null } } } },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
@@ -330,9 +336,9 @@ export async function listerResultatsAValider() {
 // Compteur à côté de l'entrée « Résultats à valider » (les seuls que ce membre peut traiter).
 export async function compterResultatsAValider(): Promise<number> {
   const { ctx, niveau } = await accesSaison("lecture")
-  const acteur = { membershipId: ctx.membership.id, role: ctx.membership.role as "responsable" }
+  const acteur = { membershipId: ctx.membership.id, role: ctx.membership.role as RoleMembre }
   const resultats = await prismaPourTeam(ctx.teamId, ctx.userId).saisonResult.findMany({
-    where: { teamId: ctx.teamId, deletedAt: null, validation: { in: [...ENTREES_RESULTAT] } },
+    where: { teamId: ctx.teamId, deletedAt: null, validation: { in: [...ENTREES_RESULTAT] }, entry: { event: { season: { clotureeAt: null } } } },
     select: { validation: true, saisiParMembershipId: true },
   })
   return resultats.filter((resultat) => droitsResultat(resultat, acteur, niveau).peutValider).length
@@ -479,7 +485,7 @@ export async function lireHistorique() {
       clotureeAt: saison.clotureeAt,
       epreuves: epreuvesSaison.filter((epreuve) => epreuve.statut !== "annulee").length,
       bilan: bilanSaison(engagements),
-      clotureProposee: saison.clotureeAt === null && clotureProposee(pourCloture),
+      clotureProposee: clotureProposee(pourCloture, saison.clotureeAt !== null),
     }
   })
 
@@ -492,5 +498,121 @@ export async function lireHistorique() {
     personnes: carriere.personnes.map((s) => ({ ...s, nom: nomPersonne.get(s.cle) ?? "Membre" })),
     voitures: carriere.voitures.map((s) => ({ ...s, nom: nomVoiture.get(s.cle) ?? "Voiture" })),
     prochaineAnnee: saisons.length > 0 ? Math.max(...saisons.map((s) => s.annee)) + 1 : new Date().getUTCFullYear(),
+  }
+}
+
+// --- Tâche 2.4 : préparation pour l'épreuve (sans montants : seulement les points et l'indice) ---
+
+// Un panneau par engagement de l'épreuve : indice, points (réglé, ouvert, pas encore suivi).
+export async function lirePreparation(eventId: string) {
+  const { ctx, niveau } = await accesSaison("lecture")
+  const epreuve = await prismaPourTeam(ctx.teamId, ctx.userId).coreEvent.findFirst({
+    where: { id: eventId, teamId: ctx.teamId, deletedAt: null },
+    select: {
+      dateDebut: true,
+      entries: {
+        where: { deletedAt: null, statut: { notIn: ["abandon", "forfait"] } },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          statut: true,
+          vehicle: { select: { nomCourt: true } },
+          saisonRegistration: { select: { payeLe: true } },
+          saisonReadiness: { select: { point: true, statut: true, detail: true } },
+        },
+      },
+    },
+  })
+  if (!epreuve) return null
+
+  const maintenant = new Date()
+  return {
+    niveau,
+    engagements: epreuve.entries.map((entree) => {
+      const points = pointsDePreparation(entree.saisonRegistration?.payeLe != null, entree.saisonReadiness)
+      return {
+        id: entree.id,
+        voiture: entree.vehicle.nomCourt,
+        statut: entree.statut,
+        points,
+        indice: indicePourEngagement(points, maintenant, epreuve.dateDebut),
+      }
+    }),
+  }
+}
+
+// --- Tâche 2.4 : reconnaissances de l'épreuve (règles de la reco et sorties) ---------------------
+
+export async function lireReconnaissances(eventId: string) {
+  const { ctx, niveau } = await accesSaison("lecture")
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const epreuve = await client.coreEvent.findFirst({
+    where: { id: eventId, teamId: ctx.teamId, deletedAt: null },
+    select: {
+      season: { select: { clotureeAt: true } },
+      saisonStages: { where: { deletedAt: null }, select: { id: true, numero: true, nom: true }, orderBy: { numero: "asc" } },
+    },
+  })
+  if (!epreuve) return null
+
+  const recce = await client.saisonRecce.findFirst({
+    where: { eventId, teamId: ctx.teamId, deletedAt: null },
+    select: {
+      id: true,
+      debutAutorise: true,
+      finAutorisee: true,
+      passagesAutorises: true,
+      vitesseMax: true,
+      vehiculeId: true,
+      plaqueRecue: true,
+      consignes: true,
+      vehicule: { select: { nomCourt: true } },
+      sessions: {
+        where: { deletedAt: null },
+        select: { id: true, date: true, personnes: true, speciales: true, passages: true, notes: true },
+        orderBy: [{ date: "asc" }, { id: "asc" }],
+      },
+    },
+  })
+
+  // Les noms ne servent qu'à l'affichage : une seule lecture des personnes et des véhicules de reco.
+  const [personnes, vehicules] = await Promise.all([
+    client.corePerson.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true, prenom: true, nom: true } }),
+    client.coreVehicle.findMany({
+      where: { teamId: ctx.teamId, type: "reco", actif: true, deletedAt: null },
+      select: { id: true, nomCourt: true },
+      orderBy: { nomCourt: "asc" },
+    }),
+  ])
+  const nomPersonne = new Map(personnes.map((p) => [p.id, `${p.prenom} ${p.nom}`]))
+  const nomSpeciale = new Map(epreuve.saisonStages.map((stage) => [stage.id, `${stage.numero}. ${stage.nom}`]))
+
+  return {
+    niveau,
+    saisonCloturee: epreuve.season.clotureeAt !== null,
+    speciales: epreuve.saisonStages,
+    personnes: personnes.map((p) => ({ id: p.id, nom: `${p.prenom} ${p.nom}` })),
+    vehicules,
+    recce: recce
+      ? {
+          id: recce.id,
+          debutAutorise: recce.debutAutorise,
+          finAutorisee: recce.finAutorisee,
+          passagesAutorises: recce.passagesAutorises,
+          vitesseMax: recce.vitesseMax,
+          vehiculeId: recce.vehiculeId,
+          vehiculeNom: recce.vehicule?.nomCourt ?? null,
+          plaqueRecue: recce.plaqueRecue,
+          consignes: recce.consignes,
+          sessions: recce.sessions.map((session) => ({
+            id: session.id,
+            date: session.date,
+            personnes: session.personnes.map((id) => nomPersonne.get(id) ?? "Membre"),
+            speciales: session.speciales.map((id) => nomSpeciale.get(id) ?? "Spéciale"),
+            passages: session.passages,
+            notes: session.notes,
+          })),
+        }
+      : null,
   }
 }

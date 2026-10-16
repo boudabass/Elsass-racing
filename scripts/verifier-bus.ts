@@ -33,7 +33,6 @@ function controle(libelle: string, condition: boolean, detail = "") {
 async function main() {
   // Import dynamique : .env.local doit être chargé avant la création du client applicatif.
   const { emettre, ErreurEvenement } = await import("../src/core/evenements/bus-serveur")
-  const { decider } = await import("../src/core/actions/actions-serveur")
   const { prisma: applicatif } = await import("../src/lib/prisma")
 
   const suffixe = randomUUID().slice(0, 8)
@@ -115,6 +114,7 @@ async function main() {
     controle("la réémission met le titre à jour", actionsA2[0]?.titre === "Titre mis à jour", actionsA2[0]?.titre)
 
     // 6. La décision passe l'action à decidee et émet core.action_decidee vers l'app d'origine.
+    const { decider } = await import("../src/core/actions/actions-serveur")
     await decider(ctx, actionsA2[0].id, "ok")
     const actionDecidee = await proprietaire.coreAction.findUnique({ where: { id: actionsA2[0].id } })
     controle("decider passe l'action à decidee", actionDecidee?.statut === "decidee" && actionDecidee?.decision === "ok")
@@ -256,6 +256,71 @@ async function main() {
     controle("le validateur est bien l'autre membre", resultatValide?.validParMembershipId === adhesionB)
     const actionApres = await proprietaire.coreAction.findUnique({ where: { id: actionResultat.id }, select: { statut: true } })
     controle("après la validation, l'action sort de la boîte (levée, plus en attente)", actionApres?.statut !== "en_attente", actionApres?.statut)
+
+
+    // 10. Préparation : les signaux des autres apps posent les points de l'engagement à venir.
+    const epreuveFutureBus = await proprietaire.coreEvent.create({
+      data: { id: randomUUID(), teamId: team.id, seasonId: saisonBus, type: "rallye", nom: "Rallye préparation bus", dateDebut: new Date("2030-07-01"), dateFin: new Date("2030-07-02") },
+    })
+    const entryFuture = await creerEngagementDans(ctx, { eventId: epreuveFutureBus.id, vehicleId: vehiculeBus.id })
+    await emettre(ctx, "voiture.papier_expire_bientot", { vehicleId: vehiculeBus.id, detail: "Carte grise à renouveler" })
+    const pointPapiers = await proprietaire.saisonReadiness.findFirst({ where: { entryId: entryFuture, point: "papiers" } })
+    controle("un papier qui expire pose le point « papiers » ouvert, avec son détail", pointPapiers?.statut === "ouvert" && pointPapiers.detail === "Carte grise à renouveler")
+    await emettre(ctx, "voiture.papier_expire_bientot", { vehicleId: vehiculeBus.id, regle: true })
+    const pointPapiersRegle = await proprietaire.saisonReadiness.findFirst({ where: { entryId: entryFuture, point: "papiers" } })
+    controle("le même signal avec regle: true règle le point", pointPapiersRegle?.statut === "regle")
+    await emettre(ctx, "garage.piece_zone_rouge", { vehicleId: vehiculeBus.id, detail: "Pièce en zone rouge" })
+    const pointPieces = await proprietaire.saisonReadiness.findFirst({ where: { entryId: entryFuture, point: "pieces" } })
+    controle("une pièce en zone rouge pose le point « pièces » ouvert", pointPieces?.statut === "ouvert")
+    const autreVehicule = await proprietaire.coreVehicle.create({ data: { id: randomUUID(), teamId: team.id, type: "course", nomCourt: "Autre voiture bus" } })
+    await emettre(ctx, "garage.piece_zone_rouge", { vehicleId: autreVehicule.id })
+    const pointsNonVises = await proprietaire.saisonReadiness.count({ where: { entryId: entryFuture, point: "pieces", statut: "ouvert" } })
+    controle("un signal pour une autre voiture ne touche pas cet engagement", pointsNonVises === 1)
+    await emettre(ctx, "equipe.licence_expire_bientot", { detail: "Licence à renouveler" })
+    const pointLicence = await proprietaire.saisonReadiness.findFirst({ where: { entryId: entryFuture, point: "licences" } })
+    controle("une licence sans personne vise toute la team : point « licences » ouvert", pointLicence?.statut === "ouvert")
+
+    // 11. Décision refusée par la règle : la clôture d'une saison déjà clôturée est refusée. L'action reste
+    // en attente, avec le motif affiché dans la boîte (message_refus).
+    const saisonClotureeBus = randomUUID()
+    await proprietaire.coreSeason.create({
+      data: { id: saisonClotureeBus, teamId: team.id, annee: 2031, nom: "Saison close bus", dateDebut: new Date("2031-01-01"), dateFin: new Date("2031-12-31"), enCours: false, clotureeAt: new Date() },
+    })
+    const cleRefus = `cloture_saison:${saisonClotureeBus}`
+    await emettre(ctx, "saison.action_requise", {
+      type: "cloture_saison_proposee",
+      cleUnicite: cleRefus,
+      titre: "Clôturer la saison (test de refus)",
+      contexte: "Saison",
+      ficheType: "saison",
+      ficheId: saisonClotureeBus,
+      destinataires: { memberships: [adhesion] },
+      boutons: [{ cle: "cloturer", libelle: "Clôturer la saison" }],
+      priorite: 7,
+      niveauRequis: "gestion",
+    })
+    const actionRefus = await proprietaire.coreAction.findFirst({ where: { teamId: team.id, cleUnicite: cleRefus }, select: { id: true } })
+    await decider(ctx, actionRefus!.id, "cloturer")
+    const apresRefus = await proprietaire.coreAction.findUnique({ where: { id: actionRefus!.id }, select: { statut: true, messageRefus: true } })
+    controle("une décision que la règle refuse laisse l'action en attente", apresRefus?.statut === "en_attente", apresRefus?.statut)
+    controle("le motif du refus est gardé pour la boîte d'actions", apresRefus?.messageRefus === "Saison introuvable ou déjà clôturée.", apresRefus?.messageRefus ?? "")
+    // 12. Relance de validation : une saisie de plus de 48 heures, toujours non validée, est relancée (priorité 6).
+    const epreuveRelance = await proprietaire.coreEvent.create({
+      data: { id: randomUUID(), teamId: team.id, seasonId: saisonBus, type: "rallye", nom: "Rallye relance bus", dateDebut: new Date("2030-08-01"), dateFin: new Date("2030-08-02"), statut: "terminee" },
+    })
+    const entreeRelance = await proprietaire.coreEventEntry.create({
+      data: { id: randomUUID(), teamId: team.id, eventId: epreuveRelance.id, vehicleId: vehiculeBus.id, statut: "arrivee" },
+    })
+    await proprietaire.saisonResult.create({
+      data: { id: randomUUID(), teamId: team.id, entryId: entreeRelance.id, statutFinal: "arrivee", validation: "saisi", createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
+    })
+    const { recalculerDans } = await import("../src/apps/saison/services-serveur")
+    await recalculerDans(ctx)
+    const relance = await proprietaire.coreAction.findFirst({
+      where: { teamId: team.id, cleUnicite: `resultat_a_valider:${entreeRelance.id}` },
+      select: { priorite: true, titre: true, statut: true },
+    })
+    controle("une saisie de plus de 48 heures non validée est relancée à la priorité 6", relance?.priorite === 6 && (relance?.titre ?? "").startsWith("Relance"), JSON.stringify(relance))
 
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {

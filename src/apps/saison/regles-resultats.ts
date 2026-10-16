@@ -153,14 +153,7 @@ export function ressentiValide(valeur: number): boolean {
   return Number.isInteger(valeur) && valeur >= 1 && valeur <= 5
 }
 
-// Libellés et couleurs du statut de validation (partagés par le serveur et les écrans).
-export const LIBELLE_VALIDATION: Record<string, string> = {
-  saisi: "Saisi",
-  a_verifier: "À vérifier",
-  valide: "Validé",
-  conteste: "Contesté",
-}
-
+// Couleurs du statut de validation (les libellés sont dans libelles.ts).
 export const COULEUR_VALIDATION: Record<string, string> = {
   saisi: "text-texte-discret",
   a_verifier: "text-etat-orange",
