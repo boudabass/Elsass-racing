@@ -6,7 +6,7 @@ Version 0.2, 16/10/2026 au soir. Rédigé par l'orchestrateur à partir des arti
 
 - **Lot 1 terminé.** Toutes les tâches de la section 5 sont faites, testées et fusionnées dans main (dernier merge c0a3292).
 - **En production** sur https://elsass-racing.theelsassisch.com (Coolify, health check actif). Team en production : « The Elsassisch Racing Team », team de test, John responsable. Connexion et changement de couleur vérifiés par John sur mobile.
-- **Pas encore en production** : le hors ligne (service worker, manifeste). Il est dans main, il manque un redéploiement, puis le test réel sur téléphone.
+- **Hors ligne en production** depuis le redéploiement du 16/10 au soir (service worker, manifeste, page hors ligne). Reste le test réel sur téléphone.
 - **Tests** : 205 unitaires, 21 de bout en bout (dont 2 hors ligne sur serveur de production local), vérifications en base `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`.
 - **Ordre réel** : la 1.12 (déploiement) est passée avant la 1.11 (hors ligne), décision de John, pour tester sur téléphone au plus tôt.
 - **Prochain** : lot 2, Saison et Budget.
@@ -168,9 +168,9 @@ Prises le 16/10/2026 :
 - Hébergement : Coolify, projet « Elsass Racing », application sur la branche main, PostgreSQL 18, domaine elsass-racing.theelsassisch.com. Déploiement lancé à la main par John après fusion de dev dans main. Guide : `docs/deploiement-coolify.md`.
 - Stockage des fichiers : volume Coolify `elsass-racing-fichiers` monté sur `/app/stockage` (variable `STOCKAGE_DIR`). Pas encore utilisé.
 - Base de production : deux rôles, propriétaire `postgres` pour les migrations, `elsass_racing_web` (membre de `elsass_racing_app`) pour l'app.
+- Mot de passe postgres de production changé le 16/10/2026 au soir, après son passage dans l'historique d'une session. Recopié dans la ressource Coolify et dans `DATABASE_URL_MIGRATION`.
 - Première team en production : team de test « The Elsassisch Racing Team ». La Koehling Racing Team réelle sera créée quand Jeoffrey et Aurélie seront prêts.
 - Hors ligne : liste blanche des tables synchronisables, la dernière écriture gagne avec journal des conflits, au niveau contribution on ne voit et ne modifie que ses propres lignes.
 
 En attente :
-- Changement du mot de passe postgres de production : il est apparu dans l'historique d'une session de travail. Base refermée au public, risque faible. À faire à trois endroits en même temps (base, ressource Coolify, `DATABASE_URL_MIGRATION`).
 - Création de la Koehling Racing Team en production et invitation de Jeoffrey et Aurélie.
