@@ -8,6 +8,10 @@ Ressources existantes :
 
 Ne lance pas le déploiement avant le feu vert de l'orchestrateur : la branche main ne contient pas encore le code.
 
+## 0. Déploiement automatique
+
+Coolify redéploie l'application à chaque push sur la branche main. Toute fusion dans main part donc en production dans les minutes qui suivent. Le travail se fait sur dev, et la fusion dans main n'a lieu qu'après relecture par l'orchestrateur.
+
 ## 1. DNS
 
 Vérifie que `elsass-racing.theelsassisch.com` pointe vers le VPS, comme `elsass-dico.theelsassisch.com`. Si les autres sous-domaines .com sont déclarés un par un chez le registrar, ajoute un enregistrement A identique pour `elsass-racing`.
