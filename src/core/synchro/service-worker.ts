@@ -7,8 +7,11 @@
 //   hors ligne, la copie en cache, sinon la page /hors-ligne.
 // - /api/ : jamais en cache, jamais interceptée.
 
+// La décision de mise en cache est une fonction pure, injectée telle quelle (testée dans cache-decision.test.ts).
+import { doitMettreEnCache } from "./cache-decision"
+
 export function codeServiceWorker(version: string): string {
-  return SOURCE.replace("__VERSION__", version)
+  return "var doitMettreEnCache = (" + doitMettreEnCache.toString() + ");\n" + SOURCE.replace("__VERSION__", version)
 }
 
 const SOURCE = `
@@ -64,8 +67,12 @@ function cacheDabord(requete) {
 
 function reseauDabord(requete) {
   return fetch(requete).then(function (reponse) {
-    var type = reponse.headers.get("content-type") || "";
-    if (reponse.ok && type.indexOf("text/html") === 0) {
+    var copiable = doitMettreEnCache({
+      ok: reponse.ok,
+      redirected: reponse.redirected,
+      contentType: reponse.headers.get("content-type") || ""
+    });
+    if (copiable) {
       var copie = reponse.clone();
       caches.open(CACHE).then(function (cache) { cache.put(requete, copie); });
     }
