@@ -13,7 +13,7 @@ import { APPS, DROITS_PAR_DEFAUT } from "../src/core/catalogue"
 chargerEnv({ path: ".env.local" })
 chargerEnv()
 
-const connectionString = process.env.DATABASE_URL
+const connectionString = process.env.DATABASE_URL_MIGRATION ?? process.env.DATABASE_URL
 if (!connectionString) {
   throw new Error("DATABASE_URL absente : impossible de lancer le seed.")
 }

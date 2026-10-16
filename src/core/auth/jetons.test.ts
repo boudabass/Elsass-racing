@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   calculerExpiration,
+  decisionDemande,
   estFormatCode,
   genererCode,
   genererSecretLien,
@@ -61,6 +62,21 @@ describe("expiration", () => {
     const maintenant = new Date("2026-10-16T10:00:00Z")
     expect(calculerExpiration(maintenant, 15).toISOString()).toBe("2026-10-16T10:15:00.000Z")
     expect(calculerExpiration(maintenant, 10).toISOString()).toBe("2026-10-16T10:10:00.000Z")
+  })
+})
+
+describe("décision d'une demande de connexion", () => {
+  it("envoie à un compte existant, même avec une invitation", () => {
+    expect(decisionDemande({ existe: true, invite: true })).toBe("compte_existant")
+    expect(decisionDemande({ existe: true, invite: false })).toBe("compte_existant")
+  })
+
+  it("crée et envoie pour une adresse invitée sans compte", () => {
+    expect(decisionDemande({ existe: false, invite: true })).toBe("compte_invite")
+  })
+
+  it("n'envoie ni ne crée rien pour une adresse inconnue", () => {
+    expect(decisionDemande({ existe: false, invite: false })).toBe("inconnu")
   })
 })
 

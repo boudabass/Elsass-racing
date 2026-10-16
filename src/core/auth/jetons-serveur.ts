@@ -6,6 +6,7 @@ import { newId } from "@/core/ids"
 
 import {
   calculerExpiration,
+  decisionDemande,
   DUREE_CODE_MINUTES,
   DUREE_LIEN_MINUTES,
   estFormatCode,
@@ -69,12 +70,23 @@ export async function demanderConnexion(emailBrut: string, cleClient: string): P
     return { ok: false, raison: "trop_de_demandes" }
   }
 
+  // Décision avant toute écriture : une adresse inconnue ne reçoit rien et ne crée rien.
+  const existant = await prisma.coreUser.findUnique({ where: { email }, select: { id: true } })
+  const invite = existant
+    ? false
+    : (await prisma.$queryRaw<Array<{ invite: boolean }>>`SELECT core_invitation_en_attente(${email}) AS invite`)[0]
+        .invite
+  const decision = decisionDemande({ existe: existant !== null, invite })
+
+  if (decision === "inconnu") {
+    if (process.env.NODE_ENV !== "production") console.log(`Adresse inconnue, aucun envoi (${email}).`)
+    return { ok: true }
+  }
+
   const maintenant = new Date()
-  const utilisateur = await prisma.coreUser.upsert({
-    where: { email },
-    update: {},
-    create: { id: newId(), email },
-  })
+  // Compte créé seulement ici, pour une adresse invitée : le compte n'existait pas encore.
+  const utilisateur =
+    existant ?? (await prisma.coreUser.create({ data: { id: newId(), email } }))
 
   // Un nouveau jeton remplace les précédents encore ouverts : un seul lien ou code valide à la fois.
   await prisma.coreAuthToken.updateMany({

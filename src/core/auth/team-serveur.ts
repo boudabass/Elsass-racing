@@ -1,13 +1,14 @@
 import { cookies } from "next/headers"
 
-import { prisma } from "@/lib/prisma"
+import { prismaPourCompte, prismaPourTeam } from "@/lib/prisma"
 
 import { COOKIE_TEAM, signerTeam, verifierTeam } from "./session"
 import { lireSession, optionsCookie, type MagasinCookies } from "./session-serveur"
 
-// Teams où le compte est membre actif, et dont la team est active.
+// Teams où le compte est membre actif, et dont la team est active. Lu avec le contexte
+// du compte seul : le RLS n'expose que les adhésions du compte et leurs teams.
 export async function listerTeamsDe(userId: string) {
-  const adhesions = await prisma.coreMembership.findMany({
+  const adhesions = await prismaPourCompte(userId).coreMembership.findMany({
     where: { userId, statut: "actif", deletedAt: null, team: { statut: "active", deletedAt: null } },
     include: { team: true },
     orderBy: { team: { nom: "asc" } },
@@ -18,7 +19,7 @@ export async function listerTeamsDe(userId: string) {
 // Pose la team courante, après avoir revérifié l'adhésion active. Ne fait pas confiance
 // au cookie seul : un membre retiré d'une team ne doit plus pouvoir y entrer.
 export async function choisirTeam(teamId: string, magasin: MagasinCookies, userId: string): Promise<boolean> {
-  const adhesion = await prisma.coreMembership.findFirst({
+  const adhesion = await prismaPourCompte(userId).coreMembership.findFirst({
     where: { teamId, userId, statut: "actif", deletedAt: null, team: { statut: "active", deletedAt: null } },
     select: { id: true },
   })
@@ -37,7 +38,7 @@ export async function teamCourante() {
   const teamId = await verifierTeam(jeton)
   if (!teamId) return null
 
-  const adhesion = await prisma.coreMembership.findFirst({
+  const adhesion = await prismaPourTeam(teamId, session.userId).coreMembership.findFirst({
     where: {
       teamId,
       userId: session.userId,

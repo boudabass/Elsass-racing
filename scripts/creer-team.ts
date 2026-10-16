@@ -37,8 +37,8 @@ const analyseEmail = schemaEmail.safeParse(obligatoire(lireArgument("email"), "A
 if (!analyseEmail.success) sortirAvecErreur("Argument --email invalide.")
 const email = analyseEmail.data
 
-const connectionString = process.env.DATABASE_URL
-if (!connectionString) sortirAvecErreur("DATABASE_URL absente.")
+const connectionString = process.env.DATABASE_URL_MIGRATION ?? process.env.DATABASE_URL
+if (!connectionString) sortirAvecErreur("DATABASE_URL absente (ni DATABASE_URL_MIGRATION).")
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) })
 

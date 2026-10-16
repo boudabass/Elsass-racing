@@ -95,3 +95,24 @@ Toute migration se relit avant application. `pnpm db:migrate` ne l'applique pas 
 4. **Déployer** : `pnpm db:deploy` (`prisma migrate deploy`) applique les migrations en attente, sans rien recalculer.
 
 Ce flux garantit qu'aucune migration n'est appliquée sans avoir été lue, et qu'un diff inattendu se voit avant d'atteindre la base.
+
+## Rôles PostgreSQL
+
+Deux rôles de connexion, deux URL (détail dans `docs/droits.md`) :
+
+- `elsass_racing` : propriétaire, utilisé par les migrations et les scripts. Superutilisateur en développement.
+- `elsass_racing_app_dev` : rôle de l'application, soumis au RLS. Il hérite de `elsass_racing_app` (NOLOGIN), qui porte les droits et les politiques.
+
+Le script `docker/init/01-role-app.sql` crée ces rôles de connexion. Il est monté dans `/docker-entrypoint-initdb.d`, donc il ne tourne qu'à la **création du volume**. Ordre à respecter :
+
+1. Migrations : `pnpm db:deploy` (la migration `core_rls` crée le rôle `elsass_racing_app`).
+2. Sur un volume existant, script des rôles, à lancer à la main :
+
+   ```bash
+   MSYS_NO_PATHCONV=1 docker compose exec -T postgres psql -U elsass_racing -d elsass_racing -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/01-role-app.sql
+   ```
+
+   Le script est idempotent. `MSYS_NO_PATHCONV=1` évite que Git Bash ne réécrive le chemin.
+
+Sur un volume neuf, le script est exécuté au démarrage, avant les migrations : il crée le rôle `elsass_racing_app` lui-même, ce qui rend le `GRANT` valide. La migration `core_rls` reste idempotente sur ce point (`IF NOT EXISTS`).
+

@@ -38,6 +38,17 @@ export function hacherCode(email: string, code: string): string {
   return hacherSecret(`${email}:${code}`)
 }
 
+// Décision d'une demande de connexion. Un mail ne part que pour un compte existant, ou
+// pour une adresse qui a une invitation en attente. Pour les autres, rien n'est envoyé
+// ni créé : la réponse reste identique, et la demande ne révèle pas quelles adresses ont un compte.
+export type DecisionDemande = "compte_existant" | "compte_invite" | "inconnu"
+
+export function decisionDemande({ existe, invite }: { existe: boolean; invite: boolean }): DecisionDemande {
+  if (existe) return "compte_existant"
+  if (invite) return "compte_invite"
+  return "inconnu"
+}
+
 export function calculerExpiration(maintenant: Date, minutes: number): Date {
   return new Date(maintenant.getTime() + minutes * 60_000)
 }
