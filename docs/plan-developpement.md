@@ -170,10 +170,11 @@ Spécifications : articles Odoo 949 (Saison v1.3) et 950 (Budget v1.1), catalogu
 - Panneau « Prêt pour l'épreuve ? » (points absents affichés « pas encore suivi »), reconnaissances, rappels en actions (J-14, J-7, J-3, matin même, lendemain, 48 h) recalculés à l'ouverture du QG, widgets Saison, compte à rebours de la barre haute branché, synchro hors ligne du programme, des spéciales, du débrief et des sorties de reco.
 
 ### 2.5 Budget, schéma et services
-- Brief : `docs/briefs/2.5-budget-schema-services.md` (commence par le débrief hors ligne, reste de Saison).
+- Brief : `docs/briefs/2.5-budget-schema-services.md`. Fait le 17/10 (22be414, 7ca4848, 2a14a4c), relu et accepté.
 - 8 tables `budget_`, catégories et payeurs par défaut, soldes par membre, remboursements, prévisionnel, propositions venues des autres apps.
 
 ### 2.6 Budget, écrans
+- Brief : `docs/briefs/2.6-budget-ecrans.md` (commence par l'enregistrement des gestionnaires en un seul point).
 - Mouvements, bouton + « Nouvelle dépense » en 3 champs avec photo du ticket, À confirmer, par épreuve, par membre, prévisionnel, export tableur. Contribution de l'assistance limitée à ses dépenses et à son solde. Le PDF de bilan de saison attend l'outil PDF du lot 3.
 
 ### 2.7 Liaisons Saison et Budget
