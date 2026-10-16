@@ -45,7 +45,9 @@ Ce fichier ne contient que les règles, les pièges et l'état actuel. Le récit
 
 ## État actuel
 
-- 16/10/2026 : cadrage terminé dans Odoo. Lot 1 en cours : schéma complet du socle (31 tables, 19 enums, 5 migrations), authentification par lien mail ou code avec sessions et choix de team, team Koehling Racing Team créée en local (tâches 1.1 à 1.5 faites, 1.6 droits et RLS en cours).
+- 16/10/2026 : cadrage terminé dans Odoo. Lot 1 en cours : socle complet (schéma, auth, droits et RLS, SDK et catalogues, bus d'événements et boîte d'actions, enveloppe du QG avec 11 tuiles), données réelles Koehling chargées en local par `pnpm donnees:koehling` (tâches 1.1 à 1.9 faites, 1.10 Réglages en cours, puis 1.11 hors ligne et 1.12 déploiement).
+- Vérifications en base : `pnpm db:verifier-rls` et `pnpm db:verifier-bus` après toute migration.
+- Deux rôles PostgreSQL : propriétaire (DATABASE_URL_MIGRATION, migrations, seed, scripts) et applicatif restreint soumis au RLS (DATABASE_URL, l'app).
 - Base locale : `pnpm db:up` puis `pnpm db:deploy` puis `pnpm db:seed`. Port 5433. Première team : `pnpm team:creer --nom … --slug … --email …`.
 - Migrations : `pnpm db:migrate` ne fait que créer le SQL (`--create-only`), relire, compléter à la main si besoin, puis `pnpm db:deploy`.
 - Mails : SMTP OVH (port 587, STARTTLS), expéditeur info@theelsassisch.com. Sans SMTP_HOST hors production, le mail s'affiche en console.

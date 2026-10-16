@@ -116,11 +116,17 @@ Chaque tâche est un brief autonome pour l'opérateur. L'orchestrateur relit et 
 - Thème sombre par défaut, couleurs de la team avec contraste garanti, vert orange rouge réservés aux états.
 - Livrable : QG fonctionnel avec l'app Réglages seule.
 
-### 1.10 App Réglages
-- Rubriques de l'article 960 section 3 : identité, association, membres et invitations, rôles et droits, apps, notifications, affichage, appareils, données et confidentialité, mon compte.
-- Règles : dernier responsable protégé, invitation 7 jours, suppression de team avec délai de 30 jours.
-- Tables settings_team_pref, settings_member_pref, settings_deletion_request.
+### 1.10a App Réglages, rubriques de la team
+- Tables settings_team_pref, settings_member_pref, settings_deletion_request, hash d'invitation, RLS.
+- Identité, association, membres et invitations (acceptation par lien), rôles et droits, apps.
+- Règles : dernier responsable protégé, invitation 7 jours, dépendances entre apps.
+
+### 1.10b App Réglages, rubriques personnelles
+- Notifications, affichage, appareils, données et confidentialité (export, suppression avec délai de 30 jours), mon compte, découverte des apps.
 - Livrable : Réglages complet, événements settings.* émis.
+
+### 1.9 ter Ajustements visuels du QG
+- À partir des remarques de John sur le QG en local (couleurs, densité, lisibilité, téléphone).
 
 ### 1.11 Hors ligne et synchronisation
 - Cache local des données de la team (IndexedDB), file d'écritures en attente, synchro par rev et core_sync_cursor.
