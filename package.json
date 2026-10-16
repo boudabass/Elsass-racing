@@ -9,6 +9,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:migrate": "prisma migrate dev --create-only",
@@ -68,6 +69,7 @@
     "zod": "^3.25.28"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22",
     "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",

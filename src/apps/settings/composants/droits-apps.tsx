@@ -54,7 +54,11 @@ export async function Droits({ contexte, peutModifier, raison }: { contexte: Con
                   return (
                     <div key={app.cle} className={`flex flex-col gap-1 rounded-md p-2 ${different ? "ring-1 ring-marque" : ""}`}>
                       <Label htmlFor={`${m.id}-${app.cle}`} className="text-sm">{app.nom}</Label>
+                      {/* La clé inclut le niveau effectif : après un enregistrement ou un retour au rôle,
+                          le sélecteur est remonté avec la nouvelle valeur (un select non contrôlé
+                          garderait sinon l'ancienne valeur affichée). */}
                       <select
+                        key={`${app.cle}-${effectif}`}
                         id={`${m.id}-${app.cle}`}
                         name={`niveau_${app.cle}`}
                         defaultValue={effectif}

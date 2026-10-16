@@ -42,3 +42,8 @@ __pycache__/
 
 # Builds de vérification (NEXT_DIST_DIR=.next-build pnpm build)
 /.next-build/
+
+# Tests de bout en bout (pnpm test:e2e) : build, rapports et résultats
+/.next-e2e/
+/test-results/
+/playwright-report/
