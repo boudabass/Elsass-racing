@@ -9,6 +9,7 @@ function estPublic(chemin: string): boolean {
   return (
     chemin === "/connexion" ||
     chemin.startsWith("/connexion/") ||
+    chemin === "/invitation" ||
     chemin.startsWith("/_next") ||
     chemin.startsWith("/icones/") ||
     chemin === "/manifest.webmanifest" ||

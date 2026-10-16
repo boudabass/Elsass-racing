@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { finaliserConnexion } from "@/core/auth/connexion-serveur"
 import { consommerLien } from "@/core/auth/jetons-serveur"
-import type { MagasinCookies, OptionsCookie } from "@/core/auth/session-serveur"
+import { optionsCookie, type MagasinCookies, type OptionsCookie } from "@/core/auth/session-serveur"
 
 // Route et non page : seul un Route Handler peut poser des cookies puis rediriger.
 // Le secret du lien est dans la requête ; il est consommé ici, une seule fois.
@@ -20,8 +20,9 @@ export async function GET(requete: NextRequest) {
     set(nom, valeur, options) {
       aPoser.push({ nom, valeur, options })
     },
-    delete() {
-      // Non utilisé à la connexion.
+    delete(nom) {
+      // Suppression : cookie expiré immédiatement, posé sur la réponse.
+      aPoser.push({ nom, valeur: "", options: { ...optionsCookie(), maxAge: 0 } })
     },
   }
 

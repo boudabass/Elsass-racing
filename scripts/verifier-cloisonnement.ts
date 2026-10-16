@@ -127,6 +127,20 @@ async function main() {
     }
     controle("_prisma_migrations n'est pas lisible par le rôle applicatif", !migrationsLisibles)
 
+    // 8. Aucune table publique avec une colonne team_id ne doit être sans RLS.
+    const sansRls = await proprietaire.$queryRaw<Array<{ table_name: string }>>`
+      SELECT c.table_name
+      FROM information_schema.columns c
+      JOIN pg_class k ON k.relname = c.table_name
+      JOIN pg_namespace n ON n.oid = k.relnamespace AND n.nspname = c.table_schema
+      WHERE c.table_schema = 'public' AND c.column_name = 'team_id' AND NOT k.relrowsecurity
+      ORDER BY c.table_name`
+    controle(
+      "toute table avec team_id a le RLS activé",
+      sansRls.length === 0,
+      sansRls.map((r) => r.table_name).join(", "),
+    )
+
     console.log("\nCloisonnement vérifié : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.

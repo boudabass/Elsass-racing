@@ -34,7 +34,7 @@ Aucune valeur n'est documentée ici : voir `.env.example`.
 | `SMTP_HOST` | non hors production | Serveur SMTP sortant. Absent hors production : le mail s'affiche dans la console |
 | `SMTP_PORT` | non (défaut 587) | Port SMTP. 465 : TLS direct. Autres : STARTTLS imposé |
 | `SMTP_USER` | non | Identifiant SMTP |
-| `SMTP_PASSWORD` | non | Mot de passe SMTP |
+| `SMTP_PASSWORD` | non | Mot de passe SMTP. Un `$` doit être écrit `\$` (Next interprète les `$` comme des variables) |
 | `MAIL_FROM` | non (défaut `Elsass Racing <info@theelsassisch.com>`) | Expéditeur |
 
 En production, `SMTP_HOST` absent fait échouer le premier envoi : il n'y a jamais de repli console.

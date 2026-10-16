@@ -9,11 +9,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 const messageLien = "Le lien n'est plus valable. Demande un nouveau lien ou saisis le code."
+const messageInvitation = "Cette invitation n'est plus valable. Demande une nouvelle invitation au responsable de ta team."
 
-export function FormulaireConnexion({ erreurInitiale }: { erreurInitiale?: string }) {
+export function FormulaireConnexion({ erreurInitiale, emailInitial }: { erreurInitiale?: string; emailInitial?: string }) {
   const [etatEmail, actionEmail, enCoursEmail] = useActionState<EtatConnexion, FormData>(
     demanderLienAction,
-    { etape: "email", erreur: erreurInitiale === "lien" ? messageLien : undefined },
+    { etape: "email", erreur: erreurInitiale === "lien" ? messageLien : erreurInitiale === "invitation" ? messageInvitation : undefined },
   )
   const [etatCode, actionCode, enCoursCode] = useActionState<EtatConnexion, FormData>(
     validerCodeAction,
@@ -25,7 +26,7 @@ export function FormulaireConnexion({ erreurInitiale }: { erreurInitiale?: strin
       <form action={actionEmail} className="flex w-full flex-col gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="email">Adresse e-mail</Label>
-          <Input id="email" name="email" type="email" autoComplete="email" required />
+          <Input id="email" name="email" type="email" autoComplete="email" defaultValue={emailInitial} required />
         </div>
         {etatEmail.erreur && (
           <p role="alert" className="text-sm text-destructive">

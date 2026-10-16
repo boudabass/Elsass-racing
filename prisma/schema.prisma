@@ -181,6 +181,36 @@ enum CoreExportStatut {
   @@map("core_export_statut")
 }
 
+enum SettingsTheme {
+  sombre
+  clair
+  systeme
+
+  @@map("settings_theme")
+}
+
+enum SettingsTailleTexte {
+  normale
+  grande
+
+  @@map("settings_taille_texte")
+}
+
+enum SettingsLudique {
+  oui
+  non
+  comme_la_team
+
+  @@map("settings_ludique")
+}
+
+enum SettingsPorteeSuppression {
+  compte
+  team
+
+  @@map("settings_portee_suppression")
+}
+
 // Une team : la racine de tout le reste. Son id est la team_id de ses données.
 model CoreTeam {
   id                   String         @id @db.Uuid
@@ -204,32 +234,35 @@ model CoreTeam {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  invitations       CoreInvitation[]
-  memberships       CoreMembership[]
-  teamApps          CoreTeamApp[]
-  appAccess         CoreAppAccess[]
-  persons           CorePerson[]
-  seasons           CoreSeason[]
-  events            CoreEvent[]
-  eventEntries      CoreEventEntry[]
-  vehicles          CoreVehicle[]
-  contacts          CoreContact[]
-  tags              CoreTag[]
-  files             CoreFile[]             @relation("FichierTeam")
-  logoFile          CoreFile?              @relation("TeamLogo", fields: [logoFileId], references: [id], onDelete: SetNull)
-  attachments       CoreAttachment[]
-  activities        CoreActivity[]
-  notes             CoreNote[]
-  tasks             CoreTask[]
-  alerts            CoreAlert[]
-  actions           CoreAction[]
-  notifications     CoreNotification[]
-  notificationPrefs CoreNotificationPref[]
-  domainEvents      CoreDomainEvent[]
-  eventDeliveries   CoreEventDelivery[]
-  syncCursors       CoreSyncCursor[]
-  searchIndexes     CoreSearchIndex[]
-  exports           CoreExport[]
+  invitations              CoreInvitation[]
+  memberships              CoreMembership[]
+  teamApps                 CoreTeamApp[]
+  appAccess                CoreAppAccess[]
+  persons                  CorePerson[]
+  seasons                  CoreSeason[]
+  events                   CoreEvent[]
+  eventEntries             CoreEventEntry[]
+  vehicles                 CoreVehicle[]
+  contacts                 CoreContact[]
+  tags                     CoreTag[]
+  files                    CoreFile[]                @relation("FichierTeam")
+  logoFile                 CoreFile?                 @relation("TeamLogo", fields: [logoFileId], references: [id], onDelete: SetNull)
+  attachments              CoreAttachment[]
+  activities               CoreActivity[]
+  notes                    CoreNote[]
+  tasks                    CoreTask[]
+  alerts                   CoreAlert[]
+  actions                  CoreAction[]
+  notifications            CoreNotification[]
+  notificationPrefs        CoreNotificationPref[]
+  domainEvents             CoreDomainEvent[]
+  eventDeliveries          CoreEventDelivery[]
+  syncCursors              CoreSyncCursor[]
+  searchIndexes            CoreSearchIndex[]
+  exports                  CoreExport[]
+  settingsTeamPref         SettingsTeamPref?
+  settingsMemberPrefs      SettingsMemberPref[]
+  settingsDeletionRequests SettingsDeletionRequest[]
 
   @@index([logoFileId])
   @@map("core_team")
@@ -258,6 +291,9 @@ model CoreUser {
   activities          CoreActivity[]
   notes               CoreNote[]
   exports             CoreExport[]
+
+  suppressionsConcernees SettingsDeletionRequest[] @relation("SuppressionConcerne")
+  suppressionsDemandees  SettingsDeletionRequest[] @relation("SuppressionDemandeur")
 
   @@map("core_user")
 }
@@ -308,6 +344,7 @@ model CoreInvitation {
   team           CoreTeam    @relation(fields: [teamId], references: [id], onDelete: Restrict)
   envoyeeParUser CoreUser    @relation("InvitationEnvoyeePar", fields: [envoyeeParUserId], references: [id], onDelete: Restrict)
   person         CorePerson? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  hash           String?     @unique
 
   @@index([teamId])
   @@index([envoyeeParUserId])
@@ -362,6 +399,7 @@ model CoreMembership {
   actionsDecidees   CoreAction[]
   notifications     CoreNotification[]
   notificationPrefs CoreNotificationPref[]
+  preferences       SettingsMemberPref?
 
   @@unique([teamId, userId])
   @@index([teamId])
@@ -1059,12 +1097,92 @@ model CoreExport {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team           CoreTeam  @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  demandeParUser CoreUser  @relation(fields: [demandeParUserId], references: [id], onDelete: Restrict)
-  file           CoreFile? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  team           CoreTeam                  @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  demandeParUser CoreUser                  @relation(fields: [demandeParUserId], references: [id], onDelete: Restrict)
+  file           CoreFile?                 @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  suppressions   SettingsDeletionRequest[]
 
   @@index([teamId])
   @@index([demandeParUserId])
   @@index([fileId])
   @@map("core_export")
+}
+
+// Préférences de la team (Réglages). Une ligne par team.
+model SettingsTeamPref {
+  id                        String  @id @db.Uuid
+  teamId                    String  @map("team_id") @db.Uuid
+  ludiqueAffiche            Boolean @default(true) @map("ludique_affiche")
+  terrainProposeJourEpreuve Boolean @default(true) @map("terrain_propose_jour_epreuve")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team CoreTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@unique([teamId])
+  @@index([teamId])
+  @@map("settings_team_pref")
+}
+
+// Préférences d'un membre, dans une team. Créées à la demande.
+model SettingsMemberPref {
+  id                String              @id @db.Uuid
+  teamId            String              @map("team_id") @db.Uuid
+  membershipId      String              @unique @map("membership_id") @db.Uuid
+  theme             SettingsTheme       @default(sombre)
+  tailleTexte       SettingsTailleTexte @default(normale) @map("taille_texte")
+  modeTerrain       Boolean             @default(false) @map("mode_terrain")
+  ludiqueAffiche    SettingsLudique     @default(comme_la_team) @map("ludique_affiche")
+  heuresCalmesDebut String?             @map("heures_calmes_debut")
+  heuresCalmesFin   String?             @map("heures_calmes_fin")
+  appsDecouvertes   String[]            @default([]) @map("apps_decouvertes")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team       CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  membership CoreMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@map("settings_member_pref")
+}
+
+// Demande de suppression d'un compte ou d'une team, avec délai avant purge.
+model SettingsDeletionRequest {
+  id               String                    @id @db.Uuid
+  teamId           String                    @map("team_id") @db.Uuid
+  portee           SettingsPorteeSuppression
+  userId           String?                   @map("user_id") @db.Uuid
+  demandeParUserId String                    @map("demande_par_user_id") @db.Uuid
+  exportId         String?                   @map("export_id") @db.Uuid
+  purgePrevueAt    DateTime                  @map("purge_prevue_at") @db.Timestamptz(3)
+  annuleeAt        DateTime?                 @map("annulee_at") @db.Timestamptz(3)
+  executeeAt       DateTime?                 @map("executee_at") @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team      CoreTeam    @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  concerne  CoreUser?   @relation("SuppressionConcerne", fields: [userId], references: [id], onDelete: SetNull)
+  demandeur CoreUser    @relation("SuppressionDemandeur", fields: [demandeParUserId], references: [id], onDelete: Restrict)
+  export    CoreExport? @relation(fields: [exportId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([userId])
+  @@index([demandeParUserId])
+  @@index([exportId])
+  @@map("settings_deletion_request")
 }
