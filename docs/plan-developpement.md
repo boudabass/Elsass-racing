@@ -155,9 +155,10 @@ Spécifications : articles Odoo 949 (Saison v1.3) et 950 (Budget v1.1), catalogu
 
 ### 2.1 Saison, schéma et services
 - 12 tables `saison_`, RLS, règles pures (statuts, indice de préparation, cycle de validation, prochaine épreuve, clôture), services serveur et événements émis. Aucun écran.
-- Brief : `docs/briefs/2.1-saison-schema-services.md`.
+- Brief : `docs/briefs/2.1-saison-schema-services.md`. Fait le 16/10 (75bcf97), relu et accepté.
 
 ### 2.2 Saison, calendrier et fiche épreuve
+- Brief : `docs/briefs/2.2-saison-calendrier-fiche.md` (commence par les décisions sur les questions de la 2.1).
 - Calendrier (liste et mois, filtres), bouton + « Nouvelle épreuve » en 3 champs, fiche épreuve en onglets (Infos, Engagements, Programme), fiche engagement (inscription, paiement). Masquage des montants pour l'assistance.
 
 ### 2.3 Saison, résultats, débrief et saisons
