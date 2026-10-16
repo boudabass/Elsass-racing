@@ -18,6 +18,7 @@ Il n'y a pas de worker. Le traitement s'exécute **dans la requête qui vient d'
 - Sans gestionnaire : la livraison passe à `traite`, avec `derniereErreur = "aucun gestionnaire"`. C'est normal tant que les apps ne sont pas écrites.
 - Gestionnaire qui échoue : `erreur`, `tentatives + 1`, `derniereErreur` = le message. Le traitement continue avec la suivante. Une livraison en erreur est retentée aux appels suivants, jusqu'à 5 tentatives, puis laissée en erreur.
 - Un gestionnaire n'écrit que dans ses propres tables, ou par les fonctions du socle.
+- Un gestionnaire peut émettre à son tour. Le traitement imbriqué ne reprend ni la livraison en cours, ni une livraison déjà traitée entre-temps (`traitement-serveur.ts`).
 
 ## Boîte d'actions (`core_action`)
 
@@ -97,6 +98,10 @@ Ce format est une convention de Saison, pas une description du catalogue. Les ap
 ### Débrief (Saison)
 
 `saison.debrief_saisi` : `{ entryId: uuid, eventId: uuid, auteurMembershipId: uuid }`. Émis à chaque écriture de débrief, en ligne comme hors ligne, une fois l'écriture validée par le serveur (crochet `apresApplication` de la synchro, `src/apps/saison/synchro-serveur.ts`). Le texte du débrief n'est pas dans l'événement : il est privé à l'équipage.
+
+### Budget
+
+Charges utiles des événements de Budget : voir `docs/schema-budget.md` (section Événements). Le mouvement à confirmer est une demande de la boîte d'actions : `{ type: "mouvement_a_confirmer", cleUnicite: "budget_suggestion:<id>", ficheType: "mouvement", ficheId, destinataires, boutons: [confirmer, ignorer], priorite: 5 }`.
 
 ## Vérifier
 

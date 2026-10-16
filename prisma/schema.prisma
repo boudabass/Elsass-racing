@@ -276,6 +276,15 @@ model CoreTeam {
   saisonChampionships      SaisonChampionship[]
   saisonStandings          SaisonStanding[]
 
+  budgetCategories          BudgetCategory[]
+  budgetPayers              BudgetPayer[]
+  budgetDepenses            BudgetExpense[]
+  budgetRecettes            BudgetIncome[]
+  budgetPrevisionnels       BudgetForecast[]
+  budgetRemboursements      BudgetReimbursement[]
+  budgetLignesRemboursement BudgetReimbursementLine[]
+  budgetSuggestions         BudgetSuggestion[]
+
   @@index([logoFileId])
   @@map("core_team")
 }
@@ -404,17 +413,17 @@ model CoreMembership {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team              CoreTeam               @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  user              CoreUser               @relation(fields: [userId], references: [id], onDelete: Restrict)
-  person            CorePerson?            @relation(fields: [personId], references: [id], onDelete: SetNull)
-  appAccess         CoreAppAccess[]
-  actionsDecidees   CoreAction[]
-  notifications     CoreNotification[]
-  notificationPrefs CoreNotificationPref[]
-  preferences       SettingsMemberPref?
-  saisonResultsSaisis   SaisonResult[] @relation("ResultSaisi")
-  saisonResultsValides  SaisonResult[] @relation("ResultValide")
-  saisonDebriefs        SaisonDebrief[]
+  team                 CoreTeam               @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  user                 CoreUser               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  person               CorePerson?            @relation(fields: [personId], references: [id], onDelete: SetNull)
+  appAccess            CoreAppAccess[]
+  actionsDecidees      CoreAction[]
+  notifications        CoreNotification[]
+  notificationPrefs    CoreNotificationPref[]
+  preferences          SettingsMemberPref?
+  saisonResultsSaisis  SaisonResult[]         @relation("ResultSaisi")
+  saisonResultsValides SaisonResult[]         @relation("ResultValide")
+  saisonDebriefs       SaisonDebrief[]
 
   @@unique([teamId, userId])
   @@index([teamId])
@@ -524,18 +533,22 @@ model CorePerson {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team            CoreTeam         @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  user            CoreUser?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  contact         CoreContact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  invitations     CoreInvitation[]
-  memberships     CoreMembership[]
-  entriesPilote   CoreEventEntry[] @relation("EntryPilote")
-  entriesCopilote CoreEventEntry[] @relation("EntryCopilote")
+  team                          CoreTeam             @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  user                          CoreUser?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  contact                       CoreContact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  invitations                   CoreInvitation[]
+  memberships                   CoreMembership[]
+  entriesPilote                 CoreEventEntry[]     @relation("EntryPilote")
+  entriesCopilote               CoreEventEntry[]     @relation("EntryCopilote")
   saisonRegistrationsConcurrent SaisonRegistration[] @relation("RegistrationConcurrent")
   saisonRegistrationsPayeur     SaisonRegistration[] @relation("RegistrationPayeur")
   saisonStandings               SaisonStanding[]
-  photo           CoreFile?        @relation(fields: [photoFileId], references: [id], onDelete: SetNull)
-  tasks           CoreTask[]
+  photo                         CoreFile?            @relation(fields: [photoFileId], references: [id], onDelete: SetNull)
+  tasks                         CoreTask[]
+
+  budgetPayers             BudgetPayer[]
+  budgetRecettesProvenance BudgetIncome[]
+  budgetRemboursements     BudgetReimbursement[]
 
   @@index([teamId])
   @@index([userId])
@@ -562,9 +575,13 @@ model CoreSeason {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team   CoreTeam    @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  events CoreEvent[]
+  team                CoreTeam             @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  events              CoreEvent[]
   saisonChampionships SaisonChampionship[]
+
+  budgetDepenses      BudgetExpense[]
+  budgetRecettes      BudgetIncome[]
+  budgetPrevisionnels BudgetForecast[]
 
   @@unique([teamId, annee])
   @@index([teamId])
@@ -594,16 +611,21 @@ model CoreEvent {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team         CoreTeam         @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  season       CoreSeason       @relation(fields: [seasonId], references: [id], onDelete: Restrict)
-  organisateur CoreContact?     @relation(fields: [organisateurContactId], references: [id], onDelete: SetNull)
-  entries      CoreEventEntry[]
-  tasks        CoreTask[]
-  actions      CoreAction[]
+  team                CoreTeam             @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  season              CoreSeason           @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  organisateur        CoreContact?         @relation(fields: [organisateurContactId], references: [id], onDelete: SetNull)
+  entries             CoreEventEntry[]
+  tasks               CoreTask[]
+  actions             CoreAction[]
   saisonInfo          SaisonEventInfo?
   saisonRecce         SaisonRecce?
   saisonStages        SaisonStage[]
   saisonScheduleItems SaisonScheduleItem[]
+
+  budgetDepenses      BudgetExpense[]
+  budgetRecettes      BudgetIncome[]
+  budgetPrevisionnels BudgetForecast[]
+  budgetSuggestions   BudgetSuggestion[]
 
   @@index([teamId])
   @@index([seasonId])
@@ -633,17 +655,20 @@ model CoreEventEntry {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team     CoreTeam    @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  event    CoreEvent   @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  vehicle  CoreVehicle @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
-  pilote   CorePerson? @relation("EntryPilote", fields: [piloteId], references: [id], onDelete: SetNull)
-  copilote CorePerson? @relation("EntryCopilote", fields: [copiloteId], references: [id], onDelete: SetNull)
+  team                CoreTeam             @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  event               CoreEvent            @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  vehicle             CoreVehicle          @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  pilote              CorePerson?          @relation("EntryPilote", fields: [piloteId], references: [id], onDelete: SetNull)
+  copilote            CorePerson?          @relation("EntryCopilote", fields: [copiloteId], references: [id], onDelete: SetNull)
   saisonRegistration  SaisonRegistration?
   saisonResult        SaisonResult?
   saisonReadiness     SaisonReadiness[]
   saisonDebriefs      SaisonDebrief[]
   saisonScheduleItems SaisonScheduleItem[]
   saisonGeneratedDocs SaisonGeneratedDoc[]
+
+  budgetDepenses    BudgetExpense[]
+  budgetSuggestions BudgetSuggestion[]
 
   @@index([teamId])
   @@index([eventId])
@@ -669,10 +694,12 @@ model CoreVehicle {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team    CoreTeam         @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  photo   CoreFile?        @relation(fields: [photoFileId], references: [id], onDelete: SetNull)
-  entries CoreEventEntry[]
+  team         CoreTeam         @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  photo        CoreFile?        @relation(fields: [photoFileId], references: [id], onDelete: SetNull)
+  entries      CoreEventEntry[]
   saisonRecces SaisonRecce[]
+
+  budgetDepenses BudgetExpense[]
 
   @@index([teamId])
   @@index([photoFileId])
@@ -698,10 +725,13 @@ model CoreContact {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team    CoreTeam     @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  persons CorePerson[]
-  events  CoreEvent[]
+  team             CoreTeam          @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  persons          CorePerson[]
+  events           CoreEvent[]
   saisonEventInfos SaisonEventInfo[]
+
+  budgetDepenses BudgetExpense[]
+  budgetRecettes BudgetIncome[]
 
   @@index([teamId])
   @@index([teamId, nom])
@@ -752,16 +782,19 @@ model CoreFile {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team        CoreTeam         @relation("FichierTeam", fields: [teamId], references: [id], onDelete: Restrict)
-  logoDeTeams CoreTeam[]       @relation("TeamLogo")
-  personnes   CorePerson[]
-  vehicules   CoreVehicle[]
-  attachments CoreAttachment[]
-  exports     CoreExport[]
+  team                CoreTeam             @relation("FichierTeam", fields: [teamId], references: [id], onDelete: Restrict)
+  logoDeTeams         CoreTeam[]           @relation("TeamLogo")
+  personnes           CorePerson[]
+  vehicules           CoreVehicle[]
+  attachments         CoreAttachment[]
+  exports             CoreExport[]
   saisonEventInfos    SaisonEventInfo[]
   saisonResults       SaisonResult[]
   saisonGeneratedDocs SaisonGeneratedDoc[]
   saisonStandings     SaisonStanding[]
+
+  budgetDepenses BudgetExpense[]
+  budgetRecettes BudgetIncome[]
 
   @@index([teamId])
   @@map("core_file")
@@ -1343,17 +1376,17 @@ model SaisonEventInfo {
   lieuParcAssistance     String?   @map("lieu_parc_assistance")
   adresseEnvoiDossier    String?   @map("adresse_envoi_dossier")
 
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
-  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team         CoreTeam     @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  event        CoreEvent    @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  asaContact   CoreContact? @relation(fields: [asaContactId], references: [id], onDelete: SetNull)
-  reglementFile CoreFile?   @relation(fields: [reglementFileId], references: [id], onDelete: SetNull)
+  team          CoreTeam     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  event         CoreEvent    @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  asaContact    CoreContact? @relation(fields: [asaContactId], references: [id], onDelete: SetNull)
+  reglementFile CoreFile?    @relation(fields: [reglementFileId], references: [id], onDelete: SetNull)
 
   @@index([teamId])
   @@index([teamId, deletedAt])
@@ -1361,34 +1394,34 @@ model SaisonEventInfo {
 }
 
 model SaisonRegistration {
-  id                  String           @id @db.Uuid
-  teamId              String           @map("team_id") @db.Uuid
-  entryId             String           @unique @map("entry_id") @db.Uuid
-  concurrentPersonId  String?          @map("concurrent_person_id") @db.Uuid
-  concurrentNom       String?          @map("concurrent_nom")
-  montantDu           Int?             @map("montant_du")
-  montantPaye         Int?             @map("montant_paye")
-  devise              String           @default("EUR")
+  id                  String              @id @db.Uuid
+  teamId              String              @map("team_id") @db.Uuid
+  entryId             String              @unique @map("entry_id") @db.Uuid
+  concurrentPersonId  String?             @map("concurrent_person_id") @db.Uuid
+  concurrentNom       String?             @map("concurrent_nom")
+  montantDu           Int?                @map("montant_du")
+  montantPaye         Int?                @map("montant_paye")
+  devise              String              @default("EUR")
   modePaiement        SaisonPaiementMode? @map("mode_paiement")
-  payeLe              DateTime?        @map("paye_le") @db.Date
-  payeurPersonId      String?          @map("payeur_person_id") @db.Uuid
+  payeLe              DateTime?           @map("paye_le") @db.Date
+  payeurPersonId      String?             @map("payeur_person_id") @db.Uuid
   reference           String?
-  dossierEnvoyeLe     DateTime?        @map("dossier_envoye_le") @db.Timestamptz(3)
-  confirmationRecueLe DateTime?        @map("confirmation_recue_le") @db.Timestamptz(3)
-  listeEngagesPubliee Boolean          @default(false) @map("liste_engages_publiee")
+  dossierEnvoyeLe     DateTime?           @map("dossier_envoye_le") @db.Timestamptz(3)
+  confirmationRecueLe DateTime?           @map("confirmation_recue_le") @db.Timestamptz(3)
+  listeEngagesPubliee Boolean             @default(false) @map("liste_engages_publiee")
   remarques           String?
 
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
-  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team       CoreTeam         @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  entry      CoreEventEntry   @relation(fields: [entryId], references: [id], onDelete: Restrict)
-  concurrent CorePerson?      @relation("RegistrationConcurrent", fields: [concurrentPersonId], references: [id], onDelete: SetNull)
-  payeur     CorePerson?      @relation("RegistrationPayeur", fields: [payeurPersonId], references: [id], onDelete: SetNull)
+  team       CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  entry      CoreEventEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  concurrent CorePerson?    @relation("RegistrationConcurrent", fields: [concurrentPersonId], references: [id], onDelete: SetNull)
+  payeur     CorePerson?    @relation("RegistrationPayeur", fields: [payeurPersonId], references: [id], onDelete: SetNull)
 
   @@index([teamId])
   @@index([teamId, deletedAt])
@@ -1404,8 +1437,8 @@ model SaisonReadiness {
   detail  String?
   source  String
 
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
-  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
@@ -1432,16 +1465,16 @@ model SaisonRecce {
   plaqueRecue       Boolean   @default(false) @map("plaque_recue")
   consignes         String?
 
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
-  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team     CoreTeam     @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  event    CoreEvent    @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  vehicule CoreVehicle? @relation(fields: [vehiculeId], references: [id], onDelete: SetNull)
+  team     CoreTeam             @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  event    CoreEvent            @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  vehicule CoreVehicle?         @relation(fields: [vehiculeId], references: [id], onDelete: SetNull)
   sessions SaisonRecceSession[]
 
   @@index([teamId])
@@ -1459,14 +1492,14 @@ model SaisonRecceSession {
   passages  Int?
   notes     String?
 
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
-  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team  CoreTeam   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  team  CoreTeam    @relation(fields: [teamId], references: [id], onDelete: Restrict)
   recce SaisonRecce @relation(fields: [recceId], references: [id], onDelete: Cascade)
 
   @@index([teamId])
@@ -1475,25 +1508,25 @@ model SaisonRecceSession {
 }
 
 model SaisonStage {
-  id          String          @id @db.Uuid
-  teamId      String          @map("team_id") @db.Uuid
-  eventId     String          @map("event_id") @db.Uuid
-  numero      Int
-  nom         String
-  longueurKm  Decimal?        @map("longueur_km") @db.Decimal(5, 2)
-  nbPassages  Int?            @map("nb_passages")
-  type        SaisonStageType
+  id         String          @id @db.Uuid
+  teamId     String          @map("team_id") @db.Uuid
+  eventId    String          @map("event_id") @db.Uuid
+  numero     Int
+  nom        String
+  longueurKm Decimal?        @map("longueur_km") @db.Decimal(5, 2)
+  nbPassages Int?            @map("nb_passages")
+  type       SaisonStageType
 
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
-  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team          CoreTeam             @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  event         CoreEvent            @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  scheduleItems SaisonScheduleItem[]
+  team           CoreTeam             @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  event          CoreEvent            @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  scheduleItems  SaisonScheduleItem[]
   resultsAbandon SaisonResult[]
 
   @@unique([eventId, numero])
@@ -1503,26 +1536,26 @@ model SaisonStage {
 }
 
 model SaisonScheduleItem {
-  id            String              @id @db.Uuid
-  teamId        String              @map("team_id") @db.Uuid
-  eventId       String              @map("event_id") @db.Uuid
+  id            String             @id @db.Uuid
+  teamId        String             @map("team_id") @db.Uuid
+  eventId       String             @map("event_id") @db.Uuid
   type          SaisonScheduleType
-  stageId       String?             @map("stage_id") @db.Uuid
-  numeroPassage Int?                @map("numero_passage")
-  heurePrevue   DateTime?           @map("heure_prevue") @db.Timestamptz(3)
+  stageId       String?            @map("stage_id") @db.Uuid
+  numeroPassage Int?               @map("numero_passage")
+  heurePrevue   DateTime?          @map("heure_prevue") @db.Timestamptz(3)
   lieu          String?
-  entryId       String?             @map("entry_id") @db.Uuid
+  entryId       String?            @map("entry_id") @db.Uuid
 
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
-  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team  CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  event CoreEvent      @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  stage SaisonStage?   @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  team  CoreTeam        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  event CoreEvent       @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  stage SaisonStage?    @relation(fields: [stageId], references: [id], onDelete: SetNull)
   entry CoreEventEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
 
   @@index([teamId])
@@ -1554,8 +1587,8 @@ model SaisonResult {
   valideLe                DateTime?              @map("valide_le") @db.Timestamptz(3)
   commentaireContestation String?                @map("commentaire_contestation")
 
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
-  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
@@ -1574,17 +1607,17 @@ model SaisonResult {
 }
 
 model SaisonDebrief {
-  id                  String  @id @db.Uuid
-  teamId              String  @map("team_id") @db.Uuid
-  entryId             String  @map("entry_id") @db.Uuid
-  auteurMembershipId  String  @map("auteur_membership_id") @db.Uuid
-  ressenti            Int
-  pointsPositifs      String? @map("points_positifs")
-  pointsAAmeliorer    String? @map("points_a_ameliorer")
-  problemesVoiture    String? @map("problemes_voiture")
+  id                 String  @id @db.Uuid
+  teamId             String  @map("team_id") @db.Uuid
+  entryId            String  @map("entry_id") @db.Uuid
+  auteurMembershipId String  @map("auteur_membership_id") @db.Uuid
+  ressenti           Int
+  pointsPositifs     String? @map("points_positifs")
+  pointsAAmeliorer   String? @map("points_a_ameliorer")
+  problemesVoiture   String? @map("problemes_voiture")
 
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
-  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
@@ -1601,17 +1634,17 @@ model SaisonDebrief {
 }
 
 model SaisonGeneratedDoc {
-  id        String                 @id @db.Uuid
-  teamId    String                 @map("team_id") @db.Uuid
-  entryId   String                 @map("entry_id") @db.Uuid
-  type      SaisonGeneratedDocType
-  fileId    String                 @map("file_id") @db.Uuid
-  version   Int                    @default(1)
-  genereLe  DateTime               @map("genere_le") @db.Timestamptz(3)
-  envoyeLe  DateTime?              @map("envoye_le") @db.Timestamptz(3)
+  id       String                 @id @db.Uuid
+  teamId   String                 @map("team_id") @db.Uuid
+  entryId  String                 @map("entry_id") @db.Uuid
+  type     SaisonGeneratedDocType
+  fileId   String                 @map("file_id") @db.Uuid
+  version  Int                    @default(1)
+  genereLe DateTime               @map("genere_le") @db.Timestamptz(3)
+  envoyeLe DateTime?              @map("envoye_le") @db.Timestamptz(3)
 
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
-  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
@@ -1627,16 +1660,16 @@ model SaisonGeneratedDoc {
 }
 
 model SaisonChampionship {
-  id              String  @id @db.Uuid
-  teamId          String  @map("team_id") @db.Uuid
-  seasonId        String  @map("season_id") @db.Uuid
-  nom             String
-  organisateur    String?
-  lienClassement  String? @map("lien_classement")
-  suiviActif      Boolean @default(true) @map("suivi_actif")
+  id             String  @id @db.Uuid
+  teamId         String  @map("team_id") @db.Uuid
+  seasonId       String  @map("season_id") @db.Uuid
+  nom            String
+  organisateur   String?
+  lienClassement String? @map("lien_classement")
+  suiviActif     Boolean @default(true) @map("suivi_actif")
 
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
-  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
@@ -1662,8 +1695,8 @@ model SaisonStanding {
   sourceLien     String?   @map("source_lien")
   sourceFileId   String?   @map("source_file_id") @db.Uuid
 
-  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
-  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
@@ -1678,4 +1711,326 @@ model SaisonStanding {
   @@index([teamId, deletedAt])
   @@index([championshipId])
   @@map("saison_standing")
+}
+
+// --- Budget (tâche 2.5, docs/schema-budget.md) ---------------------------------------------
+
+enum BudgetSens {
+  depense
+  recette
+
+  @@map("budget_sens")
+}
+
+enum BudgetTypePayeur {
+  membre
+  caisse_team
+  compte_association
+
+  @@map("budget_type_payeur")
+}
+
+enum BudgetMoyen {
+  carte
+  especes
+  cheque
+  virement
+
+  @@map("budget_moyen")
+}
+
+enum BudgetRemboursement {
+  non_concerne
+  a_rembourser
+  partiel
+  rembourse
+
+  @@map("budget_remboursement")
+}
+
+enum BudgetOrigine {
+  saisie
+  proposee
+
+  @@map("budget_origine")
+}
+
+enum BudgetStatutRecette {
+  prevue
+  encaissee
+
+  @@map("budget_statut_recette")
+}
+
+enum BudgetStatutSuggestion {
+  en_attente
+  confirmee
+  ignoree
+
+  @@map("budget_statut_suggestion")
+}
+
+model BudgetCategory {
+  id       String     @id @db.Uuid
+  teamId   String     @map("team_id") @db.Uuid
+  nom      String
+  sens     BudgetSens
+  parentId String?    @map("parent_id") @db.Uuid
+  couleur  String?
+  icone    String?
+  ordre    Int        @default(0)
+  active   Boolean    @default(true)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team          CoreTeam           @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  parent        BudgetCategory?    @relation("CategorieParent", fields: [parentId], references: [id], onDelete: SetNull)
+  enfants       BudgetCategory[]   @relation("CategorieParent")
+  depenses      BudgetExpense[]
+  recettes      BudgetIncome[]
+  previsionnels BudgetForecast[]
+  suggestions   BudgetSuggestion[]
+
+  @@unique([teamId, sens, nom])
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("budget_category")
+}
+
+model BudgetPayer {
+  id       String           @id @db.Uuid
+  teamId   String           @map("team_id") @db.Uuid
+  type     BudgetTypePayeur
+  personId String?          @map("person_id") @db.Uuid
+  nom      String
+  actif    Boolean          @default(true)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team               CoreTeam              @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  person             CorePerson?           @relation(fields: [personId], references: [id], onDelete: SetNull)
+  depenses           BudgetExpense[]
+  recettesEncaissees BudgetIncome[]
+  remboursements     BudgetReimbursement[]
+
+  @@unique([teamId, personId])
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("budget_payer")
+}
+
+model BudgetExpense {
+  id                   String              @id @db.Uuid
+  teamId               String              @map("team_id") @db.Uuid
+  date                 DateTime            @db.Date
+  montant              Int
+  devise               String              @default("EUR")
+  categoryId           String              @map("category_id") @db.Uuid
+  libelle              String
+  payerId              String              @map("payer_id") @db.Uuid
+  moyen                BudgetMoyen?
+  fournisseurContactId String?             @map("fournisseur_contact_id") @db.Uuid
+  seasonId             String?             @map("season_id") @db.Uuid
+  eventId              String?             @map("event_id") @db.Uuid
+  entryId              String?             @map("entry_id") @db.Uuid
+  vehicleId            String?             @map("vehicle_id") @db.Uuid
+  confirmee            Boolean             @default(false)
+  aRembourser          Boolean             @default(false) @map("a_rembourser")
+  remboursement        BudgetRemboursement @default(non_concerne)
+  origine              BudgetOrigine       @default(saisie)
+  origineRef           String?             @map("origine_ref")
+  justificatifFileId   String?             @map("justificatif_file_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team         CoreTeam                  @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  category     BudgetCategory            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  payer        BudgetPayer               @relation(fields: [payerId], references: [id], onDelete: Restrict)
+  fournisseur  CoreContact?              @relation(fields: [fournisseurContactId], references: [id], onDelete: SetNull)
+  season       CoreSeason?               @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  event        CoreEvent?                @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  entry        CoreEventEntry?           @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  vehicle      CoreVehicle?              @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  justificatif CoreFile?                 @relation(fields: [justificatifFileId], references: [id], onDelete: SetNull)
+  lignes       BudgetReimbursementLine[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([teamId, payerId])
+  @@index([teamId, categoryId, seasonId])
+  @@map("budget_expense")
+}
+
+model BudgetIncome {
+  id                  String              @id @db.Uuid
+  teamId              String              @map("team_id") @db.Uuid
+  date                DateTime            @db.Date
+  montant             Int
+  devise              String              @default("EUR")
+  categoryId          String              @map("category_id") @db.Uuid
+  libelle             String
+  provenanceContactId String?             @map("provenance_contact_id") @db.Uuid
+  provenancePersonId  String?             @map("provenance_person_id") @db.Uuid
+  enNature            Boolean             @default(false) @map("en_nature")
+  descriptionNature   String?             @map("description_nature")
+  valeurEstimee       Int?                @map("valeur_estimee")
+  statut              BudgetStatutRecette @default(prevue)
+  encaisseeLe         DateTime?           @map("encaissee_le") @db.Date
+  encaisseeSurPayerId String?             @map("encaissee_sur_payer_id") @db.Uuid
+  seasonId            String?             @map("season_id") @db.Uuid
+  eventId             String?             @map("event_id") @db.Uuid
+  origine             BudgetOrigine       @default(saisie)
+  origineRef          String?             @map("origine_ref")
+  justificatifFileId  String?             @map("justificatif_file_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team              CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  category          BudgetCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  provenanceContact CoreContact?   @relation(fields: [provenanceContactId], references: [id], onDelete: SetNull)
+  provenancePerson  CorePerson?    @relation(fields: [provenancePersonId], references: [id], onDelete: SetNull)
+  encaisseeSur      BudgetPayer?   @relation(fields: [encaisseeSurPayerId], references: [id], onDelete: SetNull)
+  season            CoreSeason?    @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  event             CoreEvent?     @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  justificatif      CoreFile?      @relation(fields: [justificatifFileId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([teamId, statut])
+  @@map("budget_income")
+}
+
+model BudgetForecast {
+  id          String  @id @db.Uuid
+  teamId      String  @map("team_id") @db.Uuid
+  seasonId    String  @map("season_id") @db.Uuid
+  categoryId  String  @map("category_id") @db.Uuid
+  eventId     String? @map("event_id") @db.Uuid
+  montant     Int
+  devise      String  @default("EUR")
+  commentaire String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team     CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  season   CoreSeason     @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  category BudgetCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  event    CoreEvent?     @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@unique([seasonId, categoryId, eventId])
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("budget_forecast")
+}
+
+model BudgetReimbursement {
+  id          String      @id @db.Uuid
+  teamId      String      @map("team_id") @db.Uuid
+  personId    String      @map("person_id") @db.Uuid
+  montant     Int
+  devise      String      @default("EUR")
+  date        DateTime    @db.Date
+  moyen       BudgetMoyen
+  payerId     String      @map("payer_id") @db.Uuid
+  commentaire String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team   CoreTeam                  @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  person CorePerson                @relation(fields: [personId], references: [id], onDelete: Restrict)
+  payer  BudgetPayer               @relation(fields: [payerId], references: [id], onDelete: Restrict)
+  lignes BudgetReimbursementLine[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("budget_reimbursement")
+}
+
+model BudgetReimbursementLine {
+  id              String @id @db.Uuid
+  teamId          String @map("team_id") @db.Uuid
+  reimbursementId String @map("reimbursement_id") @db.Uuid
+  expenseId       String @map("expense_id") @db.Uuid
+  montant         Int
+  devise          String @default("EUR")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team          CoreTeam            @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  reimbursement BudgetReimbursement @relation(fields: [reimbursementId], references: [id], onDelete: Restrict)
+  expense       BudgetExpense       @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+
+  @@unique([reimbursementId, expenseId])
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("budget_reimbursement_line")
+}
+
+model BudgetSuggestion {
+  id               String                 @id @db.Uuid
+  teamId           String                 @map("team_id") @db.Uuid
+  appOrigine       String                 @map("app_origine")
+  evenementOrigine String                 @map("evenement_origine")
+  sens             BudgetSens
+  montant          Int
+  devise           String                 @default("EUR")
+  categoryId       String                 @map("category_id") @db.Uuid
+  libelle          String
+  eventId          String?                @map("event_id") @db.Uuid
+  entryId          String?                @map("entry_id") @db.Uuid
+  statut           BudgetStatutSuggestion @default(en_attente)
+  mouvementId      String?                @map("mouvement_id") @db.Uuid
+  actionCle        String?                @map("action_cle")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team     CoreTeam        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  category BudgetCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  event    CoreEvent?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  entry    CoreEventEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([teamId, statut])
+  @@map("budget_suggestion")
 }

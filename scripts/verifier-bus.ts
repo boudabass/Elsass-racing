@@ -322,9 +322,122 @@ async function main() {
     })
     controle("une saisie de plus de 48 heures non validée est relancée à la priorité 6", relance?.priorite === 6 && (relance?.titre ?? "").startsWith("Relance"), JSON.stringify(relance))
 
+    // 13. Budget : initialisation, dépense et solde, prévisionnel franchi une seule fois, suggestion confirmée
+    //     par la boîte d'actions, décision refusée remise en attente avec son motif, remboursement et niveau.
+    const budget = await import("../src/apps/budget/services-serveur")
+    const personneBus = randomUUID()
+    await proprietaire.corePerson.create({ data: { id: personneBus, teamId: team.id, nom: "Bus", prenom: "Verif" } })
+    await proprietaire.coreMembership.update({ where: { id: adhesion }, data: { personId: personneBus } })
+    await budget.initialiserBudgetDans(ctx)
+    const categoriesBudget = await proprietaire.budgetCategory.findMany({ where: { teamId: team.id }, select: { id: true, sens: true, nom: true } })
+    const nbDepense = categoriesBudget.filter((categorie) => categorie.sens === "depense").length
+    const nbRecette = categoriesBudget.filter((categorie) => categorie.sens === "recette").length
+    controle("l'initialisation crée quinze catégories de dépense et sept de recette", nbDepense === 15 && nbRecette === 7, `dépense ${nbDepense}, recette ${nbRecette}`)
+    await budget.initialiserBudgetDans(ctx)
+    const nbCategories2 = await proprietaire.budgetCategory.count({ where: { teamId: team.id } })
+    controle("une seconde initialisation ne crée aucun doublon", nbCategories2 === categoriesBudget.length, `${nbCategories2}`)
+    const payeurMoi = await proprietaire.budgetPayer.findFirst({ where: { teamId: team.id, personId: personneBus } })
+    const nbCaisses = await proprietaire.budgetPayer.count({ where: { teamId: team.id, type: "caisse_team" } })
+    controle("le responsable a un payeur « membre » et la team une seule caisse", payeurMoi?.type === "membre" && nbCaisses === 1)
+
+    const idCategorie = (nom: string): string => categoriesBudget.find((categorie) => categorie.nom === nom)?.id ?? ""
+    const catEngagement = idCategorie("Engagement")
+    const catPieces = idCategorie("Pièces")
+    const epreuveBudget = randomUUID()
+    await proprietaire.coreEvent.create({
+      data: { id: epreuveBudget, teamId: team.id, seasonId: saisonBus, type: "rallye", nom: "Rallye budget bus", dateDebut: new Date("2030-09-01"), dateFin: new Date("2030-09-02"), statut: "envisagee" },
+    })
+    await proprietaire.budgetForecast.create({ data: { id: randomUUID(), teamId: team.id, seasonId: saisonBus, categoryId: catEngagement, montant: 100_000 } })
+    const compter = (nom: string) => proprietaire.coreDomainEvent.count({ where: { teamId: team.id, nom } })
+
+    // Une dépense saisie par le membre : confirmée d'office, à rembourser, rattachée à la saison de l'épreuve.
+    const depense1 = await budget.creerDepenseDans(ctx, { montant: 120_000, categoryId: catEngagement, libelle: "Engagement test", eventId: epreuveBudget })
+    const d1 = await proprietaire.budgetExpense.findUnique({ where: { id: depense1 } })
+    controle(
+      "une dépense saisie est confirmée d'office, à rembourser, et rattachée à la saison",
+      d1?.confirmee === true && d1?.aRembourser === true && d1?.remboursement === "a_rembourser" && d1?.seasonId === saisonBus,
+      JSON.stringify(d1),
+    )
+    controle(
+      "la dépense émet depense_creee, depense_confirmee, solde_modifie et depassement une fois",
+      (await compter("budget.depense_creee")) === 1 && (await compter("budget.depense_confirmee")) === 1 && (await compter("budget.solde_modifie")) === 1 && (await compter("budget.depassement_previsionnel")) === 1,
+    )
+    await budget.creerDepenseDans(ctx, { montant: 5_000, categoryId: catEngagement, libelle: "Engagement test 2", eventId: epreuveBudget })
+    controle("le dépassement n'est émis qu'au franchissement, une seule fois", (await compter("budget.depassement_previsionnel")) === 1)
+
+    // Niveau contribution : une dépense payée par la caisse est refusée ; celle qu'on paie soi-même passe.
+    const caisse = await proprietaire.budgetPayer.findFirst({ where: { teamId: team.id, type: "caisse_team" } })
+    let refusCaisse = ""
+    try {
+      await budget.creerDepenseDans(ctx, { montant: 100, categoryId: catEngagement, libelle: "Caisse", payerId: caisse?.id ?? "" }, "contribution")
+    } catch (erreur) {
+      refusCaisse = erreur instanceof budget.ErreurBudget ? erreur.message : String(erreur)
+    }
+    controle("sans écriture, une dépense payée par la caisse est refusée", refusCaisse.startsWith("Tu ne peux saisir"), refusCaisse)
+    await budget.creerDepenseDans(ctx, { montant: 100, categoryId: catEngagement, libelle: "Mon paiement", payerId: payeurMoi?.id ?? "" }, "contribution")
+    controle("sans écriture, sa propre dépense passe", (await compter("budget.depense_creee")) === 3)
+
+    // Suggestion confirmée par la boîte d'actions : la décision crée la dépense, avec son origine.
+    const idSuggestion = await budget.proposerMouvementDans(ctx, {
+      appOrigine: "garage",
+      evenementOrigine: "garage.piece_achetee",
+      sens: "depense",
+      montant: 4_500,
+      categoryId: catPieces,
+      libelle: "Pièce proposée",
+      eventId: epreuveBudget,
+    })
+    const actionSuggestion = await proprietaire.coreAction.findFirst({ where: { teamId: team.id, cleUnicite: `budget_suggestion:${idSuggestion}` } })
+    controle("une suggestion crée une action « mouvement à confirmer » en attente", actionSuggestion?.statut === "en_attente" && actionSuggestion?.type === "mouvement_a_confirmer")
+    await decider(ctx, actionSuggestion?.id ?? "", "confirmer")
+    const suggestionConfirmee = await proprietaire.budgetSuggestion.findUnique({ where: { id: idSuggestion } })
+    controle("la décision « confirmer » rend la suggestion confirmée, avec son mouvement", suggestionConfirmee?.statut === "confirmee" && suggestionConfirmee.mouvementId !== null)
+    const depenseProposee = await proprietaire.budgetExpense.findFirst({ where: { teamId: team.id, origine: "proposee" } })
+    controle("la dépense proposée est confirmée par un humain, avec son origine", depenseProposee?.confirmee === true && depenseProposee?.origineRef === `garage:${idSuggestion}`)
+
+    // Décision refusée par la règle (suggestion déjà ignorée) : l'action revient en attente, avec son motif.
+    const idIgnoree = await budget.proposerMouvementDans(ctx, {
+      appOrigine: "garage",
+      evenementOrigine: "garage.intervention_facturee",
+      sens: "depense",
+      montant: 900,
+      categoryId: catPieces,
+      libelle: "Suggestion ignorée",
+      eventId: epreuveBudget,
+    })
+    await budget.ignorerSuggestionDans(ctx, idIgnoree)
+    const actionIgnoree = await proprietaire.coreAction.findFirst({ where: { teamId: team.id, cleUnicite: `budget_suggestion:${idIgnoree}` } })
+    await decider(ctx, actionIgnoree?.id ?? "", "confirmer")
+    const actionRefusee = await proprietaire.coreAction.findFirst({ where: { teamId: team.id, cleUnicite: `budget_suggestion:${idIgnoree}` } })
+    controle(
+      "une décision refusée par la règle remet l'action en attente, avec son motif",
+      actionRefusee?.statut === "en_attente" && (actionRefusee?.messageRefus ?? "").includes("n'est plus en attente"),
+      actionRefusee?.messageRefus ?? "",
+    )
+
+    // Remboursement : partiel, puis un trop qui dépasse le reste dû est refusé.
+    await budget.rembourserDans(ctx, { personId: personneBus, montant: 50_000, moyen: "virement", payerId: caisse?.id ?? "", lignes: [{ expenseId: depense1, montant: 50_000 }] })
+    const apresRemboursement = await proprietaire.budgetExpense.findUnique({ where: { id: depense1 } })
+    controle("un remboursement partiel passe la dépense à « partiel »", apresRemboursement?.remboursement === "partiel", apresRemboursement?.remboursement ?? "")
+    let refusRemb = ""
+    try {
+      await budget.rembourserDans(ctx, { personId: personneBus, montant: 100_000, moyen: "virement", payerId: caisse?.id ?? "", lignes: [{ expenseId: depense1, montant: 100_000 }] })
+    } catch (erreur) {
+      refusRemb = erreur instanceof budget.ErreurBudget ? erreur.message : String(erreur)
+    }
+    controle("un remboursement qui dépasse le reste dû est refusé", refusRemb.includes("dépasse"), refusRemb)
+
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
+    await proprietaire.budgetReimbursementLine.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.budgetReimbursement.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.budgetSuggestion.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.budgetForecast.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.budgetIncome.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.budgetExpense.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.budgetPayer.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.budgetCategory.deleteMany({ where: { teamId: team.id } })
     await proprietaire.saisonResult.deleteMany({ where: { teamId: team.id } })
     await proprietaire.saisonReadiness.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreAppAccess.deleteMany({ where: { teamId: team.id } })
@@ -339,6 +452,7 @@ async function main() {
     await proprietaire.coreDomainEvent.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreTeamApp.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreMembership.deleteMany({ where: { id: adhesion } })
+    await proprietaire.corePerson.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreTeam.deleteMany({ where: { id: team.id } })
     await proprietaire.coreUser.deleteMany({ where: { id: utilisateur.id } })
     await proprietaire.$disconnect()

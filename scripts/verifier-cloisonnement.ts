@@ -209,9 +209,62 @@ async function main() {
     }
     controle("création d'un championnat dans la team B sous le contexte A refusée", championnatRefuse)
 
+    // 10. Budget : les huit tables ont le RLS forcé et la politique cloisonnement_team, le rôle applicatif
+    //     y lit et écrit ; une catégorie de la team B est invisible et intouchable sous le contexte A.
+    const tablesBudget = [
+      "budget_category", "budget_payer", "budget_expense", "budget_income",
+      "budget_forecast", "budget_reimbursement", "budget_reimbursement_line", "budget_suggestion",
+    ]
+    const budgetSansRls = await proprietaire.$queryRaw<Array<{ table_name: string }>>`
+      SELECT c.relname AS table_name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = ANY(${tablesBudget}::text[])
+        AND (
+          NOT c.relrowsecurity
+          OR NOT c.relforcerowsecurity
+          OR NOT EXISTS (
+            SELECT 1 FROM pg_policies p
+            WHERE p.schemaname = 'public' AND p.tablename = c.relname AND p.policyname = 'cloisonnement_team'
+          )
+          OR NOT (
+            has_table_privilege('elsass_racing_app', c.oid, 'SELECT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'INSERT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'UPDATE')
+          )
+        )
+      ORDER BY c.relname`
+    controle(
+      "les huit tables budget_ ont le RLS forcé, la politique cloisonnement_team et les droits du rôle applicatif",
+      budgetSansRls.length === 0 && tablesBudget.length === 8,
+      budgetSansRls.map((r) => r.table_name).join(", "),
+    )
+
+    const categorieB = randomUUID()
+    await proprietaire.budgetCategory.create({ data: { id: categorieB, teamId: teamB.id, nom: "Catégorie B", sens: "depense" } })
+    const categoriesVuesParA = await clientA.budgetCategory.count({ where: { id: categorieB } })
+    controle("une catégorie Budget de la team B est invisible sous le contexte A", categoriesVuesParA === 0, `vu : ${categoriesVuesParA}`)
+    const categoriesModifiees = await clientA.budgetCategory.updateMany({ where: { id: categorieB }, data: { nom: "piratage" } })
+    controle("update d'une catégorie Budget de B sous le contexte A touche 0 ligne", categoriesModifiees.count === 0, `touché : ${categoriesModifiees.count}`)
+    const payeurB = randomUUID()
+    await proprietaire.budgetPayer.create({ data: { id: payeurB, teamId: teamB.id, type: "caisse_team", nom: "Caisse B" } })
+    let depenseRefusee = false
+    try {
+      await clientA.budgetExpense.create({
+        data: { id: randomUUID(), teamId: teamB.id, date: new Date("2026-01-01"), montant: 100, categoryId: categorieB, libelle: "Intrusion", payerId: payeurB },
+      })
+    } catch {
+      depenseRefusee = true
+    }
+    controle("création d'une dépense Budget dans la team B sous le contexte A refusée", depenseRefusee)
+
     console.log("\nCloisonnement vérifié : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
+    await proprietaire.budgetExpense.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.budgetPayer.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.budgetCategory.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.saisonChampionship.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.coreMembership.deleteMany({ where: { id: adhesion } })
     await proprietaire.coreSeason.deleteMany({ where: { id: { in: [saisonA, saisonB] } } })
