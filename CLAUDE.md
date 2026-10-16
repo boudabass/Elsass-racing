@@ -46,7 +46,7 @@ Ce fichier ne contient que les règles, les pièges et l'état actuel. Le récit
 
 ## État actuel
 
-- 16/10/2026 : socle en production sur https://elsass-racing.theelsassisch.com (Coolify, branche main, PostgreSQL 18, guide `docs/deploiement-coolify.md`). Team en production : « The Elsassisch Racing Team », team de test, John responsable ; la Koehling Racing Team réelle viendra plus tard. Tâches 1.1 à 1.10 et 1.12 faites. Reste du lot 1 : 1.11 hors ligne et synchronisation.
+- 16/10/2026 : socle en production sur https://elsass-racing.theelsassisch.com (Coolify, branche main, PostgreSQL 18, guide `docs/deploiement-coolify.md`). Team en production : « The Elsassisch Racing Team », team de test, John responsable ; la Koehling Racing Team réelle viendra plus tard. Lot 1 (socle) terminé : tâches 1.1 à 1.12, hors ligne compris (synchro sur liste blanche, service worker, app installable). Prochain : lot 2, apps Saison et Budget.
 - Données de démonstration : `pnpm donnees:koehling [--slug <slug>]` (saison 2026 de la Saxo).
 - Production : le rôle de connexion de l'app (`elsass_racing_web`) doit être membre de `elsass_racing_app`, sinon « permission denied » ; `/api/sante` le vérifie. Health check Coolify sur `/api/sante` (curl présent dans l'image).
 - Déploiement : fusion dev dans main par commit de merge, puis John lance Deploy dans Coolify (pas d'auto-deploy). Création de team en production : base ouverte quelques minutes, script lancé depuis le poste, base refermée.
@@ -54,6 +54,7 @@ Ce fichier ne contient que les règles, les pièges et l'état actuel. Le récit
 - Tests de bout en bout : `pnpm test:e2e` (Playwright, son propre Chromium, port 3100, `.next-e2e`, mail en console, données de test créées et supprimées par `e2e/aide`). Captures dans `docs/captures/`.
 - Le serveur dev de John (port 3000) ne s'arrête jamais pendant une tâche. Build de vérification : `NEXT_DIST_DIR=.next-build pnpm build`.
 - Briefs de l'orchestrateur dans `docs/briefs/`, un fichier par tâche.
+- Hors ligne : une table n'est synchronisée que si son app la déclare dans `src/core/synchro/registre.ts` (voir `docs/synchro.md`). Vérification : `pnpm db:verifier-synchro`. Le test e2e hors ligne tourne sur un serveur de production local (port 3101).
 - Deux rôles PostgreSQL : propriétaire (DATABASE_URL_MIGRATION, migrations, seed, scripts) et applicatif restreint soumis au RLS (DATABASE_URL, l'app).
 - Base locale : `pnpm db:up` puis `pnpm db:deploy` puis `pnpm db:seed`. Port 5433. Première team : `pnpm team:creer --nom … --slug … --email …`.
 - Migrations : `pnpm db:migrate` ne fait que créer le SQL (`--create-only`), relire, compléter à la main si besoin, puis `pnpm db:deploy`.
