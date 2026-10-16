@@ -64,6 +64,16 @@ Les champs de `creer` ne suffisent pas à poser la fiche : le serveur pose l'aut
 
 Un membre ne reçoit que ce qu'il peut lire (article 948) : niveau aucun, la table n'est pas renvoyée ; niveau contribution, seulement ses lignes (`created_by` = le compte courant) ; lecture et plus, toute la team. La décision est dans `perimetreLecture` (`contribution.ts`, testée). Le filtre est un paramètre de `lirePaquet` : une nouvelle table en hérite.
 
+## Navigation hors ligne
+
+- Cause du plantage constaté en production (1.11b) : hors ligne, un lien interne ne retrouvait pas sa page dans le cache (`/notes?nouvelle=1`, paramètre absent du cache), le service worker servait `/hors-ligne`, dont le JavaScript n'était pas en cache : « Loading chunk failed », soit l'écran « client-side exception ».
+- Correction : le cache des pages ignore les paramètres (`ignoreSearch`) ; le repli hors ligne est une page sans JavaScript, générée par le service worker ; les requêtes RSC ne sont pas interceptées (Next retombe alors sur une navigation de page, servie par le service worker).
+- Garde côté client (`NavigationHorsLigne`, `src/components/navigation-hors-ligne.tsx`) : hors ligne, un clic sur un lien interne devient une navigation de page. La décision est dans `modeNavigation` (testée) ; `naviguer(routeur, href)` est la fonction commune du code.
+- Préchargement : en ligne, le client demande au service worker de mettre en cache `/qg` et `/notes`.
+- Écran d'erreur : `src/app/(app)/error.tsx` (espace connecté) et `src/app/global-error.tsx` (racine), en français, avec « Recharger », « Retour au QG », et la mention hors ligne.
+- Journal des erreurs : `POST /api/erreurs-client` (session exigée, 20 envois par minute et par appareil, `[erreur client]` dans les logs serveur). Hors ligne, l'erreur est gardée sur l'appareil et envoyée au retour du réseau. Aucune donnée de team : message, pile tronquée, chemin de la page, version, navigateur.
+- Test de l'écran d'erreur : `/erreur-test` (hors production). Le brief parlait de `/__erreur-test` ; un dossier qui commence par `_` est privé dans Next.
+
 ## Limites connues
 
 - Pas de worker en arrière-plan : la synchro tourne dans l'onglet ouvert, et le service worker ne rejoue rien seul.

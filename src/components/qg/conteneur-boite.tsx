@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, type ReactNode } from "react"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
@@ -20,7 +20,6 @@ export function ConteneurBoite({
   ecouteUrl?: boolean
 }) {
   const parametres = useSearchParams()
-  const router = useRouter()
   const chemin = usePathname()
   const cible = ecouteUrl ? parametres.get("boite") : null
   const [ouvert, setOuvert] = useState(false)
@@ -44,7 +43,8 @@ export function ConteneurBoite({
   function changerOuverture(valeur: boolean) {
     setOuvert(valeur)
     // Fermé : on retire le paramètre, pour qu'une réouverture ne rejoue pas l'action ciblée.
-    if (!valeur && cible) router.replace(chemin)
+    // Retrait du paramètre : seul l'historique change, sans requête (utilisable hors ligne).
+    if (!valeur && cible) window.history.replaceState(null, "", chemin)
   }
 
   return (
