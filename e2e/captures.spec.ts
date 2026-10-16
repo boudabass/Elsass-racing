@@ -11,6 +11,11 @@ import { preparerDonneesCaptures } from "./aide/session"
 
 const DOSSIER = path.join(__dirname, "..", "docs", "captures")
 
+// Fenêtre seule : on masque seulement l'indicateur de développement de Next.
+async function masquerIndicateur(page: Page): Promise<void> {
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" })
+}
+
 // Une capture pleine page place les éléments fixes à leur position d'écran : la barre basse
 // se retrouverait au milieu de la page. Elle est posée en absolu, au bas du document. Les
 // autres éléments fixes (bouton « Prochaine étape » flottant) et l'indicateur de développement
@@ -40,14 +45,19 @@ test("captures : QG, Identité et boîte d'actions", async ({ page, equipe }) =>
   await preparerCapture(page)
   await page.screenshot({ path: path.join(DOSSIER, "qg-1440x900.png"), fullPage: true })
 
+  // Fenêtre seule, sans préparation : le bouton Prochaine étape reste visible à sa place.
+  await page.goto("/qg")
+  await masquerIndicateur(page)
+  await page.screenshot({ path: path.join(DOSSIER, "qg-ecran-1440x900.png"), fullPage: false })
+
   // La boîte d'actions s'ouvre dans un panneau fixe : pas de préparation de la page, sinon
   // le panneau serait masqué.
-  await page.goto("/qg")
   await page.getByRole("button", { name: /Boîte d'actions/ }).click()
   const panneau = page.getByRole("dialog")
   await expect(panneau.getByText("Valider le résultat du Gaschney")).toBeVisible()
   // Le panneau glisse depuis la droite : on attend la fin de l'animation avant la capture.
   await expect(panneau).toHaveCSS("transform", "none")
+  await masquerIndicateur(page)
   await page.screenshot({ path: path.join(DOSSIER, "boite-actions-1440x900.png") })
   await page.keyboard.press("Escape")
 
@@ -61,4 +71,8 @@ test("captures : QG, Identité et boîte d'actions", async ({ page, equipe }) =>
   await expect(page.getByRole("navigation", { name: "Navigation rapide" })).toBeVisible()
   await preparerCapture(page)
   await page.screenshot({ path: path.join(DOSSIER, "qg-360x740.png"), fullPage: true })
+
+  await page.goto("/qg")
+  await masquerIndicateur(page)
+  await page.screenshot({ path: path.join(DOSSIER, "qg-ecran-360x740.png"), fullPage: false })
 })

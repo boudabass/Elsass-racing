@@ -49,7 +49,14 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
       )}
     </button>
   )
+  // Deux instances : la barre haute écoute le paramètre « boite » (lien du bouton Prochaine
+  // étape) ; la barre basse, sur téléphone, n'écoute pas, pour n'ouvrir qu'un seul panneau.
   const boite = (
+    <ConteneurBoite declencheur={declencheur} ecouteUrl>
+      <BoiteActions groupes={donnees.groupes} />
+    </ConteneurBoite>
+  )
+  const boiteMobile = (
     <ConteneurBoite declencheur={declencheur}>
       <BoiteActions groupes={donnees.groupes} />
     </ConteneurBoite>
@@ -81,7 +88,7 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
       />
 
       <div className="mx-auto flex max-w-6xl">
-        <Navigation apps={apps} entreesPlus={entreesPlus} boiteMobile={boite} />
+        <Navigation apps={apps} entreesPlus={entreesPlus} boiteMobile={boiteMobile} />
         <main className="min-w-0 flex-1 px-4 pb-32 pt-6 md:px-8 md:pb-16">{children}</main>
       </div>
 

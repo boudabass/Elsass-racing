@@ -13,7 +13,9 @@ export function BoutonProchaineEtape({ etape, maintenant }: { etape: ProchaineEt
     )
   }
 
-  const destination = etape.genre === "action" ? `/apps/${etape.action.appOrigine}` : "/apps/saison"
+  // Action : la boîte d'actions s'ouvre sur cette action (pas l'app d'origine, qui n'a pas
+  // encore d'écran). Compte à rebours : la saison.
+  const destination = etape.genre === "action" ? `/qg?boite=${etape.action.id}` : "/apps/saison"
   // Action : son titre et sa raison. Compte à rebours : le décompte, puis le nom de l'épreuve.
   const compteARebours = etape.genre === "compte_a_rebours" ? libelleCompteARebours(etape.epreuve, maintenant) : null
   const titreAffiche = etape.genre === "action" ? etape.libelle : etape.epreuve.nom

@@ -49,13 +49,14 @@ Les écritures de l'aide sont en SQL direct (`pg`). Le client Prisma généré e
 | `e2e/terrain.spec.ts` | h. mode terrain : classe `terrain` sur `<html>`, `settings_member_pref.mode_terrain` vrai |
 | `e2e/telephone.spec.ts` | i. viewport 360×740 : pas de défilement horizontal, barre basse visible |
 | `e2e/reglages-personnels.spec.ts` | thème clair persisté et présent dans le HTML du serveur ; déconnexion de l'appareil courant ; suppression de compte refusée au responsable seul, puis demandée et annulée par un équipier (contrôle en base) ; quitter une team refusé au dernier responsable ; assistance : rubriques personnelles ouvertes, celles de la team refusées |
+| `e2e/prochaine-etape.spec.ts` | le bouton Prochaine étape affiche « Valider le résultat du Gaschney », son lien ouvre la boîte sur cette action, qui est dans la zone visible |
 | `e2e/captures.spec.ts` | captures pleine page et boîte d'actions, sur une team avec les données de démonstration |
 
 Pour le scénario e, le bouton « Désactiver » de Voiture est désactivé par l'interface quand Garage la requiert. Le test vérifie ce blocage et le message, sans tenter le clic.
 
 ### Captures
 
-`docs/captures/` : `qg-1440x900.png`, `qg-360x740.png`, `identite-1440x900.png`, `boite-actions-1440x900.png`. Pour une capture pleine page, la barre basse et les éléments fixes sont posés en absolu au bas du document, et l'indicateur de développement de Next est masqué. Seul le rendu de la capture change.
+`docs/captures/` : `qg-1440x900.png`, `qg-360x740.png`, `identite-1440x900.png`, `boite-actions-1440x900.png` (pleines pages), et `qg-ecran-1440x900.png`, `qg-ecran-360x740.png` (fenêtre seule, le bouton Prochaine étape visible). Sur les fenêtres seules, seul l'indicateur de développement de Next est masqué. Pour une capture pleine page, la barre basse et les éléments fixes sont posés en absolu au bas du document, et l'indicateur de développement de Next est masqué. Seul le rendu de la capture change.
 
 La team des captures reçoit les données de démonstration Koehling (`e2e/aide/donnees-equipe.ts`, qui réutilise `scripts/lib/donnees-koehling.ts`), plus une alerte orange sur Garage et l'action « Valider le résultat du Gaschney » en priorité 3. Le compte à rebours, le badge et la pastille des tuiles, et le bouton Prochaine étape apparaissent ainsi sur les captures.
 
