@@ -66,3 +66,19 @@ Les relations uniques vers un modèle n'ont pas besoin de nom.
 ## Dates de calendrier
 
 Les dates qui n'ont pas d'heure (`dateNaissance`, `dateDebut`, `dateFin` de `CoreSeason` et `CoreEvent`) sont en `@db.Date`, et non en `Timestamptz`. C'est le choix du cahier des charges : une date de naissance ou de course n'a pas de fuseau.
+
+## Le trio app / ficheType / ficheId
+
+Les services transversaux (pièces jointes, activité, notes, tâches, alertes, actions, recherche) doivent désigner une fiche de n'importe quelle app. Le trio `app` (clé d'app), `ficheType` (type de fiche, texte) et `ficheId` (uuid de la fiche) le fait sans clé étrangère : la fiche peut vivre dans une table d'une autre app.
+
+- Ces trois colonnes sont indexées ensemble avec `team_id` : `@@index([teamId, app, ficheType, ficheId])`.
+- `core_task`, `core_alert` et `core_action` les portent en optionnel : une tâche ou une alerte peut ne pas être liée à une fiche.
+- Conséquence : rien en base ne garantit que la fiche désignée existe. C'est à l'application de le vérifier, et à la suppression d'une fiche de nettoyer ce qui la désigne.
+
+## Colonne générée hors Prisma
+
+`core_search_index.vecteur` est une colonne `tsvector GENERATED ALWAYS AS (...) STORED`, avec un index GIN. Prisma ne sait pas exprimer ces deux éléments : la colonne est déclarée `Unsupported("tsvector")?` dans le schéma, et la migration `core_services` les crée à la main.
+
+**Attention** : `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma` propose de supprimer l'index GIN (il n'est pas dans le schéma) et un `DROP DEFAULT` sur `vecteur`. Ces écarts sont connus et attendus. Conséquence pratique : **ne jamais lancer `pnpm db:migrate` sans `--create-only` et relire le SQL généré**, sans quoi Prisma créerait une migration qui supprime l'index. `pnpm db:deploy` ne pose pas ce problème, car il ne compare rien.
+
+Vérifié le 16/10/2026 : `prisma migrate status` indique « Database schema is up to date ».
