@@ -8,6 +8,7 @@ import { choisirTeam } from "./team-serveur"
 import { consommerCode, demanderConnexion } from "./jetons-serveur"
 import { finaliserConnexion } from "./connexion-serveur"
 import type { EtatConnexion } from "./etat-connexion"
+import { LIBELLES_DEMANDE_CONNEXION } from "./libelles-connexion"
 
 // Chaque action revérifie la session elle-même : Next expose toutes les actions d'un
 // module, y compris depuis une page publique.
@@ -25,11 +26,7 @@ export async function demanderLienAction(
   const resultat = await demanderConnexion(email, await cleClient())
 
   if (!resultat.ok) {
-    const erreur =
-      resultat.raison === "email"
-        ? "Cette adresse e-mail n'est pas valide."
-        : "Trop de demandes. Réessaie dans quelques minutes."
-    return { etape: "email", erreur }
+    return { etape: "email", erreur: LIBELLES_DEMANDE_CONNEXION[resultat.raison] }
   }
   return { etape: "code", email: email.trim().toLowerCase() }
 }

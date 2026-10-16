@@ -24,7 +24,7 @@ const limiteCodes = new LimiteTentatives(5, 10 * 60_000)
 
 export type ResultatDemande =
   | { ok: true }
-  | { ok: false; raison: "email" | "trop_de_demandes" }
+  | { ok: false; raison: "email" | "trop_de_demandes" | "envoi" }
 
 export type ResultatConsommation =
   | { ok: true; userId: string }
@@ -36,20 +36,25 @@ function urlApp(): string {
 
 // Crée un jeton dont le hachage est unique. Pour un code à 6 chiffres, une collision
 // avec un jeton encore en base est rare mais possible : on retire le code et on recommence.
-async function creerJetonCode(userId: string, email: string, expireAt: Date): Promise<string> {
+async function creerJetonCode(
+  userId: string,
+  email: string,
+  expireAt: Date,
+): Promise<{ code: string; id: string }> {
   for (let essai = 0; essai < 5; essai++) {
     const code = genererCode()
+    const id = newId()
     try {
       await prisma.coreAuthToken.create({
         data: {
-          id: newId(),
+          id,
           userId,
           type: CoreAuthTokenType.code,
           hash: hacherCode(email, code),
           expireAt,
         },
       })
-      return code
+      return { code, id }
     } catch (erreur) {
       if (!estViolationUnicite(erreur)) throw erreur
     }
@@ -95,31 +100,46 @@ export async function demanderConnexion(emailBrut: string, cleClient: string): P
   })
 
   const secretLien = genererSecretLien()
+  const idLien = newId()
   await prisma.coreAuthToken.create({
     data: {
-      id: newId(),
+      id: idLien,
       userId: utilisateur.id,
       type: CoreAuthTokenType.lien,
       hash: hacherSecret(secretLien),
       expireAt: calculerExpiration(maintenant, DUREE_LIEN_MINUTES),
     },
   })
-  const code = await creerJetonCode(
+  const { code, id: idCode } = await creerJetonCode(
     utilisateur.id,
     email,
     calculerExpiration(maintenant, DUREE_CODE_MINUTES),
   )
 
   const lien = `${urlApp()}/connexion/lien?t=${secretLien}`
-  await envoyerMail({
-    a: email,
-    sujet: "Ta connexion à Elsass Racing",
-    texte:
-      `Bonjour,\n\n` +
-      `Pour te connecter, clique sur ce lien (valable ${DUREE_LIEN_MINUTES} minutes) :\n${lien}\n\n` +
-      `Ou saisis ce code (valable ${DUREE_CODE_MINUTES} minutes) :\n${code}\n\n` +
-      `Si tu n'es pas à l'origine de cette demande, ignore ce message.`,
-  })
+  try {
+    await envoyerMail({
+      a: email,
+      sujet: "Ta connexion à Elsass Racing",
+      texte:
+        `Bonjour,\n\n` +
+        `Pour te connecter, clique sur ce lien (valable ${DUREE_LIEN_MINUTES} minutes) :\n${lien}\n\n` +
+        `Ou saisis ce code (valable ${DUREE_CODE_MINUTES} minutes) :\n${code}\n\n` +
+        `Si tu n'es pas à l'origine de cette demande, ignore ce message.`,
+    })
+  } catch (erreur) {
+    // Pas de mail, pas de jeton utilisable : on invalide ceux qu'on vient de créer, sans
+    // laisser un code vivant dont personne ne connaît la valeur. Seul le message est journalisé.
+    console.error(
+      "Envoi du mail de connexion impossible :",
+      erreur instanceof Error ? erreur.message : "erreur inconnue",
+    )
+    await prisma.coreAuthToken.updateMany({
+      where: { id: { in: [idLien, idCode] } },
+      data: { utiliseAt: new Date() },
+    })
+    return { ok: false, raison: "envoi" }
+  }
 
   return { ok: true }
 }

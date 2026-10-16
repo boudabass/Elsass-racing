@@ -15,12 +15,15 @@ const expediteurParDefaut = "Elsass Racing <info@theelsassisch.com>"
 
 let transport: nodemailer.Transporter | null = null
 
+// En production, le transport est gardé en cache. Hors production, il est recréé à chaque
+// envoi : une modification de .env.local est prise en compte sans redémarrer le serveur.
 function transportSmtp(): nodemailer.Transporter {
-  if (transport) return transport
+  const enProduction = process.env.NODE_ENV === "production"
+  if (enProduction && transport) return transport
   const port = Number(process.env.SMTP_PORT ?? 587)
   // Port 465 : TLS direct. Autres ports (587) : connexion en clair, puis STARTTLS imposé.
   const tlsDirect = port === 465
-  transport = nodemailer.createTransport({
+  const cree = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port,
     secure: tlsDirect,
@@ -29,7 +32,8 @@ function transportSmtp(): nodemailer.Transporter {
       ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD }
       : undefined,
   })
-  return transport
+  if (enProduction) transport = cree
+  return cree
 }
 
 export async function envoyerMail({ a, sujet, texte, html }: MailSortant): Promise<void> {
