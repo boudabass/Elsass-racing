@@ -9,7 +9,7 @@ Version 0.2, 16/10/2026 au soir. Rédigé par l'orchestrateur à partir des arti
 - **Hors ligne en production** depuis le redéploiement du 16/10 au soir (service worker, manifeste, page hors ligne). Reste le test réel sur téléphone.
 - **Tests** : 205 unitaires, 21 de bout en bout (dont 2 hors ligne sur serveur de production local), vérifications en base `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`.
 - **Ordre réel** : la 1.12 (déploiement) est passée avant la 1.11 (hors ligne), décision de John, pour tester sur téléphone au plus tôt.
-- **Prochain** : lot 2, Saison et Budget.
+- **En cours** : lot 2, Saison et Budget, découpé en section 5 bis. Tâche 2.1 lancée le 16/10 au soir.
 
 ## 1. Cap
 
@@ -148,6 +148,32 @@ Chaque tâche est un brief autonome pour l'opérateur. L'orchestrateur relit et 
 - Dockerfile et entrypoint sur le modèle d'Elsass Dico, migrations au démarrage.
 - Coolify : application, base PostgreSQL, volume des fichiers, variables d'environnement, sauvegardes quotidiennes.
 - Livrable : URL de préproduction accessible, compte de John créé, team Koehling Racing Team créée.
+
+## 5 bis. Lot 2, Saison et Budget, découpé en tâches opérateur
+
+Spécifications : articles Odoo 949 (Saison v1.3) et 950 (Budget v1.1), catalogue 962, UI 953. Un brief détaillé est écrit dans `docs/briefs/` au moment de lancer chaque tâche, après relecture de la précédente.
+
+### 2.1 Saison, schéma et services
+- 12 tables `saison_`, RLS, règles pures (statuts, indice de préparation, cycle de validation, prochaine épreuve, clôture), services serveur et événements émis. Aucun écran.
+- Brief : `docs/briefs/2.1-saison-schema-services.md`.
+
+### 2.2 Saison, calendrier et fiche épreuve
+- Calendrier (liste et mois, filtres), bouton + « Nouvelle épreuve » en 3 champs, fiche épreuve en onglets (Infos, Engagements, Programme), fiche engagement (inscription, paiement). Masquage des montants pour l'assistance.
+
+### 2.3 Saison, résultats, débrief et saisons
+- Saisie du résultat, preuve, validation croisée, contestation, écran « Résultats à valider », débrief, écran de fin d'épreuve après validation, historique, création et clôture de saison.
+
+### 2.4 Saison, préparation, reconnaissances, rappels et hors ligne
+- Panneau « Prêt pour l'épreuve ? » (points absents affichés « pas encore suivi »), reconnaissances, rappels en actions (J-14, J-7, J-3, matin même, lendemain, 48 h) recalculés à l'ouverture du QG, widgets Saison, compte à rebours de la barre haute branché, synchro hors ligne du programme, des spéciales, du débrief et des sorties de reco.
+
+### 2.5 Budget, schéma et services
+- 8 tables `budget_`, catégories et payeurs par défaut, soldes par membre, remboursements, prévisionnel, propositions venues des autres apps.
+
+### 2.6 Budget, écrans
+- Mouvements, bouton + « Nouvelle dépense » en 3 champs avec photo du ticket, À confirmer, par épreuve, par membre, prévisionnel, export tableur. Contribution de l'assistance limitée à ses dépenses et à son solde. Le PDF de bilan de saison attend l'outil PDF du lot 3.
+
+### 2.7 Liaisons Saison et Budget
+- `saison.engagement_paye` vers une dépense proposée, `budget.depense_creee` (catégorie engagement) vers « marquer payé », solde de la barre haute, widgets Budget, dépenses saisies hors ligne en épreuve.
 
 ## 6. Méthode de travail
 
