@@ -1,6 +1,5 @@
 -- Préférences Réglages, suppression, hash d'invitation.
--- Généré depuis la base réelle vers le schéma (migrate diff), car migrate dev échoue sur la base shadow
--- (la migration core_rls révoque des droits sur _prisma_migrations, absent de la base shadow).
+-- Généré par migrate diff depuis la base réelle vers le schéma.
 
 -- CreateEnum
 CREATE TYPE "settings_theme" AS ENUM ('sombre', 'clair', 'systeme');

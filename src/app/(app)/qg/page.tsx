@@ -1,12 +1,11 @@
-import { cookies } from "next/headers"
-
-import { donneesQg } from "@/core/qg/donnees"
-import { COOKIE_TERRAIN } from "@/core/qg/cookies"
+import { contexteQg, donneesQg } from "@/core/qg/donnees"
+import { modeTerrainDuMembre } from "@/apps/settings/preferences-serveur"
 import { GrilleQG, type DonneesTuile } from "@/components/qg/grille-qg"
 
 export default async function PageQg({ searchParams }: { searchParams: Promise<{ erreur?: string }> }) {
   const { erreur } = await searchParams
-  const terrain = (await cookies()).get(COOKIE_TERRAIN)?.value === "1"
+  const { contexte } = await contexteQg()
+  const terrain = await modeTerrainDuMembre(contexte)
   const donnees = await donneesQg(terrain)
 
   const tuiles: Record<string, DonneesTuile> = {}

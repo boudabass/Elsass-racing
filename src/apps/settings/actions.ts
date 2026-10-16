@@ -12,7 +12,12 @@ import type { ContexteTeam } from "@/core/contexte"
 import { annulerInvitation, creerInvitation, renvoyerInvitation } from "@/core/invitations/invitations-serveur"
 import { schemaEmail } from "@/core/auth/jetons"
 
+import { APPS } from "@/core/catalogue"
+import { NIVEAUX, type Niveau } from "@/core/droits/niveaux"
+import { prisma } from "@/lib/prisma"
+
 import { peutChangerAcces } from "./regles"
+import { deplacer, niveauAutorise, peutDesactiver } from "./droits-regles"
 
 const RUBRIQUE = "/apps/settings"
 const ROLES = ["responsable", "equipage", "assistance", "invite"] as const
@@ -209,4 +214,137 @@ export async function retirerMembre(formData: FormData): Promise<void> {
   }
   revalidatePath(RUBRIQUE, "layout")
   retour("membres", erreur)
+}
+
+// Droits par app : une case à la valeur du défaut du rôle ne laisse aucune ligne
+// core_app_access ; une case différente en crée ou met à jour une.
+export async function sauverDroitsMembre(formData: FormData): Promise<void> {
+  let erreur: string | undefined
+  try {
+    const { ctx } = await ctxGestion()
+    const membershipId = texte(formData, "membershipId")
+    const client = prismaPourTeam(ctx.teamId, ctx.userId)
+
+    const membre = await client.coreMembership.findFirst({
+      where: { id: membershipId, teamId: ctx.teamId },
+      select: { id: true, role: true },
+    })
+    if (!membre) throw new Error("Membre introuvable.")
+
+    const defauts = await prisma.coreRoleDefault.findMany({ where: { role: membre.role } })
+
+    for (const app of APPS) {
+      const valeur = texte(formData, `niveau_${app.cle}`)
+      if (!(NIVEAUX as readonly string[]).includes(valeur)) continue
+      const niveau = valeur as Niveau
+      if (!niveauAutorise(membre.role, app.cle, niveau)) {
+        throw new Error("Un responsable garde la gestion de Réglages.")
+      }
+
+      const defaut = defauts.find((d) => d.appCle === app.cle)?.niveau ?? "aucun"
+      if (niveau === defaut) {
+        await client.coreAppAccess.deleteMany({ where: { membershipId, appCle: app.cle } })
+      } else {
+        await client.coreAppAccess.upsert({
+          where: { membershipId_appCle: { membershipId, appCle: app.cle } },
+          create: { id: newId(), teamId: ctx.teamId, membershipId, appCle: app.cle, niveau },
+          update: { niveau },
+        })
+      }
+    }
+    await emettre(ctx, "settings.droits_modifies", { membershipId })
+  } catch (cause) {
+    erreur = messageErreur(cause)
+  }
+  revalidatePath(RUBRIQUE, "layout")
+  retour("droits", erreur)
+}
+
+// Revenir aux droits du rôle : supprime toutes les lignes core_app_access du membre.
+export async function revenirAuxDroitsDuRole(formData: FormData): Promise<void> {
+  let erreur: string | undefined
+  try {
+    const { ctx } = await ctxGestion()
+    const membershipId = texte(formData, "membershipId")
+    await prismaPourTeam(ctx.teamId, ctx.userId).coreAppAccess.deleteMany({ where: { membershipId } })
+    await emettre(ctx, "settings.droits_modifies", { membershipId })
+  } catch (cause) {
+    erreur = messageErreur(cause)
+  }
+  revalidatePath(RUBRIQUE, "layout")
+  retour("droits", erreur)
+}
+
+export async function basculerApp(formData: FormData): Promise<void> {
+  let erreur: string | undefined
+  try {
+    const { ctx } = await ctxGestion()
+    const appCle = texte(formData, "appCle")
+    const activer = texte(formData, "activer") === "1"
+    if (!APPS.some((a) => a.cle === appCle)) throw new Error("App inconnue.")
+
+    const client = prismaPourTeam(ctx.teamId, ctx.userId)
+    const lignes = await client.coreTeamApp.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { appCle: true, activee: true } })
+    if (!activer) {
+      const verdict = peutDesactiver(appCle, lignes.filter((l) => l.activee).map((l) => l.appCle))
+      if (!verdict.ok) throw new Error(verdict.raison)
+    }
+
+    await client.coreTeamApp.update({
+      where: { teamId_appCle: { teamId: ctx.teamId, appCle } },
+      data: { activee: activer },
+    })
+    await emettre(ctx, activer ? "settings.app_activee" : "settings.app_desactivee", { appCle })
+  } catch (cause) {
+    erreur = messageErreur(cause)
+  }
+  revalidatePath(RUBRIQUE, "layout")
+  retour("apps", erreur)
+}
+
+// Ordre des apps : monter ou descendre d'un cran. Le glisser-déposer viendra plus tard.
+export async function deplacerApp(formData: FormData): Promise<void> {
+  let erreur: string | undefined
+  try {
+    const { ctx } = await ctxGestion()
+    const appCle = texte(formData, "appCle")
+    const sens = texte(formData, "sens") === "monter" ? -1 : 1
+
+    const client = prismaPourTeam(ctx.teamId, ctx.userId)
+    const lignes = await client.coreTeamApp.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { appCle: true, ordre: true } })
+    const nouveaux = deplacer(lignes, appCle, sens)
+    if (!nouveaux) throw new Error("Cette app ne peut pas bouger dans ce sens.")
+
+    for (const ligne of nouveaux) {
+      await client.coreTeamApp.update({
+        where: { teamId_appCle: { teamId: ctx.teamId, appCle: ligne.appCle } },
+        data: { ordre: ligne.ordre },
+      })
+    }
+    await emettre(ctx, "settings.ordre_apps_modifie", { appCle, sens })
+  } catch (cause) {
+    erreur = messageErreur(cause)
+  }
+  revalidatePath(RUBRIQUE, "layout")
+  retour("apps", erreur)
+}
+
+// Proposition de passer en mode terrain le jour d'une épreuve : réglage de la team.
+export async function sauverJourEpreuve(formData: FormData): Promise<void> {
+  let erreur: string | undefined
+  try {
+    const { ctx } = await ctxGestion()
+    const propose = texte(formData, "terrainProposeJourEpreuve") === "1"
+    const client = prismaPourTeam(ctx.teamId, ctx.userId)
+    await client.settingsTeamPref.upsert({
+      where: { teamId: ctx.teamId },
+      create: { id: newId(), teamId: ctx.teamId, terrainProposeJourEpreuve: propose },
+      update: { terrainProposeJourEpreuve: propose },
+    })
+    await emettre(ctx, "settings.identite_modifiee", { rubrique: "jour_epreuve" })
+  } catch (cause) {
+    erreur = messageErreur(cause)
+  }
+  revalidatePath(RUBRIQUE, "layout")
+  retour("identite", erreur)
 }

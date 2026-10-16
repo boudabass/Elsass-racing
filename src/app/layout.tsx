@@ -1,10 +1,9 @@
 import type { CSSProperties } from "react"
 import type { Metadata } from "next"
 import { Barlow, Barlow_Condensed } from "next/font/google"
-import { cookies } from "next/headers"
 
 import { ThemeProvider } from "@/components/theme-provider"
-import { COOKIE_TERRAIN } from "@/core/qg/cookies"
+import { modeTerrainDuMembre } from "@/apps/settings/preferences-serveur"
 import { variablesDeTeam } from "@/core/theme/variables"
 import { teamCourante } from "@/core/auth/team-serveur"
 
@@ -34,7 +33,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Couleurs de la team courante, quand il y en a une (sinon : couleurs par défaut).
   const courante = await teamCourante().catch(() => null)
   const styleTeam = courante ? (variablesDeTeam(courante.team) as CSSProperties) : undefined
-  const terrain = (await cookies()).get(COOKIE_TERRAIN)?.value === "1"
+  const terrain = courante
+    ? await modeTerrainDuMembre({ teamId: courante.team.id, userId: courante.membership.userId, membership: { id: courante.membership.id, role: courante.membership.role } })
+    : false
 
   return (
     <html

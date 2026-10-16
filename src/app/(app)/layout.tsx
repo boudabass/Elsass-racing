@@ -4,7 +4,8 @@ import { redirect } from "next/navigation"
 
 import { ErreurAcces } from "@/core/droits/erreurs"
 import { contexteQg, donneesQg } from "@/core/qg/donnees"
-import { COOKIE_BANDEAU_TERRAIN, COOKIE_TERRAIN } from "@/core/qg/cookies"
+import { COOKIE_BANDEAU_TERRAIN } from "@/core/qg/cookies"
+import { modeTerrainDuMembre, terrainProposeJourEpreuve } from "@/apps/settings/preferences-serveur"
 import { libelleCompteARebours } from "@/core/actions/prochaine-etape"
 import { BarreHaute } from "@/components/qg/barre-haute"
 import { BandeauTerrain } from "@/components/qg/bandeau-terrain"
@@ -24,9 +25,11 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
     if (erreur instanceof ErreurAcces && erreur.raison === "non_connecte") redirect("/connexion")
     redirect("/equipes")
   }
+  const { contexte } = await contexteQg()
 
   const magasin = await cookies()
-  const terrain = magasin.get(COOKIE_TERRAIN)?.value === "1"
+  const terrain = await modeTerrainDuMembre(contexte)
+  const proposeBandeau = await terrainProposeJourEpreuve(contexte)
   const donnees = await donneesQg(terrain)
   const maintenant = new Date()
   const aujourdhui = maintenant.toISOString().slice(0, 10)
@@ -60,7 +63,7 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
   const jour = new Date(`${aujourdhui}T00:00:00Z`)
   const enCours = epreuve !== null && epreuve.dateDebut <= jour && epreuve.dateFin >= jour
   const bandeauRefuse = magasin.get(COOKIE_BANDEAU_TERRAIN)?.value === aujourdhui
-  const afficherBandeau = enCours && !terrain && !bandeauRefuse
+  const afficherBandeau = enCours && proposeBandeau && !terrain && !bandeauRefuse
 
   return (
     <div className="min-h-dvh overflow-x-hidden bg-fond text-texte">

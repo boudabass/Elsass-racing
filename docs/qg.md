@@ -28,7 +28,6 @@ Enveloppe commune de l'espace connecté : `src/app/(app)/`. Le layout charge une
 
 | Nom | Contenu | Durée | Rôle |
 |---|---|---|---|
-| `er_terrain` | `1` ou `0` | 30 jours | Mode terrain actif |
 | `er_bandeau_terrain` | date AAAA-MM-JJ | 1 jour | Bandeau « jour d'épreuve » refusé pour la journée |
 
 Préférences non sensibles : pas de signature. Le mode terrain migrera vers les préférences de membre en 1.10.

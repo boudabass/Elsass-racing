@@ -1,14 +1,12 @@
-import { cookies } from "next/headers"
-
 import { contexteQg, donneesQg } from "@/core/qg/donnees"
-import { COOKIE_TERRAIN } from "@/core/qg/cookies"
+import { modeTerrainDuMembre } from "@/apps/settings/preferences-serveur"
 import { rechercher, grouperParApp } from "@/core/recherche/recherche-serveur"
 import { iconeApp } from "@/components/qg/icones"
 
 export default async function PageRecherche({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = "" } = await searchParams
   const { contexte } = await contexteQg()
-  const terrain = (await cookies()).get(COOKIE_TERRAIN)?.value === "1"
+  const terrain = await modeTerrainDuMembre(contexte)
   const donnees = await donneesQg(terrain)
 
   const requete = q.trim()

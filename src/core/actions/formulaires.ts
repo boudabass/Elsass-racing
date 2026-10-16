@@ -6,7 +6,8 @@ import { revalidatePath } from "next/cache"
 
 import { exigerAcces, exigerContexte } from "@/core/droits/garde-serveur"
 import { ErreurAcces, libelleErreurAcces } from "@/core/droits/erreurs"
-import { COOKIE_BANDEAU_TERRAIN, COOKIE_TERRAIN, DUREE_JOUR_SECONDES } from "@/core/qg/cookies"
+import { COOKIE_BANDEAU_TERRAIN, DUREE_JOUR_SECONDES } from "@/core/qg/cookies"
+import { fixerModeTerrain } from "@/apps/settings/preferences-serveur"
 import { prismaPourTeam } from "@/lib/prisma"
 import type { Niveau } from "@/core/droits/niveaux"
 
@@ -68,15 +69,8 @@ export async function reporterAction(formData: FormData): Promise<void> {
 
 // Bascule le mode terrain (cookie pour l'instant ; les préférences viendront en 1.10).
 export async function basculerTerrainAction(formData: FormData): Promise<void> {
-  await exigerContexte()
-  const actif = formData.get("actif") === "1"
-  const magasin = await cookies()
-  magasin.set(COOKIE_TERRAIN, actif ? "1" : "0", {
-    path: "/",
-    sameSite: "lax",
-    httpOnly: false,
-    maxAge: 30 * 24 * 60 * 60,
-  })
+  const { contexte } = await exigerContexte()
+  await fixerModeTerrain(contexte, formData.get("actif") === "1")
   revalidatePath("/", "layout")
 }
 

@@ -31,7 +31,15 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE O
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO elsass_racing_app;
 
 -- L'historique des migrations n'est pas une donnée applicative.
-REVOKE ALL ON TABLE "_prisma_migrations" FROM elsass_racing_app;
+-- Conditionnel : la base shadow (migrate dev) n'a pas encore cette table quand cette
+-- migration s'exécute ; la base réelle l'a toujours.
+DO $$
+BEGIN
+  IF to_regclass('public._prisma_migrations') IS NOT NULL THEN
+    REVOKE ALL ON TABLE "_prisma_migrations" FROM elsass_racing_app;
+  END IF;
+END
+$$;
 
 -- 2. Fonctions lisant le contexte posé par set_config. NULLIF : un réglage vide
 -- (''), qui est ce que current_setting renvoie après une transaction, donne NULL et

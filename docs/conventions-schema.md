@@ -116,3 +116,21 @@ Le script `docker/init/01-role-app.sql` crée ces rôles de connexion. Il est mo
 
 Sur un volume neuf, le script est exécuté au démarrage, avant les migrations : il crée le rôle `elsass_racing_app` lui-même, ce qui rend le `GRANT` valide. La migration `core_rls` reste idempotente sur ce point (`IF NOT EXISTS`).
 
+
+## Instructions SQL à la main : règle de la base shadow
+
+`pnpm db:migrate` (migrate dev) rejoue toutes les migrations sur une base shadow vide, avant de créer la nouvelle. Une instruction écrite à la main qui touche `_prisma_migrations`, ou un objet absent de cette base vide, casse donc la création de migration, même si la base réelle la supporte.
+
+Règle : toute instruction manuelle de ce genre doit être conditionnelle. Exemple :
+
+```sql
+DO $$
+BEGIN
+  IF to_regclass('public._prisma_migrations') IS NOT NULL THEN
+    REVOKE ALL ON TABLE "_prisma_migrations" FROM elsass_racing_app;
+  END IF;
+END
+$$;
+```
+
+Cas déjà corrigé : la migration `core_rls`. Si une migration déjà appliquée est modifiée, la colonne `checksum` de sa ligne dans `_prisma_migrations` doit être mise à jour (sha256 du fichier, rôle propriétaire). C'est acceptable tant que rien n'est en production.

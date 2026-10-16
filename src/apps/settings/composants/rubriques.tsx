@@ -2,13 +2,14 @@ import { notFound } from "next/navigation"
 
 import { contexteQg } from "@/core/qg/donnees"
 import { exigerAcces } from "@/core/droits/garde-serveur"
-import { prismaPourTeam } from "@/lib/prisma"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { sauverAssociation, sauverIdentite, inviterMembre, renvoyerInvitationAction, annulerInvitationAction, changerRole, retirerMembre } from "../actions"
 import { lireEquipe, listerInvitationsEnAttente, listerMembres, listerPersonnesLibres } from "../lectures-serveur"
 import { estRubriqueEquipe } from "../rubriques"
+import { ApercuCouleurs } from "./apercu-couleurs"
+import { Apps, Droits, JourEpreuve } from "./droits-apps"
 
 const DISCIPLINES = [
   { valeur: "rallye", libelle: "Rallye" },
@@ -25,8 +26,8 @@ const ROLES = [
   { valeur: "invite", libelle: "Invité" },
 ]
 
-// Une rubrique de la team : « Modifiable par : le responsable » en tête, et les champs
-// désactivés, avec la raison, pour qui n'a pas le niveau de gestion.
+// Une rubrique de la team : « Modifiable par » en tête, et les champs désactivés, avec la
+// raison, pour qui n'a pas le niveau de gestion.
 export async function RubriqueEquipe({ chemin, messageOk, erreur }: { chemin: string; messageOk: boolean; erreur?: string }) {
   if (!estRubriqueEquipe(chemin)) notFound()
   const { contexte } = await contexteQg()
@@ -50,9 +51,8 @@ export async function RubriqueEquipe({ chemin, messageOk, erreur }: { chemin: st
       {chemin === "identite" && <Identite contexte={contexte} peutModifier={peutModifier} raison={raison} />}
       {chemin === "association" && <Association contexte={contexte} peutModifier={peutModifier} raison={raison} />}
       {chemin === "membres" && <Membres contexte={contexte} peutModifier={peutModifier} raison={raison} />}
-      {(chemin === "droits" || chemin === "apps") && (
-        <p className="text-texte-discret">Cette rubrique arrive dans une prochaine étape.</p>
-      )}
+      {chemin === "droits" && <Droits contexte={contexte} peutModifier={peutModifier} raison={raison} />}
+      {chemin === "apps" && <Apps contexte={contexte} peutModifier={peutModifier} raison={raison} />}
     </section>
   )
 }
@@ -62,47 +62,46 @@ type Contexte = Awaited<ReturnType<typeof contexteQg>>["contexte"]
 async function Identite({ contexte, peutModifier, raison }: { contexte: Contexte; peutModifier: boolean; raison: string }) {
   const equipe = await lireEquipe(contexte)
   return (
-    <form action={sauverIdentite} className="flex max-w-xl flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="nom">Nom de la team</Label>
-        <Input id="nom" name="nom" defaultValue={equipe.nom} disabled={!peutModifier} required />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
+    <div className="flex flex-col gap-8">
+      <form action={sauverIdentite} className="flex max-w-xl flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="couleurPrincipale">Couleur principale</Label>
-          <input id="couleurPrincipale" name="couleurPrincipale" type="color" defaultValue={equipe.couleurPrincipale ?? "#D7141A"} disabled={!peutModifier} className="cible-tactile h-11 w-full rounded-md border border-bordure bg-surface" />
+          <Label htmlFor="nom">Nom de la team</Label>
+          <Input id="nom" name="nom" defaultValue={equipe.nom} disabled={!peutModifier} required />
+        </div>
+        <ApercuCouleurs
+          couleurPrincipale={equipe.couleurPrincipale ?? "#D7141A"}
+          couleurSecondaire={equipe.couleurSecondaire ?? "#F4F3F1"}
+          nomTeam={equipe.nom}
+          disabled={!peutModifier}
+        />
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="discipline">Discipline principale</Label>
+          <select id="discipline" name="discipline" defaultValue={equipe.disciplinePrincipale ?? "rallye"} disabled={!peutModifier} className="cible-tactile rounded-md border border-bordure bg-surface px-3">
+            {DISCIPLINES.map((d) => (
+              <option key={d.valeur} value={d.valeur}>{d.libelle}</option>
+            ))}
+          </select>
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="couleurSecondaire">Couleur secondaire</Label>
-          <input id="couleurSecondaire" name="couleurSecondaire" type="color" defaultValue={equipe.couleurSecondaire ?? "#F4F3F1"} disabled={!peutModifier} className="cible-tactile h-11 w-full rounded-md border border-bordure bg-surface" />
+          <Label htmlFor="fuseau">Fuseau horaire</Label>
+          <select id="fuseau" name="fuseau" defaultValue={equipe.fuseau} disabled={!peutModifier} className="cible-tactile rounded-md border border-bordure bg-surface px-3">
+            {FUSEAUX.map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
         </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="discipline">Discipline principale</Label>
-        <select id="discipline" name="discipline" defaultValue={equipe.disciplinePrincipale ?? "rallye"} disabled={!peutModifier} className="cible-tactile rounded-md border border-bordure bg-surface px-3">
-          {DISCIPLINES.map((d) => (
-            <option key={d.valeur} value={d.valeur}>{d.libelle}</option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="fuseau">Fuseau horaire</Label>
-        <select id="fuseau" name="fuseau" defaultValue={equipe.fuseau} disabled={!peutModifier} className="cible-tactile rounded-md border border-bordure bg-surface px-3">
-          {FUSEAUX.map((f) => (
-            <option key={f} value={f}>{f}</option>
-          ))}
-        </select>
-      </div>
-      <p className="text-sm text-texte-discret">Langue : français</p>
-      <div className="rounded-md border border-dashed border-bordure p-4 text-sm text-texte-discret">
-        Logo : bientôt, avec le stockage des fichiers.
-      </div>
-      {peutModifier ? (
-        <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-white hover:opacity-90">Enregistrer</button>
-      ) : (
-        <p className="text-sm text-texte-discret">{raison}</p>
-      )}
-    </form>
+        <p className="text-sm text-texte-discret">Langue : français</p>
+        <div className="rounded-md border border-dashed border-bordure p-4 text-sm text-texte-discret">
+          Logo : bientôt, avec le stockage des fichiers.
+        </div>
+        {peutModifier ? (
+          <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-white hover:opacity-90">Enregistrer</button>
+        ) : (
+          <p className="text-sm text-texte-discret">{raison}</p>
+        )}
+      </form>
+      <JourEpreuve contexte={contexte} peutModifier={peutModifier} raison={raison} />
+    </div>
   )
 }
 

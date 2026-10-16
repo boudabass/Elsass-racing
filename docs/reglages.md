@@ -24,12 +24,18 @@ Les rubriques de la team se lisent avec le niveau `lecture` sur Réglages (équi
 4. Acceptation : l'adresse du compte doit être celle de l'invitation. Adhésion créée ou réactivée, personne liée, `accepteeAt` posé, `settings.membre_rejoint` émis. Un secret ne sert qu'une fois.
 5. La fonction `core_invitation_active_par_hash` (SECURITY DEFINER) lit l'invitation hors team. Même règle que `core_invitation_en_attente` : son propriétaire doit être superutilisateur ou BYPASSRLS.
 
-## Pas encore livré (1.10a, suite)
+## Rubriques complétées (1.10a, suite)
 
-- **Rôles et droits** (niveaux par app par membre, bouton « revenir aux droits du rôle ») : rubrique affichée comme « arrive bientôt ».
-- **Apps** (activer, désactiver, ordre, dépendances requises) : même traitement. La règle des dépendances reste à écrire (fonction pure).
-- **Mode terrain en préférence de membre** : le cookie `er_terrain` reste la source. Migration vers `settings_member_pref.modeTerrain` à faire, ainsi que le réglage « proposer le mode terrain le jour d'une épreuve » (`settings_team_pref.terrainProposeJourEpreuve`).
+- **Rôles et droits** (`/apps/settings/droits`) : une carte par membre, un sélecteur de niveau par app. Une case différente du défaut du rôle est surlignée. « Revenir aux droits du rôle » supprime les exceptions du membre. Un responsable garde la gestion de Réglages (`niveauAutorise`, fonction pure testée). Événement `settings.droits_modifies`.
+- **Apps** (`/apps/settings/apps`) : activer ou désactiver, monter et descendre (le glisser-déposer viendra plus tard). Une app requise par une autre activée ne peut pas être désactivée (« Requise par <app> »). Réglages ne peut pas être désactivée. Événements `settings.app_activee`, `settings.app_desactivee`, `settings.ordre_apps_modifie`. Dépendances en fonction pure (`droits-regles.ts`, testée).
+- **Mode terrain** : préférence de membre (`settings_member_pref.modeTerrain`), créée à la demande. Le cookie `er_terrain` n'existe plus.
+- **Jour d'épreuve** : réglage de la team dans Identité (`settings_team_pref.terrainProposeJourEpreuve`). Le bandeau du QG le respecte.
+- **Aperçu couleur** : dans Identité, les deux sélecteurs de couleur mettent à jour en direct une barre haute et une tuile, dans les deux thèmes, avec le contraste de la team.
+
+## Pas encore livré
+
 - **Rubriques personnelles** (notifications, affichage, appareils, données, compte) : 1.10b.
+- **Logo** : emplacement réservé, en attente du stockage des fichiers.
 
 ## Données
 
