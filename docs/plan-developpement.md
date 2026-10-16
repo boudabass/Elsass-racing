@@ -145,7 +145,7 @@ Chaque tâche est un brief autonome pour l'opérateur. L'orchestrateur relit et 
 
 Prises le 16/10/2026 :
 - Stack confirmée par le relevé d'Elsass Dico (section 2).
-- Mails de connexion : par le serveur SMTP sortant d'Odoo (même expéditeur que le site), via nodemailer, identifiants en variables d'environnement SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, MAIL_FROM. En développement, le code s'affiche dans la console.
+- Mails de connexion : par le serveur SMTP d'OVH (ssl0.ovh.net, port 587, STARTTLS), expéditeur info@theelsassisch.com, dont les réponses arrivent dans Odoo. Odoo n'a pas de serveur sortant propre. Via nodemailer, identifiants en variables d'environnement SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, MAIL_FROM. En développement sans SMTP_HOST, le code s'affiche dans la console.
 - Dépôt Git : privé sur GitHub, boudabass/Elsass-racing, branches main et dev, commits signés The Elsassisch.
 
 En attente :
