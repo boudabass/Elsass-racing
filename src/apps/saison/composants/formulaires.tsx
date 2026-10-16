@@ -118,12 +118,44 @@ interface InfosEpreuve {
 const euros = (centimes: number | null) => (centimes === null ? "" : String(centimes / 100))
 
 // Infos de la fiche épreuve (modifiables au niveau écriture). Les tarifs sont en euros à l'écran.
-export function FormulaireInfos({ eventId, valeurs }: { eventId: string; valeurs: InfosEpreuve | null }) {
+export function FormulaireInfos({
+  eventId,
+  valeurs,
+  contacts,
+  organisateurId,
+  asaId,
+}: {
+  eventId: string
+  valeurs: InfosEpreuve | null
+  contacts: Array<{ id: string; nom: string }>
+  organisateurId: string | null
+  asaId: string | null
+}) {
   const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(modifierInfosAction, null)
   const v = valeurs
   return (
     <form action={action} className="grid gap-4 sm:grid-cols-2">
       <input type="hidden" name="eventId" value={eventId} />
+      <Champ id="organisateurContactId" libelle="Organisateur">
+        <select id="organisateurContactId" name="organisateurContactId" defaultValue={organisateurId ?? ""} className={CHAMP}>
+          <option value="">Aucun</option>
+          {contacts.map((contact) => (
+            <option key={contact.id} value={contact.id}>
+              {contact.nom}
+            </option>
+          ))}
+        </select>
+      </Champ>
+      <Champ id="asaContactId" libelle="ASA">
+        <select id="asaContactId" name="asaContactId" defaultValue={asaId ?? ""} className={CHAMP}>
+          <option value="">Aucune</option>
+          {contacts.map((contact) => (
+            <option key={contact.id} value={contact.id}>
+              {contact.nom}
+            </option>
+          ))}
+        </select>
+      </Champ>
       <Champ id="lieu" libelle="Lieu">
         <Input id="lieu" name="lieu" defaultValue={v?.lieu ?? ""} className={CHAMP} />
       </Champ>

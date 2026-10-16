@@ -19,6 +19,8 @@ import { SynchroProvider } from "@/core/synchro/client/react"
 import { EnregistrementSW } from "@/components/enregistrement-sw"
 import { NavigationHorsLigne } from "@/components/navigation-hors-ligne"
 import { Inbox } from "@/components/qg/icones"
+// Enregistre les gestionnaires de Saison (décisions de la boîte d'actions sur les résultats et la clôture).
+import "@/apps/saison/services-serveur"
 
 // Espace connecté : QG, apps, recherche. Charge une fois les données de la requête.
 export default async function LayoutApp({ children }: { children: ReactNode }) {
@@ -95,7 +97,8 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
 
       <div className="mx-auto flex max-w-6xl">
         <Navigation apps={apps} entreesPlus={entreesPlus} boiteMobile={boiteMobile} />
-        <main className="min-w-0 flex-1 px-4 pb-32 pt-6 md:px-8 md:pb-16">{children}</main>
+        {/* Marge basse : la hauteur du bouton Prochaine étape et de la barre basse, pour que la dernière ligne reste cliquable. */}
+        <main className="min-w-0 flex-1 px-4 pb-48 pt-6 md:px-8 md:pb-24">{children}</main>
       </div>
 
       <BoutonProchaineEtape etape={donnees.prochaineEtape} maintenant={maintenant} />

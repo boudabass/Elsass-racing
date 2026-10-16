@@ -197,10 +197,74 @@ async function main() {
     const engagementPaye = await proprietaire.coreEventEntry.findUnique({ where: { id: entryId }, select: { statut: true } })
     controle("un engagement payé passe à paye", engagementPaye?.statut === "paye", engagementPaye?.statut)
 
+    // 10. Résultat à valider : la demande ne va pas à l'auteur de la saisie ; sa décision est refusée ;
+    //     la validation par un autre membre passe par la boîte d'actions (gestionnaire core.action_decidee).
+    const { saisirResultatDans, validerResultatDans, ErreurSaison } = await import("../src/apps/saison/services-serveur")
+    const utilisateurA = { id: randomUUID(), email: `verif-bus-a-${suffixe}@exemple.invalid` }
+    const utilisateurB = { id: randomUUID(), email: `verif-bus-b-${suffixe}@exemple.invalid` }
+    const adhesionA = randomUUID()
+    const adhesionB = randomUUID()
+    await proprietaire.coreUser.createMany({ data: [{ id: utilisateurA.id, email: utilisateurA.email }, { id: utilisateurB.id, email: utilisateurB.email }] })
+    await proprietaire.coreMembership.createMany({
+      data: [
+        { id: adhesionA, teamId: team.id, userId: utilisateurA.id, role: "equipage", statut: "actif" },
+        { id: adhesionB, teamId: team.id, userId: utilisateurB.id, role: "equipage", statut: "actif" },
+      ],
+    })
+    await proprietaire.coreAppAccess.createMany({
+      data: [
+        { id: randomUUID(), teamId: team.id, membershipId: adhesionA, appCle: "saison", niveau: "ecriture" },
+        { id: randomUUID(), teamId: team.id, membershipId: adhesionB, appCle: "saison", niveau: "ecriture" },
+      ],
+    })
+    const ctxA = { teamId: team.id, userId: utilisateurA.id, membership: { id: adhesionA, role: "equipage" as const } }
+    const ctxB = { teamId: team.id, userId: utilisateurB.id, membership: { id: adhesionB, role: "equipage" as const } }
+
+    await saisirResultatDans(ctxA, entryId, { statutFinal: "arrivee", classementClasse: 2 })
+    const actionResultat = await proprietaire.coreAction.findFirst({
+      where: { teamId: team.id, cleUnicite: `resultat_a_valider:${entryId}` },
+    })
+    const destinatairesResultat = (actionResultat?.destinataires as { memberships?: string[] } | null)?.memberships ?? []
+    controle("la demande de validation est créée en attente", actionResultat?.statut === "en_attente", actionResultat?.statut)
+    controle("la demande ne va pas à l'auteur de la saisie", !destinatairesResultat.includes(adhesionA))
+    controle(
+      "la demande va au responsable et à l'autre membre d'équipage",
+      destinatairesResultat.includes(adhesionB) && destinatairesResultat.includes(adhesion),
+      destinatairesResultat.join(","),
+    )
+
+    let refusAuteur = ""
+    try {
+      await validerResultatDans(ctxA, entryId)
+    } catch (erreur) {
+      refusAuteur = erreur instanceof ErreurSaison ? erreur.message : String(erreur)
+    }
+    controle("l'auteur ne valide pas sa saisie (règle du service)", refusAuteur.includes("un autre membre doit le valider"), refusAuteur)
+
+    if (!actionResultat) throw new EcartBus("action de validation absente")
+    let refusDecision = false
+    try {
+      await decider(ctxA, actionResultat.id, "valider")
+    } catch {
+      refusDecision = true
+    }
+    controle("l'auteur ne peut pas décider la validation depuis la boîte d'actions", refusDecision)
+
+    await decider(ctxB, actionResultat.id, "valider")
+    const resultatValide = await proprietaire.saisonResult.findUnique({ where: { entryId }, select: { validation: true, validParMembershipId: true } })
+    controle("la validation par l'autre membre passe par la boîte et valide le résultat", resultatValide?.validation === "valide")
+    controle("le validateur est bien l'autre membre", resultatValide?.validParMembershipId === adhesionB)
+    const actionApres = await proprietaire.coreAction.findUnique({ where: { id: actionResultat.id }, select: { statut: true } })
+    controle("après la validation, l'action sort de la boîte (levée, plus en attente)", actionApres?.statut !== "en_attente", actionApres?.statut)
+
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
+    await proprietaire.saisonResult.deleteMany({ where: { teamId: team.id } })
     await proprietaire.saisonReadiness.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.coreAppAccess.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.coreMembership.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.coreUser.deleteMany({ where: { email: { endsWith: `-${suffixe}@exemple.invalid` } } })
     await proprietaire.saisonRegistration.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreEventEntry.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreEvent.deleteMany({ where: { teamId: team.id } })

@@ -3,8 +3,11 @@ import { notFound } from "next/navigation"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/saison/ecran"
-import { lireEngagement, listerChoixEngagement } from "@/apps/saison/lectures-serveur"
+import { lireDebriefs, lireEngagement, lireFinDEpreuve, listerChoixEngagement } from "@/apps/saison/lectures-serveur"
 import { FormulaireInscription, FormulairePaiement } from "@/apps/saison/composants/formulaires"
+import { FormulaireDebrief } from "@/apps/saison/composants/debrief"
+import { FinEpreuve } from "@/apps/saison/composants/fin-epreuve"
+import { STATUTS_PARTIS } from "@/apps/saison/regles-resultats"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { aAuMoins } from "@/core/droits/niveaux"
 
@@ -32,6 +35,11 @@ export default async function PageEngagement({ params }: { params: Promise<{ id:
   const { niveau, engagement, inscription } = fiche
   const peutEcrire = aAuMoins(niveau, "ecriture")
   const choix = peutEcrire ? await listerChoixEngagement() : null
+  // Fin d'épreuve : seulement pour un résultat validé. Débriefs : filtrés côté serveur selon le rôle.
+  const fin = await lireFinDEpreuve(id)
+  const debriefs = await lireDebriefs(id)
+  const apresEpreuve = (STATUTS_PARTIS as readonly string[]).includes(engagement.statut)
+  const monDebrief = debriefs.find((debrief) => debrief.estMoi) ?? null
   // Lecture seule : l'inscription a déjà ses montants retirés par masquerMontants.
   const inscriptionEcriture = inscription as {
     concurrentNom: string | null
@@ -58,6 +66,21 @@ export default async function PageEngagement({ params }: { params: Promise<{ id:
           {engagement.numeroCourse ? ` · n° ${engagement.numeroCourse}` : ""}
         </p>
       </header>
+
+      {fin && (
+        <FinEpreuve
+          epreuve={fin.epreuve}
+          statutFinal={fin.statutFinal}
+          classementGeneral={fin.classementGeneral}
+          classementClasse={fin.classementClasse}
+          nbPartantsClasse={fin.nbPartantsClasse}
+          kmChronometres={fin.kmChronometres}
+          kmSaison={fin.kmSaison}
+          aDebrief={fin.aDebrief}
+          peutDebriefer={peutEcrire}
+          sansPreuve={fin.sansPreuve}
+        />
+      )}
 
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
         <dt className="text-texte-discret">Pilote</dt>
@@ -94,6 +117,38 @@ export default async function PageEngagement({ params }: { params: Promise<{ id:
               <dt className="text-texte-discret">Remarques</dt>
               <dd>{inscriptionEcriture.remarques ?? "—"}</dd>
             </dl>
+          )}
+        </section>
+      )}
+      {apresEpreuve && (peutEcrire || debriefs.length > 0) && (
+        <section className="flex flex-col gap-4 border-t border-bordure pt-6">
+          <h2 className="font-medium">Débrief</h2>
+          {debriefs.length === 0 && <p className="text-sm text-texte-discret">Aucun débrief pour l'instant.</p>}
+          {debriefs.map((debrief) => (
+            <article key={debrief.id} className="flex flex-col gap-1 rounded-md border border-bordure p-3 text-sm">
+              <p className="font-medium">
+                {debrief.auteur}
+                {debrief.estMoi ? " (toi)" : ""} · ressenti {debrief.ressenti}/5
+              </p>
+              {debrief.pointsPositifs && <p>Positif : {debrief.pointsPositifs}</p>}
+              {debrief.pointsAAmeliorer && <p>À améliorer : {debrief.pointsAAmeliorer}</p>}
+              {debrief.problemesVoiture && <p>Voiture : {debrief.problemesVoiture}</p>}
+            </article>
+          ))}
+          {peutEcrire && (
+            <FormulaireDebrief
+              entryId={id}
+              valeurs={
+                monDebrief
+                  ? {
+                      ressenti: monDebrief.ressenti,
+                      pointsPositifs: monDebrief.pointsPositifs,
+                      pointsAAmeliorer: monDebrief.pointsAAmeliorer,
+                      problemesVoiture: monDebrief.problemesVoiture,
+                    }
+                  : null
+              }
+            />
           )}
         </section>
       )}

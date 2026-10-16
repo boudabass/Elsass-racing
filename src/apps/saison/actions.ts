@@ -19,8 +19,16 @@ import {
   enregistrerPaiement,
   modifierInfosEpreuve,
   modifierInscription,
+  saisirResultat,
+  joindrePreuve,
+  validerResultat,
+  contesterResultat,
+  saisirDebrief,
+  creerSaison,
+  cloturerSaison,
   type EntreeInfos,
 } from "./services-serveur"
+import { parserDuree } from "./regles-resultats"
 
 export type Resultat = { ok: true; id?: string } | { ok: false; message: string }
 
@@ -103,6 +111,8 @@ export async function modifierInfosAction(_etat: Resultat | null, donnees: FormD
     lieu: textePlein(donnees, "lieu"),
     departement: textePlein(donnees, "departement"),
     lienOfficiel: textePlein(donnees, "lienOfficiel"),
+    organisateurContactId: textePlein(donnees, "organisateurContactId"),
+    asaContactId: textePlein(donnees, "asaContactId"),
     championnat: textePlein(donnees, "championnat"),
     lienResultats: textePlein(donnees, "lienResultats"),
     engagementsOuverture: dateCivile(donnees, "engagementsOuverture"),
@@ -185,4 +195,71 @@ export async function ajouterProgrammeAction(_etat: Resultat | null, donnees: Fo
       lieu: textePlein(donnees, "lieu"),
     }),
   )
+}
+
+// --- Tâche 2.3 : résultats, débrief, saisons ------------------------------------------------------
+
+// Temps saisi en mm:ss,d, stocké en millisecondes. Vide devient null ; invalide refuse.
+function tempsMs(donnees: FormData, cle: string): number | null {
+  const brut = texte(donnees, cle)
+  if (brut === "") return null
+  const ms = parserDuree(brut)
+  if (ms === null) throw new ErreurSaison(`Temps invalide : « ${brut} ». Format attendu : mm:ss,d.`)
+  return ms
+}
+
+export async function saisirResultatAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  const entryId = texte(donnees, "entryId")
+  return executer(() =>
+    saisirResultat(entryId, {
+      statutFinal: texte(donnees, "statutFinal") as "arrivee",
+      causeAbandon: textePlein(donnees, "causeAbandon"),
+      stageAbandonId: textePlein(donnees, "stageAbandonId"),
+      classementGeneral: entier(donnees, "classementGeneral"),
+      classementClasse: entier(donnees, "classementClasse"),
+      nbClasses: entier(donnees, "nbClasses"),
+      classementGroupe: entier(donnees, "classementGroupe"),
+      nbPartantsClasse: entier(donnees, "nbPartantsClasse"),
+      tempsTotalMs: tempsMs(donnees, "tempsTotal"),
+      penalitesMs: tempsMs(donnees, "penalites"),
+      kmChronometres: nombre(donnees, "kmChronometres"),
+      public: donnees.get("public") === "on",
+    }),
+  )
+}
+
+export async function joindrePreuveAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(() =>
+    joindrePreuve(texte(donnees, "entryId"), { preuveLien: textePlein(donnees, "preuveLien") }),
+  )
+}
+
+export async function validerResultatAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(() => validerResultat(texte(donnees, "entryId")))
+}
+
+export async function contesterResultatAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(() => contesterResultat(texte(donnees, "entryId"), texte(donnees, "commentaire")))
+}
+
+export async function saisirDebriefAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(() =>
+    saisirDebrief(texte(donnees, "entryId"), {
+      ressenti: entier(donnees, "ressenti") ?? 0,
+      pointsPositifs: textePlein(donnees, "pointsPositifs"),
+      pointsAAmeliorer: textePlein(donnees, "pointsAAmeliorer"),
+      problemesVoiture: textePlein(donnees, "problemesVoiture"),
+    }),
+  )
+}
+
+export async function creerSaisonAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  const annee = entier(donnees, "annee") ?? 0
+  const debut = texte(donnees, "dateDebut")
+  const fin = texte(donnees, "dateFin")
+  return executer(() => creerSaison(annee, debut && fin ? { debut, fin } : undefined))
+}
+
+export async function cloturerSaisonAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(() => cloturerSaison(texte(donnees, "seasonId")))
 }

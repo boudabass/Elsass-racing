@@ -188,8 +188,8 @@ export async function compterSuppressions(equipe: Equipe, portee: "compte" | "te
 
 // Membre d'un rôle donné, avec un lien de connexion : pour jouer un autre compte dans le même
 // navigateur ou un autre contexte (ex. assistance). Le membre est ajouté à la liste nettoyée.
-export async function ajouterMembreConnectable(equipe: Equipe, role: "equipage" | "assistance"): Promise<Membre & { secretLien: string }> {
-  const email = `e2e-${equipe.horodatage}-${role}@example.test`
+export async function ajouterMembreConnectable(equipe: Equipe, role: "equipage" | "assistance", suffixe = ""): Promise<Membre & { secretLien: string }> {
+  const email = `e2e-${equipe.horodatage}-${role}${suffixe}@example.test`
   const membre = await ajouterMembre(equipe.teamId, email, role)
   equipe.equipiers.push(membre)
   const secretLien = genererSecretLien()
@@ -266,4 +266,14 @@ export async function ajouterVoitureDeCourse(equipe: Equipe, nomCourt = "Saxo te
     [id, equipe.teamId, nomCourt],
   )
   return id
+}
+
+// Saison (2.3) : donne à un membre un niveau explicite sur Saison, pour que le scénario ne dépende
+// pas des valeurs par défaut des rôles.
+export async function donnerAccesSaison(equipe: Equipe, membre: Membre, niveau: "lecture" | "contribution" | "ecriture" | "gestion"): Promise<void> {
+  await bd().query(
+    `INSERT INTO core_app_access (id, team_id, membership_id, app_cle, niveau, updated_at)
+     VALUES ($1, $2, $3, 'saison', $4::core_access_level, now())`,
+    [newId(), equipe.teamId, membre.membershipId, niveau],
+  )
 }

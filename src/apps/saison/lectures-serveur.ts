@@ -3,10 +3,28 @@
 // Les montants (inscription, tarifs) passent par masquerMontants : jamais un simple masquage CSS.
 
 import { prismaPourTeam } from "@/lib/prisma"
-import type { Niveau } from "@/core/droits/niveaux"
+import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 
-import { masquerMontants } from "./regles"
+import {
+  clotureProposee,
+  masquerMontants,
+  transitionResultat,
+  type EpreuvePourCloture,
+  type StatutEngagement,
+  type StatutEpreuve,
+  type StatutResultat,
+  type ValidationResultat,
+} from "./regles"
+import {
+  STATUTS_PARTIS,
+  bilanSaison,
+  peutVoirDebriefs,
+  statistiquesCarriere,
+  type EngagementBilan,
+  type ResultatCarriere,
+} from "./regles-resultats"
 import { accesSaison } from "./services-serveur"
+
 
 export async function lireAcces(): Promise<{ niveau: Niveau }> {
   const { niveau } = await accesSaison("lecture")
@@ -88,6 +106,7 @@ export async function lireEpreuve(eventId: string) {
       lieu: epreuve.lieu,
       departement: epreuve.departement,
       lienOfficiel: epreuve.lienOfficiel,
+      organisateurContactId: epreuve.organisateurContactId,
       statut: epreuve.statut,
       dateDebut: epreuve.dateDebut,
       dateFin: epreuve.dateFin,
@@ -160,4 +179,318 @@ export async function listerChoixEngagement() {
     }),
   ])
   return { niveau, voitures, personnes }
+}
+
+// --- Tâche 2.3 : résultats, à valider, fin d'épreuve, débriefs, historique -----------------------
+
+const ENTREES_RESULTAT = ["saisi", "a_verifier", "conteste"] as const
+
+// Qui peut valider ce résultat, et s'il s'agit de sa propre saisie : même règle que le service.
+function droitsResultat(
+  resultat: { validation: string; saisiParMembershipId: string | null },
+  acteur: { membershipId: string; role: "responsable" | "equipage" | "assistance" | "invite" },
+  niveau: Niveau,
+) {
+  const ecriture = aAuMoins(niveau, "ecriture")
+  const valider = ecriture && transitionResultat(
+    { validation: resultat.validation as "saisi", saisiParMembershipId: resultat.saisiParMembershipId },
+    { type: "valider" },
+    acteur,
+  ).ok
+  const estAuteur = resultat.saisiParMembershipId === acteur.membershipId
+  const messageValidation =
+    !valider && estAuteur && (resultat.validation === "saisi" || resultat.validation === "a_verifier")
+      ? "Un autre membre doit valider ce résultat."
+      : null
+  return {
+    peutValider: valider,
+    peutContester: ecriture && resultat.validation === "valide",
+    messageValidation,
+    estAuteur,
+  }
+}
+
+export async function listerContacts() {
+  const { ctx, niveau } = await accesSaison("lecture")
+  const contacts = await prismaPourTeam(ctx.teamId, ctx.userId).coreContact.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null },
+    select: { id: true, nom: true },
+    orderBy: { nom: "asc" },
+  })
+  return { niveau, contacts }
+}
+
+// Résultats des engagements partis ou terminés d'une épreuve, avec ce que ce membre peut en faire.
+export async function lireResultatsEpreuve(eventId: string) {
+  const { ctx, niveau } = await accesSaison("lecture")
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const epreuve = await client.coreEvent.findFirst({
+    where: { id: eventId, teamId: ctx.teamId, deletedAt: null },
+    select: {
+      id: true,
+      nom: true,
+      season: { select: { clotureeAt: true } },
+      entries: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          statut: true,
+          numeroCourse: true,
+          vehicle: { select: { nomCourt: true } },
+          pilote: { select: { prenom: true, nom: true } },
+          copilote: { select: { prenom: true, nom: true } },
+          saisonResult: true,
+        },
+      },
+    },
+  })
+  if (!epreuve) return null
+  const speciales = await client.saisonStage.findMany({
+    where: { eventId, teamId: ctx.teamId, deletedAt: null },
+    select: { id: true, numero: true, nom: true },
+    orderBy: { numero: "asc" },
+  })
+  const acteur = { membershipId: ctx.membership.id, role: ctx.membership.role as "responsable" }
+  const saisonCloturee = epreuve.season.clotureeAt !== null
+
+  return {
+    niveau,
+    saisonCloturee,
+    epreuve: { id: epreuve.id, nom: epreuve.nom },
+    speciales,
+    engagements: epreuve.entries
+      .filter((entree) => (STATUTS_PARTIS as readonly string[]).includes(entree.statut) || entree.saisonResult !== null)
+      .map((entree) => {
+        const resultat = entree.saisonResult
+        return {
+          id: entree.id,
+          voiture: entree.vehicle.nomCourt,
+          numeroCourse: entree.numeroCourse,
+          equipage: [entree.pilote, entree.copilote].filter(Boolean).map((p) => `${p!.prenom} ${p!.nom}`).join(" / ") || null,
+          statut: entree.statut,
+          resultat: resultat
+            ? {
+                statutFinal: resultat.statutFinal,
+                validation: resultat.validation,
+                classementGeneral: resultat.classementGeneral,
+                nbClasses: resultat.nbClasses,
+                classementGroupe: resultat.classementGroupe,
+                classementClasse: resultat.classementClasse,
+                nbPartantsClasse: resultat.nbPartantsClasse,
+                tempsTotalMs: resultat.tempsTotalMs,
+                penalitesMs: resultat.penalitesMs,
+                kmChronometres: resultat.kmChronometres?.toString() ?? null,
+                causeAbandon: resultat.causeAbandon,
+                stageAbandonId: resultat.stageAbandonId,
+                public: resultat.public,
+                preuveLien: resultat.preuveLien,
+                commentaireContestation: resultat.commentaireContestation,
+              }
+            : null,
+          droits: resultat ? droitsResultat(resultat, acteur, niveau) : null,
+        }
+      }),
+  }
+}
+
+// Résultats qui attendent une décision (saisis, à vérifier ou contestés), du plus ancien au plus récent.
+export async function listerResultatsAValider() {
+  const { ctx, niveau } = await accesSaison("lecture")
+  const acteur = { membershipId: ctx.membership.id, role: ctx.membership.role as "responsable" }
+  const resultats = await prismaPourTeam(ctx.teamId, ctx.userId).saisonResult.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null, validation: { in: [...ENTREES_RESULTAT] } },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      entryId: true,
+      validation: true,
+      statutFinal: true,
+      saisiParMembershipId: true,
+      preuveLien: true,
+      createdAt: true,
+      entry: { select: { id: true, event: { select: { id: true, nom: true } }, vehicle: { select: { nomCourt: true } } } },
+    },
+  })
+  return {
+    niveau,
+    resultats: resultats.map((resultat) => ({
+      entryId: resultat.entryId,
+      epreuveId: resultat.entry.event.id,
+      epreuve: resultat.entry.event.nom,
+      voiture: resultat.entry.vehicle.nomCourt,
+      validation: resultat.validation,
+      statutFinal: resultat.statutFinal,
+      sansPreuve: !resultat.preuveLien,
+      droits: droitsResultat(resultat, acteur, niveau),
+    })),
+  }
+}
+
+// Compteur à côté de l'entrée « Résultats à valider » (les seuls que ce membre peut traiter).
+export async function compterResultatsAValider(): Promise<number> {
+  const { ctx, niveau } = await accesSaison("lecture")
+  const acteur = { membershipId: ctx.membership.id, role: ctx.membership.role as "responsable" }
+  const resultats = await prismaPourTeam(ctx.teamId, ctx.userId).saisonResult.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null, validation: { in: [...ENTREES_RESULTAT] } },
+    select: { validation: true, saisiParMembershipId: true },
+  })
+  return resultats.filter((resultat) => droitsResultat(resultat, acteur, niveau).peutValider).length
+}
+
+// Écran de fin d'épreuve : seulement pour un résultat validé. Tout vient des données validées.
+export async function lireFinDEpreuve(entryId: string) {
+  const { ctx, niveau } = await accesSaison("lecture")
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const entree = await client.coreEventEntry.findFirst({
+    where: { id: entryId, teamId: ctx.teamId, deletedAt: null },
+    select: {
+      event: { select: { id: true, nom: true, seasonId: true } },
+      saisonResult: true,
+    },
+  })
+  const resultat = entree?.saisonResult
+  if (!entree || !resultat || resultat.validation !== "valide") return null
+
+  const kmSaison = await client.saisonResult.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null, validation: "valide", entry: { event: { seasonId: entree.event.seasonId } } },
+    select: { kmChronometres: true },
+  })
+  const debrief = await client.saisonDebrief.findFirst({
+    where: { entryId, auteurMembershipId: ctx.membership.id, teamId: ctx.teamId, deletedAt: null },
+    select: { id: true },
+  })
+  return {
+    niveau,
+    epreuve: entree.event.nom,
+    statutFinal: resultat.statutFinal,
+    classementGeneral: resultat.classementGeneral,
+    classementClasse: resultat.classementClasse,
+    nbPartantsClasse: resultat.nbPartantsClasse,
+    kmChronometres: resultat.kmChronometres?.toString() ?? null,
+    kmSaison: Math.round(kmSaison.reduce((total, ligne) => total + Number(ligne.kmChronometres ?? 0), 0) * 10) / 10,
+    aDebrief: debrief !== null,
+    sansPreuve: !resultat.preuveLien,
+  }
+}
+
+// Débriefs d'un engagement : réservés au responsable et à l'équipage (jamais à l'assistance).
+export async function lireDebriefs(entryId: string) {
+  const { ctx } = await accesSaison("lecture")
+  if (!peutVoirDebriefs(ctx.membership.role)) return []
+  const debriefs = await prismaPourTeam(ctx.teamId, ctx.userId).saisonDebrief.findMany({
+    where: { entryId, teamId: ctx.teamId, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      ressenti: true,
+      pointsPositifs: true,
+      pointsAAmeliorer: true,
+      problemesVoiture: true,
+      auteurMembershipId: true,
+      auteur: { select: { person: { select: { prenom: true, nom: true } } } },
+    },
+  })
+  return debriefs.map((debrief) => ({
+    id: debrief.id,
+    ressenti: debrief.ressenti,
+    pointsPositifs: debrief.pointsPositifs,
+    pointsAAmeliorer: debrief.pointsAAmeliorer,
+    problemesVoiture: debrief.problemesVoiture,
+    auteur: debrief.auteur.person ? `${debrief.auteur.person.prenom} ${debrief.auteur.person.nom}` : "Membre de l'équipage",
+    estMoi: debrief.auteurMembershipId === ctx.membership.id,
+  }))
+}
+
+// Historique : bilan de chaque saison (résultats validés seuls), carrière par personne et par voiture.
+export async function lireHistorique() {
+  const { ctx, niveau } = await accesSaison("lecture")
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const [saisons, epreuves, personnes, voitures] = await Promise.all([
+    client.coreSeason.findMany({
+      where: { teamId: ctx.teamId, deletedAt: null },
+      orderBy: { annee: "desc" },
+      select: { id: true, annee: true, nom: true, enCours: true, clotureeAt: true },
+    }),
+    client.coreEvent.findMany({
+      where: { teamId: ctx.teamId, deletedAt: null },
+      select: {
+        id: true,
+        seasonId: true,
+        statut: true,
+        dateDebut: true,
+        entries: {
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            statut: true,
+            piloteId: true,
+            copiloteId: true,
+            vehicleId: true,
+            saisonResult: { select: { validation: true, statutFinal: true, kmChronometres: true, classementClasse: true } },
+          },
+        },
+      },
+    }),
+    client.corePerson.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true, prenom: true, nom: true } }),
+    client.coreVehicle.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true, nomCourt: true } }),
+  ])
+
+  const resultatsCarriere: ResultatCarriere[] = []
+  const saisonsBilan = saisons.map((saison) => {
+    const epreuvesSaison = epreuves.filter((epreuve) => epreuve.seasonId === saison.id)
+    const engagements: EngagementBilan[] = []
+    for (const epreuve of epreuvesSaison) {
+      for (const entree of epreuve.entries) {
+        const resultat = entree.saisonResult
+        engagements.push({
+          statut: entree.statut,
+          validation: (resultat?.validation as ValidationResultat | undefined) ?? null,
+          statutFinal: (resultat?.statutFinal as StatutResultat | undefined) ?? null,
+          kmChronometres: resultat?.kmChronometres ? Number(resultat.kmChronometres) : null,
+        })
+        if (resultat?.validation === "valide") {
+          resultatsCarriere.push({
+            epreuveId: epreuve.id,
+            piloteId: entree.piloteId,
+            copiloteId: entree.copiloteId,
+            voitureId: entree.vehicleId,
+            validation: "valide",
+            statutFinal: resultat.statutFinal as StatutResultat,
+            kmChronometres: resultat.kmChronometres ? Number(resultat.kmChronometres) : null,
+            classementClasse: resultat.classementClasse,
+          })
+        }
+      }
+    }
+    const pourCloture: EpreuvePourCloture[] = epreuvesSaison.map((epreuve) => ({
+      statut: epreuve.statut as StatutEpreuve,
+      dateDebut: epreuve.dateDebut,
+      engagements: epreuve.entries.map((entree) => ({
+        statut: entree.statut as StatutEngagement,
+        validation: (entree.saisonResult?.validation as ValidationResultat | undefined) ?? null,
+      })),
+    }))
+    return {
+      id: saison.id,
+      annee: saison.annee,
+      nom: saison.nom,
+      enCours: saison.enCours,
+      clotureeAt: saison.clotureeAt,
+      epreuves: epreuvesSaison.filter((epreuve) => epreuve.statut !== "annulee").length,
+      bilan: bilanSaison(engagements),
+      clotureProposee: saison.clotureeAt === null && clotureProposee(pourCloture),
+    }
+  })
+
+  const carriere = statistiquesCarriere(resultatsCarriere)
+  const nomPersonne = new Map(personnes.map((p) => [p.id, `${p.prenom} ${p.nom}`]))
+  const nomVoiture = new Map(voitures.map((v) => [v.id, v.nomCourt]))
+  return {
+    niveau,
+    saisons: saisonsBilan,
+    personnes: carriere.personnes.map((s) => ({ ...s, nom: nomPersonne.get(s.cle) ?? "Membre" })),
+    voitures: carriere.voitures.map((s) => ({ ...s, nom: nomVoiture.get(s.cle) ?? "Voiture" })),
+    prochaineAnnee: saisons.length > 0 ? Math.max(...saisons.map((s) => s.annee)) + 1 : new Date().getUTCFullYear(),
+  }
 }

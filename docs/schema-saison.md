@@ -160,3 +160,65 @@ Le bouton + passe en tiroir du bas sous md (point 0.7). Au PC, le menu déroulan
 - **Organisateur** : `core_event.organisateur_contact_id` existe, mais l'écran ne propose pas encore de choix de contact : le champ est absent de la fiche.
 - **Lien d'un contact ASA et fichier de règlement** : `saison_event_info` les porte, sans écran pour l'instant.
 - **Voiture à créer** : quand aucune voiture de course n'existe, l'écran le dit et renvoie vers l'app Voiture. Aucune création ici, comme demandé.
+
+## Résultats, débrief, historique et saisons (tâche 2.3)
+
+### Retouches de la 2.2
+
+- **Marge basse** : l'espace connecté (`src/app/(app)/layout.tsx`) réserve sous le contenu la hauteur du bouton Prochaine étape et de la barre basse (`pb-48`, `md:pb-24`), pour que la dernière ligne reste cliquable.
+- **Filtres du calendrier** : appliqués au changement d'une liste (`composants/filtres.tsx`), sans bouton. Le choix reste dans l'URL.
+- **Organisateur et ASA** : choisis parmi les contacts de la team (`core_contact`), avec « Aucun ». Le serveur vérifie que le contact appartient à la team. Pas de création de contact ici.
+
+### Onglet Résultats (fiche épreuve)
+
+`?onglet=resultats`. Un bloc par engagement parti ou terminé (`lireResultatsEpreuve`). La saisie tient en statut final, classement général et de classe ; « Plus de détails » déplie le reste (temps en mm:ss,d, stockés en millisecondes via `parserDuree`). La preuve est un lien. Le statut de validation est en couleur, avec « sans preuve » sur un validé sans lien.
+
+- **Valider** : affiché seulement si `transitionResultat` l'autorise pour ce membre. Pour l'auteur qui n'est pas responsable, la phrase « Un autre membre doit valider ce résultat. » remplace le bouton.
+- **Contester** : seulement un résultat validé, commentaire obligatoire.
+- **Public** : interrupteur `public` sur le résultat.
+
+### Résultats à valider
+
+`/apps/saison/a-valider` : les résultats saisis, à vérifier ou contestés, du plus ancien au plus récent, avec le bouton Valider quand le membre peut le faire. Le compteur figure à côté de l'entrée sur le calendrier.
+
+### Boîte d'actions
+
+- **Saisie ou nouvelle preuve** : `saison.action_requise`, type `resultat_a_valider`, clé `resultat_a_valider:<entryId>`, priorité 3 (article 960), regroupement `resultats_a_valider`, niveau écriture. Les destinataires sont listés **par membership** : responsable et équipage actifs, sans l'auteur de la saisie (sauf s'il est responsable). Le choix évite qu'un auteur voie une action qu'il ne peut pas décider.
+- **Validation ou contestation** : `saison.action_levee` avec la même clé.
+- **Décision** : gestionnaire de `core.action_decidee` dans Saison (`appliquerDecision`). Il appelle la même règle que le service. Si elle refuse, l'action est rouverte.
+- **Clôture proposée** : `saison.action_requise` de type `cloture_saison_proposee`, responsable, clé `cloture_saison:<seasonId>`, priorité 7, niveau gestion. Émise une fois, au recalcul, quand `clotureProposee` est vraie.
+
+### Débrief
+
+Dans la fiche engagement, après l'épreuve : ressenti de 1 à 5 par cinq boutons, points positifs, points à améliorer, problèmes voiture. Un débrief par membre (`saisirDebrief`). **Privé à l'équipage** : `lireDebriefs` renvoie une liste vide pour l'assistance et l'invité (`peutVoirDebriefs`). La section n'apparaît pas pour un membre qui ne peut ni débriefer ni voir de débrief.
+
+### Écran de fin d'épreuve
+
+Bloc « Débrief de l'épreuve » en tête de la fiche engagement, seulement pour un résultat validé (`lireFinDEpreuve`). Il montre le résultat officiel, les km de l'épreuve, le total de la saison (résultats validés seuls), le rappel de débrief. **Le coût n'apparaît pas** : Budget n'existe pas encore, et un zéro serait trompeur.
+
+### Historique et saisons
+
+`/apps/saison/historique` :
+
+- Chaque saison avec épreuves, engagements partis, arrivées, abandons, km, calculés sur les résultats validés seuls (`bilanSaison`).
+- Statistiques par personne (pilote et copilote) et par voiture sur toutes les saisons (`statistiquesCarriere`) : épreuves, arrivées, taux, km, meilleur classement de classe. Un résultat non validé ne compte jamais.
+- **Nouvelle saison** (gestion) : année proposée = dernière + 1, dates modifiables (`creerSaison(annee, dates)`).
+- **Clôturer la saison** (gestion) : confirmation en deux temps qui dit ce que la clôture change. La saison passe en lecture ; les statistiques restent. Le badge « clôture proposée » apparaît quand `clotureProposee` est vraie.
+
+**Saison clôturée** : toute écriture sur ses épreuves, engagements, inscriptions, résultats et débriefs est refusée avec `MESSAGE_SAISON_CLOTUREE` (`garderSaisonOuverte`, test `regles-resultats.test.ts`).
+
+### Conversion et règles pures
+
+`src/apps/saison/regles-resultats.ts` : `parserDuree` / `formaterDuree` (mm:ss,d ↔ millisecondes), `statistiquesCarriere`, `bilanSaison`, `refusEcritureSaison`, `peutVoirDebriefs`, `ressentiValide`, priorités, libellés de validation. Testé dans `regles-resultats.test.ts`.
+
+### Vérifications
+
+- `db:verifier-bus` : la demande ne va pas à l'auteur ; l'auteur ne peut pas la décider depuis la boîte ; la validation par l'autre membre passe par la boîte et valide le résultat ; l'action sort de la boîte.
+- E2E `e2e/saison-resultats.spec.ts` : filtres sans bouton ; paiement puis saisie par l'équipier A ; A ne valide pas ; B valide depuis `a-valider` ; le débrief de B ; l'assistance ne voit ni ressenti ni boutons ; clôture ; refus d'écriture sur la saison clôturée. Captures dans `docs/captures/saison-resultats-*`, `saison-historique-*`, `saison-a-valider-*`.
+
+### Non fait ou à trancher
+
+- **Captures de fichiers** : la capture d'écran de la preuve attend l'envoi de fichiers (lot 5). Seul le lien est saisi.
+- **Recalcul de « clôture proposée »** : émise au recalcul, sans relance. Si le responsable écarte l'action, elle ne revient pas.
+- **Entrée « Résultats à valider » dans le menu de l'app** : le compteur et le lien sont sur le calendrier ; le menu d'app du manifeste n'est pas modifié.
+- **Rouverture de l'action** : si la règle refuse une décision, l'action redevient en attente, sans message à l'écran. Le membre la verra revenir.

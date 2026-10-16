@@ -9,6 +9,8 @@
 import { z } from "zod"
 
 import type { Prisma } from "@/generated/prisma/client"
+import type { EpreuvePourCloture } from "./regles"
+import { enregistrerGestionnaire } from "@/core/evenements/gestionnaires"
 
 import type { ContexteTeam } from "@/core/contexte"
 import { exigerAcces } from "@/core/droits/garde-serveur"
@@ -19,6 +21,7 @@ import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 
 import {
   causeAbandonEngagement,
+  clotureProposee,
   masquerMontants,
   prochaineEpreuve,
   statutEngagement,
@@ -30,6 +33,11 @@ import {
   type StatutResultat,
   type ValidationResultat,
 } from "./regles"
+import {
+  PRIORITE_CLOTURE_PROPOSEE,
+  PRIORITE_RESULTAT_A_VALIDER,
+  refusEcritureSaison,
+} from "./regles-resultats"
 
 // --- Accès --------------------------------------------------------------------------------
 
@@ -150,6 +158,7 @@ export async function modifierEpreuve(eventId: string, entree: EntreeModificatio
 
 export async function modifierEpreuveDans(ctx: ContexteTeam, eventId: string, entree: EntreeModificationEpreuve): Promise<void> {
   const modif = schemaModificationEpreuve.parse(entree)
+  await garderSaisonOuverte(ctx, { eventId })
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
 
   const epreuve = await client.coreEvent.findFirst({
@@ -186,6 +195,7 @@ export async function annulerEpreuve(eventId: string): Promise<void> {
 }
 
 export async function annulerEpreuveDans(ctx: ContexteTeam, eventId: string): Promise<void> {
+  await garderSaisonOuverte(ctx, { eventId })
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const epreuve = await client.coreEvent.findFirst({ where: { id: eventId, teamId: ctx.teamId, deletedAt: null } })
   if (!epreuve) refus("Épreuve introuvable dans cette team.")
@@ -218,6 +228,7 @@ export async function creerEngagement(entree: EntreeEngagement): Promise<string>
 
 export async function creerEngagementDans(ctx: ContexteTeam, entree: EntreeEngagement): Promise<string> {
   const donnees = schemaEngagement.parse(entree)
+  await garderSaisonOuverte(ctx, { eventId: donnees.eventId })
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
 
   const epreuve = await client.coreEvent.findFirst({ where: { id: donnees.eventId, teamId: ctx.teamId, deletedAt: null } })
@@ -295,6 +306,7 @@ export async function enregistrerPaiement(entryId: string, entree: EntreePaiemen
 
 export async function enregistrerPaiementDans(ctx: ContexteTeam, entryId: string, entree: EntreePaiement): Promise<void> {
   const donnees = schemaPaiement.parse(entree)
+  await garderSaisonOuverte(ctx, { entryId })
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
 
   const inscription = await client.saisonRegistration.findFirst({ where: { entryId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
@@ -372,6 +384,7 @@ export async function saisirResultat(entryId: string, entree: EntreeResultat): P
 
 export async function saisirResultatDans(ctx: ContexteTeam, entryId: string, entree: EntreeResultat): Promise<void> {
   const donnees = schemaResultat.parse(entree)
+  await garderSaisonOuverte(ctx, { entryId })
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
 
   const engagement = await client.coreEventEntry.findFirst({ where: { id: entryId, teamId: ctx.teamId, deletedAt: null }, select: { id: true, eventId: true } })
@@ -426,6 +439,7 @@ export async function saisirResultatDans(ctx: ContexteTeam, entryId: string, ent
   }
 
   await synchroniserEntree(ctx, entryId)
+  await demanderValidation(ctx, entryId)
 }
 
 // Joint une preuve (lien ou fichier) : le résultat passe à vérifier.
@@ -439,6 +453,7 @@ export async function joindrePreuveDans(
   entryId: string,
   preuve: { preuveLien?: string | null; preuveFileId?: string | null },
 ): Promise<void> {
+  await garderSaisonOuverte(ctx, { entryId })
   const lien = preuve.preuveLien?.trim() || null
   const fichierId = preuve.preuveFileId ?? null
   if (!lien && !fichierId) refus("Une preuve est attendue : un lien ou un fichier.")
@@ -471,6 +486,7 @@ export async function joindrePreuveDans(
     },
   })
   await synchroniserEntree(ctx, entryId)
+  await demanderValidation(ctx, entryId)
 }
 
 export async function validerResultat(entryId: string): Promise<void> {
@@ -479,6 +495,7 @@ export async function validerResultat(entryId: string): Promise<void> {
 }
 
 export async function validerResultatDans(ctx: ContexteTeam, entryId: string): Promise<void> {
+  await garderSaisonOuverte(ctx, { entryId })
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const resultat = await client.saisonResult.findFirst({ where: { entryId, teamId: ctx.teamId, deletedAt: null } })
   if (!resultat) refus("Aucun résultat à valider pour cet engagement.")
@@ -504,6 +521,7 @@ export async function validerResultatDans(ctx: ContexteTeam, entryId: string): P
 
   const engagement = await client.coreEventEntry.findFirst({ where: { id: entryId, teamId: ctx.teamId }, select: { eventId: true } })
   const eventId = engagement?.eventId ?? null
+  await lever(ctx, entryId)
   await emettre(ctx, "saison.resultat_valide", {
     entryId,
     eventId,
@@ -529,6 +547,7 @@ export async function contesterResultat(entryId: string, commentaire: string): P
 }
 
 export async function contesterResultatDans(ctx: ContexteTeam, entryId: string, commentaire: string): Promise<void> {
+  await garderSaisonOuverte(ctx, { entryId })
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const resultat = await client.saisonResult.findFirst({ where: { entryId, teamId: ctx.teamId, deletedAt: null } })
   if (!resultat) refus("Aucun résultat à contester pour cet engagement.")
@@ -551,6 +570,7 @@ export async function contesterResultatDans(ctx: ContexteTeam, entryId: string, 
   })
   await synchroniserEntree(ctx, entryId)
 
+  await lever(ctx, entryId)
   // Le résultat quitte le statut validé : les abonnés doivent le savoir.
   const engagement = await client.coreEventEntry.findFirst({ where: { id: entryId, teamId: ctx.teamId }, select: { eventId: true } })
   await emettre(ctx, "saison.resultat_annule", { entryId, eventId: engagement?.eventId ?? null })
@@ -578,6 +598,7 @@ export async function saisirDebrief(entryId: string, entree: EntreeDebrief): Pro
 
 export async function saisirDebriefDans(ctx: ContexteTeam, entryId: string, entree: EntreeDebrief): Promise<void> {
   const donnees = schemaDebrief.parse(entree)
+  await garderSaisonOuverte(ctx, { entryId })
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
 
   const engagement = await client.coreEventEntry.findFirst({ where: { id: entryId, teamId: ctx.teamId, deletedAt: null }, select: { eventId: true } })
@@ -620,12 +641,15 @@ export async function saisirDebriefDans(ctx: ContexteTeam, entryId: string, entr
 
 // --- Saisons ------------------------------------------------------------------------------
 
-export async function creerSaison(annee: number): Promise<string> {
+export async function creerSaison(annee: number, dates?: { debut: string; fin: string }): Promise<string> {
   const { ctx } = await accesSaison("gestion")
-  return creerSaisonDans(ctx, annee)
+  return creerSaisonDans(ctx, annee, dates)
 }
 
-export async function creerSaisonDans(ctx: ContexteTeam, annee: number): Promise<string> {
+export async function creerSaisonDans(ctx: ContexteTeam, annee: number, dates?: { debut: string; fin: string }): Promise<string> {
+  const debut = dates ? new Date(`${dates.debut}T00:00:00Z`) : new Date(Date.UTC(annee, 0, 1))
+  const fin = dates ? new Date(`${dates.fin}T00:00:00Z`) : new Date(Date.UTC(annee, 11, 31))
+  if (Number.isNaN(debut.getTime()) || Number.isNaN(fin.getTime()) || fin < debut) refus("Les dates de la saison sont invalides : la fin doit suivre le début.")
   if (!Number.isInteger(annee) || annee < 2000 || annee > 2100) refus("Année de saison invalide.")
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
 
@@ -642,8 +666,8 @@ export async function creerSaisonDans(ctx: ContexteTeam, annee: number): Promise
         teamId: ctx.teamId,
         annee,
         nom: `Saison ${annee}`,
-        dateDebut: new Date(Date.UTC(annee, 0, 1)),
-        dateFin: new Date(Date.UTC(annee, 11, 31)),
+        dateDebut: debut,
+        dateFin: fin,
         enCours: true,
         createdBy: ctx.userId,
         updatedBy: ctx.userId,
@@ -718,6 +742,7 @@ export async function recalculerDans(ctx: ContexteTeam): Promise<void> {
   })
 
   const calculees: Array<{ id: string; statut: StatutEpreuve; dateDebut: Date; dateFin: Date; engagements: StatutEngagement[] }> = []
+  const pourCloture: EpreuvePourCloture[] = []
   for (const epreuve of epreuves) {
     const statut = statutEpreuve({ statut: epreuve.statut, dateDebut: epreuve.dateDebut, dateFin: epreuve.dateFin }, maintenant)
     if (statut !== epreuve.statut) {
@@ -743,7 +768,17 @@ export async function recalculerDans(ctx: ContexteTeam): Promise<void> {
       engagements.push(cible.statut)
     }
     calculees.push({ id: epreuve.id, statut, dateDebut: epreuve.dateDebut, dateFin: epreuve.dateFin, engagements })
+    pourCloture.push({
+      statut,
+      dateDebut: epreuve.dateDebut,
+      engagements: epreuve.entries.map((entree, index) => ({
+        statut: engagements[index],
+        validation: entree.saisonResult?.validation ?? null,
+      })),
+    })
   }
+
+  if (clotureProposee(pourCloture)) await proposerCloture(ctx, saison.id)
 
   // La prochaine épreuve se compare à celle du dernier événement émis : pas d'état à part.
   const prochaine = prochaineEpreuve(calculees, maintenant)
@@ -821,6 +856,9 @@ const schemaInfos = z
     lienOfficiel: z.string().trim().max(500).nullable().optional(),
     lieu: z.string().trim().max(200).nullable().optional(),
     departement: z.string().trim().max(3).nullable().optional(),
+    // Organisateur (core_event) et ASA (saison_event_info) : des contacts de la team, ou rien.
+    organisateurContactId: z.string().uuid().nullable().optional(),
+    asaContactId: z.string().uuid().nullable().optional(),
     engagementsOuverture: dateCivile.nullable().optional(),
     engagementsCloture: dateCivile.nullable().optional(),
     tarifNormal: z.number().int().min(0).nullable().optional(),
@@ -843,14 +881,21 @@ export async function modifierInfosEpreuve(eventId: string, entree: EntreeInfos)
 
 export async function modifierInfosEpreuveDans(ctx: ContexteTeam, eventId: string, entree: EntreeInfos): Promise<void> {
   const donnees = schemaInfos.parse(entree)
+  await garderSaisonOuverte(ctx, { eventId })
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const epreuve = await client.coreEvent.findFirst({ where: { id: eventId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
   if (!epreuve) refus("Épreuve introuvable dans cette team.")
 
-  const { lienOfficiel, lieu, departement, ...infos } = donnees
+  const { lienOfficiel, lieu, departement, organisateurContactId, ...infos } = donnees
+  for (const contactId of [organisateurContactId, infos.asaContactId]) {
+    if (!contactId) continue
+    const contact = await client.coreContact.findFirst({ where: { id: contactId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+    if (!contact) refus("Contact introuvable dans cette team.")
+  }
   await client.coreEvent.updateMany({
     where: { id: eventId, teamId: ctx.teamId },
     data: {
+      ...(organisateurContactId !== undefined ? { organisateurContactId } : {}),
       ...(lienOfficiel !== undefined ? { lienOfficiel: lienOfficiel || null } : {}),
       ...(lieu !== undefined ? { lieu: lieu || null } : {}),
       ...(departement !== undefined ? { departement: departement || null } : {}),
@@ -880,6 +925,7 @@ export type EntreeSpeciale = z.input<typeof schemaSpeciale>
 export async function ajouterSpeciale(eventId: string, entree: EntreeSpeciale): Promise<void> {
   const { ctx } = await accesSaison("ecriture")
   const donnees = schemaSpeciale.parse(entree)
+  await garderSaisonOuverte(ctx, { eventId })
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const epreuve = await client.coreEvent.findFirst({ where: { id: eventId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
   if (!epreuve) refus("Épreuve introuvable dans cette team.")
@@ -905,6 +951,7 @@ export type EntreeProgramme = z.input<typeof schemaProgramme>
 export async function ajouterProgramme(eventId: string, entree: EntreeProgramme): Promise<void> {
   const { ctx } = await accesSaison("ecriture")
   const donnees = schemaProgramme.parse(entree)
+  await garderSaisonOuverte(ctx, { eventId })
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const epreuve = await client.coreEvent.findFirst({ where: { id: eventId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
   if (!epreuve) refus("Épreuve introuvable dans cette team.")
@@ -952,6 +999,7 @@ export async function modifierInscription(entryId: string, entree: EntreeInscrip
 
 export async function modifierInscriptionDans(ctx: ContexteTeam, entryId: string, entree: EntreeInscription): Promise<void> {
   const donnees = schemaInscription.parse(entree)
+  await garderSaisonOuverte(ctx, { entryId })
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const engagement = await client.coreEventEntry.findFirst({ where: { id: entryId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
   if (!engagement) refus("Engagement introuvable dans cette team.")
@@ -986,3 +1034,141 @@ export async function recalculerPourQg(ctx: ContexteTeam, niveau: Niveau): Promi
   if (niveau === "aucun") return
   await recalculerDans(ctx)
 }
+
+// --- Tâche 2.3 : garde de saison clôturée, actions de résultat, clôture proposée ----------------
+
+// Refuse une écriture si la saison de l'épreuve (ou de l'engagement) est clôturée.
+async function garderSaisonOuverte(ctx: ContexteTeam, cible: { eventId?: string; entryId?: string }): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  let eventId = cible.eventId ?? null
+  if (!eventId && cible.entryId) {
+    const engagement = await client.coreEventEntry.findFirst({ where: { id: cible.entryId, teamId: ctx.teamId }, select: { eventId: true } })
+    eventId = engagement?.eventId ?? null
+  }
+  if (!eventId) return
+  const epreuve = await client.coreEvent.findFirst({
+    where: { id: eventId, teamId: ctx.teamId },
+    select: { season: { select: { clotureeAt: true } } },
+  })
+  const message = refusEcritureSaison(epreuve?.season.clotureeAt ?? null)
+  if (message) refus(message)
+}
+
+// Identifiant de l'action de boîte d'un résultat à valider : une seule par engagement.
+function cleValidation(entryId: string): string {
+  return `resultat_a_valider:${entryId}`
+}
+
+// Les membres qui peuvent valider : responsable et équipage actifs. Celui qui a saisi le résultat
+// n'en fait pas partie, sauf s'il est responsable (même règle que transitionResultat).
+async function destinatairesValidation(ctx: ContexteTeam, saisiParMembershipId: string | null): Promise<string[]> {
+  const membres = await prismaPourTeam(ctx.teamId, ctx.userId).coreMembership.findMany({
+    where: { teamId: ctx.teamId, statut: "actif", deletedAt: null, role: { in: ["responsable", "equipage"] } },
+    select: { id: true, role: true },
+  })
+  return membres.filter((membre) => membre.id !== saisiParMembershipId || membre.role === "responsable").map((membre) => membre.id)
+}
+
+// Demande la validation dans la boîte d'actions, si le résultat est saisi ou à vérifier.
+async function demanderValidation(ctx: ContexteTeam, entryId: string): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const resultat = await client.saisonResult.findFirst({
+    where: { entryId, teamId: ctx.teamId, deletedAt: null },
+    select: { validation: true, saisiParMembershipId: true, statutFinal: true },
+  })
+  if (!resultat || (resultat.validation !== "saisi" && resultat.validation !== "a_verifier")) return
+
+  const engagement = await client.coreEventEntry.findFirst({
+    where: { id: entryId, teamId: ctx.teamId },
+    select: { eventId: true, event: { select: { nom: true } }, vehicle: { select: { nomCourt: true } } },
+  })
+  if (!engagement) return
+  const memberships = await destinatairesValidation(ctx, resultat.saisiParMembershipId)
+  if (memberships.length === 0) return
+
+  await emettre(ctx, "saison.action_requise", {
+    type: "resultat_a_valider",
+    cleUnicite: cleValidation(entryId),
+    titre: `Valider le résultat : ${engagement.event.nom} (${engagement.vehicle.nomCourt})`,
+    contexte: engagement.event.nom,
+    ficheType: "resultat",
+    ficheId: entryId,
+    eventId: engagement.eventId,
+    destinataires: { memberships },
+    boutons: [{ cle: "valider", libelle: "Valider" }],
+    priorite: PRIORITE_RESULTAT_A_VALIDER,
+    niveauRequis: "ecriture",
+    cleRegroupement: "resultats_a_valider",
+  })
+}
+
+// Lève l'action de validation (validé ou contesté) : le membre n'a plus rien à faire ici.
+async function lever(ctx: ContexteTeam, entryId: string): Promise<void> {
+  await emettre(ctx, "saison.action_levee", { cleUnicite: cleValidation(entryId) })
+}
+
+// Propose la clôture de la saison dans la boîte d'actions, une seule fois (la clé ne se duplique pas).
+async function proposerCloture(ctx: ContexteTeam, seasonId: string): Promise<void> {
+  const cle = `cloture_saison:${seasonId}`
+  const existante = await prismaPourTeam(ctx.teamId, ctx.userId).coreAction.findFirst({
+    where: { teamId: ctx.teamId, cleUnicite: cle },
+    select: { id: true },
+  })
+  if (existante) return
+  const responsables = await prismaPourTeam(ctx.teamId, ctx.userId).coreMembership.findMany({
+    where: { teamId: ctx.teamId, statut: "actif", deletedAt: null, role: "responsable" },
+    select: { id: true },
+  })
+  if (responsables.length === 0) return
+  await emettre(ctx, "saison.action_requise", {
+    type: "cloture_saison_proposee",
+    cleUnicite: cle,
+    titre: "Clôturer la saison : tous les résultats partis sont validés",
+    contexte: "Saison",
+    ficheType: "saison",
+    ficheId: seasonId,
+    destinataires: { memberships: responsables.map((membre) => membre.id) },
+    boutons: [
+      { cle: "cloturer", libelle: "Clôturer la saison" },
+      { cle: "plus_tard", libelle: "Plus tard" },
+    ],
+    priorite: PRIORITE_CLOTURE_PROPOSEE,
+    niveauRequis: "gestion",
+  })
+}
+
+// Décision prise dans la boîte d'actions : c'est ici que la règle s'applique vraiment.
+// Une décision que la règle refuse rouvre l'action, pour que le membre voie qu'elle reste à faire.
+async function appliquerDecision(ctx: ContexteTeam, evenement: { donnees: unknown }): Promise<void> {
+  const donnees = evenement.donnees as { type?: string; decision?: string; cleUnicite?: string; ficheId?: string }
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+
+  if (donnees.type === "resultat_a_valider" && donnees.decision === "valider" && donnees.ficheId) {
+    try {
+      await validerResultatDans(ctx, donnees.ficheId)
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSaison)) throw erreur
+      await rouvrirAction(client, ctx, donnees.cleUnicite)
+    }
+  }
+
+  if (donnees.type === "cloture_saison_proposee" && donnees.decision === "cloturer" && donnees.ficheId) {
+    try {
+      await cloturerSaisonDans(ctx, donnees.ficheId)
+    } catch (erreur) {
+      if (!(erreur instanceof ErreurSaison)) throw erreur
+      await rouvrirAction(client, ctx, donnees.cleUnicite)
+    }
+  }
+}
+
+async function rouvrirAction(client: ReturnType<typeof prismaPourTeam>, ctx: ContexteTeam, cleUnicite: string | undefined): Promise<void> {
+  if (!cleUnicite) return
+  await client.coreAction.updateMany({
+    where: { teamId: ctx.teamId, cleUnicite },
+    data: { statut: "en_attente", decision: null, decideeParMembershipId: null, decideeAt: null },
+  })
+}
+
+// Enregistré à l'import du module : l'app Saison reçoit les décisions de la boîte d'actions.
+enregistrerGestionnaire("saison", "core.action_decidee", appliquerDecision)

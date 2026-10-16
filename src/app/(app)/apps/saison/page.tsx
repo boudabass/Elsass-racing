@@ -2,7 +2,8 @@ import Link from "next/link"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/saison/ecran"
-import { listerEpreuves, listerSaisons } from "@/apps/saison/lectures-serveur"
+import { compterResultatsAValider, listerEpreuves, listerSaisons } from "@/apps/saison/lectures-serveur"
+import { FiltresCalendrier } from "@/apps/saison/composants/filtres"
 import { resteAFaire } from "@/apps/saison/reste-a-faire"
 import { jourCivil, jourDeParis, prochaineEpreuve, type StatutEpreuve } from "@/apps/saison/regles"
 import { EcranVide } from "@/components/qg/ecran-vide"
@@ -65,6 +66,7 @@ export default async function PageCalendrier({
   const saisonId = parametres.saison ?? saisonCourante?.id ?? null
 
   const { epreuves: toutes } = await listerEpreuves(saisonId)
+  const aValider = await compterResultatsAValider()
   const epreuves = toutes.filter(
     (epreuve) =>
       (!parametres.type || epreuve.type === parametres.type) && (!parametres.statut || epreuve.statut === parametres.statut),
@@ -97,6 +99,14 @@ export default async function PageCalendrier({
     <section className="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-titre text-2xl uppercase">Saison {saisonCourante?.annee ?? ""}</h1>
+        <div className="flex flex-wrap gap-2 text-sm">
+          <Link href="/apps/saison/historique" className="min-h-11 rounded-md border border-bordure px-3 py-2">
+            Historique
+          </Link>
+          <Link href="/apps/saison/a-valider" className="min-h-11 rounded-md border border-bordure px-3 py-2">
+            Résultats à valider{aValider > 0 ? ` (${aValider})` : ""}
+          </Link>
+        </div>
         {peutEcrire && (
           <Link href={lienNouvelle} className="rounded-md bg-marque px-4 py-2 text-sm font-medium text-white">
             Ajouter une épreuve
@@ -117,43 +127,15 @@ export default async function PageCalendrier({
         </Link>
       )}
 
-      <form method="get" className="flex flex-wrap items-end gap-3 text-sm">
-        <label className="flex flex-col gap-1">
-          Saison
-          <select name="saison" defaultValue={saisonId ?? ""} className="min-h-11 rounded-md border border-bordure bg-surface px-2">
-            {saisons.map((saison) => (
-              <option key={saison.id} value={saison.id}>
-                {saison.annee}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          Type
-          <select name="type" defaultValue={parametres.type ?? ""} className="min-h-11 rounded-md border border-bordure bg-surface px-2">
-            <option value="">Tous</option>
-            {Object.entries(TYPES).map(([valeur, libelle]) => (
-              <option key={valeur} value={valeur}>
-                {libelle}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          Statut
-          <select name="statut" defaultValue={parametres.statut ?? ""} className="min-h-11 rounded-md border border-bordure bg-surface px-2">
-            <option value="">Tous</option>
-            {(Object.keys(LIBELLE_STATUT) as StatutEpreuve[]).map((valeur) => (
-              <option key={valeur} value={valeur}>
-                {LIBELLE_STATUT[valeur]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <input type="hidden" name="vue" value={vueMois ? "mois" : "liste"} />
-        <button type="submit" className="min-h-11 rounded-md border border-bordure px-4">
-          Filtrer
-        </button>
+      <div className="flex flex-wrap items-end gap-3 text-sm">
+        <FiltresCalendrier
+          saisons={saisons}
+          saisonId={saisonId}
+          type={parametres.type ?? ""}
+          statut={parametres.statut ?? ""}
+          types={TYPES}
+          statuts={LIBELLE_STATUT}
+        />
         <div className="ml-auto flex gap-2">
           <Link
             href={{ query: { ...parametres, vue: "liste", mois: undefined } }}
@@ -168,7 +150,7 @@ export default async function PageCalendrier({
             Mois
           </Link>
         </div>
-      </form>
+      </div>
 
       {vueMois ? (
         <VueMois mois={moisAffiche} epreuves={epreuves} parametres={parametres} />
