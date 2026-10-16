@@ -113,20 +113,21 @@ async function decider(
       await journaliser(tx, ctx, declaration, operation.id, { motif: "supprimee", version_ecrite: champs.champs })
       return { idOperation, statut: "conflit_resolu", raison: "Supprimé entre-temps : la modification n'a pas été appliquée." }
     }
+    // L'écriture d'abord : si la ligne a disparu entre-temps, rien n'est journalisé.
+    if (!(await declaration.modifier(tx, ctx, operation.id, champs.champs))) return refus("Cet élément n'existe plus.")
     if (decision === "appliquer_et_journaliser") {
       await journaliser(tx, ctx, declaration, operation.id, { motif: "modifiee", version_remplacee: etat.contenu })
     }
-    await declaration.modifier(tx, ctx, operation.id, champs.champs)
     return decision === "appliquer" ? { idOperation, statut: "appliquee" } : { idOperation, statut: "conflit_resolu" }
   }
 
   // Suppression.
   const decision = decideSuppression({ revLue, revServeur: etat.rev, supprimee: etat.supprimee })
   if (decision === "deja_supprimee") return { idOperation, statut: "appliquee" }
+  if (!(await declaration.supprimer(tx, ctx, operation.id))) return refus("Cet élément n'existe plus.")
   if (decision === "supprimer_et_journaliser") {
     await journaliser(tx, ctx, declaration, operation.id, { motif: "supprimee_apres_modification", version_remplacee: etat.contenu })
   }
-  await declaration.supprimer(tx, ctx, operation.id)
   return decision === "supprimer" ? { idOperation, statut: "appliquee" } : { idOperation, statut: "conflit_resolu" }
 }
 

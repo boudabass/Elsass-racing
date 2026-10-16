@@ -10,7 +10,9 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "../src/generated/prisma/client"
 import { newId } from "../src/core/ids"
 import { appliquerOperations } from "../src/core/synchro/pousser"
-import { tirerPaquets } from "../src/core/synchro/tirer"
+import { memoriserSynchro, tirerPaquets } from "../src/core/synchro/tirer"
+import { ErreurAppareilRevoque } from "../src/core/synchro/erreurs"
+import { reponseErreurAcces } from "../src/core/synchro/reponses"
 import { executerPourTeam } from "../src/lib/prisma"
 import type { ContexteTeam } from "../src/core/contexte"
 import type { Operation, ResultatOperation } from "../src/core/synchro/protocole"
@@ -151,6 +153,40 @@ async function main(): Promise<void> {
       operation({ table: "core_note", type: "modifier", id: idNoteRespo, revLue: 1, champs: { texte: "Modif de B" } }),
     ])
     controle("l'assistance ne modifie pas la note d'un autre", refusContribution[0]?.statut === "refusee")
+    // 8. Appareil révoqué pendant une synchro : le curseur et l'appareil disparaissent entre deux
+    // tirages. La mémorisation ne lève pas d'erreur brute : elle signale un appareil déconnecté, et la
+    // route répond 401, sans journal d'erreur.
+    const devC = newId()
+    await bd.coreDevice.create({ data: { id: devC, userId: assUserId, nom: "Appareil C", plateforme: "essai" } })
+    const tirageC = await tirerPaquets(ctxB, {})
+    await memoriserSynchro(ctxB, devC, tirageC.tables)
+    await bd.coreSyncCursor.deleteMany({ where: { deviceId: devC } })
+    await bd.coreDevice.delete({ where: { id: devC } })
+    let signale: unknown = null
+    const erreurs: unknown[] = []
+    const erreurOriginale = console.error
+    console.error = (...args: unknown[]) => erreurs.push(args)
+    try {
+      await memoriserSynchro(ctxB, devC, tirageC.tables)
+    } catch (erreur) {
+      signale = erreur
+    } finally {
+      console.error = erreurOriginale
+    }
+    const reponse = signale instanceof ErreurAppareilRevoque ? reponseErreurAcces(signale) : null
+    controle("un appareil supprimé pendant la synchro est signalé comme déconnecté", signale instanceof ErreurAppareilRevoque)
+    controle("la route répond 401 « Cet appareil a été déconnecté. »", reponse?.status === 401)
+    controle("aucune erreur n'est journalisée côté serveur", erreurs.length === 0)
+
+    // 9. Curseur seul disparu : il est recréé, l'appareil reste connecté.
+    const devD = newId()
+    await bd.coreDevice.create({ data: { id: devD, userId: assUserId, nom: "Appareil D", plateforme: "essai" } })
+    await memoriserSynchro(ctxB, devD, tirageC.tables)
+    await bd.coreSyncCursor.deleteMany({ where: { deviceId: devD } })
+    await memoriserSynchro(ctxB, devD, tirageC.tables)
+    const recree = await bd.coreSyncCursor.count({ where: { deviceId: devD } })
+    controle("un curseur disparu est recréé pour un appareil encore connecté", recree === 1)
+    await bd.coreDevice.delete({ where: { id: devD } })
   } finally {
     await nettoyer([teamId, teamAutreId], [respUserId, assUserId, eqUserId], [devA, devB])
     console.log("Nettoyage fait.")

@@ -74,6 +74,14 @@ Un membre ne reçoit que ce qu'il peut lire (article 948) : niveau aucun, la tab
 - Journal des erreurs : `POST /api/erreurs-client` (session exigée, 20 envois par minute et par appareil, `[erreur client]` dans les logs serveur). Hors ligne, l'erreur est gardée sur l'appareil et envoyée au retour du réseau. Aucune donnée de team : message, pile tronquée, chemin de la page, version, navigateur.
 - Test de l'écran d'erreur : `/erreur-test` (hors production). Le brief parlait de `/__erreur-test` ; un dossier qui commence par `_` est privé dans Next.
 
+## Appareil déconnecté pendant une synchro
+
+Une ligne lue plus tôt peut disparaître avant l'écriture (appareil déconnecté ou révoqué). Aucune écriture de synchro ne fait donc de `update` ou de `delete` nu : `updateMany` renvoie le nombre de lignes touchées.
+
+- Curseur : si rien n'est touché, on vérifie que l'appareil existe encore. Absent : `ErreurAppareilRevoque`, réponse 401 « Cet appareil a été déconnecté. », sans journal d'erreur ; le client doit alors aller sur `/connexion`. Présent : le curseur est recréé.
+- Poussée : une ligne disparue donne `refusee` « Cet élément n'existe plus. », sans journal de conflit.
+- Contrôles : `pnpm db:verifier-synchro` (appareil supprimé entre deux tirages, 401, aucun log ; curseur seul supprimé, recréé).
+
 ## Limites connues
 
 - Pas de worker en arrière-plan : la synchro tourne dans l'onglet ouvert, et le service worker ne rejoue rien seul.
