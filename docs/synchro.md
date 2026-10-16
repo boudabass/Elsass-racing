@@ -114,3 +114,11 @@ Limite : un débrief créé sur un autre appareil n'est visible ici qu'après la
 - Base : `pnpm db:verifier-synchro` (deux appareils simulés, conflit journalisé, rejeu idempotent, table refusée, isolement entre teams, contribution, périmètre de lecture de l'assistance et de l'équipage).
 - E2E, projet `chromium` (développement) : `e2e/hors-ligne.spec.ts` ne tourne pas ici.
 - E2E, projet `hors-ligne` (production, port 3101) : `e2e/hors-ligne.spec.ts`. Connexion, note en ligne, visite de `/qg` et `/notes`, passage hors ligne, rechargement depuis le cache, note hors ligne avec badge et indicateur, retour du réseau et contrôle en base.
+
+## Dépenses de Budget hors ligne (tâche 2.6)
+
+- `budget_expense` : contribution propre (`src/apps/budget/synchro-serveur.ts`). Un membre ne saisit hors ligne que les dépenses qu'il paie lui-même (contrôle de payeur dans la transaction). Une dépense ne se modifie ni ne se supprime depuis l'appareil : `RefusSynchro` avec message en français.
+- `budget_category` et `budget_payer` : lecture seule, lisibles hors ligne pour le formulaire « Nouvelle dépense ».
+- À l'application (transaction validée), `apresApplication` émet `budget.depense_creee`, `budget.depense_confirmee`, `budget.solde_modifie` (payeur membre) et, au franchissement, `budget.depassement_previsionnel`.
+- Base locale : version 3 (magasins `budget_expense`, `budget_category`, `budget_payer`).
+- Test e2e : `e2e/budget-hors-ligne.spec.ts` (projet « hors-ligne »).

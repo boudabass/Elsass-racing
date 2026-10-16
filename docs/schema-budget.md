@@ -27,7 +27,7 @@ Conventions (`docs/conventions-schema.md`) :
 
 ## Initialisation
 
-`pnpm db:initialiser-budget` (`scripts/initialiser-budget.ts`) : pour chaque team, les catégories par défaut (`src/apps/budget/categories-defaut.ts`), la caisse de la team, un payeur par membre actif ayant une personne. Idempotent. À lancer après `pnpm db:deploy`, sur chaque base, car les teams existantes n'ont pas encore de catégories.
+Automatique, pas d'étape manuelle : au premier accès à Budget d'une team (`accesBudget`), et avant qu'une autre app propose un mouvement (`proposerMouvementDans`), `initialiserSiBesoin` crée les catégories par défaut (`src/apps/budget/categories-defaut.ts`), la caisse de la team et un payeur par membre actif ayant une personne. Idempotent : sans caisse, rien n'est fait deux fois. Le script `pnpm db:initialiser-budget` (`scripts/initialiser-budget.ts`) reste pour les vérifications ; l'app ne dépend pas de lui.
 
 Un nouveau membre n'est pas abonné par événement. Son payeur est créé à la volée, de façon idempotente, la première fois qu'il saisit une dépense « payé par moi » (`payeurDuMembreDans`).
 
@@ -40,7 +40,7 @@ Un nouveau membre n'est pas abonné par événement. Son payeur est créé à la
 5. **Écart au prévisionnel** : vert jusqu'à 90 %, orange de 90 à 100 %, rouge au-delà ; sans prévu, rouge dès qu'il y a une dépense.
 6. **Confirmation** : une dépense saisie est confirmée d'office ; une dépense proposée l'est quand un humain la valide.
 7. **Dépassement** : vrai seulement au franchissement du prévu.
-8. **Visibilité** : sans écriture (lecture, contribution), seulement ses propres dépenses ; à partir de l'écriture, tout.
+8. **Visibilité** : la lecture voit tous les mouvements, sans rien écrire. La contribution ne voit que ses propres dépenses et son solde ; l'écriture et la gestion voient tout.
 
 ## Services (`src/apps/budget/services-serveur.ts`)
 
@@ -60,6 +60,27 @@ Usage interne : `proposerMouvementDans` (crée la suggestion et émet `budget.ac
 Décision de la boîte d'actions : `core.action_decidee` est reçu par Budget (`enregistrerGestionnaire`, à l'import du module). Une décision refusée par la règle remet l'action en attente, avec son motif (même règle que Saison).
 
 **Lectures** (`lectures-serveur.ts`) : `lireDepenses` (filtrées par niveau côté serveur), `lireSoldeMoi`.
+
+## Écrans (tâche 2.6)
+
+Routes sous `src/app/(app)/apps/budget/`, gardées par `accesEcran` (`src/apps/budget/ecran.ts`) : activation de l'app, puis niveau requis.
+
+| Route | Niveau | Contenu |
+|---|---|---|
+| `/apps/budget` | contribution | Mouvements, filtres dans l'URL (saison, épreuve, catégorie, membre), totaux, fiche (`m`) à droite sur PC et pleine page sur téléphone. Découverte à la première ouverture. |
+| `/apps/budget/nouvelle` | contribution | Dépense en trois champs (montant, catégorie, payé par, « Moi » en premier) ; date et épreuve en cours sous « Plus de détails ». Écrite dans la base locale : hors ligne. |
+| `/apps/budget/recette` | écriture | Recette prévue ou encaissée ; en nature (description et valeur estimée). |
+| `/apps/budget/a-confirmer` | écriture | Suggestions des autres apps : Confirmer (payeur et catégorie modifiables) ou Ignorer. |
+| `/apps/budget/epreuves` | lecture | Coût réel par épreuve, détail par catégorie, moyenne d'un rallye. |
+| `/apps/budget/membres` | lecture | Avancé, remboursé, solde par membre ; remboursement (gestion) avec les dépenses couvertes cochées. La contribution ne voit que sa ligne. |
+| `/apps/budget/previsionnel` | écriture (voir), gestion (modifier) | Prévu, réel, écart et couleur par catégorie de dépense, pour la saison. |
+| `/apps/budget/export` | contribution | CSV des mouvements filtrés (point-virgule, UTF-8 avec BOM). |
+
+Le montant se saisit en euros (`src/apps/budget/saisie.ts`) ; un mouvement au-delà de 1 000 000 € est refusé avec son message. Le bouton + du QG ouvre « Nouvelle dépense » pour tous ceux qui ont la contribution, y compris en terrain (`src/components/qg/entrees-plus.ts`).
+
+Hors ligne : `budget_expense` est en contribution propre (`src/apps/budget/synchro-serveur.ts`). Une dépense saisie hors ligne part à la synchro ; ses événements sont émis à ce moment-là (`apresApplication`). Catégories et payeurs se lisent hors ligne. Une dépense ne se modifie ni ne se supprime depuis l'appareil.
+
+Payeur d'un mouvement proposé : la personne désignée par l'événement (`payeurPersonId`, colonne `budget_suggestion.payer_id`, migration `budget_suggestion_payeur`) ; à défaut, la caisse. L'humain peut le changer en confirmant.
 
 ## Événements
 
@@ -88,12 +109,11 @@ Sans écriture, une dépense n'est saisie qu'au nom de son payeur (celui qui la 
 - `pnpm db:verifier-rls` : huit tables `budget_` avec RLS forcé, politique et droits du rôle applicatif ; une catégorie et une dépense de la team B invisibles ou refusées sous le contexte A.
 - `pnpm db:verifier-bus` (section 13) : initialisation idempotente (15 dépenses, 7 recettes, une caisse, un payeur membre) ; dépense confirmée d'office, à rembourser, rattachée à la saison ; événements émis une fois ; dépassement une seule fois ; niveau contribution (caisse refusée, sa propre dépense passe) ; suggestion confirmée par la boîte, dépense créée avec son origine ; décision refusée remise en attente avec son motif ; remboursement partiel et trop refusé.
 
-## Non fait
+## Non fait ou à trancher
 
-- Aucun écran (2.6) : les composants n'appellent pas encore ces services.
-- Pas de liaison avec Saison (2.7) : les coûts au km reçoivent les km en paramètre.
+- Modifier une dépense (catégorie, montant, payeur) depuis la fiche : le service n'existe pas encore. Aujourd'hui une erreur se corrige par une nouvelle saisie ou un remboursement. À faire après confirmation des règles d'annulation.
 - Justificatifs (`justificatif_file_id`) : colonne prête, pas de fichier avant le lot 5.
-- PDF Budget : lot 3.
-- Le gestionnaire de décision est enregistré à l'import de `services-serveur.ts`. Aucune app ne propose encore de suggestion : il faudra que les écrans de 2.6 importent ce module, ou un fichier d'enregistrement, avant la liaison de 2.7.
-- Le contrôle de dépassement ne tient compte que du prévisionnel de saison (sans épreuve). Le prévisionnel par épreuve est enregistré, pas encore comparé.
-- L'équipe de test laissée par un arrêt brutal du vérifieur (mémoire épuisée, avant le correctif) a été supprimée de la base locale. Le vérifieur nettoie désormais les tables Budget dans son `finally`.
+- PDF de bilan : lot 3.
+- Liaison avec Saison (lot 2.7) : les km des coûts au km sont passés en paramètre.
+- Le contrôle de dépassement ne compare que le prévisionnel de saison (sans épreuve). Le prévisionnel par épreuve est enregistré et affiché dans les services, pas encore comparé.
+- Le gestionnaire de décision est enregistré par `src/apps/gestionnaires-serveur.ts`, chargé par le traitement des événements (correctif de la section 0 de 2.6).
