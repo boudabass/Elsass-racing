@@ -1,0 +1,16 @@
+// Elsass Racing — schéma Prisma. Aucun modèle pour l'instant.
+
+generator client {
+  // Prisma 7 : générateur `prisma-client`, sans moteur Rust. Le client s'instancie
+  // avec l'adapter `@prisma/adapter-pg` (cf. src/lib/prisma.ts).
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  // Prisma 7 : pas d'`url` ici. La connexion de la CLI vit dans prisma.config.ts,
+  // celle du client dans l'adapter.
+  provider = "postgresql"
+}
+
+// Tables et colonnes en snake_case, pour pouvoir les interroger à la main en SQL.

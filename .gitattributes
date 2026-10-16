@@ -1,0 +1,3 @@
+# Le script d'entrée tourne dans un conteneur Linux : il doit garder les fins de
+# ligne LF, même clonée sous Windows (sinon `/bin/sh` échoue).
+*.sh text eol=lf

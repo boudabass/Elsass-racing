@@ -1,0 +1,8 @@
+allowBuilds:
+  # pnpm 11 demande une décision explicite pour chaque script d'installation.
+  # Prisma en a besoin : son postinstall installe le schema-engine dont
+  # `migrate` se sert.
+  '@prisma/engines': true
+  prisma: true
+  # Ignoré par défaut, et l'app se construit ainsi. `false` fige ce choix.
+  esbuild: false
