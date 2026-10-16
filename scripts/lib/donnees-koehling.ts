@@ -119,6 +119,76 @@ export async function appliquerDonneesKoehling(prisma: PrismaClient, teamId: str
     }
   }
 
+  await appliquerSaisonKoehling(prisma, teamId)
+
   const total = await prisma.coreEvent.count({ where: { teamId } })
   return { epreuves: total, crees }
+}
+
+// Saison (lot 2) : une fiche d'information par épreuve, une inscription par engagement, le point
+// paiement ouvert pour les épreuves à venir, et pour la première épreuve passée trois spéciales et un
+// résultat validé. ATTENTION : spéciales et résultat sont des DONNÉES DE TEST (noms génériques, aucun
+// chrono réel). Ils sont à remplacer ou retirer avant tout usage réel de la team.
+// Le résultat est écrit validé directement, sans preuve ni auteur : c'est un raccourci de test, le
+// cycle de validation réel passe par les services. Idempotent : rien n'est modifié si la ligne existe.
+async function appliquerSaisonKoehling(prisma: PrismaClient, teamId: string): Promise<void> {
+  const epreuves = await prisma.coreEvent.findMany({
+    where: { teamId, deletedAt: null },
+    orderBy: { dateDebut: "asc" },
+    select: { id: true, statut: true },
+  })
+
+  for (const epreuve of epreuves) {
+    await prisma.saisonEventInfo.upsert({
+      where: { eventId: epreuve.id },
+      create: { id: randomUUID(), teamId, eventId: epreuve.id, devise: "EUR" },
+      update: {},
+    })
+  }
+
+  const engagements = await prisma.coreEventEntry.findMany({
+    where: { teamId, deletedAt: null },
+    select: { id: true, eventId: true, event: { select: { statut: true } } },
+  })
+  for (const engagement of engagements) {
+    await prisma.saisonRegistration.upsert({
+      where: { entryId: engagement.id },
+      create: { id: randomUUID(), teamId, entryId: engagement.id, devise: "EUR" },
+      update: {},
+    })
+    if (engagement.event.statut === "envisagee") {
+      await prisma.saisonReadiness.upsert({
+        where: { entryId_point: { entryId: engagement.id, point: "paiement" } },
+        create: { id: randomUUID(), teamId, entryId: engagement.id, point: "paiement", statut: "ouvert", source: "saison" },
+        update: {},
+      })
+    }
+  }
+
+  // Première épreuve passée : données de test (cf. commentaire ci-dessus).
+  const premiere = epreuves.find((epreuve) => epreuve.statut === "terminee")
+  if (!premiere) return
+  const engagementPremiere = engagements.find((engagement) => engagement.eventId === premiere.id)
+  if (!engagementPremiere) return
+
+  for (const numero of [1, 2, 3]) {
+    await prisma.saisonStage.upsert({
+      where: { eventId_numero: { eventId: premiere.id, numero } },
+      create: { id: randomUUID(), teamId, eventId: premiere.id, numero, nom: `Spéciale test ${numero}`, type: "speciale" },
+      update: {},
+    })
+  }
+  await prisma.saisonResult.upsert({
+    where: { entryId: engagementPremiere.id },
+    create: {
+      id: randomUUID(),
+      teamId,
+      entryId: engagementPremiere.id,
+      statutFinal: "arrivee",
+      validation: "valide",
+      valideLe: new Date(),
+      public: true,
+    },
+    update: {},
+  })
 }

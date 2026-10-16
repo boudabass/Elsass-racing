@@ -141,9 +141,78 @@ async function main() {
       sansRls.map((r) => r.table_name).join(", "),
     )
 
+    // 9. Saison : les douze tables ont le RLS forcé, la politique cloisonnement_team, et les droits
+    //    du rôle applicatif viennent des ALTER DEFAULT PRIVILEGES de core_rls (non réécrits ici).
+    const tablesSaison = [
+      "saison_event_info", "saison_registration", "saison_readiness", "saison_recce", "saison_recce_session", "saison_stage",
+      "saison_schedule_item", "saison_result", "saison_debrief", "saison_generated_doc", "saison_championship", "saison_standing",
+    ]
+    const saisonSansRls = await proprietaire.$queryRaw<Array<{ table_name: string }>>`
+      SELECT c.relname AS table_name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = ANY(${tablesSaison}::text[])
+        AND (
+          NOT c.relrowsecurity
+          OR NOT c.relforcerowsecurity
+          OR NOT EXISTS (
+            SELECT 1 FROM pg_policies p
+            WHERE p.schemaname = 'public' AND p.tablename = c.relname AND p.policyname = 'cloisonnement_team'
+          )
+        )
+      ORDER BY c.relname`
+    controle(
+      "les douze tables saison_ ont le RLS forcé et la politique cloisonnement_team",
+      saisonSansRls.length === 0 && tablesSaison.length === 12,
+      saisonSansRls.map((r) => r.table_name).join(", "),
+    )
+
+    const droitsManquants = await proprietaire.$queryRaw<Array<{ table_name: string }>>`
+      SELECT c.relname AS table_name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = ANY(${tablesSaison}::text[])
+        AND NOT (
+          has_table_privilege('elsass_racing_app', c.oid, 'SELECT')
+          AND has_table_privilege('elsass_racing_app', c.oid, 'INSERT')
+          AND has_table_privilege('elsass_racing_app', c.oid, 'UPDATE')
+        )
+      ORDER BY c.relname`
+    controle(
+      "le rôle applicatif a SELECT, INSERT et UPDATE sur les douze tables saison_",
+      droitsManquants.length === 0,
+      droitsManquants.map((r) => r.table_name).join(", "),
+    )
+
+    // Comportement : un championnat de la team B est invisible et intouchable sous le contexte A.
+    const championnatB = randomUUID()
+    await proprietaire.saisonChampionship.create({
+      data: { id: championnatB, teamId: teamB.id, seasonId: saisonB, nom: "Championnat B" },
+    })
+    const championnatsVusParA = await clientA.saisonChampionship.count({ where: { id: championnatB } })
+    controle("un championnat de la team B est invisible sous le contexte A", championnatsVusParA === 0, `vu : ${championnatsVusParA}`)
+
+    const championnatsModifies = await clientA.saisonChampionship.updateMany({ where: { id: championnatB }, data: { nom: "piratage" } })
+    controle("update d'un championnat de B sous le contexte A touche 0 ligne", championnatsModifies.count === 0, `touché : ${championnatsModifies.count}`)
+    const championnatIntact = await proprietaire.saisonChampionship.findUnique({ where: { id: championnatB }, select: { nom: true } })
+    controle("le championnat de B est resté intact", championnatIntact?.nom === "Championnat B")
+
+    let championnatRefuse = false
+    try {
+      await clientA.saisonChampionship.create({
+        data: { id: randomUUID(), teamId: teamB.id, seasonId: saisonB, nom: "Intrusion saison" },
+      })
+    } catch {
+      championnatRefuse = true
+    }
+    controle("création d'un championnat dans la team B sous le contexte A refusée", championnatRefuse)
+
     console.log("\nCloisonnement vérifié : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
+    await proprietaire.saisonChampionship.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.coreMembership.deleteMany({ where: { id: adhesion } })
     await proprietaire.coreSeason.deleteMany({ where: { id: { in: [saisonA, saisonB] } } })
     await proprietaire.coreTeam.deleteMany({ where: { id: { in: [teamA.id, teamB.id] } } })

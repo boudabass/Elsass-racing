@@ -134,9 +134,76 @@ async function main() {
     const vueParApp = await applicatif.coreAction.count({ where: { id: actionsA2[0].id } })
     controle("l'app ne voit pas l'action hors contexte de team", vueParApp === 0)
 
+    // 9. Saison : création d'un engagement, puis paiement. Chaque événement n'est livré qu'à ses destinataires.
+    const { creerEngagementDans, enregistrerPaiementDans } = await import("../src/apps/saison/services-serveur")
+    const saisonBus = randomUUID()
+    await proprietaire.coreSeason.create({
+      data: { id: saisonBus, teamId: team.id, annee: 2030, nom: "Saison bus", dateDebut: new Date("2030-01-01"), dateFin: new Date("2030-12-31"), enCours: true },
+    })
+    // Date lointaine : l'engagement reste « payé », jamais « parti », quel que soit le jour du test.
+    const epreuveBus = await proprietaire.coreEvent.create({
+      data: {
+        id: randomUUID(),
+        teamId: team.id,
+        seasonId: saisonBus,
+        type: "rallye",
+        nom: "Rallye test bus",
+        dateDebut: new Date("2030-06-01"),
+        dateFin: new Date("2030-06-02"),
+      },
+    })
+    const vehiculeBus = await proprietaire.coreVehicle.create({
+      data: { id: randomUUID(), teamId: team.id, type: "course", nomCourt: "Véhicule test bus" },
+    })
+
+    const entryId = await creerEngagementDans(ctx, { eventId: epreuveBus.id, vehicleId: vehiculeBus.id })
+    const evenementEngage = await proprietaire.coreDomainEvent.findFirst({
+      where: { teamId: team.id, nom: "saison.engagement_cree" },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    })
+    const livraisonsEngage = await proprietaire.coreEventDelivery.findMany({
+      where: { domainEventId: evenementEngage?.id },
+      select: { appDestinataire: true },
+    })
+    const destinatairesEngage = livraisonsEngage.map((livraison) => livraison.appDestinataire).sort().join(",")
+    controle(
+      "saison.engagement_cree est livré à checklist, equipe et garage, et à eux seuls",
+      destinatairesEngage === "checklist,equipe,garage",
+      destinatairesEngage,
+    )
+
+    const inscription = await proprietaire.saisonRegistration.findUnique({ where: { entryId } })
+    const pointPaiement = await proprietaire.saisonReadiness.findFirst({ where: { entryId, point: "paiement" } })
+    controle("l'engagement crée l'inscription et le point paiement ouvert", inscription !== null && pointPaiement?.statut === "ouvert")
+
+    await enregistrerPaiementDans(ctx, entryId, { payeLe: "2030-05-01", mode: "virement", montant: 4500 })
+    const evenementPaye = await proprietaire.coreDomainEvent.findFirst({
+      where: { teamId: team.id, nom: "saison.engagement_paye" },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    })
+    const livraisonsPaiement = await proprietaire.coreEventDelivery.findMany({
+      where: { domainEventId: evenementPaye?.id },
+      select: { appDestinataire: true },
+    })
+    const destinatairesPaye = livraisonsPaiement.map((livraison) => livraison.appDestinataire).sort().join(",")
+    controle("saison.engagement_paye est livré à budget, et à budget seul", destinatairesPaye === "budget", destinatairesPaye)
+
+    const pointApres = await proprietaire.saisonReadiness.findFirst({ where: { entryId, point: "paiement" } })
+    controle("le paiement passe le point paiement à réglé", pointApres?.statut === "regle")
+    const engagementPaye = await proprietaire.coreEventEntry.findUnique({ where: { id: entryId }, select: { statut: true } })
+    controle("un engagement payé passe à paye", engagementPaye?.statut === "paye", engagementPaye?.statut)
+
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
+    await proprietaire.saisonReadiness.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.saisonRegistration.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.coreEventEntry.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.coreEvent.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.coreVehicle.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.coreSeason.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreAction.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreDomainEvent.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreTeamApp.deleteMany({ where: { teamId: team.id } })

@@ -12,8 +12,8 @@ Trois niveaux : unitaires, vérifications en base, bout en bout. Chacun se lance
 
 Scripts tsx qui se connectent à la base locale. Ils créent des données de test et les suppriment dans un `finally`.
 
-- `pnpm db:verifier-rls` : cloisonnement par team (lecture, écriture, insertion inter-teams refusées), et RLS activé sur toute table publique qui porte `team_id`.
-- `pnpm db:verifier-bus` : bus d'événements, livraisons, gestionnaires du socle.
+- `pnpm db:verifier-rls` : cloisonnement par team (lecture, écriture, insertion inter-teams refusées), et RLS activé sur toute table publique qui porte `team_id`. Étendu à Saison : RLS forcé, politique et droits des douze tables `saison_`, cloisonnement d'un championnat.
+- `pnpm db:verifier-bus` : bus d'événements, livraisons, gestionnaires du socle. Étendu à Saison : engagement puis paiement, destinataires exacts (`docs/schema-saison.md`).
 
 Pré-requis : `pnpm db:up`, puis `pnpm db:deploy` si la base est neuve.
 

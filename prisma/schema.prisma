@@ -263,6 +263,18 @@ model CoreTeam {
   settingsTeamPref         SettingsTeamPref?
   settingsMemberPrefs      SettingsMemberPref[]
   settingsDeletionRequests SettingsDeletionRequest[]
+  saisonEventInfos         SaisonEventInfo[]
+  saisonRegistrations      SaisonRegistration[]
+  saisonReadiness          SaisonReadiness[]
+  saisonRecces             SaisonRecce[]
+  saisonRecceSessions      SaisonRecceSession[]
+  saisonStages             SaisonStage[]
+  saisonScheduleItems      SaisonScheduleItem[]
+  saisonResults            SaisonResult[]
+  saisonDebriefs           SaisonDebrief[]
+  saisonGeneratedDocs      SaisonGeneratedDoc[]
+  saisonChampionships      SaisonChampionship[]
+  saisonStandings          SaisonStanding[]
 
   @@index([logoFileId])
   @@map("core_team")
@@ -400,6 +412,9 @@ model CoreMembership {
   notifications     CoreNotification[]
   notificationPrefs CoreNotificationPref[]
   preferences       SettingsMemberPref?
+  saisonResultsSaisis   SaisonResult[] @relation("ResultSaisi")
+  saisonResultsValides  SaisonResult[] @relation("ResultValide")
+  saisonDebriefs        SaisonDebrief[]
 
   @@unique([teamId, userId])
   @@index([teamId])
@@ -516,6 +531,9 @@ model CorePerson {
   memberships     CoreMembership[]
   entriesPilote   CoreEventEntry[] @relation("EntryPilote")
   entriesCopilote CoreEventEntry[] @relation("EntryCopilote")
+  saisonRegistrationsConcurrent SaisonRegistration[] @relation("RegistrationConcurrent")
+  saisonRegistrationsPayeur     SaisonRegistration[] @relation("RegistrationPayeur")
+  saisonStandings               SaisonStanding[]
   photo           CoreFile?        @relation(fields: [photoFileId], references: [id], onDelete: SetNull)
   tasks           CoreTask[]
 
@@ -546,6 +564,7 @@ model CoreSeason {
 
   team   CoreTeam    @relation(fields: [teamId], references: [id], onDelete: Restrict)
   events CoreEvent[]
+  saisonChampionships SaisonChampionship[]
 
   @@unique([teamId, annee])
   @@index([teamId])
@@ -581,6 +600,10 @@ model CoreEvent {
   entries      CoreEventEntry[]
   tasks        CoreTask[]
   actions      CoreAction[]
+  saisonInfo          SaisonEventInfo?
+  saisonRecce         SaisonRecce?
+  saisonStages        SaisonStage[]
+  saisonScheduleItems SaisonScheduleItem[]
 
   @@index([teamId])
   @@index([seasonId])
@@ -615,6 +638,12 @@ model CoreEventEntry {
   vehicle  CoreVehicle @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   pilote   CorePerson? @relation("EntryPilote", fields: [piloteId], references: [id], onDelete: SetNull)
   copilote CorePerson? @relation("EntryCopilote", fields: [copiloteId], references: [id], onDelete: SetNull)
+  saisonRegistration  SaisonRegistration?
+  saisonResult        SaisonResult?
+  saisonReadiness     SaisonReadiness[]
+  saisonDebriefs      SaisonDebrief[]
+  saisonScheduleItems SaisonScheduleItem[]
+  saisonGeneratedDocs SaisonGeneratedDoc[]
 
   @@index([teamId])
   @@index([eventId])
@@ -643,6 +672,7 @@ model CoreVehicle {
   team    CoreTeam         @relation(fields: [teamId], references: [id], onDelete: Restrict)
   photo   CoreFile?        @relation(fields: [photoFileId], references: [id], onDelete: SetNull)
   entries CoreEventEntry[]
+  saisonRecces SaisonRecce[]
 
   @@index([teamId])
   @@index([photoFileId])
@@ -671,6 +701,7 @@ model CoreContact {
   team    CoreTeam     @relation(fields: [teamId], references: [id], onDelete: Restrict)
   persons CorePerson[]
   events  CoreEvent[]
+  saisonEventInfos SaisonEventInfo[]
 
   @@index([teamId])
   @@index([teamId, nom])
@@ -727,6 +758,10 @@ model CoreFile {
   vehicules   CoreVehicle[]
   attachments CoreAttachment[]
   exports     CoreExport[]
+  saisonEventInfos    SaisonEventInfo[]
+  saisonResults       SaisonResult[]
+  saisonGeneratedDocs SaisonGeneratedDoc[]
+  saisonStandings     SaisonStanding[]
 
   @@index([teamId])
   @@map("core_file")
@@ -1206,4 +1241,438 @@ model CoreSyncOperation {
 
   @@index([teamId])
   @@map("core_sync_operation")
+}
+
+// ---------------------------------------------------------------------------
+// Saison (lot 2). Tables préfixées saison_. Règles de montants et de statuts : docs/schema-saison.md.
+// ---------------------------------------------------------------------------
+
+enum SaisonPaiementMode {
+  cheque
+  virement
+  en_ligne
+
+  @@map("saison_paiement_mode")
+}
+
+enum SaisonReadinessPoint {
+  paiement
+  licences
+  homologations
+  papiers
+  pieces
+
+  @@map("saison_readiness_point")
+}
+
+enum SaisonReadinessStatut {
+  regle
+  ouvert
+
+  @@map("saison_readiness_statut")
+}
+
+enum SaisonResultStatut {
+  arrivee
+  abandon
+  exclusion
+  forfait
+
+  @@map("saison_result_statut")
+}
+
+enum SaisonResultValidation {
+  saisi
+  a_verifier
+  valide
+  conteste
+
+  @@map("saison_result_validation")
+}
+
+enum SaisonStageType {
+  speciale
+  manche_slalom
+  montee
+
+  @@map("saison_stage_type")
+}
+
+enum SaisonScheduleType {
+  verif_administratives
+  verif_techniques
+  shakedown
+  depart
+  passage_speciale
+  regroupement
+  assistance
+  arrivee
+  remise_des_prix
+
+  @@map("saison_schedule_type")
+}
+
+enum SaisonGeneratedDocType {
+  bulletin_engagement
+  demande_assistance
+  declaration_vehicule_reco
+  autorisation_proprietaire
+
+  @@map("saison_generated_doc_type")
+}
+
+model SaisonEventInfo {
+  id                     String    @id @db.Uuid
+  teamId                 String    @map("team_id") @db.Uuid
+  eventId                String    @unique @map("event_id") @db.Uuid
+  asaContactId           String?   @map("asa_contact_id") @db.Uuid
+  championnat            String?
+  reglementFileId        String?   @map("reglement_file_id") @db.Uuid
+  lienResultats          String?   @map("lien_resultats")
+  engagementsOuverture   DateTime? @map("engagements_ouverture") @db.Date
+  engagementsCloture     DateTime? @map("engagements_cloture") @db.Date
+  tarifNormal            Int?      @map("tarif_normal")
+  tarifLicencieAsa       Int?      @map("tarif_licencie_asa")
+  devise                 String    @default("EUR")
+  geolocalisationIncluse Boolean   @default(false) @map("geolocalisation_incluse")
+  nbSpeciales            Int?      @map("nb_speciales")
+  kmChronometresPrevus   Decimal?  @map("km_chronometres_prevus") @db.Decimal(6, 1)
+  kmTotal                Decimal?  @map("km_total") @db.Decimal(6, 1)
+  lieuParcAssistance     String?   @map("lieu_parc_assistance")
+  adresseEnvoiDossier    String?   @map("adresse_envoi_dossier")
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team         CoreTeam     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  event        CoreEvent    @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  asaContact   CoreContact? @relation(fields: [asaContactId], references: [id], onDelete: SetNull)
+  reglementFile CoreFile?   @relation(fields: [reglementFileId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("saison_event_info")
+}
+
+model SaisonRegistration {
+  id                  String           @id @db.Uuid
+  teamId              String           @map("team_id") @db.Uuid
+  entryId             String           @unique @map("entry_id") @db.Uuid
+  concurrentPersonId  String?          @map("concurrent_person_id") @db.Uuid
+  concurrentNom       String?          @map("concurrent_nom")
+  montantDu           Int?             @map("montant_du")
+  devise              String           @default("EUR")
+  modePaiement        SaisonPaiementMode? @map("mode_paiement")
+  payeLe              DateTime?        @map("paye_le") @db.Date
+  payeurPersonId      String?          @map("payeur_person_id") @db.Uuid
+  reference           String?
+  dossierEnvoyeLe     DateTime?        @map("dossier_envoye_le") @db.Timestamptz(3)
+  confirmationRecueLe DateTime?        @map("confirmation_recue_le") @db.Timestamptz(3)
+  listeEngagesPubliee Boolean          @default(false) @map("liste_engages_publiee")
+  remarques           String?
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team       CoreTeam         @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  entry      CoreEventEntry   @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  concurrent CorePerson?      @relation("RegistrationConcurrent", fields: [concurrentPersonId], references: [id], onDelete: SetNull)
+  payeur     CorePerson?      @relation("RegistrationPayeur", fields: [payeurPersonId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("saison_registration")
+}
+
+model SaisonReadiness {
+  id      String                @id @db.Uuid
+  teamId  String                @map("team_id") @db.Uuid
+  entryId String                @map("entry_id") @db.Uuid
+  point   SaisonReadinessPoint
+  statut  SaisonReadinessStatut
+  detail  String?
+  source  String
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team  CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  entry CoreEventEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+  @@unique([entryId, point])
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("saison_readiness")
+}
+
+model SaisonRecce {
+  id                String    @id @db.Uuid
+  teamId            String    @map("team_id") @db.Uuid
+  eventId           String    @unique @map("event_id") @db.Uuid
+  debutAutorise     DateTime? @map("debut_autorise") @db.Timestamptz(3)
+  finAutorisee      DateTime? @map("fin_autorisee") @db.Timestamptz(3)
+  passagesAutorises Int?      @map("passages_autorises")
+  vitesseMax        Int?      @map("vitesse_max")
+  vehiculeId        String?   @map("vehicule_id") @db.Uuid
+  plaqueRecue       Boolean   @default(false) @map("plaque_recue")
+  consignes         String?
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team     CoreTeam     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  event    CoreEvent    @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  vehicule CoreVehicle? @relation(fields: [vehiculeId], references: [id], onDelete: SetNull)
+  sessions SaisonRecceSession[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("saison_recce")
+}
+
+model SaisonRecceSession {
+  id        String   @id @db.Uuid
+  teamId    String   @map("team_id") @db.Uuid
+  recceId   String   @map("recce_id") @db.Uuid
+  date      DateTime @db.Date
+  personnes String[] @default([]) @db.Uuid
+  speciales String[] @default([]) @db.Uuid
+  passages  Int?
+  notes     String?
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team  CoreTeam   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  recce SaisonRecce @relation(fields: [recceId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("saison_recce_session")
+}
+
+model SaisonStage {
+  id          String          @id @db.Uuid
+  teamId      String          @map("team_id") @db.Uuid
+  eventId     String          @map("event_id") @db.Uuid
+  numero      Int
+  nom         String
+  longueurKm  Decimal?        @map("longueur_km") @db.Decimal(5, 2)
+  nbPassages  Int?            @map("nb_passages")
+  type        SaisonStageType
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team          CoreTeam             @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  event         CoreEvent            @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  scheduleItems SaisonScheduleItem[]
+  resultsAbandon SaisonResult[]
+
+  @@unique([eventId, numero])
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("saison_stage")
+}
+
+model SaisonScheduleItem {
+  id            String              @id @db.Uuid
+  teamId        String              @map("team_id") @db.Uuid
+  eventId       String              @map("event_id") @db.Uuid
+  type          SaisonScheduleType
+  stageId       String?             @map("stage_id") @db.Uuid
+  numeroPassage Int?                @map("numero_passage")
+  heurePrevue   DateTime?           @map("heure_prevue") @db.Timestamptz(3)
+  lieu          String?
+  entryId       String?             @map("entry_id") @db.Uuid
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team  CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  event CoreEvent      @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  stage SaisonStage?   @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  entry CoreEventEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("saison_schedule_item")
+}
+
+model SaisonResult {
+  id                      String                 @id @db.Uuid
+  teamId                  String                 @map("team_id") @db.Uuid
+  entryId                 String                 @unique @map("entry_id") @db.Uuid
+  statutFinal             SaisonResultStatut     @map("statut_final")
+  causeAbandon            String?                @map("cause_abandon")
+  stageAbandonId          String?                @map("stage_abandon_id") @db.Uuid
+  classementGeneral       Int?                   @map("classement_general")
+  nbClasses               Int?                   @map("nb_classes")
+  classementGroupe        Int?                   @map("classement_groupe")
+  classementClasse        Int?                   @map("classement_classe")
+  nbPartantsClasse        Int?                   @map("nb_partants_classe")
+  tempsTotalMs            Int?                   @map("temps_total_ms")
+  penalitesMs             Int?                   @map("penalites_ms")
+  kmChronometres          Decimal?               @map("km_chronometres") @db.Decimal(6, 1)
+  public                  Boolean                @default(true)
+  validation              SaisonResultValidation @default(saisi)
+  preuveLien              String?                @map("preuve_lien")
+  preuveFileId            String?                @map("preuve_file_id") @db.Uuid
+  saisiParMembershipId    String?                @map("saisi_par_membership_id") @db.Uuid
+  validParMembershipId    String?                @map("valide_par_membership_id") @db.Uuid
+  valideLe                DateTime?              @map("valide_le") @db.Timestamptz(3)
+  commentaireContestation String?                @map("commentaire_contestation")
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team         CoreTeam        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  entry        CoreEventEntry  @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  stageAbandon SaisonStage?    @relation(fields: [stageAbandonId], references: [id], onDelete: SetNull)
+  preuveFile   CoreFile?       @relation(fields: [preuveFileId], references: [id], onDelete: SetNull)
+  saisiPar     CoreMembership? @relation("ResultSaisi", fields: [saisiParMembershipId], references: [id], onDelete: SetNull)
+  validePar    CoreMembership? @relation("ResultValide", fields: [validParMembershipId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("saison_result")
+}
+
+model SaisonDebrief {
+  id                  String  @id @db.Uuid
+  teamId              String  @map("team_id") @db.Uuid
+  entryId             String  @map("entry_id") @db.Uuid
+  auteurMembershipId  String  @map("auteur_membership_id") @db.Uuid
+  ressenti            Int
+  pointsPositifs      String? @map("points_positifs")
+  pointsAAmeliorer    String? @map("points_a_ameliorer")
+  problemesVoiture    String? @map("problemes_voiture")
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team   CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  entry  CoreEventEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  auteur CoreMembership @relation(fields: [auteurMembershipId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, auteurMembershipId])
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("saison_debrief")
+}
+
+model SaisonGeneratedDoc {
+  id        String                 @id @db.Uuid
+  teamId    String                 @map("team_id") @db.Uuid
+  entryId   String                 @map("entry_id") @db.Uuid
+  type      SaisonGeneratedDocType
+  fileId    String                 @map("file_id") @db.Uuid
+  version   Int                    @default(1)
+  genereLe  DateTime               @map("genere_le") @db.Timestamptz(3)
+  envoyeLe  DateTime?              @map("envoye_le") @db.Timestamptz(3)
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team  CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  entry CoreEventEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  file  CoreFile       @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("saison_generated_doc")
+}
+
+model SaisonChampionship {
+  id              String  @id @db.Uuid
+  teamId          String  @map("team_id") @db.Uuid
+  seasonId        String  @map("season_id") @db.Uuid
+  nom             String
+  organisateur    String?
+  lienClassement  String? @map("lien_classement")
+  suiviActif      Boolean @default(true) @map("suivi_actif")
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team      CoreTeam         @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  season    CoreSeason       @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  standings SaisonStanding[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("saison_championship")
+}
+
+model SaisonStanding {
+  id             String    @id @db.Uuid
+  teamId         String    @map("team_id") @db.Uuid
+  championshipId String    @map("championship_id") @db.Uuid
+  personId       String    @map("person_id") @db.Uuid
+  points         Decimal   @db.Decimal(6, 1)
+  position       Int?
+  misAJourLe     DateTime? @map("mis_a_jour_le") @db.Timestamptz(3)
+  sourceLien     String?   @map("source_lien")
+  sourceFileId   String?   @map("source_file_id") @db.Uuid
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team         CoreTeam           @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  championship SaisonChampionship @relation(fields: [championshipId], references: [id], onDelete: Cascade)
+  person       CorePerson         @relation(fields: [personId], references: [id], onDelete: Restrict)
+  sourceFile   CoreFile?          @relation(fields: [sourceFileId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([championshipId])
+  @@map("saison_standing")
 }
