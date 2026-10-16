@@ -22,3 +22,6 @@ documentation
 *.swo
 .DS_Store
 Thumbs.db
+
+# Builds de vérification
+.next-build

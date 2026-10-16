@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   // dépendances réellement tracées. L'image Docker n'a pas à recopier
   // node_modules en entier.
   output: "standalone",
+  // Builds de vérification dans un autre dossier (NEXT_DIST_DIR=.next-build) : le serveur dev
+  // garde le sien, et un build ne le casse pas.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // Racine du projet pour le traçage. Sans cela, Next choisit un lockfile
   // parent (C:\Users\George\pnpm-lock.yaml) comme racine de workspace.
   outputFileTracingRoot: path.join(__dirname),

@@ -39,3 +39,6 @@ __pycache__/
 
 # Client Prisma généré : il se régénère depuis prisma/schema.prisma (postinstall).
 /src/generated/
+
+# Builds de vérification (NEXT_DIST_DIR=.next-build pnpm build)
+/.next-build/
