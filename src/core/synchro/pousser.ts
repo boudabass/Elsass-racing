@@ -47,9 +47,10 @@ async function appliquerUne(ctx: ContexteTeam, deviceId: string, operation: Oper
     return { idOperation: operation.idOperation, statut: "refusee", raison: "Cette donnée se lit seulement hors ligne : elle ne s'écrit pas depuis l'appareil." }
   }
 
+  let ecrit: ResultatOperation
   try {
     const niveau = await niveauDe(ctx, declaration.app)
-    return await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    ecrit = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
       const resultat = await decider(tx, ctx, declaration, operation, niveau)
       await tx.coreSyncOperation.create({
         data: {
@@ -72,6 +73,12 @@ async function appliquerUne(ctx: ContexteTeam, deviceId: string, operation: Oper
     console.error("[synchro] opération non appliquée :", erreur)
     return { idOperation: operation.idOperation, statut: "refusee", raison: "L'enregistrement n'a pas pu être fait. Réessaie." }
   }
+
+  // La transaction est validée : ce qui suit ne peut plus la défaire, et son échec ne change pas le résultat.
+  if (ecrit.statut === "appliquee" && declaration.apresApplication) {
+    await declaration.apresApplication(ctx, operation.id).catch((erreur: unknown) => console.error("[synchro] suite non faite :", erreur))
+  }
+  return ecrit
 }
 
 async function decider(

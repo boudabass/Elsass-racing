@@ -286,3 +286,12 @@ export async function sortiesRecceEnBase(equipe: Equipe, date: string): Promise<
   )
   return rows[0].n
 }
+
+// Débriefs d'un engagement, non supprimés : combien en base (tâche 2.5 : écrits hors ligne, puis synchronisés).
+export async function debriefsEnBase(equipe: Equipe, entryId: string): Promise<number> {
+  const { rows } = await bd().query<{ n: number }>(
+    "SELECT count(*)::int AS n FROM saison_debrief WHERE team_id = $1 AND entry_id = $2::uuid AND deleted_at IS NULL",
+    [equipe.teamId, entryId],
+  )
+  return rows[0].n
+}

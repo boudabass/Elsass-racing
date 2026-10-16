@@ -6,10 +6,12 @@
 
 import { z } from "zod"
 
+import { emettre } from "@/core/evenements/bus-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 import { RefusSynchro } from "@/core/synchro/erreurs"
 import { apresPosition } from "@/core/synchro/position"
 import type { ClientTeam, DeclarationSynchro, EtatLigneSynchro, Tx } from "@/core/synchro/registre"
+import { prismaPourTeam } from "@/lib/prisma"
 
 import { refusEcritureSaison } from "./regles-resultats"
 
@@ -308,6 +310,23 @@ const saisonRecceSessionSynchro: DeclarationSynchro = {
   },
 }
 
+// Événement du débrief, émis une fois l'écriture validée (même événement qu'en ligne, saison.debrief_saisi).
+async function emettreDebrief(ctx: ContexteTeam, id: string): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const debrief = await client.saisonDebrief.findFirst({
+    where: { id, teamId: ctx.teamId, deletedAt: null },
+    select: { entryId: true, auteurMembershipId: true },
+  })
+  if (!debrief) return
+  const engagement = await client.coreEventEntry.findFirst({ where: { id: debrief.entryId, teamId: ctx.teamId }, select: { eventId: true } })
+  if (!engagement) return
+  await emettre(ctx, "saison.debrief_saisi", {
+    entryId: debrief.entryId,
+    eventId: engagement.eventId,
+    auteurMembershipId: debrief.auteurMembershipId,
+  })
+}
+
 // Débrief : privé à l'équipage. Un seul par engagement et par auteur ; niveau de lecture « contribution » :
 // l'assistance (lecture) ne le reçoit jamais.
 const saisonDebriefSynchro: DeclarationSynchro = {
@@ -396,6 +415,7 @@ const saisonDebriefSynchro: DeclarationSynchro = {
     })
     return resultat.count > 0
   },
+  apresApplication: emettreDebrief,
 }
 
 export const declarationsSaisonSynchro: DeclarationSynchro[] = [

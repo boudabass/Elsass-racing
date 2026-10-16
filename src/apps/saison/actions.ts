@@ -23,7 +23,6 @@ import {
   joindrePreuve,
   validerResultat,
   contesterResultat,
-  saisirDebrief,
   creerSaison,
   cloturerSaison,
   enregistrerRecce,
@@ -242,17 +241,6 @@ export async function validerResultatAction(_etat: Resultat | null, donnees: For
 
 export async function contesterResultatAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executer(() => contesterResultat(texte(donnees, "entryId"), texte(donnees, "commentaire")))
-}
-
-export async function saisirDebriefAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() =>
-    saisirDebrief(texte(donnees, "entryId"), {
-      ressenti: entier(donnees, "ressenti") ?? 0,
-      pointsPositifs: textePlein(donnees, "pointsPositifs"),
-      pointsAAmeliorer: textePlein(donnees, "pointsAAmeliorer"),
-      problemesVoiture: textePlein(donnees, "problemesVoiture"),
-    }),
-  )
 }
 
 export async function creerSaisonAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {

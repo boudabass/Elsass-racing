@@ -579,68 +579,6 @@ export async function contesterResultatDans(ctx: ContexteTeam, entryId: string, 
   await recalculerDans(ctx)
 }
 
-// --- Débriefs -----------------------------------------------------------------------------
-
-const schemaDebrief = z
-  .object({
-    ressenti: z.number().int().min(1, "Le ressenti va de 1 à 5.").max(5, "Le ressenti va de 1 à 5."),
-    pointsPositifs: z.string().trim().max(2000).nullable().optional(),
-    pointsAAmeliorer: z.string().trim().max(2000).nullable().optional(),
-    problemesVoiture: z.string().trim().max(2000).nullable().optional(),
-  })
-  .strict()
-
-export type EntreeDebrief = z.input<typeof schemaDebrief>
-
-// Un débrief par membre et par engagement : celui de l'appelant est créé ou mis à jour.
-export async function saisirDebrief(entryId: string, entree: EntreeDebrief): Promise<void> {
-  const { ctx } = await accesSaison("ecriture")
-  return saisirDebriefDans(ctx, entryId, entree)
-}
-
-export async function saisirDebriefDans(ctx: ContexteTeam, entryId: string, entree: EntreeDebrief): Promise<void> {
-  const donnees = schemaDebrief.parse(entree)
-  await garderSaisonOuverte(ctx, { entryId })
-  const client = prismaPourTeam(ctx.teamId, ctx.userId)
-
-  const engagement = await client.coreEventEntry.findFirst({ where: { id: entryId, teamId: ctx.teamId, deletedAt: null }, select: { eventId: true } })
-  if (!engagement) refus("Engagement introuvable dans cette team.")
-
-  const champs = {
-    ressenti: donnees.ressenti,
-    pointsPositifs: donnees.pointsPositifs ?? null,
-    pointsAAmeliorer: donnees.pointsAAmeliorer ?? null,
-    problemesVoiture: donnees.problemesVoiture ?? null,
-  }
-  const existant = await client.saisonDebrief.findFirst({
-    where: { entryId, auteurMembershipId: ctx.membership.id, teamId: ctx.teamId, deletedAt: null },
-  })
-  if (existant) {
-    await client.saisonDebrief.updateMany({
-      where: { id: existant.id, teamId: ctx.teamId },
-      data: { ...champs, rev: { increment: 1 }, updatedBy: ctx.userId },
-    })
-  } else {
-    await client.saisonDebrief.create({
-      data: {
-        id: newId(),
-        teamId: ctx.teamId,
-        entryId,
-        auteurMembershipId: ctx.membership.id,
-        ...champs,
-        createdBy: ctx.userId,
-        updatedBy: ctx.userId,
-      },
-    })
-  }
-
-  await emettre(ctx, "saison.debrief_saisi", {
-    entryId,
-    eventId: engagement.eventId,
-    auteurMembershipId: ctx.membership.id,
-  })
-}
-
 // --- Saisons ------------------------------------------------------------------------------
 
 export async function creerSaison(annee: number, dates?: { debut: string; fin: string }): Promise<string> {

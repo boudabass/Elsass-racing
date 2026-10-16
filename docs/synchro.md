@@ -93,9 +93,11 @@ Six tables de Saison suivent la procédure de `docs/app-sdk.md`, section 9 (regi
 - **Base locale** : version 2. Une base créée en version 1 reçoit les nouveaux magasins à l'ouverture. Les magasins existants ne sont pas touchés.
 - **Préchargement** : les pages `?onglet=programme` et `?onglet=reconnaissances` de la prochaine épreuve sont demandées au service worker avec les pages clés (`/qg`, `/notes`).
 
-Vérifications : `db:verifier-synchro` (registre, lecture seule refusée, sortie de l'équipage appliquée, sortie de l'assistance refusée, débrief jamais reçu par l'assistance, saison clôturée refusée) et `e2e/saison-hors-ligne.spec.ts` (programme en mode avion, sortie saisie hors ligne puis synchronisée au retour du réseau).
+- **Débrief hors ligne** : le formulaire de débrief de la fiche engagement écrit dans la base locale (`saison_debrief`, `ecrireLocal`) et s'affiche hors ligne, comme les sorties de reco. La ligne locale de cet appareil l'emporte sur celle du rendu serveur. Une fois l'écriture validée par le serveur, l'événement `saison.debrief_saisi` est émis (crochet `apresApplication` de `DeclarationSynchro`, appelé après la transaction ; son échec est journalisé sans changer le résultat de l'opération).
 
-Limite : la saisie hors ligne du débrief n'a pas d'écran à ce jour ; la déclaration existe et est vérifiée.
+Vérifications : `db:verifier-synchro` (registre, lecture seule refusée, sortie de l'équipage appliquée, sortie de l'assistance refusée, débrief jamais reçu par l'assistance, événement du débrief émis une seule fois, saison clôturée refusée) et `e2e/saison-hors-ligne.spec.ts` (programme en mode avion, sortie saisie hors ligne puis synchronisée au retour du réseau ; débrief saisi hors ligne, en base et événement émis au retour du réseau).
+
+Limite : un débrief créé sur un autre appareil n'est visible ici qu'après la première synchronisation : tant qu'il n'est pas sur cet appareil, un nouveau débrief y est créé et sera refusé à l'envoi (« Tu as déjà un débrief pour cette épreuve »).
 ## Limites connues
 
 - Pas de worker en arrière-plan : la synchro tourne dans l'onglet ouvert, et le service worker ne rejoue rien seul.

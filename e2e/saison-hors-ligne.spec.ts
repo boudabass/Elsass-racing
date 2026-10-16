@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
-import { ajouterVoitureDeCourse, preparerSaison, sortiesRecceEnBase } from "./aide/session"
+import { ajouterVoitureDeCourse, compterEvenements, debriefsEnBase, preparerSaison, sortiesRecceEnBase } from "./aide/session"
 
 // Saison hors ligne (tâche 2.4) : le programme s'affiche en mode avion, une sortie de reconnaissance
 // saisie hors ligne part au retour du réseau. Ce fichier tourne sur le projet « hors-ligne » (serveur
@@ -76,6 +76,56 @@ test("saison hors ligne : le programme s'affiche en mode avion, une sortie de re
   // Retour du réseau : la sortie part et arrive en base.
   await context.setOffline(false)
   await expect.poll(() => sortiesRecceEnBase(equipe, `${ANNEE}-05-10`), { timeout: 30_000 }).toBe(1)
+})
+
+// Débrief hors ligne (tâche 2.5, section 0) : l'engagement payé est « parti », sa fiche est mise en cache
+// en ligne ; le débrief saisi sans réseau part au retour du réseau, une seule fois, avec son événement.
+test("saison hors ligne : un débrief saisi sans réseau part au retour du réseau, avec son événement", async ({ page, equipe, context }) => {
+  test.setTimeout(240_000)
+  // Année passée : l'engagement devient « parti » quand l'épreuve est passée (statut calculé à partir de la date).
+  await preparerSaison(equipe, 2025)
+  await ajouterVoitureDeCourse(equipe)
+  await connecterParLien(page, equipe)
+  await page.setViewportSize({ width: 1440, height: 900 })
+
+  await page.goto("/apps/saison/nouvelle")
+  await page.getByLabel("Nom de l'épreuve").fill("Rallye débrief hors ligne e2e")
+  await page.getByLabel("Premier jour").fill("2025-06-10")
+  await page.getByLabel("Dernier jour").fill("2025-06-11")
+  await page.getByRole("button", { name: "Ajouter l'épreuve" }).click()
+  await expect(page).toHaveURL(/\/apps\/saison\/epreuves\/[0-9a-f-]+/)
+  const base = page.url().split("?")[0]
+
+  // Engagement payé d'une épreuve passée : il est parti, donc la fiche affiche le débrief.
+  await page.goto(`${base}?onglet=engagements`)
+  await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
+  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
+  await page.getByRole("link", { name: /Saxo test e2e/ }).first().click()
+  await page.getByLabel("Montant payé (€)").fill("450")
+  await page.getByRole("button", { name: "Enregistrer le paiement" }).click()
+  await expect(page.getByText("Enregistré.")).toBeVisible()
+  const fiche = page.url().split("?")[0]
+  const entryId = fiche.split("/").pop() ?? ""
+
+  // En ligne, une fois : la fiche est mise en cache avec son formulaire de débrief.
+  await attendreServiceWorker(page)
+  await page.goto(fiche)
+  await expect(page.getByRole("button", { name: "Ressenti 3 sur 5" })).toBeVisible()
+
+  // Hors ligne : la fiche s'affiche, le débrief s'enregistre sur l'appareil, sans encore être en base.
+  await context.setOffline(true)
+  await page.goto(fiche)
+  await page.getByLabel("Points positifs").fill("Bon départ")
+  await page.getByRole("button", { name: "Ressenti 3 sur 5" }).click()
+  await expect(page.getByText("Enregistré. Le débrief part")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Ressenti 3 sur 5" })).toHaveAttribute("aria-pressed", "true")
+  expect(await debriefsEnBase(equipe, entryId)).toBe(0)
+
+  // Retour du réseau : le débrief arrive en base, et son événement est émis une seule fois.
+  await context.setOffline(false)
+  await expect.poll(() => debriefsEnBase(equipe, entryId), { timeout: 30_000 }).toBe(1)
+  await expect.poll(() => compterEvenements(equipe, "saison.debrief_saisi"), { timeout: 30_000 }).toBe(1)
 })
 
 // Captures : onglets Prêt pour l'épreuve et Reconnaissances, en PC et en téléphone (réseau revenu).

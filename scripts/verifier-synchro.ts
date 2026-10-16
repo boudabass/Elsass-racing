@@ -244,6 +244,10 @@ async function main(): Promise<void> {
     controle("l'assistance ne reçoit jamais les débriefs", (tirageAssistance.tables["saison_debrief"]?.lignes ?? []).length === 0)
     const tirageEquipageDebrief = await tirerPaquets(ctxEquipage, {})
     controle("l'équipage reçoit le débrief", (tirageEquipageDebrief.tables["saison_debrief"]?.lignes ?? []).some((ligne) => ligne.id === idDebrief))
+    const evenementsDebrief = await bd.coreDomainEvent.count({
+      where: { teamId: ctxEquipage.teamId, nom: "saison.debrief_saisi", donnees: { path: ["entryId"], equals: entreeSync } },
+    })
+    controle("le débrief hors ligne émet son événement, une seule fois", evenementsDebrief === 1)
 
     await bd.coreSeason.update({ where: { id: saisonSync }, data: { clotureeAt: new Date(), enCours: false } })
     const apresCloture = await appliquerOperations(ctxEquipage, devA, [

@@ -50,6 +50,9 @@ export interface DeclarationSynchro {
   // Renvoient false si la ligne n'existe plus (rien n'a été écrit).
   modifier(tx: Tx, ctx: ContexteTeam, id: string, champs: Record<string, unknown>): Promise<boolean>
   supprimer(tx: Tx, ctx: ContexteTeam, id: string): Promise<boolean>
+  // Facultatif : après une opération appliquée (transaction validée), pour les effets qui ne vont pas
+  // dans la transaction, par exemple un événement du bus. Une erreur ici est journalisée, pas renvoyée.
+  apresApplication?(ctx: ContexteTeam, id: string): Promise<void>
 }
 
 // Après la position du curseur : voir position.ts.

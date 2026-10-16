@@ -190,7 +190,7 @@ Le bouton + passe en tiroir du bas sous md (point 0.7). Au PC, le menu déroulan
 
 ### Débrief
 
-Dans la fiche engagement, après l'épreuve : ressenti de 1 à 5 par cinq boutons, points positifs, points à améliorer, problèmes voiture. Un débrief par membre (`saisirDebrief`). **Privé à l'équipage** : `lireDebriefs` renvoie une liste vide pour l'assistance et l'invité (`peutVoirDebriefs`). La section n'apparaît pas pour un membre qui ne peut ni débriefer ni voir de débrief.
+Dans la fiche engagement, après l'épreuve : ressenti de 1 à 5 par cinq boutons, points positifs, points à améliorer, problèmes voiture. Un débrief par membre, écrit dans la base locale (`saison_debrief`, synchronisée : voir `docs/synchro.md`). **Privé à l'équipage** : `lireDebriefs` renvoie une liste vide pour l'assistance et l'invité (`peutVoirDebriefs`). La section n'apparaît pas pour un membre qui ne peut ni débriefer ni voir de débrief.
 
 ### Écran de fin d'épreuve
 
@@ -289,7 +289,7 @@ Déclarations dans `synchro-serveur.ts`, registre dans `registre.ts` :
 
 ### Non fait ou à trancher
 
-- **Saisie hors ligne du débrief** : la déclaration `saison_debrief` existe et est vérifiée, mais l'écran de débrief reste en ligne.
+- **Débrief hors ligne** : fait (section 0 de la 2.5). Le formulaire écrit dans la base locale ; l'événement `saison.debrief_saisi` part de la synchro. Détails : `docs/synchro.md`.
 - **Widgets** : les lectures sont écrites et leurs résumés testés ; les lectures en base ne sont pas couvertes par un test dédié (elles passent par le QG, couvert par les e2e).
 - **Charge utile des signaux de préparation** : à confirmer avec les apps Équipe et Voiture (voir plus haut).
 - **Destinataires figés par membership** : un équipier ajouté après l'émission ne reçoit pas les rappels déjà émis (accepté, limite connue).
