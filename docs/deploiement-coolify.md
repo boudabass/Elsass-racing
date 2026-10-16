@@ -79,26 +79,60 @@ Au feu vert de l'orchestrateur : Deploy. Au démarrage, le conteneur applique le
 
 Vérification : https://elsass-racing.theelsassisch.com affiche la page de connexion, et https://elsass-racing.theelsassisch.com/api/sante répond `{"ok":true}`.
 
-## 8. Première team
+## 8. Première team (team de test)
 
-La base est neuve : aucun compte n'existe, donc aucun mail de connexion ne partira tant que la team n'est pas créée. On la crée depuis ton poste, en ouvrant la base quelques minutes.
+La première team est une team de test : « The Elsassisch Racing Team ». La Koehling Racing Team sera créée plus tard, quand Jeoffrey et Aurélie seront prêts.
 
-1. Base, coche « Make it publicly available », note le port public proposé, enregistre.
-2. Dans Git Bash, dossier Elsass Racing (remplace IP_DU_VPS, PORT_PUBLIC et MOT_DE_PASSE_POSTGRES) :
+La base est neuve : aucun compte n'existe, donc l'app n'envoie aucun mail de connexion tant que la team n'est pas créée. C'est voulu. On la crée depuis ton poste, en ouvrant la base quelques minutes.
+
+### 8.1 Vérifier les droits du rôle de l'app
+
+Base, onglet Terminal, `psql -U postgres -d postgres`, puis :
+
+```sql
+GRANT elsass_racing_app TO elsass_racing_web;
+SELECT has_table_privilege('elsass_racing_web', 'core_user', 'SELECT') AS lecture_comptes,
+       has_table_privilege('elsass_racing_web', 'core_team', 'INSERT') AS ecriture_teams;
+```
+
+Les deux colonnes doivent afficher `t`. Sinon, ne va pas plus loin et préviens l'orchestrateur. Tape `\q` pour quitter.
+
+### 8.2 Ouvrir la base
+
+Base, coche « Make it publicly available ». Dans « Public Port », mets `54330` (un port libre, différent de ceux des autres bases), enregistre.
+
+### 8.3 Créer la team
+
+Dans Git Bash. Remplace seulement `MOT_DE_PASSE_POSTGRES` par le mot de passe de l'utilisateur postgres (celui de l'URL interne de la base). L'adresse 37.59.108.111 est celle du VPS.
 
 ```
-export DATABASE_URL_MIGRATION='postgresql://postgres:MOT_DE_PASSE_POSTGRES@IP_DU_VPS:PORT_PUBLIC/postgres'
-pnpm team:creer --nom "Koehling Racing Team" --slug koehling-racing-team --email theelsassisch@gmail.com
-pnpm donnees:koehling
+cd "/c/Users/George/Desktop/The Elsassisch/Projet/Elsass Racing"
+export DATABASE_URL_MIGRATION='postgresql://postgres:MOT_DE_PASSE_POSTGRES@37.59.108.111:54330/postgres'
+pnpm team:creer --nom "The Elsassisch Racing Team" --slug the-elsassisch-racing-team --email theelsassisch@gmail.com
 unset DATABASE_URL_MIGRATION
 ```
 
-3. Décoche aussitôt « Make it publicly available » et enregistre.
-4. Connecte-toi sur https://elsass-racing.theelsassisch.com avec theelsassisch@gmail.com.
+Résultat attendu : un message qui confirme la team, le compte responsable et les 11 apps activées. Si la commande dit que la team existe déjà, rien n'a été créé en double.
 
-Ces commandes supposent `pnpm install` déjà fait dans le dossier du projet. `DATABASE_URL_MIGRATION` exportée l'emporte sur `.env.local` : les scripts chargent `.env.local` sans écraser une variable déjà posée. Ils n'ont pas besoin de `DATABASE_URL` (l'URL de l'app). `pnpm team:creer` refuse une team au même slug : rien n'est créé deux fois.
+### 8.4 Refermer la base
 
-Pour inviter Jeoffrey et Aurélie ensuite : Réglages, Membres, Inviter. Ils recevront le lien par mail.
+Décoche aussitôt « Make it publicly available » et enregistre. La base ne doit jamais rester ouverte.
+
+### 8.5 Se connecter
+
+1. Va sur https://elsass-racing.theelsassisch.com.
+2. Saisis theelsassisch@gmail.com, puis « Recevoir mon lien ».
+3. Utilise le lien ou le code reçu par mail.
+4. Tu arrives sur le QG de « The Elsassisch Racing Team », rôle responsable.
+
+La team de test est vide : pas de saison ni d'épreuve, donc ni compte à rebours ni bouton Prochaine étape. C'est normal.
+
+### Remarques
+
+- Ces commandes supposent `pnpm install` déjà fait dans le dossier du projet.
+- `DATABASE_URL_MIGRATION` exportée l'emporte sur `.env.local` : les scripts n'écrasent pas une variable déjà posée. Ils n'ont pas besoin de `DATABASE_URL`.
+- Si le mot de passe postgres contient `@`, `:`, `/` ou `#`, préviens l'orchestrateur avant : il faut l'encoder dans l'URL.
+- Pour inviter quelqu'un ensuite : Réglages, Membres, Inviter. La personne reçoit le lien par mail.
 
 ## 9. Sauvegardes
 
