@@ -19,4 +19,8 @@ const url = process.env.DATABASE_URL ?? "postgresql://database-url-absente:5432/
 export default defineConfig({
     schema: "prisma/schema.prisma",
     datasource: { url },
+    // Lancé par `prisma migrate reset` après les migrations (et par `pnpm db:seed`).
+    migrations: {
+        seed: "tsx prisma/seed.ts",
+    },
 })

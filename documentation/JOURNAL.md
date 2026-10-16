@@ -12,3 +12,5 @@
 - Socle : `newId()` (UUID v7, paquet `uuid` 11.x) dans `src/core/ids.ts`. Conventions du schéma dans `docs/conventions-schema.md`, contrôlées par `src/core/schema-conventions.test.ts`.
 - Premier modèle : `CoreTeam` ↔ `core_team`, avec l'enum `CoreTeamStatut`. Migration `20261016141250_init_core_team`, appliquée sur la base locale.
 - Aucune authentification, aucun middleware, aucun manifest pour l'instant.
+- Schéma plateforme et accès : `CoreUser`, `CoreAuthToken`, `CoreInvitation`, `CoreDevice`, `CoreMembership`, `CoreApp`, `CoreTeamApp`, `CoreRoleDefault`, `CoreAppAccess`, avec les enums `CoreRole`, `CoreAccessLevel`, `CoreMembershipStatut`, `CoreAuthTokenType`. Migration `20261016141717_core_plateforme_acces`, avec le CHECK « email ou téléphone » d'invitation ajouté à la main.
+- Catalogue : 11 apps et 44 droits par défaut dans `src/core/catalogue.ts` (source unique), écrits en base par `prisma/seed.ts` (`pnpm db:seed`, idempotent, lancé aussi par `migrate reset`). Aucune team, aucun compte, aucune adhésion créés.

@@ -31,7 +31,10 @@ Chaque modèle porte le bloc suivant, copié tel quel. Prisma ne permet pas de l
 Exceptions :
 
 - `teamId` est **absent** de `CoreTeam`, qui est la team elle-même.
-- `CoreUser` et `CoreApp` ne portent pas ces colonnes (le test les exclut).
+- `teamId` est **absent** aussi de `CoreUser`, `CoreAuthToken` et `CoreDevice` : ils appartiennent à un compte, pas à une team. Ils portent le bloc commun sans `team_id`.
+- `CoreApp` et `CoreRoleDefault` n'ont **aucun** bloc commun : ce sont des référentiels globaux. `CoreApp` a une clé texte (`cle`), `CoreRoleDefault` une clé composite `(role, app_cle)`.
+
+Ces listes sont dans `src/core/schema-conventions.ts` (`MODELES_SANS_BLOC`, `MODELES_SANS_TEAM`).
 
 ## Montants et dates
 

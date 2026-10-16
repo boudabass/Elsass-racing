@@ -2,8 +2,16 @@
 // factoriser les colonnes communes : ce module lit le texte du schéma et renvoie
 // la liste des écarts. Voir docs/conventions-schema.md.
 
-// Modèles qui ne portent pas les colonnes communes (cf. docs/conventions-schema.md).
-const MODELES_EXCLUS = ["CoreUser", "CoreApp"]
+// Modèles sans aucun bloc commun : référentiels globaux (cf. docs/conventions-schema.md).
+const MODELES_SANS_BLOC = ["CoreApp", "CoreRoleDefault"]
+
+// Modèles avec le bloc commun, mais sans team_id : ils appartiennent à un compte,
+// pas à une team. CoreUser, CoreAuthToken et CoreDevice.
+const MODELES_SANS_TEAM = ["CoreUser", "CoreAuthToken", "CoreDevice"]
+
+// Types scalaires Prisma : une ligne dont le type n'est pas l'un d'eux est une
+// relation (type = modèle) ou un enum. Seuls les scalaires en camelCase exigent un @map.
+const TYPES_SCALAIRES = ["String", "Int", "Boolean", "DateTime", "Json", "Float", "BigInt", "Decimal", "Bytes"]
 
 // Colonnes communes : champ Prisma (camelCase) → colonne en base (snake_case).
 const COLONNES_COMMUNES = [
@@ -23,7 +31,13 @@ export function verifierConventions(schema: string): string[] {
   const erreurs: string[] = []
 
   for (const [, modele, corps] of Array.from(schema.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm))) {
-    if (MODELES_EXCLUS.includes(modele)) continue
+    if (MODELES_SANS_BLOC.includes(modele)) {
+      // Référentiel : seulement le nom de table snake_case.
+      if (!corps.includes(`@@map("${nomDeTable(modele)}")`)) {
+        erreurs.push(`${modele} : @@map("${nomDeTable(modele)}") absent`)
+      }
+      continue
+    }
 
     const table = nomDeTable(modele)
     if (!corps.includes(`@@map("${table}")`)) {
@@ -43,8 +57,9 @@ export function verifierConventions(schema: string): string[] {
       erreurs.push(`${modele} : rev Int @default(1) absent`)
     }
 
-    if (modele === "CoreTeam") {
-      if (/^\s+teamId\s/m.test(corps)) erreurs.push(`${modele} : ne doit pas porter team_id`)
+    const porteTeam = /^\s+teamId\s/m.test(corps)
+    if (modele === "CoreTeam" || MODELES_SANS_TEAM.includes(modele)) {
+      if (porteTeam) erreurs.push(`${modele} : ne doit pas porter team_id`)
     } else {
       if (!/^\s+teamId\s+String\s+@map\("team_id"\)\s+@db\.Uuid/m.test(corps)) {
         erreurs.push(`${modele} : team_id String @map("team_id") @db.Uuid absent`)
@@ -54,8 +69,11 @@ export function verifierConventions(schema: string): string[] {
       }
     }
 
-    // Tout champ en camelCase doit porter un @map vers sa colonne snake_case.
+    // Tout champ scalaire en camelCase doit porter un @map vers sa colonne snake_case.
+    // Les relations (type = modèle) et les enums n'ont pas de colonne : ignorés.
     for (const [, champ, ligne] of Array.from(corps.matchAll(/^\s+([A-Za-z]\w*)\s+([^\n]*)$/gm))) {
+      const type = ligne.trim().split(/\s+/)[0]
+      if (!TYPES_SCALAIRES.includes(type.replace(/\?|\[\]$/g, ""))) continue
       if (/[A-Z]/.test(champ) && !/@map\(/.test(ligne)) {
         erreurs.push(`${modele} : champ ${champ} sans @map`)
       }

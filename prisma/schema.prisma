@@ -15,6 +15,40 @@ datasource db {
   provider = "postgresql"
 }
 
+enum CoreRole {
+  responsable
+  equipage
+  assistance
+  invite
+
+  @@map("core_role")
+}
+
+enum CoreAccessLevel {
+  aucun
+  lecture
+  contribution
+  ecriture
+  gestion
+
+  @@map("core_access_level")
+}
+
+enum CoreMembershipStatut {
+  invite
+  actif
+  parti
+
+  @@map("core_membership_statut")
+}
+
+enum CoreAuthTokenType {
+  lien
+  code
+
+  @@map("core_auth_token_type")
+}
+
 enum CoreTeamStatut {
   active
   suspendue
@@ -22,6 +56,7 @@ enum CoreTeamStatut {
   @@map("core_team_statut")
 }
 
+// Une team : la racine de tout le reste. Son id est la team_id de ses données.
 model CoreTeam {
   id                   String         @id @db.Uuid
   nom                  String
@@ -44,5 +79,206 @@ model CoreTeam {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
+  invitations  CoreInvitation[]
+  memberships  CoreMembership[]
+  teamApps     CoreTeamApp[]
+  appAccess    CoreAppAccess[]
+
   @@map("core_team")
+}
+
+// Compte personnel. Pas de team_id : un compte appartient à plusieurs teams
+// (une ligne CoreMembership par team).
+model CoreUser {
+  id                  String    @id @db.Uuid
+  email               String    @unique
+  telephone           String?
+  derniereConnexionAt DateTime? @map("derniere_connexion_at") @db.Timestamptz(3)
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  authTokens          CoreAuthToken[]
+  devices             CoreDevice[]
+  memberships         CoreMembership[]
+  invitationsEnvoyees CoreInvitation[] @relation("InvitationEnvoyeePar")
+
+  @@map("core_user")
+}
+
+// Jeton de connexion. Pas de team_id : il appartient au compte. Seul le hash du
+// secret est stocké, jamais le secret.
+model CoreAuthToken {
+  id        String            @id @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  type      CoreAuthTokenType
+  hash      String            @unique
+  expireAt  DateTime          @map("expire_at") @db.Timestamptz(3)
+  utiliseAt DateTime?         @map("utilise_at") @db.Timestamptz(3)
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  user CoreUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("core_auth_token")
+}
+
+// Invitation à rejoindre une team. Au moins un de email ou telephone est requis :
+// contrainte CHECK écrite à la main dans la migration.
+model CoreInvitation {
+  id               String     @id @db.Uuid
+  teamId           String     @map("team_id") @db.Uuid
+  email            String?
+  telephone        String?
+  personId         String?    @map("person_id") @db.Uuid
+  role             CoreRole
+  envoyeeParUserId String     @map("envoyee_par_user_id") @db.Uuid
+  expireAt         DateTime   @map("expire_at") @db.Timestamptz(3)
+  accepteeAt       DateTime?  @map("acceptee_at") @db.Timestamptz(3)
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team           CoreTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  envoyeeParUser CoreUser @relation("InvitationEnvoyeePar", fields: [envoyeeParUserId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@map("core_invitation")
+}
+
+// Appareil d'un compte (notifications, synchro). Pas de team_id : il appartient au compte.
+model CoreDevice {
+  id              String    @id @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  nom             String
+  plateforme      String
+  derniereSyncAt  DateTime? @map("derniere_sync_at") @db.Timestamptz(3)
+  pushToken       String?   @map("push_token")
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  user CoreUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("core_device")
+}
+
+// Adhésion d'un compte à une team, avec son rôle.
+model CoreMembership {
+  id        String               @id @db.Uuid
+  teamId    String               @map("team_id") @db.Uuid
+  userId    String               @map("user_id") @db.Uuid
+  personId  String?              @map("person_id") @db.Uuid
+  role      CoreRole
+  statut    CoreMembershipStatut @default(invite)
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team      CoreTeam  @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  user      CoreUser  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  appAccess CoreAppAccess[]
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@map("core_membership")
+}
+
+// Catalogue global des apps. Clé texte, pas d'UUID, et pas de colonnes communes :
+// c'est un référentiel, pas une donnée de team.
+model CoreApp {
+  cle     String   @id
+  nom     String
+  icone   String
+  version String
+  requiert String[]
+
+  teamApps     CoreTeamApp[]
+  roleDefaults CoreRoleDefault[]
+  appAccess    CoreAppAccess[]
+
+  @@map("core_app")
+}
+
+// Apps activées pour une team, avec la version installée.
+model CoreTeamApp {
+  id               String  @id @db.Uuid
+  teamId           String  @map("team_id") @db.Uuid
+  appCle           String  @map("app_cle")
+  activee          Boolean @default(true)
+  versionInstallee String  @map("version_installee")
+  ordre            Int
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team CoreTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  app  CoreApp  @relation(fields: [appCle], references: [cle], onDelete: Restrict)
+
+  @@unique([teamId, appCle])
+  @@index([teamId])
+  @@map("core_team_app")
+}
+
+// Niveau d'accès par défaut d'un rôle à une app. Référentiel global : pas de bloc
+// commun. La clé composite (role, app_cle) remplace l'id.
+model CoreRoleDefault {
+  role   CoreRole
+  appCle String          @map("app_cle")
+  niveau CoreAccessLevel
+
+  app CoreApp @relation(fields: [appCle], references: [cle], onDelete: Restrict)
+
+  @@id([role, appCle])
+  @@map("core_role_default")
+}
+
+// Niveau d'accès effectif d'une adhésion à une app. Supprimé avec l'adhésion.
+model CoreAppAccess {
+  id           String           @id @db.Uuid
+  teamId       String           @map("team_id") @db.Uuid
+  membershipId String           @map("membership_id") @db.Uuid
+  appCle       String           @map("app_cle")
+  niveau       CoreAccessLevel
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team       CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  membership CoreMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  app        CoreApp        @relation(fields: [appCle], references: [cle], onDelete: Restrict)
+
+  @@unique([membershipId, appCle])
+  @@index([teamId])
+  @@map("core_app_access")
 }
