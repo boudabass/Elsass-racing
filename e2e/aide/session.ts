@@ -295,3 +295,58 @@ export async function debriefsEnBase(equipe: Equipe, entryId: string): Promise<n
   )
   return rows[0].n
 }
+
+// Rattache une personne de la team à un membre (Budget : « Moi », payeur membre). Renvoie son identifiant.
+export async function rattacherPersonne(equipe: Equipe, membre: Membre, prenom: string, nom: string): Promise<string> {
+  const personneId = newId()
+  await bd().query("INSERT INTO core_person (id, team_id, nom, prenom, updated_at) VALUES ($1, $2, $3, $4, now())", [personneId, equipe.teamId, nom, prenom])
+  await bd().query("UPDATE core_membership SET person_id = $1 WHERE id = $2", [personneId, membre.membershipId])
+  return personneId
+}
+
+// Propose un mouvement à confirmer dans Budget (service réel, dans un processus tsx), comme un garage le ferait.
+export function proposerMouvementBudget(equipe: Equipe, libelle: string, montant: number): void {
+  const charge = JSON.stringify({
+    teamId: equipe.teamId,
+    userId: equipe.responsable.userId,
+    membershipId: equipe.responsable.membershipId,
+    libelle,
+    montant,
+  })
+  const script = path.join(__dirname, "proposer-mouvement.ts")
+  execFileSync(process.execPath, ["--import", "tsx", script, charge], {
+    cwd: path.join(__dirname, "..", ".."),
+    env: process.env,
+    stdio: ["ignore", "pipe", "pipe"],
+    encoding: "utf8",
+  })
+}
+
+// Dépenses de Budget de la team, non supprimées, dans l'ordre de création.
+export interface DepenseBudgetEnBase {
+  libelle: string
+  montant: number
+  confirmee: boolean
+  remboursement: string
+  origine: string
+  personneId: string | null
+}
+
+export async function depensesBudgetEnBase(equipe: Equipe): Promise<DepenseBudgetEnBase[]> {
+  const { rows } = await bd().query<DepenseBudgetEnBase>(
+    `SELECT e.libelle, e.montant, e.confirmee, e.remboursement::text AS remboursement, e.origine::text AS origine, p.person_id AS "personneId"
+     FROM budget_expense e JOIN budget_payer p ON p.id = e.payer_id
+     WHERE e.team_id = $1 AND e.deleted_at IS NULL ORDER BY e.created_at`,
+    [equipe.teamId],
+  )
+  return rows
+}
+
+// Total remboursé à une personne, en centimes.
+export async function rembourseEnBase(equipe: Equipe, personneId: string): Promise<number> {
+  const { rows } = await bd().query<{ total: number }>(
+    "SELECT COALESCE(SUM(montant), 0)::int AS total FROM budget_reimbursement WHERE team_id = $1 AND person_id = $2 AND deleted_at IS NULL",
+    [equipe.teamId, personneId],
+  )
+  return rows[0].total
+}

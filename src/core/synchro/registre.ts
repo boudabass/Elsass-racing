@@ -15,6 +15,7 @@ import { prisma, prismaPourTeam } from "@/lib/prisma"
 import type { PositionCurseur } from "./curseur"
 import { apresPosition } from "./position"
 import { declarationsSaisonSynchro } from "@/apps/saison/synchro-serveur"
+import { declarationsBudgetSynchro } from "@/apps/budget/synchro-serveur"
 import type { LigneSynchro } from "./protocole"
 
 export type ClientTeam = ReturnType<typeof prismaPourTeam>
@@ -144,7 +145,7 @@ const noteSynchro: DeclarationSynchro = {
   },
 }
 
-const REGISTRE: DeclarationSynchro[] = [noteSynchro, ...declarationsSaisonSynchro]
+const REGISTRE: DeclarationSynchro[] = [noteSynchro, ...declarationsSaisonSynchro, ...declarationsBudgetSynchro]
 
 export function declarationDe(cle: string): DeclarationSynchro | undefined {
   return REGISTRE.find((declaration) => declaration.cle === cle)

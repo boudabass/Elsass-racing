@@ -69,7 +69,7 @@ const montant = z
   .number()
   .int("Montant en centimes entier.")
   .min(0, "Le montant ne peut pas être négatif.")
-  .max(100_000_000, "Montant trop élevé.")
+  .max(100_000_000, "Montant trop élevé : 1 000 000 € au plus par mouvement.")
 const dateCivile = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Date attendue au format AAAA-MM-JJ.")
@@ -80,7 +80,8 @@ const schemaDepense = z
   .object({
     montant,
     categoryId: identifiant,
-    libelle: z.string().trim().min(1, "Libellé attendu.").max(200, "Libellé trop long."),
+    // Facultatif : à défaut, le nom de la catégorie (la saisie en trois champs n'a pas de libellé).
+    libelle: z.string().trim().max(200, "Libellé trop long.").optional(),
     payerId: identifiant.optional(),
     date: dateCivile.optional(),
     eventId: identifiant.nullable().optional(),
@@ -152,6 +153,9 @@ const schemaSuggestion = z
     libelle: z.string().trim().min(1).max(200),
     eventId: identifiant.nullable().optional(),
     entryId: identifiant.nullable().optional(),
+    // Personne désignée par l'événement (par exemple payeurPersonId de saison.engagement_paye) : son payeur
+    // membre devient le payeur proposé. À défaut, la caisse de la team à la confirmation.
+    payeurPersonId: identifiant.nullable().optional(),
   })
   .strict()
 
@@ -234,6 +238,15 @@ async function rattachement(client: Client, teamId: string, eventId: string | nu
   return enCours.length === 1 ? { eventId: enCours[0].id, seasonId: enCours[0].seasonId } : null
 }
 
+// Saison dont les dates contiennent ce jour civil : une dépense sans épreuve reste dans sa saison.
+export async function saisonPourDate(client: Pick<Client, "coreSeason">, teamId: string, date: Date): Promise<string | null> {
+  const saison = await client.coreSeason.findFirst({
+    where: { teamId, deletedAt: null, dateDebut: { lte: date }, dateFin: { gte: date } },
+    select: { id: true },
+  })
+  return saison?.id ?? null
+}
+
 function aujourdhui(): Date {
   return new Date(`${jourDeParis(new Date())}T00:00:00Z`)
 }
@@ -295,12 +308,13 @@ export async function creerDepenseDans(ctx: ContexteTeam, entree: EntreeDepense,
 
   const categorie = await client.budgetCategory.findFirst({
     where: { id: donnees.categoryId, teamId: ctx.teamId, sens: "depense", active: true, deletedAt: null },
-    select: { id: true },
+    select: { id: true, nom: true },
   })
   if (!categorie) refus("Catégorie de dépense introuvable ou inactive.")
 
   const payeur = await payeurPourSaisie(ctx, niveau, donnees.payerId)
   const lieu = await rattachement(client, ctx.teamId, donnees.eventId)
+  const saisonId = lieu?.seasonId ?? (await saisonPourDate(client, ctx.teamId, donnees.date ?? aujourdhui()))
   const id = newId()
   const rembourse = aRembourser(payeur.type)
 
@@ -311,11 +325,11 @@ export async function creerDepenseDans(ctx: ContexteTeam, entree: EntreeDepense,
       date: donnees.date ?? aujourdhui(),
       montant: donnees.montant,
       categoryId: donnees.categoryId,
-      libelle: donnees.libelle,
+      libelle: donnees.libelle || categorie.nom,
       payerId: payeur.id,
       moyen: donnees.moyen ?? null,
       fournisseurContactId: donnees.fournisseurContactId ?? null,
-      seasonId: lieu?.seasonId ?? null,
+      seasonId: saisonId,
       eventId: lieu?.eventId ?? null,
       entryId: donnees.entryId ?? null,
       vehicleId: donnees.vehicleId ?? null,
@@ -334,11 +348,11 @@ export async function creerDepenseDans(ctx: ContexteTeam, entree: EntreeDepense,
     categoryId: donnees.categoryId,
     payerId: payeur.id,
     eventId: lieu?.eventId ?? null,
-    seasonId: lieu?.seasonId ?? null,
+    seasonId: saisonId,
   })
   await emettre(ctx, "budget.depense_confirmee", { depenseId: id, eventId: lieu?.eventId ?? null })
   if (rembourse && payeur.personId) await emettre(ctx, "budget.solde_modifie", { personId: payeur.personId, depenseId: id })
-  if (lieu) await verifierDepassement(ctx, client, { categoryId: donnees.categoryId, seasonId: lieu.seasonId, ajoute: donnees.montant })
+  if (saisonId) await verifierDepassement(ctx, client, { categoryId: donnees.categoryId, seasonId: saisonId, ajoute: donnees.montant })
   return id
 }
 
@@ -378,6 +392,7 @@ export async function creerRecetteDans(ctx: ContexteTeam, entree: EntreeRecette)
   })
   if (!categorie) refus("Catégorie de recette introuvable ou inactive.")
   const lieu = await rattachement(client, ctx.teamId, donnees.eventId)
+  const saisonId = lieu?.seasonId ?? (await saisonPourDate(client, ctx.teamId, donnees.date ?? aujourdhui()))
   const id = newId()
   await client.budgetIncome.create({
     data: {
@@ -393,7 +408,7 @@ export async function creerRecetteDans(ctx: ContexteTeam, entree: EntreeRecette)
       descriptionNature: donnees.descriptionNature ?? null,
       valeurEstimee: donnees.valeurEstimee ?? null,
       statut: "prevue",
-      seasonId: lieu?.seasonId ?? null,
+      seasonId: saisonId,
       eventId: lieu?.eventId ?? null,
       origine: "saisie",
       createdBy: ctx.userId,
@@ -565,6 +580,19 @@ export async function definirPrevisionnelDans(ctx: ContexteTeam, entree: EntreeP
 
 // --- Suggestions (mouvements proposés par d'autres apps) -----------------------------------
 
+// Le payeur membre d'une personne de la team, créé à la volée (idempotent) : il sert aux mouvements proposés.
+export async function payeurDePersonneDans(ctx: ContexteTeam, personneId: string): Promise<string> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const personne = await client.corePerson.findFirst({ where: { id: personneId, teamId: ctx.teamId, deletedAt: null }, select: { prenom: true, nom: true } })
+  if (!personne) refus("Personne introuvable dans cette team.")
+  const payeur = await client.budgetPayer.upsert({
+    where: { teamId_personId: { teamId: ctx.teamId, personId: personneId } },
+    create: { id: newId(), teamId: ctx.teamId, type: "membre", personId: personneId, nom: `${personne.prenom} ${personne.nom}`, actif: true, createdBy: ctx.userId, updatedBy: ctx.userId },
+    update: {},
+  })
+  return payeur.id
+}
+
 // Usage interne des gestionnaires d'événements : crée la suggestion et demande sa confirmation.
 export async function proposerMouvementDans(ctx: ContexteTeam, entree: EntreeSuggestion): Promise<string> {
   const donnees = schemaSuggestion.parse(entree)
@@ -580,6 +608,7 @@ export async function proposerMouvementDans(ctx: ContexteTeam, entree: EntreeSug
   const id = newId()
   const actionCle = `budget_suggestion:${id}`
 
+  const payeurId = donnees.payeurPersonId ? await payeurDePersonneDans(ctx, donnees.payeurPersonId) : null
   await client.budgetSuggestion.create({
     data: {
       id,
@@ -593,6 +622,7 @@ export async function proposerMouvementDans(ctx: ContexteTeam, entree: EntreeSug
       eventId: lieu?.eventId ?? null,
       entryId: donnees.entryId ?? null,
       statut: "en_attente",
+      payerId: payeurId,
       actionCle,
       createdBy: ctx.userId,
       updatedBy: ctx.userId,
@@ -620,34 +650,47 @@ export async function proposerMouvementDans(ctx: ContexteTeam, entree: EntreeSug
 }
 
 // Confirmer une suggestion : un humain la valide, elle devient une dépense (ou une recette prévue).
-export async function confirmerSuggestion(id: string): Promise<string> {
-  const { ctx } = await accesBudget("ecriture")
-  return confirmerSuggestionDans(ctx, id)
+// Surcharges au moment de confirmer : l'humain peut changer le payeur et la catégorie proposés.
+export interface ModifsSuggestion {
+  payerId?: string
+  categoryId?: string
 }
 
-export async function confirmerSuggestionDans(ctx: ContexteTeam, id: string): Promise<string> {
+export async function confirmerSuggestion(id: string, modifs: ModifsSuggestion = {}): Promise<string> {
+  const { ctx } = await accesBudget("ecriture")
+  return confirmerSuggestionDans(ctx, id, modifs)
+}
+
+export async function confirmerSuggestionDans(ctx: ContexteTeam, id: string, modifs: ModifsSuggestion = {}): Promise<string> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const suggestion = await client.budgetSuggestion.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null } })
   if (!suggestion) refus("Suggestion introuvable dans cette team.")
   if (suggestion.statut !== "en_attente") refus("Cette suggestion n'est plus en attente.")
+  const categorieId = modifs.categoryId ?? suggestion.categoryId
+  if (modifs.categoryId) {
+    const categorie = await client.budgetCategory.findFirst({ where: { id: categorieId, teamId: ctx.teamId, sens: suggestion.sens, active: true, deletedAt: null }, select: { id: true } })
+    if (!categorie) refus("Catégorie introuvable, inactive, ou d'un autre sens que le mouvement.")
+  }
 
   const mouvementId = newId()
   const origineRef = `${suggestion.appOrigine}:${suggestion.id}`
   const lieu = await rattachement(client, ctx.teamId, suggestion.eventId)
+  const saisonId = lieu?.seasonId ?? (await saisonPourDate(client, ctx.teamId, aujourdhui()))
 
   if (suggestion.sens === "depense") {
     const caisse = await client.budgetPayer.findFirst({ where: { teamId: ctx.teamId, type: "caisse_team", actif: true, deletedAt: null }, select: { id: true } })
-    if (!caisse) refus("Aucune caisse de la team : initialise Budget avant de confirmer une dépense.")
+    const payeurId = modifs.payerId ?? suggestion.payerId ?? caisse?.id
+    if (!payeurId) refus("Aucune caisse de la team : initialise Budget avant de confirmer une dépense.")
     await client.budgetExpense.create({
       data: {
         id: mouvementId,
         teamId: ctx.teamId,
         date: aujourdhui(),
         montant: suggestion.montant,
-        categoryId: suggestion.categoryId,
+        categoryId: categorieId,
         libelle: suggestion.libelle,
-        payerId: caisse.id,
-        seasonId: lieu?.seasonId ?? null,
+        payerId: payeurId,
+        seasonId: saisonId,
         eventId: lieu?.eventId ?? null,
         entryId: suggestion.entryId,
         confirmee: true,
@@ -662,13 +705,13 @@ export async function confirmerSuggestionDans(ctx: ContexteTeam, id: string): Pr
     await emettre(ctx, "budget.depense_creee", {
       depenseId: mouvementId,
       montant: suggestion.montant,
-      categoryId: suggestion.categoryId,
-      payerId: caisse.id,
+      categoryId: categorieId,
+      payerId: payeurId,
       eventId: lieu?.eventId ?? null,
-      seasonId: lieu?.seasonId ?? null,
+      seasonId: saisonId,
     })
     await emettre(ctx, "budget.depense_confirmee", { depenseId: mouvementId, eventId: lieu?.eventId ?? null })
-    if (lieu) await verifierDepassement(ctx, client, { categoryId: suggestion.categoryId, seasonId: lieu.seasonId, ajoute: suggestion.montant })
+    if (saisonId) await verifierDepassement(ctx, client, { categoryId: categorieId, seasonId: saisonId, ajoute: suggestion.montant })
   } else {
     await client.budgetIncome.create({
       data: {
@@ -676,10 +719,10 @@ export async function confirmerSuggestionDans(ctx: ContexteTeam, id: string): Pr
         teamId: ctx.teamId,
         date: aujourdhui(),
         montant: suggestion.montant,
-        categoryId: suggestion.categoryId,
+        categoryId: categorieId,
         libelle: suggestion.libelle,
         statut: "prevue",
-        seasonId: lieu?.seasonId ?? null,
+        seasonId: saisonId,
         eventId: lieu?.eventId ?? null,
         origine: "proposee",
         origineRef,
@@ -733,6 +776,31 @@ async function rouvrirAction(client: Client, ctx: ContexteTeam, cleUnicite: stri
     where: { teamId: ctx.teamId, cleUnicite },
     data: { statut: "en_attente", decision: null, decideeParMembershipId: null, decideeAt: null, messageRefus: motif, updatedBy: ctx.userId },
   })
+}
+
+// Événements d'une dépense reçue par la synchro, émis une fois l'écriture validée : même règle qu'en ligne.
+export async function emettreDepenseSynchronisee(ctx: ContexteTeam, id: string): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const depense = await client.budgetExpense.findFirst({
+    where: { id, teamId: ctx.teamId, deletedAt: null },
+    select: { montant: true, categoryId: true, payerId: true, eventId: true, seasonId: true, payer: { select: { type: true, personId: true } } },
+  })
+  if (!depense) return
+  await emettre(ctx, "budget.depense_creee", {
+    depenseId: id,
+    montant: depense.montant,
+    categoryId: depense.categoryId,
+    payerId: depense.payerId,
+    eventId: depense.eventId,
+    seasonId: depense.seasonId,
+  })
+  await emettre(ctx, "budget.depense_confirmee", { depenseId: id, eventId: depense.eventId })
+  if (depense.payer.type === "membre" && depense.payer.personId) {
+    await emettre(ctx, "budget.solde_modifie", { personId: depense.payer.personId, depenseId: id })
+  }
+  if (depense.seasonId) {
+    await verifierDepassement(ctx, client, { categoryId: depense.categoryId, seasonId: depense.seasonId, ajoute: depense.montant })
+  }
 }
 
 // Enregistré à l'import du module : l'app Budget reçoit les décisions de la boîte d'actions.

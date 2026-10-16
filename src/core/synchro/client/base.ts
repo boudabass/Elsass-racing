@@ -30,19 +30,23 @@ export interface SchemaLocal extends DBSchema {
   saison_recce: { key: string; value: LigneLocale }
   saison_recce_session: { key: string; value: LigneLocale }
   saison_debrief: { key: string; value: LigneLocale }
+  budget_expense: { key: string; value: LigneLocale }
+  budget_category: { key: string; value: LigneLocale }
+  budget_payer: { key: string; value: LigneLocale }
   operations_en_attente: { key: string; value: OperationEnAttente }
   curseurs: { key: string; value: CurseurLocal }
 }
 
-export const TABLES_LOCALES = ["core_note", "core_event", "saison_stage", "saison_schedule_item", "saison_recce", "saison_recce_session", "saison_debrief"] as const
+export const TABLES_LOCALES = ["core_note", "core_event", "saison_stage", "saison_schedule_item", "saison_recce", "saison_recce_session", "saison_debrief", "budget_expense", "budget_category", "budget_payer"] as const
 export type TableLocale = (typeof TABLES_LOCALES)[number]
 
 export function nomBase(userId: string, teamId: string): string {
   return `${PREFIXE_BASE}${userId}-${teamId}`
 }
 
-// Version 2 : ajout des magasins de Saison. Une base créée en version 1 reçoit les magasins manquants.
-export const VERSION_BASE = 2
+// Version 2 : magasins de Saison. Version 3 : magasins de Budget. Une base plus ancienne reçoit les
+// magasins manquants à l'ouverture.
+export const VERSION_BASE = 3
 
 export function ouvrirBase(userId: string, teamId: string): Promise<IDBPDatabase<SchemaLocal>> {
   return openDB<SchemaLocal>(nomBase(userId, teamId), VERSION_BASE, {

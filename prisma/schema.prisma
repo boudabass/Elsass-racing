@@ -1822,6 +1822,7 @@ model BudgetPayer {
   depenses           BudgetExpense[]
   recettesEncaissees BudgetIncome[]
   remboursements     BudgetReimbursement[]
+  suggestions        BudgetSuggestion[]
 
   @@unique([teamId, personId])
   @@index([teamId])
@@ -2016,6 +2017,7 @@ model BudgetSuggestion {
   statut           BudgetStatutSuggestion @default(en_attente)
   mouvementId      String?                @map("mouvement_id") @db.Uuid
   actionCle        String?                @map("action_cle")
+  payerId          String?                @map("payer_id") @db.Uuid
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2028,6 +2030,7 @@ model BudgetSuggestion {
   category BudgetCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   event    CoreEvent?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
   entry    CoreEventEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  payer    BudgetPayer?    @relation(fields: [payerId], references: [id], onDelete: SetNull)
 
   @@index([teamId])
   @@index([teamId, deletedAt])
