@@ -166,10 +166,11 @@ Spécifications : articles Odoo 949 (Saison v1.3) et 950 (Budget v1.1), catalogu
 - Saisie du résultat, preuve, validation croisée, contestation, écran « Résultats à valider », débrief, écran de fin d'épreuve après validation, historique, création et clôture de saison.
 
 ### 2.4 Saison, préparation, reconnaissances, rappels et hors ligne
-- Brief : `docs/briefs/2.4-saison-preparation-hors-ligne.md`. Fin de l'étape Saison.
+- Brief : `docs/briefs/2.4-saison-preparation-hors-ligne.md`. Fait le 16/10 (3ee81a2), relu et accepté. Fin de l'étape Saison.
 - Panneau « Prêt pour l'épreuve ? » (points absents affichés « pas encore suivi »), reconnaissances, rappels en actions (J-14, J-7, J-3, matin même, lendemain, 48 h) recalculés à l'ouverture du QG, widgets Saison, compte à rebours de la barre haute branché, synchro hors ligne du programme, des spéciales, du débrief et des sorties de reco.
 
 ### 2.5 Budget, schéma et services
+- Brief : `docs/briefs/2.5-budget-schema-services.md` (commence par le débrief hors ligne, reste de Saison).
 - 8 tables `budget_`, catégories et payeurs par défaut, soldes par membre, remboursements, prévisionnel, propositions venues des autres apps.
 
 ### 2.6 Budget, écrans
