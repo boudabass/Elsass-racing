@@ -295,3 +295,12 @@ Déclarations dans `synchro-serveur.ts`, registre dans `registre.ts` :
 - **Destinataires figés par membership** : un équipier ajouté après l'émission ne reçoit pas les rappels déjà émis (accepté, limite connue).
 - **Clôture écartée** : la proposition de clôture n'est pas relancée une fois écartée (accepté, limite connue).
 - **Fichiers de preuve** : hors périmètre tant que le lot 5 n'envoie pas de fichiers.
+
+## Liaisons avec Budget (tâche 2.7)
+
+- Saison propose à Budget un paiement d'engagement (`saison.engagement_paye`) : Budget propose une dépense d'engagement, une seule en attente par engagement.
+- Budget demande à Saison de marquer un engagement payé quand une dépense d'engagement est saisie (`budget.depense_creee`) : action `marquer_engagement_paye`, clé `marquer_paye:<entryId>`. La décision enregistre le paiement avec la date, le montant, le mode et le payeur de la dépense, lus par une fonction de Budget (`lireDepenseEngagementDans`).
+- Pas de boucle (détails dans `docs/schema-budget.md`, section Liaisons).
+- Fiche épreuve : onglet « Dépenses » quand Budget est activée et que le membre a la contribution (contrat d'onglets, `src/core/sdk/onglets.ts`). Le composant est fourni par Budget.
+- Fin d'épreuve : ligne « Coût de l'épreuve » (Budget), seulement s'il existe une dépense.
+- Par épreuve (Budget) : km chronométrés validés lus par `lireKmChronometresValides` (Saison).

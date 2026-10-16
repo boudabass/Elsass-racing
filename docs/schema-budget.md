@@ -109,11 +109,40 @@ Sans écriture, une dépense n'est saisie qu'au nom de son payeur (celui qui la 
 - `pnpm db:verifier-rls` : huit tables `budget_` avec RLS forcé, politique et droits du rôle applicatif ; une catégorie et une dépense de la team B invisibles ou refusées sous le contexte A.
 - `pnpm db:verifier-bus` (section 13) : initialisation idempotente (15 dépenses, 7 recettes, une caisse, un payeur membre) ; dépense confirmée d'office, à rembourser, rattachée à la saison ; événements émis une fois ; dépassement une seule fois ; niveau contribution (caisse refusée, sa propre dépense passe) ; suggestion confirmée par la boîte, dépense créée avec son origine ; décision refusée remise en attente avec son motif ; remboursement partiel et trop refusé.
 
+## Liaisons avec Saison (tâche 2.7)
+
+Règle : une app propose, elle n'écrit jamais chez l'autre. Budget n'écrit aucune table `saison_`, Saison n'écrit aucune table `budget_`. Tout passe par les événements du catalogue et `core.action_decidee`.
+
+- **Engagement payé vers dépense proposée** (`src/apps/budget/liaisons-serveur.ts`) : sur `saison.engagement_paye`, une dépense d'engagement est proposée (catégorie de clé `engagement`, montant `montant_paye`, payeur = `payeurPersonId` ou la caisse). Une seule proposition en attente par engagement : un second paiement la met à jour (même clé d'action). Rien si une dépense d'engagement est déjà confirmée pour cet engagement. À la confirmation, la dépense porte `origine` proposee et `origine_ref` `saison:<entryId>`.
+- **Dépense d'engagement vers « marquer payé »** (`src/apps/saison/services-serveur.ts`) : sur `budget.depense_creee`, si la dépense est de catégorie `engagement`, rattachée à un engagement non payé, et non issue de Saison (`origine_ref` ne commence pas par `saison:`), Saison demande « Marquer l'engagement comme payé ? » (clé `marquer_paye:<entryId>`). La décision lit la dépense par `lireDepenseEngagementDans` (fonction de Budget) et appelle `enregistrerPaiementDans`. Mode : chèque, virement ou en ligne ; les espèces deviennent un virement (Saison n'a pas d'espèces).
+- **Pas de boucle** : une proposition venant de Saison ne déclenche pas la demande « marquer payé » ; un paiement d'engagement dont une dépense est déjà confirmée ne propose rien. Vérifié dans les deux sens par `db:verifier-bus` (section 14).
+
+## Modifier et supprimer (tâche 2.7, section 0)
+
+- Une dépense se modifie et se supprime en ligne (`modifierDepense`, `supprimerDepense`) et depuis l'appareil (registre de synchro). Même règle : `src/apps/budget/depenses-tx.ts`.
+- Écriture : tout mouvement. Contribution : seulement les dépenses dont le payeur est sa personne.
+- Une modification ne fait pas descendre le montant sous ce qui a déjà été remboursé, et ne change pas le payeur d'une dépense remboursée. Une dépense remboursée ne se supprime pas. La suppression est douce (`deleted_at`), après case de confirmation.
+- Les recettes se modifient et se suppriment en écriture (`modifierRecette`, `supprimerRecette`).
+- Page : `/apps/budget/mouvement/[id]`.
+
+## Lectures pour Saison et le QG
+
+- `coutDeLEpreuve(eventId)` : coût réel de l'épreuve, ou rien (jamais un zéro trompeur).
+- `lireSoldeBarreHaute()` : « Mon solde » en contribution, sinon le solde de la saison en cours (recettes encaissées moins dépenses confirmées). Affiché dans la barre haute.
+- `lireDepensesEpreuve(eventId)` : onglet Dépenses de la fiche épreuve (composant `PanneauDepensesEpreuve`).
+- `lireKmChronometresValides(saisonId)` (Saison) : km des résultats validés, pour le coût du km (page Par épreuve).
+- Widgets (`src/apps/budget/widgets-serveur.ts`) : saison contre prévisionnel, mon solde, mouvements à confirmer. Pas d'affichage avant le lot 6.
+
+## Écrans ajoutés
+
+- Filtres sur téléphone : un bouton « Filtres » ouvre un tiroir du bas (même composant que le menu +). Les filtres actifs s'affichent en pastilles retirables.
+- Par épreuve : prévu de l'épreuve à côté du réel, avec l'écart en couleur ; coût moyen d'un rallye ; coût du km chronométré.
+- Nouvelle dépense : engagement concerné, et épreuve préremplie depuis la fiche épreuve.
+
 ## Non fait ou à trancher
 
-- Modifier une dépense (catégorie, montant, payeur) depuis la fiche : le service n'existe pas encore. Aujourd'hui une erreur se corrige par une nouvelle saisie ou un remboursement. À faire après confirmation des règles d'annulation.
-- Justificatifs (`justificatif_file_id`) : colonne prête, pas de fichier avant le lot 5.
-- PDF de bilan : lot 3.
-- Liaison avec Saison (lot 2.7) : les km des coûts au km sont passés en paramètre.
-- Le contrôle de dépassement ne compare que le prévisionnel de saison (sans épreuve). Le prévisionnel par épreuve est enregistré et affiché dans les services, pas encore comparé.
-- Le gestionnaire de décision est enregistré par `src/apps/gestionnaires-serveur.ts`, chargé par le traitement des événements (correctif de la section 0 de 2.6).
+- Filtres en tiroir du calendrier de Saison : non fait (même traitement que Budget, à reprendre).
+- Modification et suppression hors ligne depuis l'écran : la synchro les accepte (registre), l'écran reste en ligne.
+- Le solde de la barre haute ne s'affiche qu'à partir de md (téléphone : pas de solde dans la barre).
+- Le prévisionnel par épreuve est affiché dans Par épreuve, pas dans l'écran Prévisionnel (par saison).
+- Justificatifs (`justificatif_file_id`) : lot 5. PDF de bilan : lot 3.

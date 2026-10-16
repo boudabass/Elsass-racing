@@ -122,3 +122,9 @@ Limite : un débrief créé sur un autre appareil n'est visible ici qu'après la
 - À l'application (transaction validée), `apresApplication` émet `budget.depense_creee`, `budget.depense_confirmee`, `budget.solde_modifie` (payeur membre) et, au franchissement, `budget.depassement_previsionnel`.
 - Base locale : version 3 (magasins `budget_expense`, `budget_category`, `budget_payer`).
 - Test e2e : `e2e/budget-hors-ligne.spec.ts` (projet « hors-ligne »).
+
+## Dépenses de Budget : modification et suppression (tâche 2.7)
+
+- `budget_expense` accepte les opérations `modifier` et `supprimer`, avec la même règle qu'en ligne (`src/apps/budget/depenses-tx.ts`) : contribution propre (on ne modifie que ses lignes au niveau contribution), payeur contrôlé, montant non inférieur à ce qui est remboursé.
+- Après application, `apresApplication` reçoit le type de l'opération : une création émet les événements de la dépense ; une modification ou une suppression émet `budget.solde_modifie` pour le payeur membre.
+- Le registre passe le type de l'opération à `apresApplication(ctx, id, type)`.

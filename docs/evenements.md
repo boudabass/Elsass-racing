@@ -109,3 +109,10 @@ Charges utiles des événements de Budget : voir `docs/schema-budget.md` (sectio
 pnpm db:verifier-bus   # bus, livraisons, boîte d'actions, décision, levée, cloisonnement
 pnpm test
 ```
+
+## Liaisons Saison et Budget (tâche 2.7)
+
+- `saison.engagement_paye` (Saison vers Budget) : Budget propose une dépense d'engagement. Charge utile lue : `{ entryId, eventId, montant_paye, payeurPersonId? }`. Une seule proposition en attente par `entryId`.
+- `budget.depense_creee` (Budget vers Saison) : Saison demande « marquer payé » pour une dépense d'engagement. Charge utile : `{ depenseId, montant, date, categoryId, categorieCle, payerId, personneId, eventId, seasonId, entryId, origineRef }`. `categorieCle` vaut `engagement` pour la catégorie d'engagement ; `origineRef` vaut `saison:<entryId>` pour une proposition venant de Saison.
+- Action `marquer_engagement_paye` (Saison) : `cleUnicite` `marquer_paye:<entryId>`, boutons `marquer_paye` et `ignorer`.
+- Budget émet `budget.depense_creee` par `emettreDepenseCreee` (une seule source, en ligne comme en synchro). Une modification ou une suppression émet `budget.solde_modifie`.

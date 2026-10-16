@@ -87,3 +87,13 @@ Une table n'est synchronisée que si elle est déclarée dans le registre de la 
 5. Vérifier : `pnpm test`, `pnpm db:verifier-synchro` (à étendre pour la nouvelle table), et un test e2e hors ligne.
 
 Côté écran : `useTable("<table>")` lit la base locale, `useMoteurSynchro().ecrireLocal(...)` écrit. Une écriture n'attend jamais le réseau. Détails et limites : `docs/synchro.md`.
+
+## Onglets de fiche apportés par une autre app (tâche 2.7)
+
+Une app peut ajouter un onglet à la fiche d'une autre app. Le contrat est dans `src/core/sdk/onglets.ts` :
+
+1. Déclarer l'onglet dans la liste de la fiche : `{ cle, libelle, app, niveauMinimum }` (par exemple `ONGLETS_FICHE_EPREUVE`).
+2. Dans la page de la fiche, appeler `ongletsVisibles(contexte, liste)` : l'onglet n'est retenu que si son app est activée pour la team et que le membre a au moins `niveauMinimum`.
+3. Ajouter l'onglet à la barre (`Onglets`), et rendre le composant serveur de l'app, qui appelle ses propres fonctions de lecture. L'app qui possède la fiche ne lit jamais les tables de l'autre.
+
+Exemple : Budget fournit l'onglet « Dépenses » de la fiche épreuve (`PanneauDepensesEpreuve`). Garage, Médias et Check-lists pourront suivre le même chemin.

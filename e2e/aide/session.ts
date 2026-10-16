@@ -350,3 +350,12 @@ export async function rembourseEnBase(equipe: Equipe, personneId: string): Promi
   )
   return rows[0].total
 }
+
+// Dépense de Budget de la team à ce libellé, non supprimée : son identifiant et son montant en centimes.
+export async function depenseBudgetParLibelle(equipe: Equipe, libelle: string): Promise<{ id: string; montant: number } | null> {
+  const { rows } = await bd().query<{ id: string; montant: number }>(
+    "SELECT id, montant FROM budget_expense WHERE team_id = $1 AND libelle = $2 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
+    [equipe.teamId, libelle],
+  )
+  return rows[0] ?? null
+}

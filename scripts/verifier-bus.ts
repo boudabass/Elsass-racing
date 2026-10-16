@@ -60,7 +60,8 @@ async function main() {
 
     const ctx = { teamId: team.id, userId: utilisateur.id, membership: { id: adhesion, role: "responsable" as const } }
 
-    // 1. Un événement d'app vers un abonné explicite : livré, sans gestionnaire, marqué traité.
+    // 1. Un événement d'app vers un abonné explicite : livré, marqué traité, sans erreur.
+    //    (Budget écoute saison.engagement_paye depuis la 2.7 ; une charge utile invalide est ignorée sans erreur.)
     const idPaye = await emettre(ctx, "saison.engagement_paye", { demo: true })
     const livraisonsPaye = await proprietaire.coreEventDelivery.findMany({ where: { domainEventId: idPaye } })
     controle(
@@ -69,8 +70,8 @@ async function main() {
       `livraisons : ${livraisonsPaye.length}`,
     )
     controle(
-      "la livraison est traitée, sans gestionnaire",
-      livraisonsPaye[0]?.statut === "traite" && livraisonsPaye[0]?.derniereErreur === "aucun gestionnaire",
+      "la livraison est traitée, sans erreur",
+      livraisonsPaye[0]?.statut === "traite" && livraisonsPaye[0]?.derniereErreur === null,
       `statut : ${livraisonsPaye[0]?.statut}`,
     )
 
@@ -426,6 +427,50 @@ async function main() {
       refusRemb = erreur instanceof budget.ErreurBudget ? erreur.message : String(erreur)
     }
     controle("un remboursement qui dépasse le reste dû est refusé", refusRemb.includes("dépasse"), refusRemb)
+
+    // 14. Liaisons Saison-Budget (tâche 2.7) : une app propose, elle n'écrit jamais chez l'autre ; pas de boucle
+    //     dans les deux sens ; un seul mouvement ; widgets lus en base ; modification et suppression d'une dépense.
+    const liaisons = await import("../src/apps/budget/liaisons-serveur")
+    const widgets = await import("../src/apps/budget/widgets-serveur")
+    controle("aucune proposition pour l'engagement avant le premier paiement", (await proprietaire.budgetSuggestion.count({ where: { teamId: team.id, entryId: entryFuture, deletedAt: null } })) === 0)
+    await emettre(ctx, "saison.engagement_paye", { entryId: entryFuture, eventId: epreuveFutureBus.id, montant_paye: 45_000, devise: "EUR", payeurPersonId: personneBus })
+    await emettre(ctx, "saison.engagement_paye", { entryId: entryFuture, eventId: epreuveFutureBus.id, montant_paye: 46_000, devise: "EUR", payeurPersonId: personneBus })
+    const propositions = await proprietaire.budgetSuggestion.findMany({ where: { teamId: team.id, entryId: entryFuture, deletedAt: null } })
+    controle(
+      "un paiement d'engagement propose une dépense ; le second paiement met à jour la même proposition",
+      propositions.length === 1 && propositions[0].montant === 46_000 && propositions[0].statut === "en_attente",
+      JSON.stringify(propositions.map((p) => [p.montant, p.statut])),
+    )
+    const actionProposition = await proprietaire.coreAction.findFirst({ where: { teamId: team.id, cleUnicite: propositions[0]?.actionCle ?? "" } })
+    await decider(ctx, actionProposition?.id ?? "", "confirmer")
+    const depenseDeSaison = await proprietaire.budgetExpense.findFirst({ where: { teamId: team.id, entryId: entryFuture, deletedAt: null } })
+    controle("la confirmation crée la dépense, confirmée, avec l'origine saison:<entrée>", depenseDeSaison?.confirmee === true && depenseDeSaison?.origineRef === `saison:${entryFuture}`, depenseDeSaison?.origineRef ?? "aucune dépense")
+    controle("une dépense venant de Saison ne demande pas de « marquer payé » en retour", (await proprietaire.coreAction.count({ where: { teamId: team.id, cleUnicite: `marquer_paye:${entryFuture}` } })) === 0)
+    controle("un seul mouvement pour cet engagement, après les deux paiements et la confirmation", (await proprietaire.budgetExpense.count({ where: { teamId: team.id, entryId: entryFuture, deletedAt: null } })) === 1)
+
+    // Dans l'autre sens : une dépense d'engagement saisie dans Budget demande « marquer payé » à Saison, et le
+    // paiement qui suit ne propose plus rien à Budget.
+    const entreeDirecte = await creerEngagementDans(ctx, { eventId: epreuveBudget, vehicleId: vehiculeBus.id })
+    await budget.creerDepenseDans(ctx, { montant: 30_000, categoryId: catEngagement, libelle: "Engagement direct", eventId: epreuveBudget, entryId: entreeDirecte, payerId: payeurMoi?.id ?? "" }, "ecriture")
+    controle("une dépense d'engagement saisie dans Budget demande « marquer payé » à Saison", (await proprietaire.coreAction.count({ where: { teamId: team.id, cleUnicite: `marquer_paye:${entreeDirecte}`, statut: "en_attente" } })) === 1)
+    const lue = await liaisons.lireDepenseEngagementDans(ctx, entreeDirecte)
+    controle("Saison lit la dépense d'engagement par la fonction de Budget", lue.montant === 30_000 && lue.mode === "virement", JSON.stringify(lue))
+    await emettre(ctx, "saison.engagement_paye", { entryId: entreeDirecte, eventId: epreuveBudget, montant_paye: 30_000, devise: "EUR", payeurPersonId: personneBus })
+    controle("le paiement de cet engagement ne propose rien en retour : pas de boucle", (await proprietaire.budgetSuggestion.count({ where: { teamId: team.id, entryId: entreeDirecte, deletedAt: null } })) === 0)
+
+    // Widgets lus en base.
+    controle("le widget « mouvements à confirmer » compte les suggestions en attente", (await widgets.widgetMouvementsAConfirmerDans(ctx)) === (await proprietaire.budgetSuggestion.count({ where: { teamId: team.id, statut: "en_attente", deletedAt: null } })))
+    const widgetSaison = await widgets.widgetSaisonContrePrevisionnelDans(ctx)
+    controle("le widget saison renvoie rien tant qu'aucune saison n'est en cours, ou un chiffre réel", widgetSaison === null || typeof widgetSaison.reelCentimes === "number")
+
+    // Modification et suppression d'une dépense (même règle en ligne et en synchro).
+    const idSaison = depenseDeSaison?.id ?? ""
+    await budget.modifierDepenseDans(ctx, idSaison, { montant: 47_000, categoryId: catEngagement, libelle: "Engagement modifié", payerId: depenseDeSaison?.payerId ?? "", eventId: epreuveBudget }, "ecriture")
+    const modifiee = await proprietaire.budgetExpense.findUnique({ where: { id: idSaison } })
+    controle("une dépense modifiée prend ses nouveaux montant et libellé", modifiee?.montant === 47_000 && modifiee?.libelle === "Engagement modifié")
+    await budget.supprimerDepenseDans(ctx, idSaison, "ecriture")
+    const supprimee = await proprietaire.budgetExpense.findUnique({ where: { id: idSaison } })
+    controle("une dépense supprimée reste en base, marquée supprimée", supprimee?.deletedAt != null)
 
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {

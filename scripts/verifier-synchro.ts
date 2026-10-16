@@ -254,6 +254,37 @@ async function main(): Promise<void> {
       operation({ table: "saison_recce_session", type: "creer", id: newId(), champs: { recceId: recceSync, date: "2032-06-02", personnes: [], speciales: [], passages: null, notes: null } }),
     ])
     controle("une saison clôturée n'accepte plus de sortie hors ligne", apresCloture[0]?.statut === "refusee" && /clôturée/.test(apresCloture[0]?.raison ?? ""))
+
+    // Budget hors ligne (tâche 2.7, section 0) : l'équipier saisit, modifie et supprime sa dépense par la même
+    // synchro ; il ne saisit pas la dépense payée par la caisse ; chaque création émet ses événements une fois.
+    const budgetServices = await import("../src/apps/budget/services-serveur")
+    await budgetServices.initialiserBudgetDans(ctxA)
+    const personneEquipier = newId()
+    await bd.corePerson.create({ data: { id: personneEquipier, teamId, nom: "Equipier", prenom: "Synchro" } })
+    await bd.coreMembership.update({ where: { id: eqMemId }, data: { personId: personneEquipier } })
+    await budgetServices.initialiserBudgetDans(ctxA)
+    const categorieRepas = await bd.budgetCategory.findFirst({ where: { teamId, nom: "Repas", sens: "depense" }, select: { id: true } })
+    const payeurEquipier = await bd.budgetPayer.findFirst({ where: { teamId, personId: personneEquipier }, select: { id: true } })
+    const caisse = await bd.budgetPayer.findFirst({ where: { teamId, type: "caisse_team" }, select: { id: true } })
+    const idDepenseHL = newId()
+    const champsDepense = { date: "2032-06-03", montant: 1200, categoryId: categorieRepas?.id ?? "", libelle: "Repas synchro", payerId: payeurEquipier?.id ?? "", eventId: null, moyen: null }
+    const creationHL = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "creer", id: idDepenseHL, champs: champsDepense })])
+    const depenseHL = await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } })
+    controle("l'équipier saisit une dépense hors ligne : appliquée, confirmée, à rembourser", creationHL[0]?.statut === "appliquee" && depenseHL?.confirmee === true && depenseHL?.aRembourser === true)
+    // L'assistance (contribution) ne saisit que ce qu'elle paie elle-même : la caisse est refusée. (L'équipage,
+    // qui a l'écriture, peut payer avec la caisse.)
+    const refusCaisse = await appliquerOperations(ctxB, devB, [operation({ table: "budget_expense", type: "creer", id: newId(), champs: { ...champsDepense, payerId: caisse?.id ?? "" } })])
+    controle("l'assistance ne saisit pas une dépense payée par la caisse", refusCaisse[0]?.statut === "refusee" && /toi-même/.test(refusCaisse[0]?.raison ?? ""))
+    const evenementsCreation = await bd.coreDomainEvent.count({ where: { teamId, nom: "budget.depense_creee" } })
+    controle("la création hors ligne émet budget.depense_creee une seule fois", evenementsCreation === 1)
+
+    const revAvantModif = (await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } }))?.rev ?? 1
+    const modifHL = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "modifier", id: idDepenseHL, revLue: revAvantModif, champs: { ...champsDepense, montant: 1500 } })])
+    controle("la modification hors ligne est appliquée", modifHL[0]?.statut === "appliquee" && (await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } }))?.montant === 1500)
+
+    const revAvantSuppr = (await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } }))?.rev ?? 1
+    const supprHL = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "supprimer", id: idDepenseHL, revLue: revAvantSuppr })])
+    controle("la suppression hors ligne est appliquée", supprHL[0]?.statut === "appliquee" && (await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } }))?.deletedAt != null)
   } finally {
     await nettoyer([teamId, teamAutreId], [respUserId, assUserId, eqUserId], [devA, devB])
     console.log("Nettoyage fait.")
