@@ -49,3 +49,20 @@ Ces listes sont dans `src/core/schema-conventions.ts` (`MODELES_SANS_BLOC`, `MOD
 ## Ce que le schéma ne contrôle pas
 
 - Les contraintes qui dépassent Prisma (format hexadécimal des couleurs, cohérence entre tables) sont à porter par l'application ou par une migration SQL écrite à la main.
+
+## Unique et valeurs NULL
+
+PostgreSQL considère deux `NULL` comme distincts dans une contrainte `UNIQUE`. Conséquence : `CoreTag` avec `@@unique([teamId, nom, portee])` accepte deux étiquettes de même nom dont `portee` est nulle (« toutes les apps »). Vérifié en base le 16/10/2026. C'est le comportement retenu : un doublon de ce type reste possible et doit être contrôlé par l'application si la règle métier l'interdit.
+
+## Relations nommées
+
+Quand un modèle a deux relations vers le même modèle, chaque relation porte un nom, des deux côtés :
+
+- `CoreEventEntry` → `CorePerson` deux fois : `pilote` (`"EntryPilote"`) et `copilote` (`"EntryCopilote"`). `CorePerson` expose `entriesPilote` et `entriesCopilote` avec les mêmes noms.
+- `CoreInvitation` → `CoreUser` (`"InvitationEnvoyeePar"`), côté `CoreUser` : `invitationsEnvoyees`.
+
+Les relations uniques vers un modèle n'ont pas besoin de nom.
+
+## Dates de calendrier
+
+Les dates qui n'ont pas d'heure (`dateNaissance`, `dateDebut`, `dateFin` de `CoreSeason` et `CoreEvent`) sont en `@db.Date`, et non en `Timestamptz`. C'est le choix du cahier des charges : une date de naissance ou de course n'a pas de fuseau.
