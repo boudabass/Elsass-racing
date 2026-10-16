@@ -193,9 +193,19 @@ describe("transitionResultat", () => {
     }
   })
 
-  it("un résultat sans preuve (saisi) ne se valide pas directement", () => {
+  it("un résultat saisi sans preuve se valide directement (la preuve est facultative)", () => {
     const resultat = transitionResultat({ validation: "saisi", saisiParMembershipId: "resp" }, { type: "valider" }, responsable)
+    expect(resultat).toEqual({ ok: true, validation: "valide" })
+  })
+
+  it("la règle de qui valide s'applique aussi depuis « saisi » : on ne valide pas sa propre saisie en équipage", () => {
+    const resultat = transitionResultat({ validation: "saisi", saisiParMembershipId: "equi" }, { type: "valider" }, equipier)
     expect(resultat.ok).toBe(false)
+  })
+
+  it("on ne valide pas un résultat contesté, ni un résultat déjà validé", () => {
+    expect(transitionResultat({ validation: "conteste", saisiParMembershipId: "resp" }, { type: "valider" }, responsable).ok).toBe(false)
+    expect(transitionResultat({ validation: "valide", saisiParMembershipId: "resp" }, { type: "valider" }, responsable).ok).toBe(false)
   })
 
   it("contester un résultat validé exige un commentaire", () => {

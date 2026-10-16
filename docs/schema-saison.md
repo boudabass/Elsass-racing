@@ -47,7 +47,7 @@ saisi ──preuve jointe──▶ a_verifier ──valider──▶ valide ─�
                               └──────────────── preuve jointe ───────────┘
 ```
 
-- Valider : seulement depuis `a_verifier`. Le responsable peut valider n'importe quel résultat, y compris le sien. Un autre membre d'équipage peut valider le résultat d'un autre. Celui qui a saisi ne valide pas son propre résultat, sauf s'il est responsable. L'assistance et les invités ne valident pas.
+- Valider : depuis `saisi` ou `a_verifier`. La preuve est souhaitée, jamais bloquante : un résultat validé sans preuve porte la mention « sans preuve » à l'écran et compte dans les statistiques. Le responsable peut valider n'importe quel résultat, y compris le sien. Un autre membre d'équipage peut valider le résultat d'un autre. Celui qui a saisi ne valide pas son propre résultat, sauf s'il est responsable. L'assistance et les invités ne valident pas.
 - Contester : seulement depuis `valide`, avec un commentaire non vide.
 - Un résultat validé ne se modifie pas (`saisirResultat` le refuse) : il faut le contester.
 
@@ -105,7 +105,7 @@ Notes d'implémentation :
 
 1. **Statuts passés de Koehling** : la règle gagne. « Parti » sans résultat validé est accepté ; les vrais résultats seront saisis à la main. Un engagement jamais inscrit ni payé reste `envisage` le jour de l'épreuve.
 2. **Montant payé** : `montant_paye` (centimes, CHECK ≥ 0), migration `saison_montant_paye`. `montant_du` reste le tarif dû. Le payload de `saison.engagement_paye` porte `montant_paye`.
-3. **Validation** : seul un résultat à vérifier (donc avec preuve) peut être validé.
+3. **Validation sans preuve** (décision de John, remplace la précédente) : la preuve est souhaitée, jamais bloquante. Valider est permis depuis « saisi » comme depuis « à vérifier », avec les mêmes règles sur qui valide.
 4. **Contesté vers à vérifier** : une nouvelle preuve, ou la correction des champs d'un résultat contesté, le repasse à vérifier.
 5. **Exclusion validée** : engagement en `abandon`, cause « Exclusion » si vide. Pas de `saison.abandon_declare` pour une exclusion.
 6. **`recalculerEpreuves` au niveau lecture** : accepté, statuts dérivés. Jamais exposé comme Server Action.

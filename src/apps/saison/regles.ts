@@ -154,8 +154,9 @@ export function transitionResultat(etat: EtatResultat, geste: GesteResultat, act
     }
 
     case "valider": {
-      if (etat.validation !== "a_verifier") {
-        return { ok: false, message: "Seul un résultat à vérifier peut être validé. Joins d'abord une preuve." }
+      // La preuve est souhaitée, jamais bloquante : on valide depuis « saisi » comme depuis « à vérifier ».
+      if (etat.validation !== "a_verifier" && etat.validation !== "saisi") {
+        return { ok: false, message: "Seul un résultat saisi ou à vérifier peut être validé." }
       }
       if (acteur.role !== "responsable" && acteur.role !== "equipage") {
         return { ok: false, message: "Seul le responsable ou un membre d'équipage peut valider un résultat." }
