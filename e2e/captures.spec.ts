@@ -1,10 +1,13 @@
-// Captures pleine page, commitées dans docs/captures/ pour la documentation.
+// Captures commitées dans docs/captures/ pour la documentation. La team de test reçoit les
+// données de Koehling Racing, une alerte et une action en attente, pour que les écrans soient
+// représentatifs (compte à rebours, bouton Prochaine étape, badge, pastille).
 import path from "node:path"
 
 import type { Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
+import { preparerDonneesCaptures } from "./aide/session"
 
 const DOSSIER = path.join(__dirname, "..", "docs", "captures")
 
@@ -28,12 +31,25 @@ async function preparerCapture(page: Page): Promise<void> {
   })
 }
 
-test("captures : QG en 1440×900, QG en 360×740, Identité en 1440×900", async ({ page, equipe }) => {
+test("captures : QG, Identité et boîte d'actions", async ({ page, equipe }) => {
+  preparerDonneesCaptures(equipe)
+
   await page.setViewportSize({ width: 1440, height: 900 })
   await connecterParLien(page, equipe)
   await expect(page.locator('a[href^="/apps/"]').filter({ has: page.locator("h2") })).toHaveCount(11)
   await preparerCapture(page)
   await page.screenshot({ path: path.join(DOSSIER, "qg-1440x900.png"), fullPage: true })
+
+  // La boîte d'actions s'ouvre dans un panneau fixe : pas de préparation de la page, sinon
+  // le panneau serait masqué.
+  await page.goto("/qg")
+  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
+  const panneau = page.getByRole("dialog")
+  await expect(panneau.getByText("Valider le résultat du Gaschney")).toBeVisible()
+  // Le panneau glisse depuis la droite : on attend la fin de l'animation avant la capture.
+  await expect(panneau).toHaveCSS("transform", "none")
+  await page.screenshot({ path: path.join(DOSSIER, "boite-actions-1440x900.png") })
+  await page.keyboard.press("Escape")
 
   await page.goto("/apps/settings/identite")
   await expect(page.locator("#couleurPrincipale")).toBeVisible()

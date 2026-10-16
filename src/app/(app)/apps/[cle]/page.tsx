@@ -8,6 +8,10 @@ import { aAuMoins } from "@/core/droits/niveaux"
 import { ErreurAcces, libelleErreurAcces } from "@/core/droits/erreurs"
 import { prismaPourTeam } from "@/lib/prisma"
 import { EcranVide } from "@/components/qg/ecran-vide"
+import { EcranDecouverte } from "@/components/qg/ecran-decouverte"
+import { ECRANS_DECOUVERTE } from "@/core/sdk/decouverte"
+import { appDecouverte } from "@/apps/settings/regles-personnelles"
+import { prefsMembre } from "@/apps/settings/preferences-serveur"
 
 // Page d'une app. Aucun écran d'app n'existe encore : on affiche l'écran générique,
 // ou le refus d'accès, selon l'activation et le niveau du membre.
@@ -45,6 +49,13 @@ export default async function PageApp({ params }: { params: Promise<{ cle: strin
         action={{ libelle: "Retour au QG", href: "/qg" }}
       />
     )
+  }
+
+  // Première ouverture par ce membre : l'écran explicatif, jusqu'au bouton « Commencer ».
+  const ecran = ECRANS_DECOUVERTE[app.cle]
+  const prefs = await prefsMembre(contexte)
+  if (ecran && !appDecouverte(app.cle, prefs.appsDecouvertes)) {
+    return <EcranDecouverte appCle={app.cle} nom={app.nom} lignes={ecran.lignes} />
   }
 
   return (

@@ -61,7 +61,10 @@ export function Navigation({
           <House className="h-5 w-5" aria-hidden />
           QG
         </Link>
-        <div className="flex flex-col items-center justify-center gap-1 py-2 text-xs">{boiteMobile}</div>
+        <div className="flex flex-col items-center justify-center gap-1 py-2 text-xs">
+          {boiteMobile}
+          Actions
+        </div>
         <div className="flex flex-col items-center justify-center gap-1 py-2 text-xs">
           <BoutonPlus entrees={entreesPlus} />
           Ajouter

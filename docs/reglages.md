@@ -32,10 +32,28 @@ Les rubriques de la team se lisent avec le niveau `lecture` sur Réglages (équi
 - **Jour d'épreuve** : réglage de la team dans Identité (`settings_team_pref.terrainProposeJourEpreuve`). Le bandeau du QG le respecte.
 - **Aperçu couleur** : dans Identité, les deux sélecteurs de couleur mettent à jour en direct une barre haute et une tuile, dans les deux thèmes, avec le contraste de la team.
 
+## Rubriques personnelles (1.10b)
+
+Ouvertes à tout membre de la team, même sans droit sur Réglages (`src/apps/settings/composants/personnelles.tsx`). Le layout n'affiche les rubriques de la team qu'à ceux qui ont la lecture sur Réglages. Une rubrique de la team demandée sans droit affiche « Cette rubrique est réservée à la team ».
+
+- **Notifications** : pour chaque app visible, deux canaux (dans l'app, par mail) et un regroupement (tout de suite, ou un résumé par jour). Stocké dans `core_notification_pref`, type `general`, une ligne par app et par canal. Heures calmes (début et fin, HH:MM) dans `settings_member_pref`. Push et SMS : « Bientôt ».
+- **Affichage** : thème (sombre, clair, selon le système), taille du texte (normale ou grande), mode terrain, trophées et paliers. Le thème est lu par le layout racine et posé sur `<html>` au rendu serveur : pas de flash. Sombre et clair passent par `forcedTheme` de next-themes, sans `localStorage`. « Selon le système » part en sombre au rendu serveur, puis suit le système côté client : léger flash possible pour les utilisateurs en clair. Le responsable décide du ludique pour toute la team (`settings_team_pref.ludiqueAffiche`). Règle `ludiqueEffectif` : si la team masque, le membre ne peut pas réafficher. « Revoir les écrans d'accueil des apps » vide `appsDecouvertes`.
+- **Appareils** : mes appareils, « Cet appareil » mis en avant. Déconnecter un autre appareil émet `settings.appareil_revoque`. Déconnecter l'appareil courant ramène à `/connexion`. Le responsable voit et déconnecte les appareils des membres de la team.
+- **Données et confidentialité** : demande d'export personnel (tout membre) ou de la team (responsable), créée en attente dans `core_export`, avec `settings.export_demande`. La génération du fichier n'existe pas encore. Suppression du compte : confirmation en tapant son adresse ; suppression de la team : confirmation en tapant son nom. Chaque demande crée une ligne `settings_deletion_request` (purge à 30 jours, annulable) et émet `settings.suppression_demandee` ou `settings.suppression_annulee`. Aucune purge n'est exécutée. Le dernier responsable d'une team active ne peut pas supprimer son compte (`peutSupprimerCompte`).
+- **Mon compte** : adresse en lecture seule, téléphone modifiable, teams et rôle. « Quitter cette team » passe la membership à `parti` et émet `settings.membre_retire`. Refusé au dernier responsable, avec la raison (`peutChangerAcces`).
+- **Apprentissage progressif** : à la première ouverture d'une app par un membre, `/apps/[cle]` affiche l'écran explicatif (`src/core/sdk/decouverte.ts`). « Commencer » ajoute la clé à `appsDecouvertes`. Pas encore : l'écran ne disparaît pas quand l'app contient des données, car aucune app n'a encore de données.
+
+Initiales de la team : une seule règle, `initialesTeam` (`src/core/theme/initiales.ts`), utilisée par la barre haute et l'aperçu des couleurs.
+
 ## Pas encore livré
 
-- **Rubriques personnelles** (notifications, affichage, appareils, données, compte) : 1.10b.
-- **Logo** : emplacement réservé, en attente du stockage des fichiers.
+- **Logo** : emplacement réservé (« Bientôt »), en attente du stockage des fichiers.
+- **Notifications de la team** : valeurs par défaut de la team, « Bientôt ».
+- **Génération des exports** : la demande est enregistrée, le fichier n'est pas produit.
+- **Purge à échéance** : les demandes de suppression attendent leur date, aucun traitement.
+- **Glisser-déposer** des apps : monter et descendre seulement.
+- **Invitations par SMS** : « Bientôt ».
+- **Écran d'accueil** : disparition dès qu'une app contient une donnée (à brancher avec les données des apps).
 
 ## Données
 

@@ -52,7 +52,7 @@ function bd(): Pool {
   return pool
 }
 
-async function ajouterMembre(teamId: string, email: string, role: "responsable" | "equipage"): Promise<Membre> {
+async function ajouterMembre(teamId: string, email: string, role: "responsable" | "equipage" | "assistance"): Promise<Membre> {
   const userId = newId()
   const membershipId = newId()
   await bd().query("INSERT INTO core_user (id, email, updated_at) VALUES ($1, $2, now())", [userId, email])
@@ -165,6 +165,48 @@ export async function droitEnBase(membre: Membre, appCle: string): Promise<strin
     [membre.membershipId, appCle],
   )
   return rows[0]?.niveau ?? null
+}
+
+// Demandes de suppression d'une portée : combien ont été faites, et combien sont annulées.
+export async function compterSuppressions(equipe: Equipe, portee: "compte" | "team"): Promise<{ total: number; annulees: number }> {
+  const { rows } = await bd().query<{ total: number; annulees: number }>(
+    `SELECT count(*)::int AS total, count(annulee_at)::int AS annulees
+     FROM settings_deletion_request WHERE team_id = $1 AND portee = $2::settings_portee_suppression`,
+    [equipe.teamId, portee],
+  )
+  return rows[0]
+}
+
+// Membre d'un rôle donné, avec un lien de connexion : pour jouer un autre compte dans le même
+// navigateur ou un autre contexte (ex. assistance). Le membre est ajouté à la liste nettoyée.
+export async function ajouterMembreConnectable(equipe: Equipe, role: "equipage" | "assistance"): Promise<Membre & { secretLien: string }> {
+  const email = `e2e-${equipe.horodatage}-${role}@example.test`
+  const membre = await ajouterMembre(equipe.teamId, email, role)
+  equipe.equipiers.push(membre)
+  const secretLien = genererSecretLien()
+  await bd().query(
+    `INSERT INTO core_auth_token (id, user_id, type, hash, expire_at, updated_at)
+     VALUES ($1, $2, 'lien'::core_auth_token_type, $3, $4, now())`,
+    [newId(), membre.userId, hacherSecret(secretLien), calculerExpiration(new Date(), DUREE_LIEN_MINUTES)],
+  )
+  return { ...membre, secretLien }
+}
+
+// Données de démonstration (Koehling) et une action et une alerte, pour les captures.
+export function preparerDonneesCaptures(equipe: Equipe): void {
+  const charge = JSON.stringify({
+    teamId: equipe.teamId,
+    userId: equipe.responsable.userId,
+    membershipId: equipe.responsable.membershipId,
+    horodatage: equipe.horodatage,
+  })
+  const script = path.join(__dirname, "donnees-equipe.ts")
+  execFileSync(process.execPath, ["--import", "tsx", script, charge], {
+    cwd: path.join(__dirname, "..", ".."),
+    env: process.env,
+    stdio: ["ignore", "pipe", "pipe"],
+    encoding: "utf8",
+  })
 }
 
 // Nettoyage complet : toutes les tables avec team_id, la team, puis les comptes de test.

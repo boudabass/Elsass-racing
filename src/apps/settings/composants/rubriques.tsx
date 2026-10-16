@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 
 import { sauverAssociation, sauverIdentite, inviterMembre, renvoyerInvitationAction, annulerInvitationAction, changerRole, retirerMembre } from "../actions"
 import { lireEquipe, listerInvitationsEnAttente, listerMembres, listerPersonnesLibres } from "../lectures-serveur"
-import { estRubriqueEquipe } from "../rubriques"
+import { estRubriqueEquipe, RUBRIQUES_EQUIPE } from "../rubriques"
 import { ApercuCouleurs } from "./apercu-couleurs"
 import { Apps, Droits, JourEpreuve } from "./droits-apps"
 
@@ -38,6 +38,7 @@ export async function RubriqueEquipe({ chemin, messageOk, erreur }: { chemin: st
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
+        <h2 className="titre-rallye text-2xl">{RUBRIQUES_EQUIPE.find((r) => r.chemin === chemin)?.libelle}</h2>
         <p className="text-sm text-texte-discret">Modifiable par : {peutModifier ? "toi" : "le responsable"}</p>
       </div>
 
@@ -92,7 +93,7 @@ async function Identite({ contexte, peutModifier, raison }: { contexte: Contexte
         </div>
         <p className="text-sm text-texte-discret">Langue : français</p>
         <div className="rounded-md border border-dashed border-bordure p-4 text-sm text-texte-discret">
-          Logo : bientôt, avec le stockage des fichiers.
+          <span className="font-medium">Bientôt</span> : le logo arrive avec le stockage des fichiers.
         </div>
         {peutModifier ? (
           <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-white hover:opacity-90">Enregistrer</button>
@@ -213,7 +214,7 @@ async function Membres({ contexte, peutModifier, raison }: { contexte: Contexte;
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="telephone">Téléphone</Label>
-              <Input id="telephone" name="telephone" disabled placeholder="Les invitations par SMS arrivent plus tard" />
+              <Input id="telephone" name="telephone" disabled placeholder="Bientôt : les invitations par SMS arrivent plus tard" />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="role">Rôle</Label>

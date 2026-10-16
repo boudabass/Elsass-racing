@@ -1,4 +1,4 @@
-// Rubriques de Réglages. Les rubriques personnelles arrivent en 1.10b.
+// Rubriques de Réglages : celles de la team (lecture sur Réglages) et celles de chaque membre.
 
 export const RUBRIQUES_EQUIPE = [
   { chemin: "identite", libelle: "Identité" },

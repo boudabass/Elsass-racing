@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { Barlow, Barlow_Condensed } from "next/font/google"
 
 import { ThemeProvider } from "@/components/theme-provider"
-import { modeTerrainDuMembre } from "@/apps/settings/preferences-serveur"
+import { prefsMembre } from "@/apps/settings/preferences-serveur"
 import { variablesDeTeam } from "@/core/theme/variables"
 import { teamCourante } from "@/core/auth/team-serveur"
 
@@ -33,19 +33,28 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Couleurs de la team courante, quand il y en a une (sinon : couleurs par défaut).
   const courante = await teamCourante().catch(() => null)
   const styleTeam = courante ? (variablesDeTeam(courante.team) as CSSProperties) : undefined
-  const terrain = courante
-    ? await modeTerrainDuMembre({ teamId: courante.team.id, userId: courante.membership.userId, membership: { id: courante.membership.id, role: courante.membership.role } })
-    : false
+  // Préférences du membre, lues ici pour que le rendu serveur ait déjà le bon thème et la
+  // bonne taille de texte (pas de flash à l'arrivée). Sans team : valeurs par défaut.
+  const prefs = courante
+    ? await prefsMembre({ teamId: courante.team.id, userId: courante.membership.userId, membership: { id: courante.membership.id, role: courante.membership.role } })
+    : null
+  const theme = prefs?.theme ?? "sombre"
+
+  // Sombre par défaut ; « système » part en sombre et le client corrige selon le système.
+  const classes = [
+    texte.variable,
+    titre.variable,
+    theme === "clair" ? "" : "dark",
+    prefs?.tailleTexte === "grande" ? "texte-grand" : "",
+    prefs?.modeTerrain ? "terrain" : "",
+  ]
+    .filter(Boolean)
+    .join(" ")
 
   return (
-    <html
-      lang="fr"
-      className={`${texte.variable} ${titre.variable}${terrain ? " terrain" : ""}`}
-      style={styleTeam}
-      suppressHydrationWarning
-    >
+    <html lang="fr" className={classes} style={styleTeam} suppressHydrationWarning>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider theme={theme}>{children}</ThemeProvider>
       </body>
     </html>
   )

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 
+import { initialesTeam } from "@/core/theme/initiales"
 import { variablesDeTeam } from "@/core/theme/variables"
 
 // Deux sélecteurs de couleur et un aperçu en direct : une barre haute et une tuile, calculées
@@ -23,6 +24,7 @@ export function ApercuCouleurs({
 
   const styleSombre = { ...variables, "--marque": variables["--marque-sombre"] } as React.CSSProperties
   const styleClair = { ...variables, "--marque": variables["--marque-clair"] } as React.CSSProperties
+  const initiales = initialesTeam(nomTeam)
 
   return (
     <div className="flex flex-col gap-4">
@@ -58,7 +60,7 @@ export function ApercuCouleurs({
           <p className="mb-2 text-xs text-[#A1A1AA]">Thème sombre</p>
           <div className="flex items-center gap-2 rounded-md bg-[#151518] px-3 py-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold text-white" style={{ background: "var(--marque)" }}>
-              {nomTeam.slice(0, 2).toUpperCase()}
+              {initiales}
             </span>
             <span className="text-sm">{nomTeam}</span>
           </div>
@@ -71,7 +73,7 @@ export function ApercuCouleurs({
           <p className="mb-2 text-xs text-[#52525B]">Thème clair</p>
           <div className="flex items-center gap-2 rounded-md bg-[#F4F4F5] px-3 py-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold text-white" style={{ background: "var(--marque)" }}>
-              {nomTeam.slice(0, 2).toUpperCase()}
+              {initiales}
             </span>
             <span className="text-sm">{nomTeam}</span>
           </div>

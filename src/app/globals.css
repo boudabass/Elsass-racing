@@ -69,6 +69,11 @@
     -webkit-text-size-adjust: 100%;
   }
 
+  /* Taille du texte choisie par le membre (Réglages, Affichage). */
+  html.texte-grand {
+    font-size: 118%;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-texte), ui-sans-serif, system-ui, sans-serif;
