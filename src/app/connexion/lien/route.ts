@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { finaliserConnexion } from "@/core/auth/connexion-serveur"
 import { consommerLien } from "@/core/auth/jetons-serveur"
 import { optionsCookie, type MagasinCookies, type OptionsCookie } from "@/core/auth/session-serveur"
+import { urlPublique } from "@/lib/url-publique"
 
 // Route et non page : seul un Route Handler peut poser des cookies puis rediriger.
 // Le secret du lien est dans la requête ; il est consommé ici, une seule fois.
@@ -11,7 +12,7 @@ export async function GET(requete: NextRequest) {
   const resultat = await consommerLien(secret)
 
   if (!resultat.ok) {
-    return new NextResponse(null, { status: 303, headers: { Location: "/connexion?erreur=lien" } })
+    return new NextResponse(null, { status: 303, headers: { Location: urlPublique("/connexion?erreur=lien", requete) } })
   }
 
   // Les cookies sont collectés, puis posés sur la réponse une fois la destination connue.
@@ -32,7 +33,7 @@ export async function GET(requete: NextRequest) {
     magasin,
   )
 
-  const reponse = new NextResponse(null, { status: 303, headers: { Location: destination } })
+  const reponse = new NextResponse(null, { status: 303, headers: { Location: urlPublique(destination, requete) } })
   for (const { nom, valeur, options } of aPoser) {
     reponse.cookies.set(nom, valeur, options)
   }

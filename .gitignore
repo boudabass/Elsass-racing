@@ -47,3 +47,6 @@ __pycache__/
 /.next-e2e/
 /test-results/
 /playwright-report/
+
+# Fichiers locaux (développement) : dossier de stockage, ignoré par Git
+/stockage/

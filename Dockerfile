@@ -19,9 +19,11 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-# DATABASE_URL n'est pas passée au build : aucune page ne lit la base à la
-# génération. Elle est nécessaire au runtime uniquement.
-RUN pnpm build
+# Aucune page ne lit la base à la génération, mais le client Prisma (src/lib/prisma.ts) exige
+# DATABASE_URL à son chargement, et la collecte des pages charge les modules. Une URL factice,
+# posée pour cette seule commande, suffit : le client ne se connecte qu'à la première requête.
+# La vraie DATABASE_URL reste une variable runtime, posée dans Coolify.
+RUN DATABASE_URL=postgresql://construction:construction@localhost:5432/construction pnpm build
 
 # Étape 2 : image de production.
 FROM node:22-alpine
@@ -32,8 +34,12 @@ ENV NODE_ENV=production
 ENV PORT=3000
 # Sans cela, le serveur standalone n'écoute que sur localhost.
 ENV HOSTNAME=0.0.0.0
+# Dossier des fichiers : point de montage du volume Coolify (STOCKAGE_DIR, cf. src/lib/stockage.ts).
+ENV STOCKAGE_DIR=/app/stockage
 
 WORKDIR /app
+
+RUN mkdir -p /app/stockage
 
 # La sortie standalone embarque son propre serveur et les dépendances tracées.
 # Elle n'inclut ni public/ ni .next/static : à copier à part.

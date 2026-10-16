@@ -30,3 +30,6 @@ Thumbs.db
 # Tests de bout en bout
 test-results
 playwright-report
+
+# Fichiers locaux de développement
+stockage

@@ -71,7 +71,7 @@ Onglet Persistent Storage, « Add » :
 
 ## 6. Health check
 
-Onglet Health Check : active-le, chemin `/api/sante`, port 3000, code attendu 200. À faire seulement après le feu vert, la route n'existe pas encore sur main.
+Onglet Health Check : active-le, chemin `/api/sante`, port 3000, code attendu 200. La route existe sur main depuis la fusion de la 1.12. Elle répond `{"ok":true}` si la base répond, 503 sinon.
 
 ## 7. Premier déploiement
 
@@ -95,6 +95,8 @@ unset DATABASE_URL_MIGRATION
 
 3. Décoche aussitôt « Make it publicly available » et enregistre.
 4. Connecte-toi sur https://elsass-racing.theelsassisch.com avec theelsassisch@gmail.com.
+
+Ces commandes supposent `pnpm install` déjà fait dans le dossier du projet. `DATABASE_URL_MIGRATION` exportée l'emporte sur `.env.local` : les scripts chargent `.env.local` sans écraser une variable déjà posée. Ils n'ont pas besoin de `DATABASE_URL` (l'URL de l'app). `pnpm team:creer` refuse une team au même slug : rien n'est créé deux fois.
 
 Pour inviter Jeoffrey et Aurélie ensuite : Réglages, Membres, Inviter. Ils recevront le lien par mail.
 

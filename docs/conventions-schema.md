@@ -133,4 +133,18 @@ END
 $$;
 ```
 
-Cas déjà corrigé : la migration `core_rls`. Si une migration déjà appliquée est modifiée, la colonne `checksum` de sa ligne dans `_prisma_migrations` doit être mise à jour (sha256 du fichier, rôle propriétaire). C'est acceptable tant que rien n'est en production.
+Cas déjà corrigé : la migration `core_rls`. Si une migration déjà appliquée est modifiée, la colonne `checksum` de sa ligne dans `_prisma_migrations` doit être mise à jour (sha256 du fichier, rôle propriétaire). C'est acceptable tant que rien n'est en production. Depuis le premier déploiement (1.12), une migration appliquée en production ne se modifie plus : on en ajoute une autre.
+
+## Catalogue (apps et droits par défaut)
+
+En production, seul `prisma migrate deploy` tourne : le seed TypeScript (`prisma/seed.ts`) n'est pas dans l'image. Le catalogue (11 apps, 44 droits par défaut, source : `src/core/catalogue.ts`) passe donc par une migration `core_catalogue`, dont le SQL est généré.
+
+Flux, quand le catalogue change :
+
+1. Modifier `src/core/catalogue.ts`.
+2. `pnpm exec prisma migrate dev --create-only --name core_catalogue` : crée le dossier.
+3. `pnpm exec tsx scripts/generer-migration-catalogue.ts > prisma/migrations/<dossier>/migration.sql` : écrit le SQL (`src/core/catalogue-sql.ts`).
+4. Relire le fichier, puis `pnpm db:deploy` en local.
+5. `pnpm test` : `src/core/catalogue-sql.test.ts` vérifie que la dernière migration `_core_catalogue` est exactement le SQL généré. Sans migration à jour, le test échoue.
+
+Le SQL utilise `INSERT … ON CONFLICT DO UPDATE` : il peut être rejoué sans doublon. `prisma/seed.ts` reste pour le développement.
