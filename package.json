@@ -16,6 +16,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "team:creer": "tsx scripts/creer-team.ts",
     "db:verifier-rls": "tsx scripts/verifier-cloisonnement.ts",
+    "db:verifier-bus": "tsx scripts/verifier-bus.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
