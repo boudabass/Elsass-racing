@@ -1,0 +1,17 @@
+import { evenementsEcoutesPar, evenementsEmisPar } from "@/core/evenements/catalogue"
+import { WIDGETS } from "@/core/sdk/widgets-catalogue"
+import type { ManifesteApp } from "@/core/sdk/manifeste"
+
+// Manifeste de Équipe. Identité : identique au catalogue des apps. Événements et widgets :
+// dérivés des catalogues (jamais recopiés), pour qu'ils ne puissent pas diverger.
+export const manifesteEquipe: ManifesteApp = {
+  cle: "equipe",
+  nom: "Équipe",
+  icone: "users",
+  version: "0.1.0",
+  requiert: [],
+  menu: [{ libelle: "Accueil", chemin: "/" }],
+  widgets: [...WIDGETS.equipe],
+  evenementsEmis: evenementsEmisPar("equipe"),
+  evenementsEcoutes: evenementsEcoutesPar("equipe"),
+}

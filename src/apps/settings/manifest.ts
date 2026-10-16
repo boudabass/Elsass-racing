@@ -1,4 +1,4 @@
-import { EVENEMENTS } from "@/core/evenements/catalogue"
+import { evenementsEmisPar } from "@/core/evenements/catalogue"
 import type { ManifesteApp } from "@/core/sdk/manifeste"
 
 // Réglages : l'app témoin du contrat. Pas d'écran pour l'instant (tâche ultérieure).
@@ -22,6 +22,6 @@ export const manifesteSettings: ManifesteApp = {
   ],
   widgets: [],
   // Les événements émis par Réglages, tels que déclarés dans le catalogue.
-  evenementsEmis: EVENEMENTS.filter((evenement) => evenement.emisPar === "settings").map((evenement) => evenement.nom),
+  evenementsEmis: evenementsEmisPar("settings"),
   evenementsEcoutes: [],
 }

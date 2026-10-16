@@ -1,15 +1,34 @@
-// Registre des apps : les manifestes importés. Statique, pour l'instant.
-//
-// Incomplet pendant le lot 1 : seule Réglages (app témoin) y figure. Les autres apps
-// s'y ajouteront à leur tâche. Une app activée en base mais absente d'ici est ignorée
-// par appsVisibles, avec un avertissement console unique.
+// Registre des apps : les manifestes importés, dans l'ordre du catalogue des apps.
+// Une app sans manifeste ici n'apparaît pas dans le QG (règle de la tâche 1.7).
 
 import type { AppCle } from "@/core/catalogue"
 import type { ManifesteApp } from "@/core/sdk/manifeste"
 
+import { manifesteSaison } from "./saison/manifest"
+import { manifesteBudget } from "./budget/manifest"
+import { manifestePartenaires } from "./partenaires/manifest"
+import { manifesteVoiture } from "./voiture/manifest"
+import { manifesteGarage } from "./garage/manifest"
+import { manifesteEquipe } from "./equipe/manifest"
+import { manifesteChecklist } from "./checklist/manifest"
+import { manifesteDocuments } from "./documents/manifest"
+import { manifesteMedias } from "./medias/manifest"
+import { manifesteDashboard } from "./dashboard/manifest"
 import { manifesteSettings } from "./settings/manifest"
 
-const MANIFESTES: readonly ManifesteApp[] = [manifesteSettings]
+const MANIFESTES: readonly ManifesteApp[] = [
+  manifesteSaison,
+  manifesteBudget,
+  manifestePartenaires,
+  manifesteVoiture,
+  manifesteGarage,
+  manifesteEquipe,
+  manifesteChecklist,
+  manifesteDocuments,
+  manifesteMedias,
+  manifesteDashboard,
+  manifesteSettings,
+]
 
 export function manifestes(): readonly ManifesteApp[] {
   return MANIFESTES

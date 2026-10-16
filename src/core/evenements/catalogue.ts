@@ -118,3 +118,19 @@ export const EVENEMENTS: readonly Evenement[] = [
   // socle : action décidée, livrée à l'app d'origine (destinataire dynamique)
   { nom: "core.action_decidee", emisPar: "core", ecoutePar: [] },
 ]
+
+// Événements émis par une app, dérivés du catalogue : jamais recopiés dans un manifeste.
+export function evenementsEmisPar(cle: AppCle | "core"): string[] {
+  return EVENEMENTS.filter((evenement) => evenement.emisPar === cle).map((evenement) => evenement.nom)
+}
+
+// Événements écoutés par une app : ceux où sa clé figure dans ecoutePar, ou où ecoutePar
+// contient « * » (sauf ceux qu'elle émet elle-même), plus core.action_decidee, livré à
+// l'app d'origine de l'action.
+export function evenementsEcoutesPar(cle: AppCle): string[] {
+  const ecoutes = EVENEMENTS.filter((evenement) => {
+    if (evenement.ecoutePar.includes(cle)) return true
+    return evenement.ecoutePar.includes("*") && evenement.emisPar !== cle
+  }).map((evenement) => evenement.nom)
+  return [...ecoutes, "core.action_decidee"]
+}

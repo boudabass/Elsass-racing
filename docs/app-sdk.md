@@ -46,6 +46,9 @@ Tant que le registre est incomplet (lot 1), le commentaire de `registre.ts` le d
 
 ## 5. Événements
 
+Les listes `evenementsEmis` et `evenementsEcoutes` d'un manifeste ne se recopient pas : elles sont dérivées du catalogue, par `evenementsEmisPar(cle)` et `evenementsEcoutesPar(cle)` (`src/core/evenements/catalogue.ts`). Un manifeste qui les écrirait à la main pourrait diverger du catalogue ; le test du registre le détecte.
+
+
 Règle absolue : **aucun nom hors de `src/core/evenements/catalogue.ts`**. Un nom s'écrit `app.fait_au_participe` : minuscules, un point, des underscores.
 
 - Émettre : seulement les événements dont `emisPar` est l'app. Plus les deux motifs génériques `<cle>.action_requise` et `<cle>.action_levee`, écoutés par le socle.
