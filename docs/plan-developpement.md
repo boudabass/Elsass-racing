@@ -75,10 +75,13 @@ Chaque tâche est un brief autonome pour l'opérateur. L'orchestrateur relit et 
 - Seed : les 4 rôles, les 11 apps du catalogue, les droits par défaut de l'article 962 section 4.
 - Livrable : migration, seed, tests de lecture.
 
-### 1.4 Schéma core_, référentiels et services
-- Référentiels : core_person, core_season, core_event, core_event_entry, core_vehicle, core_contact, core_tag.
-- Services : core_file, core_attachment, core_activity, core_note, core_task, core_alert, core_action, core_notification, core_notification_pref, core_domain_event, core_event_delivery, core_sync_cursor, core_search_index, core_export.
-- Livrable : migration, documentation des tables dans `docs/schema-core.md`.
+### 1.4a Schéma core_, référentiels partagés
+- core_person, core_season, core_event, core_event_entry, core_vehicle, core_contact, core_tag.
+- Livrable : migration `core_referentiels`.
+
+### 1.4b Schéma core_, services transversaux
+- core_file, core_attachment, core_activity, core_note, core_task, core_alert, core_action, core_notification, core_notification_pref, core_domain_event, core_event_delivery, core_sync_cursor, core_search_index, core_export.
+- Livrable : migration `core_services`, documentation des tables dans `docs/schema-core.md`.
 
 ### 1.5 Authentification et sessions
 - Connexion par lien mail ou code à 6 chiffres, sans mot de passe (core_auth_token).

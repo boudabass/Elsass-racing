@@ -45,4 +45,5 @@ Ce fichier ne contient que les règles, les pièges et l'état actuel. Le récit
 
 ## État actuel
 
-- 16/10/2026 : cadrage terminé dans Odoo, dépôt en cours d'initialisation (lot 1, tâche 1.1).
+- 16/10/2026 : cadrage terminé dans Odoo. Lot 1 en cours : dépôt initialisé, base locale Docker, conventions testées, core_team et tables de plateforme et d'accès migrées, catalogue seedé (tâches 1.1 à 1.3 faites, 1.4a en cours).
+- Base locale : `pnpm db:up` puis `pnpm db:deploy` puis `pnpm db:seed`. Port 5433.
