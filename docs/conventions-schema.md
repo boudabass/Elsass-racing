@@ -75,10 +75,23 @@ Les services transversaux (pièces jointes, activité, notes, tâches, alertes, 
 - `core_task`, `core_alert` et `core_action` les portent en optionnel : une tâche ou une alerte peut ne pas être liée à une fiche.
 - Conséquence : rien en base ne garantit que la fiche désignée existe. C'est à l'application de le vérifier, et à la suppression d'une fiche de nettoyer ce qui la désigne.
 
-## Colonne générée hors Prisma
+## Plein texte : colonne ordinaire et trigger
 
-`core_search_index.vecteur` est une colonne `tsvector GENERATED ALWAYS AS (...) STORED`, avec un index GIN. Prisma ne sait pas exprimer ces deux éléments : la colonne est déclarée `Unsupported("tsvector")?` dans le schéma, et la migration `core_services` les crée à la main.
+`core_search_index.vecteur` est une colonne `tsvector` ordinaire, non générée. Son contenu est calculé par la fonction `core_search_index_maj_vecteur()` et le trigger `core_search_index_vecteur_trg`, à chaque insertion et à chaque modification de `titre` ou de `texte`. L'index GIN `core_search_index_vecteur_idx` porte sur cette colonne.
 
-**Attention** : `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma` propose de supprimer l'index GIN (il n'est pas dans le schéma) et un `DROP DEFAULT` sur `vecteur`. Ces écarts sont connus et attendus. Conséquence pratique : **ne jamais lancer `pnpm db:migrate` sans `--create-only` et relire le SQL généré**, sans quoi Prisma créerait une migration qui supprime l'index. `pnpm db:deploy` ne pose pas ce problème, car il ne compare rien.
+Prisma déclare la colonne `Unsupported("tsvector")?` et l'index avec `@@index([vecteur], type: Gin)` : le schéma décrit donc bien la base, et `prisma migrate diff` ne propose rien. La fonction et le trigger ne sont pas décrits par Prisma : ils vivent dans la migration `core_search_trigger`, écrite à la main.
 
-Vérifié le 16/10/2026 : `prisma migrate status` indique « Database schema is up to date ».
+Pourquoi pas une colonne générée : une colonne `GENERATED ALWAYS AS (...) STORED` est invisible pour Prisma sans rien dire, et chaque `migrate diff` proposait alors de la modifier. Le trigger évite cet écart.
+
+Vérifié le 16/10/2026 : `prisma migrate status` indique « Database schema is up to date », et `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` renvoie une migration vide.
+
+## Flux des migrations
+
+Toute migration se relit avant application. `pnpm db:migrate` ne l'applique pas : il ne fait que la créer.
+
+1. **Créer** : `pnpm db:migrate --name nom_de_la_migration` (`prisma migrate dev --create-only`). Prisma écrit le SQL, sans l'appliquer.
+2. **Relire** : ouvrir `prisma/migrations/<horodatage>_nom/migration.sql` et vérifier chaque instruction.
+3. **Compléter à la main si besoin** : ce que Prisma ne sait pas exprimer (fonctions, triggers, colonnes générées, CHECK, index non décrits par le schéma) s'ajoute ici.
+4. **Déployer** : `pnpm db:deploy` (`prisma migrate deploy`) applique les migrations en attente, sans rien recalculer.
+
+Ce flux garantit qu'aucune migration n'est appliquée sans avoir été lue, et qu'un diff inattendu se voit avant d'atteindre la base.

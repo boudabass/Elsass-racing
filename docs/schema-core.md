@@ -47,7 +47,7 @@ Les renvois sont au niveau des sections des articles Odoo : le cahier des charge
 | `core_domain_event` | Événement de domaine émis par une app, à livrer aux autres apps. |
 | `core_event_delivery` | Livraison d'un événement de domaine à une app destinataire, avec ses tentatives. |
 | `core_sync_cursor` | Position de synchronisation d'un appareil pour une team (format fixé en 1.11). |
-| `core_search_index` | Index plein texte d'une fiche (colonne `vecteur` générée, index GIN). |
+| `core_search_index` | Index plein texte d'une fiche (colonne `vecteur` tenue à jour par trigger, index GIN). |
 | `core_export` | Demande d'export, et fichier produit une fois prêt. |
 
 ## Clés étrangères notables

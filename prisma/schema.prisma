@@ -1014,8 +1014,8 @@ model CoreSyncCursor {
   @@map("core_sync_cursor")
 }
 
-// Index plein texte d'une fiche. La colonne `vecteur` est une colonne générée
-// (STORED) ajoutée à la main dans la migration : Prisma ne sait pas l'exprimer.
+// Index plein texte d'une fiche. La colonne `vecteur` est tenue à jour par un trigger
+// PostgreSQL, défini à la main dans la migration core_search_trigger.
 model CoreSearchIndex {
   id        String                   @id @db.Uuid
   teamId    String                   @map("team_id") @db.Uuid
@@ -1037,6 +1037,7 @@ model CoreSearchIndex {
 
   @@unique([teamId, app, ficheType, ficheId])
   @@index([teamId])
+  @@index([vecteur], type: Gin)
   @@map("core_search_index")
 }
 
