@@ -1,4 +1,6 @@
-// Elsass Racing — schéma Prisma. Aucun modèle pour l'instant.
+// Elsass Racing — schéma Prisma. Conventions : docs/conventions-schema.md.
+// Prisma ne factorise pas les colonnes communes : le bloc est copié dans chaque
+// modèle, et src/core/schema-conventions.test.ts vérifie qu'aucune colonne ne manque.
 
 generator client {
   // Prisma 7 : générateur `prisma-client`, sans moteur Rust. Le client s'instancie
@@ -13,4 +15,34 @@ datasource db {
   provider = "postgresql"
 }
 
-// Tables et colonnes en snake_case, pour pouvoir les interroger à la main en SQL.
+enum CoreTeamStatut {
+  active
+  suspendue
+
+  @@map("core_team_statut")
+}
+
+model CoreTeam {
+  id                   String         @id @db.Uuid
+  nom                  String
+  slug                 String         @unique
+  logoFileId           String?        @map("logo_file_id") @db.Uuid
+  couleurPrincipale    String?        @map("couleur_principale")
+  couleurSecondaire    String?        @map("couleur_secondaire")
+  disciplinePrincipale String?        @map("discipline_principale")
+  associationNom       String?        @map("association_nom")
+  associationRna       String?        @map("association_rna")
+  associationSiege     String?        @map("association_siege")
+  fuseau               String         @default("Europe/Paris")
+  langue               String         @default("fr")
+  statut               CoreTeamStatut @default(active)
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  @@map("core_team")
+}
