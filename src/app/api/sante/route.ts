@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server"
 
-import { prisma } from "@/lib/prisma"
+import { verifierSante } from "@/lib/sante"
 
-// Santé de l'application, pour le health check de Coolify. Publique (middleware). Une seule
-// requête sur la base, avec le client applicatif. Aucune information sensible dans la réponse.
+// Santé de l'application, pour le health check de Coolify. Publique (middleware). Vérifie la
+// base, les droits du rôle de l'app et le catalogue. La réponse ne donne qu'une raison courte.
 export const dynamic = "force-dynamic"
 
 export async function GET() {
-  try {
-    await prisma.$queryRaw`SELECT 1`
-    return NextResponse.json({ ok: true })
-  } catch {
-    return NextResponse.json({ ok: false }, { status: 503 })
-  }
+  const resultat = await verifierSante()
+  if (resultat.ok) return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: false, raison: resultat.raison }, { status: 503 })
 }

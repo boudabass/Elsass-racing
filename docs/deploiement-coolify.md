@@ -36,7 +36,7 @@ CREATE ROLE elsass_racing_web LOGIN PASSWORD 'MOT_DE_PASSE_DU_ROLE_APP';
 GRANT elsass_racing_app TO elsass_racing_web;
 ```
 
-Les droits sur les tables sont donnés automatiquement par les migrations au premier démarrage.
+Les droits sur les tables sont donnés automatiquement par les migrations au premier démarrage. Après le premier démarrage (étape 7), lance la requête de vérification de l'étape 8.1 : les deux colonnes doivent afficher `t`. Avant ce démarrage, les tables n'existent pas encore, la requête échoue : c'est normal.
 
 ## 4. Variables d'environnement de l'application
 
@@ -71,7 +71,9 @@ Onglet Persistent Storage, « Add » :
 
 ## 6. Health check
 
-Onglet Health Check : active-le, chemin `/api/sante`, port 3000, code attendu 200. La route existe sur main depuis la fusion de la 1.12. Elle répond `{"ok":true}` si la base répond, 503 sinon.
+Onglet Health Check : chemin `/api/sante`, port 3000, code attendu 200. La route existe sur main depuis la fusion de la 1.12. Elle répond `{"ok":true}` si tout passe (base, droits du rôle de l'app, catalogue des 11 apps), sinon 503 avec une raison courte, par exemple `{"ok":false,"raison":"droits du rôle de l'app incomplets"}`.
+
+Le health check est désactivé pour l'instant : l'image déployée avant la 1.12b n'avait pas `curl`, et Coolify refusait le conteneur. Une fois l'image avec `curl` déployée (1.12b et suivantes), réactive-le avec les réglages ci-dessus.
 
 ## 7. Premier déploiement
 
@@ -126,6 +128,14 @@ Décoche aussitôt « Make it publicly available » et enregistre. La base ne do
 4. Tu arrives sur le QG de « The Elsassisch Racing Team », rôle responsable.
 
 La team de test est vide : pas de saison ni d'épreuve, donc ni compte à rebours ni bouton Prochaine étape. C'est normal.
+
+### 8.6 Remplir la team de test (facultatif)
+
+Pour remplir la team de test avec la saison 2026 de la Saxo (véhicule, deux pilotes, neuf épreuves, engagements) : ouvre la base comme en 8.2, lance la commande sur une ligne, puis referme la base comme en 8.4. Le script est idempotent : le relancer ne crée pas de doublon.
+
+```
+cd "/c/Users/George/Desktop/The Elsassisch/Projet/Elsass Racing" && DATABASE_URL_MIGRATION='postgresql://postgres:MOT_DE_PASSE_POSTGRES@37.59.108.111:54330/postgres' pnpm donnees:koehling --slug the-elsassisch-racing-team
+```
 
 ### Remarques
 
