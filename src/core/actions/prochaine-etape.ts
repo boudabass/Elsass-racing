@@ -105,3 +105,14 @@ export function choisirProchaineEtape({
 
   return { genre: "rien" }
 }
+
+// Libellé de compte à rebours d'une épreuve : « J-26 », « Demain », « Aujourd'hui », et
+// « dans 5 h » le jour même, quand le départ est dans moins de 24 heures.
+export function libelleCompteARebours(epreuve: EpreuveProchaine, maintenant: Date): string {
+  const ecart = epreuve.dateDebut.getTime() - maintenant.getTime()
+  const jours = differenceInCalendarDays(epreuve.dateDebut, maintenant)
+  if (jours === 0) return "Aujourd'hui"
+  if (ecart > 0 && ecart < UN_JOUR_MS) return `dans ${Math.max(1, Math.round(ecart / 3_600_000))} h`
+  if (jours === 1) return "Demain"
+  return `J-${jours}`
+}

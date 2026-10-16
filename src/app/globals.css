@@ -2,92 +2,106 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tokens shadcn/ui en HSL. Le thème sombre est le thème par défaut : RootLayout
-   pose la classe `dark` sur <html>. Les couleurs de marque Racing ne sont pas
-   encore définies : elles viendront ici, dans ces mêmes tokens. */
+/* Tokens en couleurs réelles (pas en HSL) : les couleurs de team sont calculées côté
+   serveur et injectées en variables sur <html> (cf. src/core/theme/variables.ts).
+   Clair par défaut ; sombre avec la classe « dark » (thème par défaut de l'app). */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 4%;
+    --fond: #ffffff;
+    --surface: #f4f4f5;
+    --surface-2: #e9e9ec;
+    --texte: #111113;
+    --texte-discret: #52525b;
+    --bordure: #d4d4d8;
 
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 4%;
+    /* Couleur de team, pour ce thème (injectée par le layout). */
+    --marque: var(--marque-clair, #b91c1c);
+    --marque-2: var(--marque-2-clair, #f4f3f1);
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 4%;
-
-    --primary: 240 6% 10%;
-    --primary-foreground: 0 0% 98%;
-
-    --secondary: 240 5% 96%;
-    --secondary-foreground: 240 6% 10%;
-
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 40%;
-
-    --accent: 240 5% 94%;
-    --accent-foreground: 240 6% 10%;
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 6% 88%;
-    --input: 240 6% 80%;
-    --ring: 240 6% 10%;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5% 26%;
-    --sidebar-primary: 240 6% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 5% 94%;
-    --sidebar-accent-foreground: 240 6% 10%;
-    --sidebar-border: 240 6% 88%;
-    --sidebar-ring: 240 6% 10%;
-
-    --radius: 0.5rem;
+    /* États : jamais remplacés par une couleur de team. */
+    --etat-ok: #15803d;
+    --etat-orange: #c2410c;
+    --etat-rouge: #b91c1c;
   }
 
   .dark {
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
+    --fond: #0b0b0c;
+    --surface: #151518;
+    --surface-2: #1f1f24;
+    --texte: #f4f4f5;
+    --texte-discret: #a1a1aa;
+    --bordure: #2a2a30;
 
-    --card: 240 8% 7%;
-    --card-foreground: 0 0% 98%;
+    --marque: var(--marque-sombre, #f87171);
+    --marque-2: var(--marque-2-sombre, #f4f3f1);
 
-    --popover: 240 8% 7%;
-    --popover-foreground: 0 0% 98%;
+    --etat-ok: #4ade80;
+    --etat-orange: #fb923c;
+    --etat-rouge: #f87171;
+  }
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 6% 10%;
+  /* Tokens shadcn, alimentés par la palette ci-dessus. */
+  :root,
+  .dark {
+    --background: var(--fond);
+    --foreground: var(--texte);
+    --card: var(--surface);
+    --card-foreground: var(--texte);
+    --popover: var(--surface);
+    --popover-foreground: var(--texte);
+    --primary: var(--marque);
+    --primary-foreground: #ffffff;
+    --secondary: var(--surface-2);
+    --secondary-foreground: var(--texte);
+    --muted: var(--surface-2);
+    --muted-foreground: var(--texte-discret);
+    --accent: var(--surface-2);
+    --accent-foreground: var(--texte);
+    --destructive: var(--etat-rouge);
+    --destructive-foreground: #ffffff;
+    --border: var(--bordure);
+    --input: var(--bordure);
+    --ring: var(--marque);
+  }
 
-    --secondary: 240 5% 15%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 240 5% 15%;
-    --muted-foreground: 240 5% 65%;
-
-    --accent: 240 5% 18%;
-    --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 63% 40%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 5% 18%;
-    --input: 240 5% 22%;
-    --ring: 240 5% 70%;
-
-    --sidebar-background: 240 8% 7%;
-    --sidebar-foreground: 0 0% 92%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 240 6% 10%;
-    --sidebar-accent: 240 5% 15%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 5% 18%;
-    --sidebar-ring: 240 5% 70%;
+  html {
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: var(--font-texte), ui-sans-serif, system-ui, sans-serif;
+    font-variant-numeric: normal;
+  }
+
+  /* Chiffres alignés partout où un nombre s'affiche. */
+  .chiffre {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Focus visible au clavier, sur tout élément interactif. */
+  :focus-visible {
+    outline: 2px solid var(--marque);
+    outline-offset: 2px;
+  }
+}
+
+/* Mode terrain : textes plus grands, cibles de clic plus grosses, menus réduits. */
+.terrain {
+  --taille-cible: 56px;
+  font-size: 1.125rem;
+}
+
+@layer components {
+  .cible-tactile {
+    min-height: var(--taille-cible, 44px);
+    min-width: var(--taille-cible, 44px);
+  }
+
+  .titre-rallye {
+    font-family: var(--font-titre), ui-sans-serif, system-ui, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
   }
 }

@@ -17,6 +17,7 @@
     "team:creer": "tsx scripts/creer-team.ts",
     "db:verifier-rls": "tsx scripts/verifier-cloisonnement.ts",
     "db:verifier-bus": "tsx scripts/verifier-bus.ts",
+    "donnees:koehling": "tsx scripts/donnees-koehling.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },

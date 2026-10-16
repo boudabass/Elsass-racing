@@ -10,7 +10,7 @@ import { grouperActions, type GroupeAction } from "./regroupement"
 const DELAI_EXPIRATION_MS = 30 * 24 * 60 * 60 * 1000
 
 // Niveau effectif du membre sur une app : core_app_access, sinon le défaut du rôle.
-async function niveauDe(ctx: ContexteTeam, appCle: string): Promise<Niveau> {
+export async function niveauDe(ctx: ContexteTeam, appCle: string): Promise<Niveau> {
   const [acces, defauts] = await Promise.all([
     prismaPourTeam(ctx.teamId, ctx.userId).coreAppAccess.findMany({
       where: { membershipId: ctx.membership.id, appCle },
@@ -92,6 +92,11 @@ export async function reporter(ctx: ContexteTeam, actionId: string, jusquAu: Dat
 
 // Actions en attente, non reportées, visibles par le membre, groupées par cleRegroupement.
 export async function listerActionsEnAttente(ctx: ContexteTeam): Promise<GroupeAction[]> {
+  return grouperActions(await listerActionsVisibles(ctx))
+}
+
+// Même liste, à plat : pour le bouton Prochaine étape et le compteur de la barre haute.
+export async function listerActionsVisibles(ctx: ContexteTeam): Promise<ActionBoite[]> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const maintenant = new Date()
 
@@ -145,5 +150,5 @@ export async function listerActionsEnAttente(ctx: ContexteTeam): Promise<GroupeA
     role: ctx.membership.role,
     niveauParApp,
   })
-  return grouperActions(visibles)
+  return visibles
 }

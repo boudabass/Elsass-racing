@@ -65,3 +65,17 @@ export function prismaPourTeam(teamId: string, userId: string) {
 export function prismaPourCompte(userId: string) {
     return clientAvecContexte([{ nom: "app.user_id", valeur: userId }])
 }
+
+// Requêtes brutes ($queryRaw, $executeRaw) dans le contexte de team : l'extension des
+// modèles ne les couvre pas. Toute la fonction s'exécute dans une seule transaction.
+export async function executerPourTeam<T>(
+    teamId: string,
+    userId: string,
+    requete: (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => Promise<T>,
+): Promise<T> {
+    return prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.team_id', ${teamId}, true)`
+        await tx.$executeRaw`SELECT set_config('app.user_id', ${userId}, true)`
+        return requete(tx)
+    })
+}
