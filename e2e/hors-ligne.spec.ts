@@ -77,3 +77,53 @@ test("une note créée hors ligne reste en attente, puis part au retour du rése
   await context.setOffline(false)
   await expect.poll(() => notesEnBase(equipe, "Note hors ligne 2"), { timeout: 30_000 }).toBe(1)
 })
+
+// Reproduction du bug de production : hors ligne, depuis le QG, un clic sur « + » puis « Note ».
+// Le clic déclenche une navigation côté client (requête RSC) : elle doit passer par une navigation
+// de page servie par le service worker, sans erreur.
+test("hors ligne : + puis Note depuis le QG ouvre les notes sans erreur", async ({ page, equipe, context }) => {
+  const erreurs: string[] = []
+  page.on("pageerror", (erreur) => erreurs.push(erreur.message))
+
+  await connecterParLien(page, equipe)
+  await page.goto("/qg")
+  await expect(tuilesDuQg(page)).toHaveCount(11)
+  await attendreServiceWorker(page)
+  await page.goto("/notes")
+  await page.goto("/qg")
+  await expect(tuilesDuQg(page)).toHaveCount(11)
+
+  await context.setOffline(true)
+  await page.getByRole("button", { name: "Ajouter" }).first().click()
+  await page.getByRole("menuitem", { name: "Note" }).click()
+
+  await expect(page.getByRole("heading", { name: "Notes de la team" })).toBeVisible()
+  expect(erreurs).toEqual([])
+
+  // La création fonctionne depuis la page ouverte hors ligne, puis part au retour du réseau.
+  await page.locator("#note-texte").fill("Note après le menu")
+  await page.getByRole("button", { name: "Enregistrer la note" }).click()
+  await expect(page.getByText("En attente", { exact: true })).toBeVisible()
+  await context.setOffline(false)
+  await expect.poll(() => notesEnBase(equipe, "Note après le menu"), { timeout: 30_000 }).toBe(1)
+  expect(erreurs).toEqual([])
+})
+
+// Hors ligne, un clic sur une tuile d'app jamais visitée : la page de repli s'affiche, sans erreur.
+test("hors ligne : une app jamais visitée affiche la page de repli, sans écran d'erreur", async ({ page, equipe, context }) => {
+  const erreurs: string[] = []
+  page.on("pageerror", (erreur) => erreurs.push(erreur.message))
+
+  await connecterParLien(page, equipe)
+  await page.goto("/qg")
+  await expect(tuilesDuQg(page)).toHaveCount(11)
+  await attendreServiceWorker(page)
+  await page.goto("/qg")
+
+  await context.setOffline(true)
+  await page.locator('a[href="/apps/budget"]').filter({ has: page.locator("h2") }).click()
+
+  await expect(page.getByRole("heading", { name: "Pas de réseau" })).toBeVisible()
+  await expect(page.getByText("Quelque chose s'est mal passé.")).toHaveCount(0)
+  expect(erreurs).toEqual([])
+})

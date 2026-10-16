@@ -17,6 +17,7 @@ import { entreesDuMenuPlus } from "@/components/qg/entrees-plus"
 import { RaccourciRecherche } from "@/components/qg/raccourci-recherche"
 import { SynchroProvider } from "@/core/synchro/client/react"
 import { EnregistrementSW } from "@/components/enregistrement-sw"
+import { NavigationHorsLigne } from "@/components/navigation-hors-ligne"
 import { Inbox } from "@/components/qg/icones"
 
 // Espace connecté : QG, apps, recherche. Charge une fois les données de la requête.
@@ -77,6 +78,7 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
   return (
     <SynchroProvider userId={contexte.userId} teamId={contexte.teamId}>
     <EnregistrementSW />
+    <NavigationHorsLigne />
     <div className="min-h-dvh overflow-x-hidden bg-fond text-texte">
       <BarreHaute
         donnees={{

@@ -3,6 +3,8 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
+import { naviguer } from "@/core/navigation/naviguer"
+
 // Ctrl+K (ou Cmd+K) ouvre la recherche, sur PC.
 export function RaccourciRecherche() {
   const router = useRouter()
@@ -11,7 +13,7 @@ export function RaccourciRecherche() {
     function surTouche(evenement: KeyboardEvent) {
       if ((evenement.ctrlKey || evenement.metaKey) && evenement.key.toLowerCase() === "k") {
         evenement.preventDefault()
-        router.push("/recherche")
+        naviguer(router, "/recherche")
       }
     }
     window.addEventListener("keydown", surTouche)

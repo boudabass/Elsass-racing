@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Barlow, Barlow_Condensed } from "next/font/google"
 
 import { ThemeProvider } from "@/components/theme-provider"
+import { JournalErreurs } from "@/components/journal-erreurs"
 import { prefsMembre } from "@/apps/settings/preferences-serveur"
 import { variablesDeTeam } from "@/core/theme/variables"
 import { teamCourante } from "@/core/auth/team-serveur"
@@ -54,6 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="fr" className={classes} style={styleTeam} suppressHydrationWarning>
       <body>
+        <JournalErreurs />
         <ThemeProvider theme={theme}>{children}</ThemeProvider>
       </body>
     </html>

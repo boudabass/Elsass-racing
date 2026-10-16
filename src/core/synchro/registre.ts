@@ -43,8 +43,9 @@ export interface DeclarationSynchro {
   ): Promise<LigneSynchro[]>
   trouver(tx: Tx, teamId: string, id: string): Promise<EtatLigneSynchro | null>
   creer(tx: Tx, ctx: ContexteTeam, id: string, champs: Record<string, unknown>): Promise<void>
-  modifier(tx: Tx, ctx: ContexteTeam, id: string, champs: Record<string, unknown>): Promise<void>
-  supprimer(tx: Tx, ctx: ContexteTeam, id: string): Promise<void>
+  // Renvoient false si la ligne n'existe plus (rien n'a été écrit).
+  modifier(tx: Tx, ctx: ContexteTeam, id: string, champs: Record<string, unknown>): Promise<boolean>
+  supprimer(tx: Tx, ctx: ContexteTeam, id: string): Promise<boolean>
 }
 
 // Après la position du curseur : updated_at strictement plus récent, ou même date et id plus grand.
@@ -122,18 +123,21 @@ const noteSynchro: DeclarationSynchro = {
     })
   },
 
+  // updateMany et non update : une ligne lue plus tôt peut avoir disparu. Renvoie false si rien n'est touché.
   async modifier(tx, ctx, id, champs) {
-    await tx.coreNote.update({
-      where: { id },
+    const resultat = await tx.coreNote.updateMany({
+      where: { id, teamId: ctx.teamId },
       data: { texte: String(champs.texte), updatedBy: ctx.userId, rev: { increment: 1 } },
     })
+    return resultat.count > 0
   },
 
   async supprimer(tx, ctx, id) {
-    await tx.coreNote.update({
-      where: { id },
+    const resultat = await tx.coreNote.updateMany({
+      where: { id, teamId: ctx.teamId },
       data: { deletedAt: new Date(), updatedBy: ctx.userId, rev: { increment: 1 } },
     })
+    return resultat.count > 0
   },
 }
 

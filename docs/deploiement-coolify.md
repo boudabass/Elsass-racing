@@ -8,6 +8,10 @@ Ressources existantes :
 
 Ne lance pas le déploiement avant le feu vert de l'orchestrateur : la branche main ne contient pas encore le code.
 
+## 0. Déploiement automatique
+
+Coolify redéploie l'application à chaque push sur la branche main. Toute fusion dans main part donc en production dans les minutes qui suivent. Le travail se fait sur dev, et la fusion dans main n'a lieu qu'après relecture par l'orchestrateur.
+
 ## 1. DNS
 
 Vérifie que `elsass-racing.theelsassisch.com` pointe vers le VPS, comme `elsass-dico.theelsassisch.com`. Si les autres sous-domaines .com sont déclarés un par un chez le registrar, ajoute un enregistrement A identique pour `elsass-racing`.
@@ -73,7 +77,7 @@ Onglet Persistent Storage, « Add » :
 
 Onglet Health Check : chemin `/api/sante`, port 3000, code attendu 200. La route existe sur main depuis la fusion de la 1.12. Elle répond `{"ok":true}` si tout passe (base, droits du rôle de l'app, catalogue des 11 apps), sinon 503 avec une raison courte, par exemple `{"ok":false,"raison":"droits du rôle de l'app incomplets"}`.
 
-Le health check est désactivé pour l'instant : l'image déployée avant la 1.12b n'avait pas `curl`, et Coolify refusait le conteneur. Une fois l'image avec `curl` déployée (1.12b et suivantes), réactive-le avec les réglages ci-dessus.
+Le health check est actif depuis le 16/10/2026. L'image contient `curl`, que Coolify utilise pour l'appeler depuis le conteneur : sans lui, Coolify refuse tout nouveau conteneur et garde l'ancien.
 
 ## 7. Premier déploiement
 

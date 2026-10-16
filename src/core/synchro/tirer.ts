@@ -2,6 +2,7 @@
 // après le curseur, par paquets, suppressions douces comprises.
 
 import { perimetreLecture } from "./contribution"
+import { ErreurAppareilRevoque } from "./erreurs"
 import { niveauDe } from "@/core/actions/actions-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 import { newId } from "@/core/ids"
@@ -52,6 +53,8 @@ export async function tirerPaquets(ctx: ContexteTeam, curseurs: Record<string, s
 }
 
 // Mémorise la synchro de cet appareil : sa dernière synchro, et les curseurs reçus.
+// Aucune écriture « nue » sur une ligne lue plus tôt : une ligne peut disparaître entre-temps (appareil
+// déconnecté). updateMany ne lève pas d'erreur ; si rien n'est touché, on regarde si l'appareil existe.
 export async function memoriserSynchro(ctx: ContexteTeam, deviceId: string, tables: Record<string, PaquetTable>): Promise<void> {
   const maintenant = new Date()
   await prisma.coreDevice.updateMany({
@@ -61,12 +64,16 @@ export async function memoriserSynchro(ctx: ContexteTeam, deviceId: string, tabl
 
   const curseurs = JSON.stringify(Object.fromEntries(Object.entries(tables).map(([cle, paquet]) => [cle, paquet.curseur])))
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
-  const existant = await client.coreSyncCursor.findFirst({ where: { teamId: ctx.teamId, deviceId }, select: { id: true } })
-  if (existant) {
-    await client.coreSyncCursor.update({ where: { id: existant.id }, data: { curseur: curseurs, derniereSyncAt: maintenant } })
-  } else {
-    await client.coreSyncCursor.create({
-      data: { id: newId(), teamId: ctx.teamId, deviceId, curseur: curseurs, derniereSyncAt: maintenant },
-    })
-  }
+  const misAJour = await client.coreSyncCursor.updateMany({
+    where: { teamId: ctx.teamId, deviceId },
+    data: { curseur: curseurs, derniereSyncAt: maintenant },
+  })
+  if (misAJour.count > 0) return
+
+  const appareil = await prisma.coreDevice.findFirst({ where: { id: deviceId, userId: ctx.userId }, select: { id: true } })
+  if (!appareil) throw new ErreurAppareilRevoque()
+
+  await client.coreSyncCursor.create({
+    data: { id: newId(), teamId: ctx.teamId, deviceId, curseur: curseurs, derniereSyncAt: maintenant },
+  })
 }
