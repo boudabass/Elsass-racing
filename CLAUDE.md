@@ -46,7 +46,7 @@ Ce fichier ne contient que les règles, les pièges et l'état actuel. Le récit
 
 ## État actuel
 
-- 16/10/2026 : cadrage terminé dans Odoo. Lot 1 en cours : socle complet (schéma, auth, droits et RLS, SDK et catalogues, bus d'événements et boîte d'actions, enveloppe du QG avec 11 tuiles), données réelles Koehling chargées en local par `pnpm donnees:koehling` (tâches 1.1 à 1.9 faites, 1.10 Réglages en cours, puis 1.11 hors ligne et 1.12 déploiement).
+- 16/10/2026 : cadrage terminé dans Odoo. Lot 1 en cours : socle complet (schéma, auth, droits et RLS, SDK et catalogues, bus d'événements et boîte d'actions, enveloppe du QG avec 11 tuiles), données réelles Koehling chargées en local par `pnpm donnees:koehling` (tâches 1.1 à 1.10 faites : Réglages complet, tests de bout en bout Playwright, finitions du QG. Restent le déploiement et le hors ligne, ordre à confirmer avec John).
 - Vérifications en base : `pnpm db:verifier-rls` et `pnpm db:verifier-bus` après toute migration.
 - Tests de bout en bout : `pnpm test:e2e` (Playwright, son propre Chromium, port 3100, `.next-e2e`, mail en console, données de test créées et supprimées par `e2e/aide`). Captures dans `docs/captures/`.
 - Le serveur dev de John (port 3000) ne s'arrête jamais pendant une tâche. Build de vérification : `NEXT_DIST_DIR=.next-build pnpm build`.
