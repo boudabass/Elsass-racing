@@ -50,16 +50,33 @@ Les champs de `creer` ne suffisent pas à poser la fiche : le serveur pose l'aut
 - Hooks : `useTable(table)` (lignes locales, sans les supprimées, mises à jour à chaque changement) et `useEtatSynchro()`.
 - Déconnexion : la page de connexion retire les bases des comptes déconnectés, sauf celles qui ont encore des modifications en attente (les effacer perdrait ces modifications).
 
+## Service worker et application installable
+
+- `/sw.js` : service worker écrit à la main, servi par une route (`src/app/sw.js/route.ts`, code dans `src/core/synchro/service-worker.ts`). Le brief prévoyait `public/sw.js` : une route permet d'injecter la version de l'app au build (`VERSION_APP`, `next.config.ts`), un fichier statique ne le peut pas. Un nouveau build crée un nouveau cache (`elsass-racing-<version>`) ; l'ancien est supprimé à l'activation.
+- Stratégies : `_next/static` et icônes, cache d'abord ; pages (navigations), réseau d'abord avec copie en cache des pages HTML ; hors ligne sans copie, la page `/hors-ligne` ; `/api/` jamais interceptée.
+- Les pages sont mises en cache quand elles sont visitées en ligne, pas à l'installation : une page authentifiée ne se précharge pas sans session.
+- Enregistrement : `EnregistrementSW` dans l'espace connecté, en production seulement.
+- Déconnexion : la page de connexion retire les caches de l'app (pages de team) et les bases des comptes déconnectés, sauf les modifications en attente.
+- Manifeste : `src/app/manifest.ts` (`/manifest.webmanifest`), nom « Elsass Racing », nom court « Racing », thème sombre, `display: standalone`, `lang: fr`. Icônes 192, 512 et 512 masquable dans `public/icones/`, générées par `pnpm exec tsx scripts/generer-icones.ts` (fond rouge de la team, « ER » en pixels, sans dépendance).
+- CSP : `worker-src 'self'` ajouté à `frame-ancestors 'none'`.
+
+## Périmètre de lecture
+
+Un membre ne reçoit que ce qu'il peut lire (article 948) : niveau aucun, la table n'est pas renvoyée ; niveau contribution, seulement ses lignes (`created_by` = le compte courant) ; lecture et plus, toute la team. La décision est dans `perimetreLecture` (`contribution.ts`, testée). Le filtre est un paramètre de `lirePaquet` : une nouvelle table en hérite.
+
 ## Limites connues
 
-- Pas de worker en arrière-plan : la synchro tourne dans l'onglet ouvert.
+- Pas de worker en arrière-plan : la synchro tourne dans l'onglet ouvert, et le service worker ne rejoue rien seul.
+- Un changement de niveau ne relance pas un tirage complet : un membre promu garde son curseur, et ne reçoit pas rétroactivement les lignes des autres. À traiter avec un tirage complet lors d'un changement de niveau.
 - Une seule table synchronisable : `core_note`. Les autres apps viendront avec leurs écrans.
 - Les auteurs sont affichés « Toi » ou « Un membre » : pas encore de nom sur les notes.
 - Le conflit est visible dans le journal de la fiche, pas dans une interface dédiée.
 - Le rejeu d'une écriture n'est sûr que si le serveur a bien reçu la première : l'idempotence repose sur `idOperation`.
+- Le cache des pages est partagé par tous les comptes de l'appareil jusqu'à la prochaine déconnexion : il ne contient que des pages déjà visitées.
 
 ## Vérification
 
-- Unitaires : curseur, conflit, contribution, attente, protocole (idempotence du résultat noté).
-- Base : `pnpm db:verifier-synchro` (deux appareils simulés, conflit journalisé, rejeu idempotent, table refusée, isolement entre teams, contribution).
-- E2E : `e2e/hors-ligne.spec.ts`, partie 1 (sans service worker).
+- Unitaires : curseur, conflit, contribution et périmètre de lecture, attente, protocole (idempotence du résultat noté).
+- Base : `pnpm db:verifier-synchro` (deux appareils simulés, conflit journalisé, rejeu idempotent, table refusée, isolement entre teams, contribution, périmètre de lecture de l'assistance et de l'équipage).
+- E2E, projet `chromium` (développement) : `e2e/hors-ligne.spec.ts` ne tourne pas ici.
+- E2E, projet `hors-ligne` (production, port 3101) : `e2e/hors-ligne.spec.ts`. Connexion, note en ligne, visite de `/qg` et `/notes`, passage hors ligne, rechargement depuis le cache, note hors ligne avec badge et indicateur, retour du réseau et contrôle en base.

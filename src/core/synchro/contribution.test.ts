@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vitest"
 
-import { peutEcrire } from "./contribution"
+import { peutEcrire, perimetreLecture } from "./contribution"
+
+describe("périmètre de lecture", () => {
+  it("n'ouvre rien sans le niveau de lecture requis", () => {
+    expect(perimetreLecture("aucun", "lecture")).toBe("aucun")
+  })
+
+  it("au niveau contribution, ne donne que ses propres lignes", () => {
+    expect(perimetreLecture("contribution", "lecture")).toBe("ses_lignes")
+  })
+
+  it("à partir de la lecture, donne toute la team", () => {
+    expect(perimetreLecture("lecture", "lecture")).toBe("toute_la_team")
+    expect(perimetreLecture("ecriture", "lecture")).toBe("toute_la_team")
+    expect(perimetreLecture("gestion", "lecture")).toBe("toute_la_team")
+  })
+})
 
 const moi = "11111111-1111-4111-8111-111111111111"
 const autre = "22222222-2222-4222-8222-222222222222"

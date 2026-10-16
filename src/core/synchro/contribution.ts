@@ -5,6 +5,16 @@ import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 
 export type VerdictEcriture = { ok: true } | { ok: false; raison: string }
 
+// Périmètre de lecture d'une table pour un membre : aucun (la table n'est pas renvoyée), ses seules
+// lignes (niveau contribution : « on ne voit que ce qu'on a créé », article 948), ou toute la team.
+export type PerimetreLecture = "aucun" | "ses_lignes" | "toute_la_team"
+
+export function perimetreLecture(niveau: Niveau, lectureRequise: Niveau): PerimetreLecture {
+  if (!aAuMoins(niveau, lectureRequise)) return "aucun"
+  if (niveau === "contribution") return "ses_lignes"
+  return "toute_la_team"
+}
+
 export interface ParametresEcriture {
   niveau: Niveau
   contributionPropre: boolean

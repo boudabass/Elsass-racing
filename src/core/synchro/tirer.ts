@@ -1,7 +1,7 @@
 // Tirage : pour chaque table synchronisable lisible par le membre, les lignes de la team modifiées
 // après le curseur, par paquets, suppressions douces comprises.
 
-import { aAuMoins } from "@/core/droits/niveaux"
+import { perimetreLecture } from "./contribution"
 import { niveauDe } from "@/core/actions/actions-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 import { newId } from "@/core/ids"
@@ -28,7 +28,8 @@ export async function tirerPaquets(ctx: ContexteTeam, curseurs: Record<string, s
 
   for (const declaration of toutesLesDeclarations()) {
     const niveau = await niveauDe(ctx, declaration.app)
-    if (!aAuMoins(niveau, declaration.niveauLecture)) continue
+    const perimetre = perimetreLecture(niveau, declaration.niveauLecture)
+    if (perimetre === "aucun") continue
 
     const curseurRecu = curseurs[declaration.cle] ?? null
     const lignes = await declaration.lirePaquet(
@@ -36,6 +37,7 @@ export async function tirerPaquets(ctx: ContexteTeam, curseurs: Record<string, s
       ctx.teamId,
       decoderCurseur(curseurRecu),
       LIMITE_PAQUET,
+      perimetre === "ses_lignes" ? ctx.userId : null,
     )
 
     const derniere = lignes[lignes.length - 1]

@@ -64,5 +64,15 @@ export async function nettoyerBasesDeconnectees(): Promise<number> {
     })
     supprimees++
   }
+  await supprimerCachesDeLApp()
   return supprimees
+}
+
+// Pages et ressources mises en cache par le service worker : elles peuvent contenir des données de
+// la team. Elles sont retirées à la déconnexion. Les modifications en attente, elles, sont dans IndexedDB.
+export async function supprimerCachesDeLApp(): Promise<void> {
+  if (typeof caches === "undefined") return
+  for (const cle of await caches.keys()) {
+    if (cle.indexOf(PREFIXE_BASE) === 0) await caches.delete(cle)
+  }
 }

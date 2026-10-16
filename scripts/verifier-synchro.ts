@@ -55,6 +55,8 @@ async function main(): Promise<void> {
   const assUserId = newId()
   const respMemId = newId()
   const assMemId = newId()
+  const eqUserId = newId()
+  const eqMemId = newId()
   const devA = newId()
   const devB = newId()
 
@@ -64,12 +66,15 @@ async function main(): Promise<void> {
   await bd.coreUser.create({ data: { id: assUserId, email: `synchro-ass-${horodatage}@example.test` } })
   await bd.coreMembership.create({ data: { id: respMemId, teamId, userId: respUserId, role: "responsable", statut: "actif" } })
   await bd.coreMembership.create({ data: { id: assMemId, teamId, userId: assUserId, role: "assistance", statut: "actif" } })
+  await bd.coreUser.create({ data: { id: eqUserId, email: `synchro-eq-${horodatage}@example.test` } })
+  await bd.coreMembership.create({ data: { id: eqMemId, teamId, userId: eqUserId, role: "equipage", statut: "actif" } })
   await bd.coreDevice.create({ data: { id: devA, userId: respUserId, nom: "Appareil A", plateforme: "essai" } })
   await bd.coreDevice.create({ data: { id: devB, userId: assUserId, nom: "Appareil B", plateforme: "essai" } })
 
   const ctxA: ContexteTeam = { teamId, userId: respUserId, membership: { id: respMemId, role: "responsable" } }
   const ctxB: ContexteTeam = { teamId, userId: assUserId, membership: { id: assMemId, role: "assistance" } }
   const ctxAutre: ContexteTeam = { teamId: teamAutreId, userId: respUserId, membership: { id: respMemId, role: "responsable" } }
+  const ctxEquipage: ContexteTeam = { teamId, userId: eqUserId, membership: { id: eqMemId, role: "equipage" } }
 
   try {
     // 1. B (assistance) crée une note hors ligne ; A (responsable) la tire.
@@ -82,6 +87,18 @@ async function main(): Promise<void> {
     const tirageA = await tirerPaquets(ctxA, {})
     const lignesA = tirageA.tables["core_note"]?.lignes ?? []
     controle("A tire et voit la note", lignesA.some((l) => l.id === idNote && l.texte === "Bâche à récupérer au parc"))
+
+    // 1 bis. Périmètre de lecture (article 948 : au niveau contribution, on ne voit que ce qu'on a créé).
+    // A (responsable) crée une note que l'assistance ne doit pas voir.
+    const idNoteA = newId()
+    await appliquerOperations(ctxA, devA, [operation({ table: "core_note", type: "creer", id: idNoteA, champs: { texte: "Note du responsable seul" } })])
+    const tirageBPerimetre = await tirerPaquets(ctxB, {})
+    const lignesBPerimetre = tirageBPerimetre.tables["core_note"]?.lignes ?? []
+    controle("l'assistance ne tire que ses propres notes", lignesBPerimetre.length > 0 && lignesBPerimetre.every((l) => l.createdBy === assUserId))
+    controle("l'assistance ne reçoit pas la note du responsable", !lignesBPerimetre.some((l) => l.id === idNoteA))
+    const tirageEquipage = await tirerPaquets(ctxEquipage, {})
+    const lignesEquipage = tirageEquipage.tables["core_note"]?.lignes ?? []
+    controle("l'équipage tire toutes les notes de la team", lignesEquipage.some((l) => l.id === idNote) && lignesEquipage.some((l) => l.id === idNoteA))
 
     // 2. A (responsable) modifie la note avec la rev lue (1) ; B la modifie ensuite avec la même rev
     // lue : la seconde gagne, et la version écrasée est journalisée.
@@ -135,7 +152,7 @@ async function main(): Promise<void> {
     ])
     controle("l'assistance ne modifie pas la note d'un autre", refusContribution[0]?.statut === "refusee")
   } finally {
-    await nettoyer([teamId, teamAutreId], [respUserId, assUserId], [devA, devB])
+    await nettoyer([teamId, teamAutreId], [respUserId, assUserId, eqUserId], [devA, devB])
     console.log("Nettoyage fait.")
   }
 

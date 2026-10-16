@@ -11,6 +11,7 @@ function estPublic(chemin: string): boolean {
     chemin === "/connexion" ||
     chemin.startsWith("/connexion/") ||
     chemin === "/invitation" ||
+    chemin === "/hors-ligne" ||
     chemin === "/api/sante" ||
     chemin.startsWith("/_next") ||
     chemin.startsWith("/icones/") ||

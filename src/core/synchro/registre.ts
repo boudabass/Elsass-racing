@@ -33,7 +33,14 @@ export interface DeclarationSynchro {
   niveauLecture: NiveauAcces
   contributionPropre: boolean
   schemaChamps: z.ZodType<Record<string, unknown>>
-  lirePaquet(client: ClientTeam, teamId: string, position: PositionCurseur | null, limite: number): Promise<LigneSynchro[]>
+  // auteurId renseigné : seulement les lignes de cet auteur (périmètre « ses lignes », niveau contribution).
+  lirePaquet(
+    client: ClientTeam,
+    teamId: string,
+    position: PositionCurseur | null,
+    limite: number,
+    auteurId: string | null,
+  ): Promise<LigneSynchro[]>
   trouver(tx: Tx, teamId: string, id: string): Promise<EtatLigneSynchro | null>
   creer(tx: Tx, ctx: ContexteTeam, id: string, champs: Record<string, unknown>): Promise<void>
   modifier(tx: Tx, ctx: ContexteTeam, id: string, champs: Record<string, unknown>): Promise<void>
@@ -65,9 +72,9 @@ const noteSynchro: DeclarationSynchro = {
   contributionPropre: true,
   schemaChamps: schemaNote,
 
-  async lirePaquet(client, teamId, position, limite) {
+  async lirePaquet(client, teamId, position, limite, auteurId) {
     const notes = await client.coreNote.findMany({
-      where: { teamId, ...apresPosition(position) },
+      where: { teamId, ...(auteurId ? { createdBy: auteurId } : {}), ...apresPosition(position) },
       orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
       take: limite,
     })
