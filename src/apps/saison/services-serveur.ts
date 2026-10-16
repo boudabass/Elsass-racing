@@ -8,6 +8,8 @@
 
 import { z } from "zod"
 
+import type { Prisma } from "@/generated/prisma/client"
+
 import type { ContexteTeam } from "@/core/contexte"
 import { exigerAcces } from "@/core/droits/garde-serveur"
 import type { Niveau } from "@/core/droits/niveaux"
@@ -31,7 +33,7 @@ import {
 
 // --- Accès --------------------------------------------------------------------------------
 
-async function accesSaison(requis: Niveau): Promise<{ ctx: ContexteTeam; niveau: Niveau }> {
+export async function accesSaison(requis: Niveau): Promise<{ ctx: ContexteTeam; niveau: Niveau }> {
   const { session, team, membership, niveau } = await exigerAcces("saison", requis)
   return {
     ctx: { teamId: team.id, userId: session.userId, membership: { id: membership.id, role: membership.role } },
@@ -39,8 +41,16 @@ async function accesSaison(requis: Niveau): Promise<{ ctx: ContexteTeam; niveau:
   }
 }
 
+// Refus métier : le message est en français et s'affiche tel quel à l'utilisateur.
+export class ErreurSaison extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "ErreurSaison"
+  }
+}
+
 function refus(message: string): never {
-  throw new Error(message)
+  throw new ErreurSaison(message)
 }
 
 // Dates calendaires saisies « AAAA-MM-JJ », stockées à minuit UTC (cf. @db.Date).
@@ -683,9 +693,27 @@ export async function recalculerDans(ctx: ContexteTeam): Promise<void> {
   })
   if (!saison) return
 
+  // Une seule lecture : épreuves, engagements, inscriptions et résultats. Seules les lignes qui
+  // changent sont écrites, si bien qu'une ouverture du QG sans changement ne fait que lire.
   const epreuves = await client.coreEvent.findMany({
     where: { teamId: ctx.teamId, seasonId: saison.id, deletedAt: null },
-    select: { id: true, statut: true, dateDebut: true, dateFin: true, entries: { where: { deletedAt: null }, select: { id: true } } },
+    select: {
+      id: true,
+      statut: true,
+      dateDebut: true,
+      dateFin: true,
+      entries: {
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          statut: true,
+          kmChronometres: true,
+          causeAbandon: true,
+          saisonRegistration: { select: { dossierEnvoyeLe: true, payeLe: true } },
+          saisonResult: { select: { statutFinal: true, validation: true, kmChronometres: true, causeAbandon: true } },
+        },
+      },
+    },
     orderBy: [{ dateDebut: "asc" }, { id: "asc" }],
   })
 
@@ -705,7 +733,14 @@ export async function recalculerDans(ctx: ContexteTeam): Promise<void> {
 
     const engagements: StatutEngagement[] = []
     for (const entree of epreuve.entries) {
-      engagements.push(await synchroniserEntree(ctx, entree.id))
+      const cible = calculerEngagement(entree, epreuve.dateDebut, maintenant)
+      if (cible.statut !== entree.statut || cible.km !== (entree.kmChronometres?.toString() ?? null) || cible.cause !== entree.causeAbandon) {
+        await client.coreEventEntry.updateMany({
+          where: { id: entree.id, teamId: ctx.teamId },
+          data: { statut: cible.statut, kmChronometres: cible.kmDecimal, causeAbandon: cible.cause, rev: { increment: 1 }, updatedBy: ctx.userId },
+        })
+      }
+      engagements.push(cible.statut)
     }
     calculees.push({ id: epreuve.id, statut, dateDebut: epreuve.dateDebut, dateFin: epreuve.dateFin, engagements })
   }
@@ -724,37 +759,230 @@ export async function recalculerDans(ctx: ContexteTeam): Promise<void> {
   }
 }
 
-// Recalcule le statut d'un engagement à partir de son inscription et de son résultat, et l'écrit
-// s'il a changé. Renvoie le statut courant. Le kilométrage et la cause d'abandon de l'engagement
-// suivent le résultat validé (ils sont vides sans résultat validé).
+// Statut, kilométrage et cause d'un engagement à partir de son inscription et de son résultat.
+// Le kilométrage et la cause suivent le résultat validé : ils sont vides sans résultat validé.
+function calculerEngagement(
+  entree: {
+    statut: string
+    kmChronometres: Prisma.Decimal | null
+    causeAbandon: string | null
+    saisonRegistration: { dossierEnvoyeLe: Date | null; payeLe: Date | null } | null
+    saisonResult: { statutFinal: string; validation: string; kmChronometres: Prisma.Decimal | null; causeAbandon: string | null } | null
+  },
+  dateDebut: Date,
+  maintenant: Date,
+): { statut: StatutEngagement; km: string | null; kmDecimal: Prisma.Decimal | null; cause: string | null } {
+  const reg = entree.saisonRegistration
+  const res = entree.saisonResult
+  const statut = statutEngagement(
+    {
+      dossierEnvoyeLe: reg?.dossierEnvoyeLe ?? null,
+      payeLe: reg?.payeLe ?? null,
+      dateDebutEpreuve: dateDebut,
+      resultat: res ? { statutFinal: res.statutFinal as StatutResultat, validation: res.validation as ValidationResultat } : null,
+    },
+    maintenant,
+  )
+  const valide = res?.validation === "valide"
+  const kmDecimal = valide && res ? res.kmChronometres : null
+  const cause = valide && res ? causeAbandonEngagement({ statutFinal: res.statutFinal as StatutResultat, causeAbandon: res.causeAbandon }) : null
+  return { statut, km: kmDecimal?.toString() ?? null, kmDecimal, cause }
+}
+
+// Recalcule le statut d'un engagement et l'écrit s'il a changé (appelée après une écriture ciblée).
 async function synchroniserEntree(ctx: ContexteTeam, entryId: string): Promise<StatutEngagement> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const engagement = await client.coreEventEntry.findFirst({
     where: { id: entryId, teamId: ctx.teamId, deletedAt: null },
-    include: { event: { select: { dateDebut: true } }, saisonRegistration: true, saisonResult: true },
+    include: {
+      event: { select: { dateDebut: true } },
+      saisonRegistration: { select: { dossierEnvoyeLe: true, payeLe: true } },
+      saisonResult: { select: { statutFinal: true, validation: true, kmChronometres: true, causeAbandon: true } },
+    },
   })
   if (!engagement) refus("Engagement introuvable dans cette team.")
 
-  const reg = engagement.saisonRegistration
-  const res = engagement.saisonResult
-  const entreeStatut: EntreeStatut = {
-    dossierEnvoyeLe: reg?.dossierEnvoyeLe ?? null,
-    payeLe: reg?.payeLe ?? null,
-    dateDebutEpreuve: engagement.event.dateDebut,
-    resultat: res ? { statutFinal: res.statutFinal as StatutResultat, validation: res.validation as ValidationResultat } : null,
-  }
-  const statut = statutEngagement(entreeStatut, new Date())
-  const valide = res?.validation === "valide"
-  const kmVoulu = valide ? res.kmChronometres : null
-  const causeVoulue = valide && res ? causeAbandonEngagement({ statutFinal: res.statutFinal as StatutResultat, causeAbandon: res.causeAbandon }) : null
-
-  const kmActuel = engagement.kmChronometres?.toString() ?? null
-  const kmSouhaite = kmVoulu?.toString() ?? null
-  if (statut !== engagement.statut || kmActuel !== kmSouhaite || engagement.causeAbandon !== causeVoulue) {
+  const cible = calculerEngagement(engagement, engagement.event.dateDebut, new Date())
+  if (cible.statut !== engagement.statut || cible.km !== (engagement.kmChronometres?.toString() ?? null) || cible.cause !== engagement.causeAbandon) {
     await client.coreEventEntry.updateMany({
       where: { id: entryId, teamId: ctx.teamId },
-      data: { statut, kmChronometres: kmVoulu, causeAbandon: causeVoulue, rev: { increment: 1 }, updatedBy: ctx.userId },
+      data: { statut: cible.statut, kmChronometres: cible.kmDecimal, causeAbandon: cible.cause, rev: { increment: 1 }, updatedBy: ctx.userId },
     })
   }
-  return statut
+  return cible.statut
+}
+
+// --- Fiche épreuve, spéciales, programme, inscription (tâche 2.2) ---------------------------
+
+const schemaInfos = z
+  .object({
+    championnat: z.string().trim().max(200).nullable().optional(),
+    lienResultats: z.string().trim().max(500).nullable().optional(),
+    lienOfficiel: z.string().trim().max(500).nullable().optional(),
+    lieu: z.string().trim().max(200).nullable().optional(),
+    departement: z.string().trim().max(3).nullable().optional(),
+    engagementsOuverture: dateCivile.nullable().optional(),
+    engagementsCloture: dateCivile.nullable().optional(),
+    tarifNormal: z.number().int().min(0).nullable().optional(),
+    tarifLicencieAsa: z.number().int().min(0).nullable().optional(),
+    geolocalisationIncluse: z.boolean().optional(),
+    nbSpeciales: z.number().int().min(0).nullable().optional(),
+    kmChronometresPrevus: z.number().min(0).max(99999.9).nullable().optional(),
+    kmTotal: z.number().min(0).max(99999.9).nullable().optional(),
+    lieuParcAssistance: z.string().trim().max(300).nullable().optional(),
+    adresseEnvoiDossier: z.string().trim().max(500).nullable().optional(),
+  })
+  .strict()
+
+export type EntreeInfos = z.input<typeof schemaInfos>
+
+export async function modifierInfosEpreuve(eventId: string, entree: EntreeInfos): Promise<void> {
+  const { ctx } = await accesSaison("ecriture")
+  return modifierInfosEpreuveDans(ctx, eventId, entree)
+}
+
+export async function modifierInfosEpreuveDans(ctx: ContexteTeam, eventId: string, entree: EntreeInfos): Promise<void> {
+  const donnees = schemaInfos.parse(entree)
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const epreuve = await client.coreEvent.findFirst({ where: { id: eventId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!epreuve) refus("Épreuve introuvable dans cette team.")
+
+  const { lienOfficiel, lieu, departement, ...infos } = donnees
+  await client.coreEvent.updateMany({
+    where: { id: eventId, teamId: ctx.teamId },
+    data: {
+      ...(lienOfficiel !== undefined ? { lienOfficiel: lienOfficiel || null } : {}),
+      ...(lieu !== undefined ? { lieu: lieu || null } : {}),
+      ...(departement !== undefined ? { departement: departement || null } : {}),
+      rev: { increment: 1 },
+      updatedBy: ctx.userId,
+    },
+  })
+  await client.saisonEventInfo.upsert({
+    where: { eventId },
+    create: { id: newId(), teamId: ctx.teamId, eventId, ...infos, createdBy: ctx.userId, updatedBy: ctx.userId },
+    update: { ...infos, rev: { increment: 1 }, updatedBy: ctx.userId },
+  })
+}
+
+const schemaSpeciale = z
+  .object({
+    numero: z.number().int().min(1, "Le numéro de spéciale commence à 1."),
+    nom: z.string().trim().min(1, "Le nom de la spéciale est vide.").max(200),
+    longueurKm: z.number().min(0).max(999.99).nullable().optional(),
+    nbPassages: z.number().int().min(1).nullable().optional(),
+    type: z.enum(["speciale", "manche_slalom", "montee"]),
+  })
+  .strict()
+
+export type EntreeSpeciale = z.input<typeof schemaSpeciale>
+
+export async function ajouterSpeciale(eventId: string, entree: EntreeSpeciale): Promise<void> {
+  const { ctx } = await accesSaison("ecriture")
+  const donnees = schemaSpeciale.parse(entree)
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const epreuve = await client.coreEvent.findFirst({ where: { id: eventId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!epreuve) refus("Épreuve introuvable dans cette team.")
+  const doublon = await client.saisonStage.findFirst({ where: { eventId, numero: donnees.numero, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (doublon) refus(`La spéciale n° ${donnees.numero} existe déjà sur cette épreuve.`)
+  await client.saisonStage.create({
+    data: { id: newId(), teamId: ctx.teamId, eventId, ...donnees, createdBy: ctx.userId, updatedBy: ctx.userId },
+  })
+}
+
+const schemaProgramme = z
+  .object({
+    type: z.enum(["verif_administratives", "verif_techniques", "shakedown", "depart", "passage_speciale", "regroupement", "assistance", "arrivee", "remise_des_prix"]),
+    stageId: z.string().uuid().nullable().optional(),
+    numeroPassage: z.number().int().min(1).nullable().optional(),
+    heurePrevue: z.string().datetime().nullable().optional(),
+    lieu: z.string().trim().max(200).nullable().optional(),
+  })
+  .strict()
+
+export type EntreeProgramme = z.input<typeof schemaProgramme>
+
+export async function ajouterProgramme(eventId: string, entree: EntreeProgramme): Promise<void> {
+  const { ctx } = await accesSaison("ecriture")
+  const donnees = schemaProgramme.parse(entree)
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const epreuve = await client.coreEvent.findFirst({ where: { id: eventId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!epreuve) refus("Épreuve introuvable dans cette team.")
+  if (donnees.stageId) {
+    const stage = await client.saisonStage.findFirst({ where: { id: donnees.stageId, eventId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+    if (!stage) refus("La spéciale n'appartient pas à cette épreuve.")
+  }
+  await client.saisonScheduleItem.create({
+    data: {
+      id: newId(),
+      teamId: ctx.teamId,
+      eventId,
+      type: donnees.type,
+      stageId: donnees.stageId ?? null,
+      numeroPassage: donnees.numeroPassage ?? null,
+      heurePrevue: donnees.heurePrevue ? new Date(donnees.heurePrevue) : null,
+      lieu: donnees.lieu || null,
+      createdBy: ctx.userId,
+      updatedBy: ctx.userId,
+    },
+  })
+}
+
+const schemaInscription = z
+  .object({
+    concurrentNom: z.string().trim().max(200).nullable().optional(),
+    montantDu: z.number().int().min(0).nullable().optional(),
+    dossierEnvoyeLe: z.string().datetime().nullable().optional(),
+    confirmationRecueLe: z.string().datetime().nullable().optional(),
+    listeEngagesPubliee: z.boolean().optional(),
+    remarques: z.string().trim().max(2000).nullable().optional(),
+    numeroCourse: z.string().trim().max(20).nullable().optional(),
+    groupe: z.string().trim().max(40).nullable().optional(),
+    classe: z.string().trim().max(40).nullable().optional(),
+  })
+  .strict()
+
+export type EntreeInscription = z.input<typeof schemaInscription>
+
+// Met à jour l'inscription et les champs de fiche de l'engagement, puis recalcule son statut.
+export async function modifierInscription(entryId: string, entree: EntreeInscription): Promise<void> {
+  const { ctx } = await accesSaison("ecriture")
+  return modifierInscriptionDans(ctx, entryId, entree)
+}
+
+export async function modifierInscriptionDans(ctx: ContexteTeam, entryId: string, entree: EntreeInscription): Promise<void> {
+  const donnees = schemaInscription.parse(entree)
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const engagement = await client.coreEventEntry.findFirst({ where: { id: entryId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!engagement) refus("Engagement introuvable dans cette team.")
+
+  const { numeroCourse, groupe, classe, dossierEnvoyeLe, confirmationRecueLe, ...inscription } = donnees
+  await client.coreEventEntry.updateMany({
+    where: { id: entryId, teamId: ctx.teamId },
+    data: {
+      ...(numeroCourse !== undefined ? { numeroCourse: numeroCourse || null } : {}),
+      ...(groupe !== undefined ? { groupe: groupe || null } : {}),
+      ...(classe !== undefined ? { classe: classe || null } : {}),
+      rev: { increment: 1 },
+      updatedBy: ctx.userId,
+    },
+  })
+  await client.saisonRegistration.updateMany({
+    where: { entryId, teamId: ctx.teamId },
+    data: {
+      ...inscription,
+      ...(dossierEnvoyeLe !== undefined ? { dossierEnvoyeLe: dossierEnvoyeLe ? new Date(dossierEnvoyeLe) : null } : {}),
+      ...(confirmationRecueLe !== undefined ? { confirmationRecueLe: confirmationRecueLe ? new Date(confirmationRecueLe) : null } : {}),
+      rev: { increment: 1 },
+      updatedBy: ctx.userId,
+    },
+  })
+  await synchroniserEntree(ctx, entryId)
+  await recalculerDans(ctx)
+}
+
+// Recalcul à l'ouverture du QG : sans effet si le membre n'a pas de niveau sur Saison.
+export async function recalculerPourQg(ctx: ContexteTeam, niveau: Niveau): Promise<void> {
+  if (niveau === "aucun") return
+  await recalculerDans(ctx)
 }

@@ -7,18 +7,24 @@ describe("menu « + » selon le rôle", () => {
     expect(entreesDuMenuPlus("invite", false)).toEqual([])
   })
 
-  it("offre Photo et Note à l'assistance", () => {
+  it("offre Photo et Note à l'assistance, sans Épreuve", () => {
     expect(entreesDuMenuPlus("assistance", false).map((e) => e.libelle)).toEqual(["Photo", "Note"])
   })
 
-  it("offre tout au responsable : Dépense et Photo désactivées avec leur raison, Note active", () => {
+  it("offre tout au responsable : Épreuve active, Dépense et Photo désactivées avec leur raison, Note active", () => {
     const entrees = entreesDuMenuPlus("responsable", false)
-    expect(entrees.map((e) => e.libelle)).toEqual(["Dépense", "Photo", "Note"])
+    expect(entrees.map((e) => e.libelle)).toEqual(["Épreuve", "Dépense", "Photo", "Note"])
     expect(entrees.filter((e) => e.desactivee).every((e) => e.raison)).toBe(true)
     expect(entrees.find((e) => e.libelle === "Note")).toEqual({ libelle: "Note", desactivee: false, href: "/notes?nouvelle=1" })
+    expect(entrees.find((e) => e.libelle === "Épreuve")).toEqual({ libelle: "Épreuve", desactivee: false, href: "/apps/saison/nouvelle" })
   })
 
-  it("réduit aux entrées de terrain en mode terrain", () => {
+  it("ouvre Épreuve à l'équipage, comme au responsable", () => {
+    expect(entreesDuMenuPlus("equipage", false).map((e) => e.libelle)).toContain("Épreuve")
+  })
+
+  it("réduit aux entrées de terrain en mode terrain, sans Épreuve", () => {
     expect(entreesDuMenuPlus("responsable", true).map((e) => e.libelle)).toEqual(["Photo", "Note"])
+    expect(entreesDuMenuPlus("equipage", true).map((e) => e.libelle)).toEqual(["Photo", "Note"])
   })
 })

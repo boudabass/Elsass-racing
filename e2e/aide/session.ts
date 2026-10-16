@@ -246,3 +246,24 @@ export async function supprimerEquipe(equipe: Equipe): Promise<void> {
     client.release()
   }
 }
+
+// Saison : une saison de test pour l'année donnée, et une voiture de course active pour la team.
+export async function preparerSaison(equipe: Equipe, annee: number): Promise<string> {
+  const id = newId()
+  await bd().query(
+    `INSERT INTO core_season (id, team_id, annee, nom, date_debut, date_fin, en_cours, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, true, now())`,
+    [id, equipe.teamId, annee, `Saison ${annee}`, `${annee}-01-01`, `${annee}-12-31`],
+  )
+  return id
+}
+
+export async function ajouterVoitureDeCourse(equipe: Equipe, nomCourt = "Saxo test e2e"): Promise<string> {
+  const id = newId()
+  await bd().query(
+    `INSERT INTO core_vehicle (id, team_id, type, nom_court, actif, updated_at)
+     VALUES ($1, $2, 'course'::core_vehicle_type, $3, true, now())`,
+    [id, equipe.teamId, nomCourt],
+  )
+  return id
+}
