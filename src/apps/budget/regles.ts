@@ -101,10 +101,11 @@ export function franchissementPrevisionnel(prevu: number | null, totalAvant: num
   return totalAvant <= prevu && totalApres > prevu
 }
 
-// Contribution : sans écriture, on ne lit que ses propres dépenses (celles dont le payeur est sa personne).
-// Au-delà de la contribution (écriture, gestion), tout est lisible.
+// Visibilité : la lecture voit tous les mouvements, sans rien écrire. Seule la contribution se limite à
+// ses propres dépenses (celles dont le payeur est sa personne) et à son solde.
+// (La contribution est au-dessus de la lecture dans la hiérarchie : elle est donc exclue explicitement.)
 export function voitTout(niveau: Niveau): boolean {
-  return aAuMoins(niveau, "ecriture")
+  return niveau === "lecture" || aAuMoins(niveau, "ecriture")
 }
 
 export function depensesVisibles<T extends { personneId: string | null }>(depenses: readonly T[], niveau: Niveau, personneId: string | null): T[] {

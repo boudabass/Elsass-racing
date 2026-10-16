@@ -142,10 +142,14 @@ describe("visibilité en contribution", () => {
     { id: "b", personneId: AUTRE },
   ]
 
-  it("sans écriture : seulement ses propres dépenses", () => {
+  it("en contribution : seulement ses propres dépenses", () => {
     expect(depensesVisibles(depenses, "contribution", MOI).map((depense) => depense.id)).toEqual(["a"])
-    expect(depensesVisibles(depenses, "lecture", MOI).map((depense) => depense.id)).toEqual(["a"])
     expect(depensesVisibles(depenses, "contribution", null)).toEqual([])
+  })
+
+  it("la lecture voit tous les mouvements, sans rien écrire", () => {
+    expect(depensesVisibles(depenses, "lecture", MOI)).toHaveLength(2)
+    expect(depensesVisibles(depenses, "lecture", null)).toHaveLength(2)
   })
 
   it("à partir de l'écriture : tout est lisible", () => {

@@ -32,10 +32,19 @@ import {
 
 export async function accesBudget(requis: Niveau): Promise<{ ctx: ContexteTeam; niveau: Niveau }> {
   const { session, team, membership, niveau } = await exigerAcces("budget", requis)
-  return {
-    ctx: { teamId: team.id, userId: session.userId, membership: { id: membership.id, role: membership.role } },
-    niveau,
-  }
+  const ctx = { teamId: team.id, userId: session.userId, membership: { id: membership.id, role: membership.role } }
+  await initialiserSiBesoin(ctx)
+  return { ctx, niveau }
+}
+
+// Budget s'initialise à la volée, au premier accès d'une team : catégories et caisse. Sans caisse, rien
+// n'a encore été créé : l'initialisation complète (idempotente) est lancée.
+export async function initialiserSiBesoin(ctx: ContexteTeam): Promise<void> {
+  const caisse = await prismaPourTeam(ctx.teamId, ctx.userId).budgetPayer.findFirst({
+    where: { teamId: ctx.teamId, type: "caisse_team", deletedAt: null },
+    select: { id: true },
+  })
+  if (!caisse) await initialiserBudgetDans(ctx)
 }
 
 // Refus métier : le message est en français et s'affiche tel quel.
@@ -559,6 +568,8 @@ export async function definirPrevisionnelDans(ctx: ContexteTeam, entree: EntreeP
 // Usage interne des gestionnaires d'événements : crée la suggestion et demande sa confirmation.
 export async function proposerMouvementDans(ctx: ContexteTeam, entree: EntreeSuggestion): Promise<string> {
   const donnees = schemaSuggestion.parse(entree)
+  // Une autre app peut proposer un mouvement avant que Budget n'ait été ouvert : on l'initialise d'abord.
+  await initialiserSiBesoin(ctx)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const categorie = await client.budgetCategory.findFirst({
     where: { id: donnees.categoryId, teamId: ctx.teamId, sens: donnees.sens, active: true, deletedAt: null },
