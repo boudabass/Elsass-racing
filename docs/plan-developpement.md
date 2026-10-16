@@ -174,10 +174,11 @@ Spécifications : articles Odoo 949 (Saison v1.3) et 950 (Budget v1.1), catalogu
 - 8 tables `budget_`, catégories et payeurs par défaut, soldes par membre, remboursements, prévisionnel, propositions venues des autres apps.
 
 ### 2.6 Budget, écrans
-- Brief : `docs/briefs/2.6-budget-ecrans.md` (commence par l'enregistrement des gestionnaires en un seul point).
+- Brief : `docs/briefs/2.6-budget-ecrans.md`. Fait le 17/10 (05ce4b6 à efccf38), relu et accepté.
 - Mouvements, bouton + « Nouvelle dépense » en 3 champs avec photo du ticket, À confirmer, par épreuve, par membre, prévisionnel, export tableur. Contribution de l'assistance limitée à ses dépenses et à son solde. Le PDF de bilan de saison attend l'outil PDF du lot 3.
 
 ### 2.7 Liaisons Saison et Budget
+- Brief : `docs/briefs/2.7-liaisons-saison-budget.md`. Fin du lot 2.
 - `saison.engagement_paye` vers une dépense proposée, `budget.depense_creee` (catégorie engagement) vers « marquer payé », solde de la barre haute, widgets Budget, dépenses saisies hors ligne en épreuve.
 
 ## 6. Méthode de travail
