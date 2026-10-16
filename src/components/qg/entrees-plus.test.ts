@@ -8,13 +8,14 @@ describe("menu « + » selon le rôle", () => {
   })
 
   it("offre Photo et Note à l'assistance, sans Épreuve", () => {
-    expect(entreesDuMenuPlus("assistance", false).map((e) => e.libelle)).toEqual(["Photo", "Note"])
+    expect(entreesDuMenuPlus("assistance", false).map((e) => e.libelle)).toEqual(["Dépense", "Photo", "Note"])
   })
 
-  it("offre tout au responsable : Épreuve active, Dépense et Photo désactivées avec leur raison, Note active", () => {
+  it("offre tout au responsable : Épreuve et Dépense actives, Photo désactivée avec sa raison, Note active", () => {
     const entrees = entreesDuMenuPlus("responsable", false)
     expect(entrees.map((e) => e.libelle)).toEqual(["Épreuve", "Dépense", "Photo", "Note"])
     expect(entrees.filter((e) => e.desactivee).every((e) => e.raison)).toBe(true)
+    expect(entrees.find((e) => e.libelle === "Dépense")).toEqual({ libelle: "Dépense", desactivee: false, href: "/apps/budget/nouvelle" })
     expect(entrees.find((e) => e.libelle === "Note")).toEqual({ libelle: "Note", desactivee: false, href: "/notes?nouvelle=1" })
     expect(entrees.find((e) => e.libelle === "Épreuve")).toEqual({ libelle: "Épreuve", desactivee: false, href: "/apps/saison/nouvelle" })
   })
@@ -24,7 +25,7 @@ describe("menu « + » selon le rôle", () => {
   })
 
   it("réduit aux entrées de terrain en mode terrain, sans Épreuve", () => {
-    expect(entreesDuMenuPlus("responsable", true).map((e) => e.libelle)).toEqual(["Photo", "Note"])
-    expect(entreesDuMenuPlus("equipage", true).map((e) => e.libelle)).toEqual(["Photo", "Note"])
+    expect(entreesDuMenuPlus("responsable", true).map((e) => e.libelle)).toEqual(["Dépense", "Photo", "Note"])
+    expect(entreesDuMenuPlus("equipage", true).map((e) => e.libelle)).toEqual(["Dépense", "Photo", "Note"])
   })
 })

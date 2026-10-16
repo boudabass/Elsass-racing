@@ -9,11 +9,12 @@ export function entreesDuMenuPlus(role: string, terrain: boolean): EntreePlus[] 
 
   const photo: EntreePlus = { libelle: "Photo", desactivee: true, raison: "Bientôt, avec l'app Médias" }
   const note: EntreePlus = { libelle: "Note", desactivee: false, href: "/notes?nouvelle=1" }
-  const depense: EntreePlus = { libelle: "Dépense", desactivee: true, raison: "Bientôt, avec l'app Budget" }
+  const depense: EntreePlus = { libelle: "Dépense", desactivee: false, href: "/apps/budget/nouvelle" }
   const epreuve: EntreePlus = { libelle: "Épreuve", desactivee: false, href: "/apps/saison/nouvelle" }
 
-  if (terrain) return [photo, note]
-  if (role === "assistance") return [photo, note]
+  // La dépense est ouverte à tous ceux qui ont la contribution (assistance comprise), y compris en terrain.
+  if (terrain) return [depense, photo, note]
+  if (role === "assistance") return [depense, photo, note]
   if (role === "equipage" || role === "responsable") return [epreuve, depense, photo, note]
   return [depense, photo, note]
 }
