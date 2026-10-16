@@ -1,7 +1,9 @@
 // Données réelles de la team Koehling Racing : véhicule, pilotes, saison 2026, épreuves
 // et engagements. Idempotent : chaque ligne est retrouvée par son nom avant d'être créée.
 // Refuse si la team n'existe pas (créer la team avant avec pnpm team:creer).
-// Usage : pnpm donnees:koehling
+// Usage : pnpm donnees:koehling [--slug <slug>]   (défaut : koehling-racing-team)
+// Exemple, team de test de production :
+//   pnpm donnees:koehling --slug the-elsassisch-racing-team
 //
 // Écrit avec le rôle propriétaire (DATABASE_URL_MIGRATION) : ce sont des données de
 // team saisies hors contexte utilisateur. Le contenu est dans scripts/lib/donnees-koehling.ts.
@@ -23,10 +25,18 @@ if (!url) {
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
 
+// Slug passé après --slug, sinon celui de la team Koehling.
+function lireSlug(): string {
+  const index = process.argv.indexOf("--slug")
+  const valeur = index >= 0 ? process.argv[index + 1] : undefined
+  return valeur && valeur.trim() !== "" ? valeur.trim() : SLUG_KOEHLING
+}
+
 async function main() {
-  const team = await prisma.coreTeam.findUnique({ where: { slug: SLUG_KOEHLING } })
+  const slug = lireSlug()
+  const team = await prisma.coreTeam.findUnique({ where: { slug } })
   if (!team) {
-    console.error(`La team « ${SLUG_KOEHLING} » n'existe pas. Lancer d'abord : pnpm team:creer ...`)
+    console.error(`La team « ${slug} » n'existe pas. Lancer d'abord : pnpm team:creer ...`)
     process.exit(1)
   }
 

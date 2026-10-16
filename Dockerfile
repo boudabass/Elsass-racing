@@ -28,7 +28,8 @@ RUN DATABASE_URL=postgresql://construction:construction@localhost:5432/construct
 # Étape 2 : image de production.
 FROM node:22-alpine
 
-RUN apk add --no-cache ca-certificates
+# curl : le health check de Coolify l'exige (wget de busybox tente localhost en IPv6, Next écoute en IPv4).
+RUN apk add --no-cache ca-certificates curl
 
 ENV NODE_ENV=production
 ENV PORT=3000

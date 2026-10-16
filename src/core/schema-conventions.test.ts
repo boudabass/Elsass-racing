@@ -5,10 +5,12 @@ import { describe, expect, it } from "vitest"
 
 import { verifierConventions } from "./schema-conventions"
 
+// Fins de ligne normalisées : le schéma est commité en CRLF, et la regex du dernier test
+// ne traverse pas un \r.
 const schema = readFileSync(
   fileURLToPath(new URL("../../prisma/schema.prisma", import.meta.url)),
   "utf8",
-)
+).replace(/\r\n/g, "\n")
 
 describe("conventions de prisma/schema.prisma", () => {
   it("le schéma réel respecte toutes les conventions", () => {
