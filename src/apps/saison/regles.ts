@@ -54,21 +54,30 @@ export interface EntreeStatut {
 
 // Le statut avance avec les informations saisies et recule quand elles sont retirées : il est
 // recalculé à partir de l'état, jamais cumulé. Un résultat non validé ne change rien.
-// Exclusion : l'équipage est arrivé, la sanction est une décision de classement ; le statut est arrivee.
+// Exclusion validée : le statut est abandon (cause « Exclusion » à défaut, cf. causeAbandonEngagement),
+// sans saison.abandon_declare : ce n'est pas une casse.
+// Un engagement sans dossier ni paiement reste envisagé, même le jour de l'épreuve.
 export function statutEngagement(entree: EntreeStatut, aujourdhui: Date): StatutEngagement {
   if (entree.resultat?.validation === "valide") {
     const correspondance: Record<StatutResultat, StatutEngagement> = {
       arrivee: "arrivee",
-      exclusion: "arrivee",
+      exclusion: "abandon",
       abandon: "abandon",
       forfait: "forfait",
     }
     return correspondance[entree.resultat.statutFinal]
   }
+  if (!entree.dossierEnvoyeLe && !entree.payeLe) return "envisage"
   if (jourCivil(entree.dateDebutEpreuve) <= jourDeParis(aujourdhui)) return "parti"
   if (entree.payeLe) return "paye"
   if (entree.dossierEnvoyeLe) return "inscrit"
   return "envisage"
+}
+
+// Cause d'abandon affichée sur l'engagement : une exclusion sans cause saisie devient « Exclusion ».
+export function causeAbandonEngagement(resultat: { statutFinal: StatutResultat; causeAbandon: string | null }): string | null {
+  if (resultat.statutFinal !== "exclusion") return resultat.causeAbandon
+  return resultat.causeAbandon?.trim() || "Exclusion"
 }
 
 // --- 2. Statut d'une épreuve ---------------------------------------------------------------
@@ -222,7 +231,7 @@ export function clotureProposee(epreuves: readonly EpreuvePourCloture[]): boolea
 
 // Champs retirés des lectures quand le niveau effectif est « lecture » (l'assistance voit Saison,
 // jamais les montants ni les moyens de paiement).
-export const CHAMPS_MONTANTS = ["montantDu", "tarifNormal", "tarifLicencieAsa", "modePaiement", "reference"] as const
+export const CHAMPS_MONTANTS = ["montantDu", "montantPaye", "tarifNormal", "tarifLicencieAsa", "modePaiement", "reference"] as const
 
 export function masquerMontants<T extends object>(ligne: T, niveau: Niveau): Omit<T, (typeof CHAMPS_MONTANTS)[number]> {
   if (niveau !== "lecture") return ligne as Omit<T, (typeof CHAMPS_MONTANTS)[number]>

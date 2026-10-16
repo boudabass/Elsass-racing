@@ -181,7 +181,7 @@ async function main() {
     const evenementPaye = await proprietaire.coreDomainEvent.findFirst({
       where: { teamId: team.id, nom: "saison.engagement_paye" },
       orderBy: { createdAt: "desc" },
-      select: { id: true },
+      select: { id: true, donnees: true },
     })
     const livraisonsPaiement = await proprietaire.coreEventDelivery.findMany({
       where: { domainEventId: evenementPaye?.id },
@@ -189,6 +189,8 @@ async function main() {
     })
     const destinatairesPaye = livraisonsPaiement.map((livraison) => livraison.appDestinataire).sort().join(",")
     controle("saison.engagement_paye est livré à budget, et à budget seul", destinatairesPaye === "budget", destinatairesPaye)
+    const montantPayeEmis = (evenementPaye?.donnees as { montant_paye?: number } | null)?.montant_paye
+    controle("saison.engagement_paye porte montant_paye (4500)", montantPayeEmis === 4500, String(montantPayeEmis))
 
     const pointApres = await proprietaire.saisonReadiness.findFirst({ where: { entryId, point: "paiement" } })
     controle("le paiement passe le point paiement à réglé", pointApres?.statut === "regle")

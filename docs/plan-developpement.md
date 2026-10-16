@@ -62,7 +62,7 @@ Ordre des lots fixé par le cahier des charges, section 10. Chaque lot est défi
 | 4 Garage | carnet, pièces d'usure, stock, pneus, casses | 1, 2 |
 | 5 Équipe, Documents, Check-lists | licences, homologations, coffre-fort, listes, bulletins | 1, 2 |
 | 6 Médias et Tableau de bord | galerie, dossier de partenariat automatique, widgets, objectifs, trophées | tout |
-| 7 Ouverture | autres teams, apps futures (Chrono en premier) | tout |
+| 7 Ouverture | autres teams, apps futures (Chrono en premier, puis une app interne qui récupère et affiche les résultats officiels, demandée par John le 16/10) | tout |
 
 ## 5. Lot 1, le socle, découpé en tâches opérateur
 

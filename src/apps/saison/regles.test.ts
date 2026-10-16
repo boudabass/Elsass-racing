@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  causeAbandonEngagement,
   clotureProposee,
   indicePreparation,
   jourDeParis,
@@ -48,10 +49,15 @@ describe("statutEngagement", () => {
     expect(statutEngagement(entree, midi("2026-10-16"))).toBe("paye")
   })
 
-  it("le jour même de l'épreuve, l'engagement est parti, payé ou non", () => {
+  it("le jour même de l'épreuve, un engagement inscrit ou payé est parti", () => {
     const aujourdhui = midi("2026-11-11")
-    expect(statutEngagement(SANS_INFO, aujourdhui)).toBe("parti")
+    expect(statutEngagement({ ...SANS_INFO, dossierEnvoyeLe: midi("2026-10-01") }, aujourdhui)).toBe("parti")
     expect(statutEngagement({ ...SANS_INFO, payeLe: jour("2026-11-01") }, aujourdhui)).toBe("parti")
+  })
+
+  it("un engagement jamais inscrit ni payé reste envisagé le jour de l'épreuve", () => {
+    expect(statutEngagement(SANS_INFO, midi("2026-11-11"))).toBe("envisage")
+    expect(statutEngagement({ ...SANS_INFO, dateDebutEpreuve: jour("2026-10-10") }, midi("2026-10-16"))).toBe("envisage")
   })
 
   it("la veille de l'épreuve, un engagement payé reste payé", () => {
@@ -60,20 +66,27 @@ describe("statutEngagement", () => {
   })
 
   it("un résultat validé donne arrivee, abandon ou forfait", () => {
-    const base = { ...SANS_INFO, dateDebutEpreuve: jour("2026-10-10") }
+    const base = { ...SANS_INFO, dateDebutEpreuve: jour("2026-10-10"), dossierEnvoyeLe: midi("2026-10-01") }
     const valide = (statutFinal: "arrivee" | "abandon" | "forfait") => ({ ...base, resultat: { statutFinal, validation: "valide" as const } })
     expect(statutEngagement(valide("arrivee"), midi("2026-10-16"))).toBe("arrivee")
     expect(statutEngagement(valide("abandon"), midi("2026-10-16"))).toBe("abandon")
     expect(statutEngagement(valide("forfait"), midi("2026-10-16"))).toBe("forfait")
   })
 
-  it("une exclusion validée reste arrivee : la sanction est une décision de classement", () => {
-    const entree = { ...SANS_INFO, resultat: { statutFinal: "exclusion" as const, validation: "valide" as const } }
-    expect(statutEngagement(entree, midi("2026-11-12"))).toBe("arrivee")
+  it("une exclusion validée donne abandon, sans saison.abandon_declare (cf. services)", () => {
+    const entree = { ...SANS_INFO, dossierEnvoyeLe: midi("2026-10-01"), resultat: { statutFinal: "exclusion" as const, validation: "valide" as const } }
+    expect(statutEngagement(entree, midi("2026-11-12"))).toBe("abandon")
+  })
+
+  it("la cause d'une exclusion sans cause saisie est « Exclusion »", () => {
+    expect(causeAbandonEngagement({ statutFinal: "exclusion", causeAbandon: null })).toBe("Exclusion")
+    expect(causeAbandonEngagement({ statutFinal: "exclusion", causeAbandon: "  " })).toBe("Exclusion")
+    expect(causeAbandonEngagement({ statutFinal: "exclusion", causeAbandon: "Drapeau noir" })).toBe("Drapeau noir")
+    expect(causeAbandonEngagement({ statutFinal: "abandon", causeAbandon: null })).toBeNull()
   })
 
   it("un résultat non validé ne change pas le statut", () => {
-    const entree = { ...SANS_INFO, dateDebutEpreuve: jour("2026-10-10"), resultat: { statutFinal: "abandon" as const, validation: "a_verifier" as const } }
+    const entree = { ...SANS_INFO, dateDebutEpreuve: jour("2026-10-10"), dossierEnvoyeLe: midi("2026-10-01"), resultat: { statutFinal: "abandon" as const, validation: "a_verifier" as const } }
     expect(statutEngagement(entree, midi("2026-10-16"))).toBe("parti")
   })
 
@@ -279,12 +292,13 @@ describe("clotureProposee", () => {
 })
 
 describe("masquerMontants", () => {
-  const registration = { id: "r1", montantDu: 4500, tarifNormal: 3000, tarifLicencieAsa: 2500, modePaiement: "virement", reference: "REF-1", remarques: "ok" }
+  const registration = { id: "r1", montantDu: 4500, montantPaye: 4500, tarifNormal: 3000, tarifLicencieAsa: 2500, modePaiement: "virement", reference: "REF-1", remarques: "ok" }
 
   it("l'assistance (lecture) ne voit ni montants, ni mode, ni référence", () => {
     const vue = masquerMontants(registration, "lecture")
     expect(vue).toEqual({ id: "r1", remarques: "ok" })
     expect("montantDu" in vue).toBe(false)
+    expect("montantPaye" in vue).toBe(false)
     expect("modePaiement" in vue).toBe(false)
   })
 

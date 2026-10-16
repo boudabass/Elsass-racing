@@ -16,6 +16,7 @@ import { newId } from "@/core/ids"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 
 import {
+  causeAbandonEngagement,
   masquerMontants,
   prochaineEpreuve,
   statutEngagement,
@@ -298,7 +299,7 @@ export async function enregistrerPaiementDans(ctx: ContexteTeam, entryId: string
         payeLe: donnees.payeLe,
         modePaiement: donnees.mode,
         payeurPersonId: donnees.payeurPersonId ?? null,
-        montantDu: donnees.montant,
+        montantPaye: donnees.montant,
         devise: donnees.devise,
         rev: { increment: 1 },
         updatedBy: ctx.userId,
@@ -314,7 +315,7 @@ export async function enregistrerPaiementDans(ctx: ContexteTeam, entryId: string
   await emettre(ctx, "saison.engagement_paye", {
     entryId,
     eventId: engagement.eventId,
-    montant: donnees.montant,
+    montant_paye: donnees.montant,
     devise: donnees.devise,
     payeurPersonId: donnees.payeurPersonId ?? null,
   })
@@ -376,6 +377,8 @@ export async function saisirResultatDans(ctx: ContexteTeam, entryId: string, ent
 
   const existant = await client.saisonResult.findFirst({ where: { entryId, teamId: ctx.teamId, deletedAt: null } })
   if (existant?.validation === "valide") refus("Ce résultat est validé : conteste-le pour le modifier.")
+  // Corriger un résultat contesté le repasse à vérifier : la preuve doit être revue.
+  const validation = existant?.validation === "conteste" ? "a_verifier" : existant?.validation ?? "saisi"
 
   const champs = {
     statutFinal: donnees.statutFinal,
@@ -395,7 +398,7 @@ export async function saisirResultatDans(ctx: ContexteTeam, entryId: string, ent
   if (existant) {
     await client.saisonResult.updateMany({
       where: { id: existant.id, teamId: ctx.teamId },
-      data: { ...champs, rev: { increment: 1 }, updatedBy: ctx.userId },
+      data: { ...champs, validation, rev: { increment: 1 }, updatedBy: ctx.userId },
     })
   } else {
     await client.saisonResult.create({
@@ -743,7 +746,7 @@ async function synchroniserEntree(ctx: ContexteTeam, entryId: string): Promise<S
   const statut = statutEngagement(entreeStatut, new Date())
   const valide = res?.validation === "valide"
   const kmVoulu = valide ? res.kmChronometres : null
-  const causeVoulue = valide ? res.causeAbandon : null
+  const causeVoulue = valide && res ? causeAbandonEngagement({ statutFinal: res.statutFinal as StatutResultat, causeAbandon: res.causeAbandon }) : null
 
   const kmActuel = engagement.kmChronometres?.toString() ?? null
   const kmSouhaite = kmVoulu?.toString() ?? null

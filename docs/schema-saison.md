@@ -23,7 +23,7 @@ Douze tables préfixées `saison_`, toutes avec le bloc commun et `team_id`, le 
 
 Enums `Saison…` avec `@@map` en snake_case : `SaisonPaiementMode`, `SaisonReadinessPoint`, `SaisonReadinessStatut`, `SaisonResultStatut`, `SaisonResultValidation`, `SaisonStageType`, `SaisonScheduleType`, `SaisonGeneratedDocType`.
 
-Contraintes ajoutées à la main dans la migration : le ressenti vaut de 1 à 5, les montants (`tarif_normal`, `tarif_licencie_asa`, `montant_du`) sont positifs ou nuls.
+Contraintes ajoutées à la main dans la migration : le ressenti vaut de 1 à 5, les montants (`tarif_normal`, `tarif_licencie_asa`, `montant_du`, `montant_paye`) sont positifs ou nuls.
 
 Les listes de `uuid[]` (`personnes`, `speciales` de `saison_recce_session`) n'ont pas de clé étrangère possible : l'application vérifie qu'elles pointent vers des lignes de la team.
 
@@ -79,14 +79,14 @@ L'assistance (niveau effectif `lecture`) lit Saison sans les montants. `masquerM
 Notes d'implémentation :
 
 - `creerEpreuve` cherche une saison ouverte qui couvre les dates. Sans elle, le message dit quelles dates sont en cause.
-- `enregistrerPaiement` écrit le montant dans `montant_du`, car la table n'a pas de champ « montant payé » séparé (voir les points à trancher).
+- `enregistrerPaiement` écrit le montant saisi dans `montant_paye`. `montant_du` (tarif dû) n'est pas modifié par le paiement.
 - `recalculerEpreuves` compare la prochaine épreuve à celle du dernier événement `saison.prochaine_epreuve_modifiee` : pas d'état à part. Il passe aussi les engagements au statut calculé.
 - Le kilométrage et la cause d'abandon de l'engagement suivent le résultat validé, et restent vides sans résultat validé.
 - Aucun nom d'événement hors du catalogue : tous les noms utilisés sont dans `src/core/evenements/catalogue.ts`.
 
 ## Ce qui n'est pas branché
 
-- **Recalcul à l'ouverture du QG** : `recalculerEpreuves` existe, il n'est pas appelé par `chargerQg`. Motif : voir « Points à trancher », premier point.
+- **Recalcul à l'ouverture du QG** : `recalculerEpreuves` existe, il n'est pas appelé par `chargerQg`. Motif : voir « Décisions appliquées », point 1.
 - **Clôture proposée** : `clotureProposee` est une règle pure testée. Aucun service ne l'appelle encore ; l'écran de clôture (2.3) la branchera.
 - **Lectures des tarifs** : `masquerMontants` couvre aussi les tarifs. Aucune lecture de `saison_event_info` n'existe encore.
 
@@ -101,7 +101,16 @@ Notes d'implémentation :
 
 **Les spéciales et le résultat sont des données de test.** Noms génériques (« Spéciale test 1 »), aucun chrono. Le résultat est écrit validé sans preuve ni auteur : raccourci de test. À remplacer ou retirer avant tout usage réel.
 
-## Points à trancher
+## Décisions appliquées (orchestrateur, tâche 2.2, point 0)
+
+1. **Statuts passés de Koehling** : la règle gagne. « Parti » sans résultat validé est accepté ; les vrais résultats seront saisis à la main. Un engagement jamais inscrit ni payé reste `envisage` le jour de l'épreuve.
+2. **Montant payé** : `montant_paye` (centimes, CHECK ≥ 0), migration `saison_montant_paye`. `montant_du` reste le tarif dû. Le payload de `saison.engagement_paye` porte `montant_paye`.
+3. **Validation** : seul un résultat à vérifier (donc avec preuve) peut être validé.
+4. **Contesté vers à vérifier** : une nouvelle preuve, ou la correction des champs d'un résultat contesté, le repasse à vérifier.
+5. **Exclusion validée** : engagement en `abandon`, cause « Exclusion » si vide. Pas de `saison.abandon_declare` pour une exclusion.
+6. **`recalculerEpreuves` au niveau lecture** : accepté, statuts dérivés. Jamais exposé comme Server Action.
+
+## Points tranchés en 2.1 (détail d'origine)
 
 Ces points ne sont pas tranchés dans le brief. Les choix faits sont indiqués, à valider :
 

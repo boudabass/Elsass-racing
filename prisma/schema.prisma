@@ -1365,6 +1365,7 @@ model SaisonRegistration {
   concurrentPersonId  String?          @map("concurrent_person_id") @db.Uuid
   concurrentNom       String?          @map("concurrent_nom")
   montantDu           Int?             @map("montant_du")
+  montantPaye         Int?             @map("montant_paye")
   devise              String           @default("EUR")
   modePaiement        SaisonPaiementMode? @map("mode_paiement")
   payeLe              DateTime?        @map("paye_le") @db.Date
