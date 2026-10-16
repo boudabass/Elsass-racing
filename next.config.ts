@@ -15,6 +15,11 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
   // Pas d'en-tête `X-Powered-By` : il annoncerait Next à qui le lit.
   poweredByHeader: false,
+  // Version de l'app, figée au build : le service worker s'en sert pour nommer son cache. Un
+  // nouveau build crée un nouveau cache, l'ancien est supprimé à l'activation.
+  env: {
+    VERSION_APP: process.env.VERSION_APP || new Date().toISOString(),
+  },
   // En-têtes de sécurité. L'app ne se charge dans aucune iframe : `DENY`.
   async headers() {
     return [
@@ -25,7 +30,8 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          // Le service worker vient du même site uniquement.
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'; worker-src 'self'" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
         ],
       },

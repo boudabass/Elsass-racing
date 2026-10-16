@@ -151,6 +151,15 @@ export async function compterEvenements(equipe: Equipe, nom: string): Promise<nu
   return rows[0].n
 }
 
+// Notes de la team portant ce texte, non supprimées : combien en base.
+export async function notesEnBase(equipe: Equipe, texte: string): Promise<number> {
+  const { rows } = await bd().query<{ n: number }>(
+    "SELECT count(*)::int AS n FROM core_note WHERE team_id = $1 AND texte = $2 AND deleted_at IS NULL",
+    [equipe.teamId, texte],
+  )
+  return rows[0].n
+}
+
 export async function modeTerrainEnBase(equipe: Equipe): Promise<boolean | null> {
   const { rows } = await bd().query<{ mode_terrain: boolean }>(
     "SELECT mode_terrain FROM settings_member_pref WHERE membership_id = $1",

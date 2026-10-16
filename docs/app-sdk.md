@@ -75,3 +75,15 @@ pnpm typecheck
 - Garde : toute Server Action commence par `exigerAcces(cle, niveau)` (`src/core/droits/garde-serveur.ts`).
 - Menu et liste des apps : `appsVisibles` (`src/core/sdk/apps-serveur.ts`) ne montre que les apps activées de niveau au moins lecture, Réglages en dernier pour le responsable.
 - Livraison des événements : prévue au lot suivant, selon les abonnés déclarés ici.
+
+## 9. Rendre une table disponible hors ligne
+
+Une table n'est synchronisée que si elle est déclarée dans le registre de la synchro (`src/core/synchro/registre.ts`). Pour l'ajouter :
+
+1. Définir le schéma zod des champs modifiables (sans les colonnes du socle : le serveur pose l'auteur, la team et la fiche).
+2. Choisir l'app dont les droits s'appliquent, le niveau requis pour lire (`niveauLecture`), et si la règle de contribution s'applique (`contributionPropre`).
+3. Écrire les cinq fonctions de la déclaration : `lirePaquet` (lignes après le curseur, `updatedAt` puis `id`, suppressions comprises), `trouver`, `creer`, `modifier`, `supprimer`. Les modifications passent par `rev: { increment: 1 }` et `updatedBy`.
+4. Ajouter la table à `TABLES_LOCALES` (`src/core/synchro/client/base.ts`) et au schéma local de la base.
+5. Vérifier : `pnpm test`, `pnpm db:verifier-synchro` (à étendre pour la nouvelle table), et un test e2e hors ligne.
+
+Côté écran : `useTable("<table>")` lit la base locale, `useMoteurSynchro().ecrireLocal(...)` écrit. Une écriture n'attend jamais le réseau. Détails et limites : `docs/synchro.md`.

@@ -50,3 +50,6 @@ __pycache__/
 
 # Fichiers locaux (développement) : dossier de stockage, ignoré par Git
 /stockage/
+
+# Build de production des tests hors ligne (serveur 3101)
+/.next-e2e-prod/

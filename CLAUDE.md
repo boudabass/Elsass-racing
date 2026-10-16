@@ -46,7 +46,10 @@ Ce fichier ne contient que les règles, les pièges et l'état actuel. Le récit
 
 ## État actuel
 
-- 16/10/2026 : cadrage terminé dans Odoo. Lot 1 en cours : socle complet (schéma, auth, droits et RLS, SDK et catalogues, bus d'événements et boîte d'actions, enveloppe du QG avec 11 tuiles), données réelles Koehling chargées en local par `pnpm donnees:koehling` (tâches 1.1 à 1.10 faites : Réglages complet, tests de bout en bout Playwright, finitions du QG. Restent le déploiement et le hors ligne, ordre à confirmer avec John).
+- 16/10/2026 : socle en production sur https://elsass-racing.theelsassisch.com (Coolify, branche main, PostgreSQL 18, guide `docs/deploiement-coolify.md`). Team en production : « The Elsassisch Racing Team », team de test, John responsable ; la Koehling Racing Team réelle viendra plus tard. Tâches 1.1 à 1.10 et 1.12 faites. Reste du lot 1 : 1.11 hors ligne et synchronisation.
+- Données de démonstration : `pnpm donnees:koehling [--slug <slug>]` (saison 2026 de la Saxo).
+- Production : le rôle de connexion de l'app (`elsass_racing_web`) doit être membre de `elsass_racing_app`, sinon « permission denied » ; `/api/sante` le vérifie. Health check Coolify sur `/api/sante` (curl présent dans l'image).
+- Déploiement : fusion dev dans main par commit de merge, puis John lance Deploy dans Coolify (pas d'auto-deploy). Création de team en production : base ouverte quelques minutes, script lancé depuis le poste, base refermée.
 - Vérifications en base : `pnpm db:verifier-rls` et `pnpm db:verifier-bus` après toute migration.
 - Tests de bout en bout : `pnpm test:e2e` (Playwright, son propre Chromium, port 3100, `.next-e2e`, mail en console, données de test créées et supprimées par `e2e/aide`). Captures dans `docs/captures/`.
 - Le serveur dev de John (port 3000) ne s'arrête jamais pendant une tâche. Build de vérification : `NEXT_DIST_DIR=.next-build pnpm build`.

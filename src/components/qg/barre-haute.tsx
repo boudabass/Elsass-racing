@@ -5,6 +5,7 @@ import { Search } from "lucide-react"
 import { deconnexionAction } from "@/core/auth/actions"
 import { basculerTerrainAction } from "@/core/actions/formulaires"
 
+import { IndicateurSynchro } from "./indicateur-synchro"
 import { Logo } from "./logo"
 
 export interface BarreHauteDonnees {
@@ -52,6 +53,8 @@ export function BarreHaute({
 
           <div className="relative">{boite}</div>
 
+          <IndicateurSynchro />
+
           <Link
             href="/recherche"
             aria-label="Rechercher"
@@ -82,6 +85,9 @@ export function BarreHaute({
               </Link>
               <Link href="/recherche" className="cible-tactile flex items-center rounded-md px-3 hover:bg-surface-2 md:hidden">
                 Rechercher
+              </Link>
+              <Link href="/notes" className="cible-tactile flex items-center rounded-md px-3 hover:bg-surface-2">
+                Notes de la team
               </Link>
               <form action={basculerTerrainAction} className="md:hidden">
                 <input type="hidden" name="actif" value={donnees.modeTerrain ? "0" : "1"} />

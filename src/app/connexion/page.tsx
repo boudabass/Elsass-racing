@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 
 import { lireSession } from "@/core/auth/session-serveur"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { NettoyageLocal } from "@/components/nettoyage-local"
 
 import { FormulaireConnexion } from "./formulaire-connexion"
 
@@ -16,6 +17,7 @@ export default async function PageConnexion({
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
+      <NettoyageLocal />
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Connexion</CardTitle>

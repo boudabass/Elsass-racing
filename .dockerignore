@@ -33,3 +33,6 @@ playwright-report
 
 # Fichiers locaux de développement
 stockage
+
+# Build de production des tests hors ligne
+.next-e2e-prod

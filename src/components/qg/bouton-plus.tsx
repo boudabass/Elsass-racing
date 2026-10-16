@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Plus } from "lucide-react"
 
 import {
@@ -15,6 +16,8 @@ export interface EntreePlus {
   // Une entrée sans app existante reste visible, désactivée, avec sa raison en clair.
   desactivee: boolean
   raison?: string
+  // Entrée active : elle mène à cette page.
+  href?: string
 }
 
 // Menu « + » : les entrées sont déjà filtrées par les droits du membre (dans le layout).
@@ -31,18 +34,26 @@ export function BoutonPlus({ entrees, className }: { entrees: EntreePlus[]; clas
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="right" className="w-64 border-bordure bg-surface text-texte">
         <DropdownMenuLabel className="text-texte-discret">Ajouter</DropdownMenuLabel>
-        {entrees.map((entree) => (
-          <DropdownMenuItem
-            key={entree.libelle}
-            disabled={entree.desactivee}
-            className="flex cursor-pointer flex-col items-start gap-0.5 py-2"
-          >
-            <span className="font-medium">{entree.libelle}</span>
-            {entree.desactivee && entree.raison && (
-              <span className="text-xs text-texte-discret">{entree.raison}</span>
-            )}
-          </DropdownMenuItem>
-        ))}
+        {entrees.map((entree) =>
+          entree.href && !entree.desactivee ? (
+            <DropdownMenuItem key={entree.libelle} asChild className="cursor-pointer py-2">
+              <Link href={entree.href} className="flex flex-col items-start gap-0.5">
+                <span className="font-medium">{entree.libelle}</span>
+              </Link>
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              key={entree.libelle}
+              disabled={entree.desactivee}
+              className="flex cursor-pointer flex-col items-start gap-0.5 py-2"
+            >
+              <span className="font-medium">{entree.libelle}</span>
+              {entree.desactivee && entree.raison && (
+                <span className="text-xs text-texte-discret">{entree.raison}</span>
+              )}
+            </DropdownMenuItem>
+          ),
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )
