@@ -141,8 +141,12 @@ Chaque tâche est un brief autonome pour l'opérateur. L'orchestrateur relit et 
 - Vocabulaire de l'interface en français, vocabulaire du rallye, zéro jargon technique à l'écran.
 - Tests sur ce qui porte des règles : droits, priorités du bouton Prochaine étape, synchronisation.
 
-## 7. Décisions en attente
+## 7. Décisions prises et en attente
 
-- Confirmer la stack exacte après le relevé d'Elsass Dico (tâche opérateur 1).
-- Envoi des mails de connexion : quel service (celui d'Elsass Dico s'il existe, sinon à choisir).
-- Stockage des fichiers : volume Coolify simple ou stockage objet compatible S3.
+Prises le 16/10/2026 :
+- Stack confirmée par le relevé d'Elsass Dico (section 2).
+- Mails de connexion : par le serveur SMTP sortant d'Odoo (même expéditeur que le site), via nodemailer, identifiants en variables d'environnement SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, MAIL_FROM. En développement, le code s'affiche dans la console.
+- Dépôt Git : privé sur GitHub, boudabass/Elsass-racing, branches main et dev, commits signés The Elsassisch.
+
+En attente :
+- Stockage des fichiers : volume Coolify simple ou stockage objet compatible S3 (à trancher avant la tâche 1.12).
