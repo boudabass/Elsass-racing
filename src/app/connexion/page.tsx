@@ -1,0 +1,29 @@
+import { redirect } from "next/navigation"
+
+import { lireSession } from "@/core/auth/session-serveur"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
+import { FormulaireConnexion } from "./formulaire-connexion"
+
+export default async function PageConnexion({
+  searchParams,
+}: {
+  searchParams: Promise<{ erreur?: string; email?: string }>
+}) {
+  if (await lireSession()) redirect("/qg")
+
+  const { erreur, email } = await searchParams
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl">Connexion</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FormulaireConnexion erreurInitiale={erreur} emailInitial={email} />
+        </CardContent>
+      </Card>
+    </main>
+  )
+}

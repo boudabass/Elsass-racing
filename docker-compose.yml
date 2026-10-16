@@ -1,0 +1,26 @@
+# Développement local uniquement, jamais en production.
+#
+# Base PostgreSQL pour travailler sur le poste. Les identifiants ci-dessous sont
+# des valeurs de développement, sans enjeu : ne pas les réutiliser ailleurs.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: elsass_racing
+      POSTGRES_USER: elsass_racing
+      POSTGRES_PASSWORD: elsass_racing_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - elsass-racing-pgdata:/var/lib/postgresql/data
+      # Rôle de connexion de l'application. Exécuté seulement à la création du volume.
+      - ./docker/init/01-role-app.sql:/docker-entrypoint-initdb.d/01-role-app.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U elsass_racing -d elsass_racing"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  elsass-racing-pgdata:

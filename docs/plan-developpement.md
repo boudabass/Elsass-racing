@@ -75,10 +75,13 @@ Chaque tâche est un brief autonome pour l'opérateur. L'orchestrateur relit et 
 - Seed : les 4 rôles, les 11 apps du catalogue, les droits par défaut de l'article 962 section 4.
 - Livrable : migration, seed, tests de lecture.
 
-### 1.4 Schéma core_, référentiels et services
-- Référentiels : core_person, core_season, core_event, core_event_entry, core_vehicle, core_contact, core_tag.
-- Services : core_file, core_attachment, core_activity, core_note, core_task, core_alert, core_action, core_notification, core_notification_pref, core_domain_event, core_event_delivery, core_sync_cursor, core_search_index, core_export.
-- Livrable : migration, documentation des tables dans `docs/schema-core.md`.
+### 1.4a Schéma core_, référentiels partagés
+- core_person, core_season, core_event, core_event_entry, core_vehicle, core_contact, core_tag.
+- Livrable : migration `core_referentiels`.
+
+### 1.4b Schéma core_, services transversaux
+- core_file, core_attachment, core_activity, core_note, core_task, core_alert, core_action, core_notification, core_notification_pref, core_domain_event, core_event_delivery, core_sync_cursor, core_search_index, core_export.
+- Livrable : migration `core_services`, documentation des tables dans `docs/schema-core.md`.
 
 ### 1.5 Authentification et sessions
 - Connexion par lien mail ou code à 6 chiffres, sans mot de passe (core_auth_token).
@@ -113,11 +116,17 @@ Chaque tâche est un brief autonome pour l'opérateur. L'orchestrateur relit et 
 - Thème sombre par défaut, couleurs de la team avec contraste garanti, vert orange rouge réservés aux états.
 - Livrable : QG fonctionnel avec l'app Réglages seule.
 
-### 1.10 App Réglages
-- Rubriques de l'article 960 section 3 : identité, association, membres et invitations, rôles et droits, apps, notifications, affichage, appareils, données et confidentialité, mon compte.
-- Règles : dernier responsable protégé, invitation 7 jours, suppression de team avec délai de 30 jours.
-- Tables settings_team_pref, settings_member_pref, settings_deletion_request.
+### 1.10a App Réglages, rubriques de la team
+- Tables settings_team_pref, settings_member_pref, settings_deletion_request, hash d'invitation, RLS.
+- Identité, association, membres et invitations (acceptation par lien), rôles et droits, apps.
+- Règles : dernier responsable protégé, invitation 7 jours, dépendances entre apps.
+
+### 1.10b App Réglages, rubriques personnelles
+- Notifications, affichage, appareils, données et confidentialité (export, suppression avec délai de 30 jours), mon compte, découverte des apps.
 - Livrable : Réglages complet, événements settings.* émis.
+
+### 1.9 ter Ajustements visuels du QG
+- À partir des remarques de John sur le QG en local (couleurs, densité, lisibilité, téléphone).
 
 ### 1.11 Hors ligne et synchronisation
 - Cache local des données de la team (IndexedDB), file d'écritures en attente, synchro par rev et core_sync_cursor.
@@ -138,8 +147,12 @@ Chaque tâche est un brief autonome pour l'opérateur. L'orchestrateur relit et 
 - Vocabulaire de l'interface en français, vocabulaire du rallye, zéro jargon technique à l'écran.
 - Tests sur ce qui porte des règles : droits, priorités du bouton Prochaine étape, synchronisation.
 
-## 7. Décisions en attente
+## 7. Décisions prises et en attente
 
-- Confirmer la stack exacte après le relevé d'Elsass Dico (tâche opérateur 1).
-- Envoi des mails de connexion : quel service (celui d'Elsass Dico s'il existe, sinon à choisir).
-- Stockage des fichiers : volume Coolify simple ou stockage objet compatible S3.
+Prises le 16/10/2026 :
+- Stack confirmée par le relevé d'Elsass Dico (section 2).
+- Mails de connexion : par le serveur SMTP d'OVH (ssl0.ovh.net, port 587, STARTTLS), expéditeur info@theelsassisch.com, dont les réponses arrivent dans Odoo. Odoo n'a pas de serveur sortant propre. Via nodemailer, identifiants en variables d'environnement SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, MAIL_FROM. En développement sans SMTP_HOST, le code s'affiche dans la console.
+- Dépôt Git : privé sur GitHub, boudabass/Elsass-racing, branches main et dev, commits signés The Elsassisch.
+
+En attente :
+- Stockage des fichiers : volume Coolify simple ou stockage objet compatible S3 (à trancher avant la tâche 1.12).

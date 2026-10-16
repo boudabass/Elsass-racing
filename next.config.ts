@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -5,6 +7,12 @@ const nextConfig: NextConfig = {
   // dépendances réellement tracées. L'image Docker n'a pas à recopier
   // node_modules en entier.
   output: "standalone",
+  // Builds de vérification dans un autre dossier (NEXT_DIST_DIR=.next-build) : le serveur dev
+  // garde le sien, et un build ne le casse pas.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  // Racine du projet pour le traçage. Sans cela, Next choisit un lockfile
+  // parent (C:\Users\George\pnpm-lock.yaml) comme racine de workspace.
+  outputFileTracingRoot: path.join(__dirname),
   // Pas d'en-tête `X-Powered-By` : il annoncerait Next à qui le lit.
   poweredByHeader: false,
   // En-têtes de sécurité. L'app ne se charge dans aucune iframe : `DENY`.

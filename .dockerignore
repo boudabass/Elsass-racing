@@ -22,3 +22,14 @@ documentation
 *.swo
 .DS_Store
 Thumbs.db
+
+# Builds de vérification
+.next-build
+.next-e2e
+
+# Tests de bout en bout
+test-results
+playwright-report
+
+# Fichiers locaux de développement
+stockage

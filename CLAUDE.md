@@ -42,7 +42,17 @@ Ce fichier ne contient que les règles, les pièges et l'état actuel. Le récit
 - CSP : `worker-src 'self'` explicite. `'strict-dynamic'` annule `'self'` dans `script-src`.
 - Une Server Action en vol ne survit pas à `router.replace`.
 - `pnpm-workspace.yaml` doit lister `allowBuilds` pour prisma, @prisma/engines et sharp.
+- Un `$` dans une valeur de `.env.local` doit être écrit `\$` : Next interprète les `$` comme des variables (dotenv-expand) alors que dotenv seul, utilisé par les scripts, ne le fait pas. Symptôme vécu : SMTP 535 dans l'app, envoi correct depuis un script. Dans Coolify, les variables ne sont pas expansées : y mettre la valeur brute.
 
 ## État actuel
 
-- 16/10/2026 : cadrage terminé dans Odoo, dépôt en cours d'initialisation (lot 1, tâche 1.1).
+- 16/10/2026 : cadrage terminé dans Odoo. Lot 1 en cours : socle complet (schéma, auth, droits et RLS, SDK et catalogues, bus d'événements et boîte d'actions, enveloppe du QG avec 11 tuiles), données réelles Koehling chargées en local par `pnpm donnees:koehling` (tâches 1.1 à 1.10 faites : Réglages complet, tests de bout en bout Playwright, finitions du QG. Restent le déploiement et le hors ligne, ordre à confirmer avec John).
+- Vérifications en base : `pnpm db:verifier-rls` et `pnpm db:verifier-bus` après toute migration.
+- Tests de bout en bout : `pnpm test:e2e` (Playwright, son propre Chromium, port 3100, `.next-e2e`, mail en console, données de test créées et supprimées par `e2e/aide`). Captures dans `docs/captures/`.
+- Le serveur dev de John (port 3000) ne s'arrête jamais pendant une tâche. Build de vérification : `NEXT_DIST_DIR=.next-build pnpm build`.
+- Briefs de l'orchestrateur dans `docs/briefs/`, un fichier par tâche.
+- Deux rôles PostgreSQL : propriétaire (DATABASE_URL_MIGRATION, migrations, seed, scripts) et applicatif restreint soumis au RLS (DATABASE_URL, l'app).
+- Base locale : `pnpm db:up` puis `pnpm db:deploy` puis `pnpm db:seed`. Port 5433. Première team : `pnpm team:creer --nom … --slug … --email …`.
+- Migrations : `pnpm db:migrate` ne fait que créer le SQL (`--create-only`), relire, compléter à la main si besoin, puis `pnpm db:deploy`.
+- Mails : SMTP OVH (port 587, STARTTLS), expéditeur info@theelsassisch.com. Sans SMTP_HOST hors production, le mail s'affiche en console.
+- Chrome piloté ne charge pas localhost:3000 sur ce poste (même limite que le Dico) : les parcours se vérifient en HTTP ou par John dans son navigateur.

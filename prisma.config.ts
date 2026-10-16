@@ -14,9 +14,18 @@ chargerEnv()
 // passe dans l'image. `env()` exigerait la variable et ferait échouer le build,
 // d'où ce repli. Il est bruyant exprès : une commande qui touche réellement la
 // base (migrate, studio) échouera sur un hôte nommé `database-url-absente`.
-const url = process.env.DATABASE_URL ?? "postgresql://database-url-absente:5432/absente"
+// Les migrations passent par le rôle propriétaire (DATABASE_URL_MIGRATION). Le rôle
+// applicatif (DATABASE_URL) n'a pas le droit de modifier le schéma, et il est soumis au RLS.
+const url =
+    process.env.DATABASE_URL_MIGRATION ??
+    process.env.DATABASE_URL ??
+    "postgresql://database-url-absente:5432/absente"
 
 export default defineConfig({
     schema: "prisma/schema.prisma",
     datasource: { url },
+    // Lancé par `prisma migrate reset` après les migrations (et par `pnpm db:seed`).
+    migrations: {
+        seed: "tsx prisma/seed.ts",
+    },
 })
