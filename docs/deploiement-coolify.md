@@ -73,7 +73,7 @@ Onglet Persistent Storage, « Add » :
 
 Onglet Health Check : chemin `/api/sante`, port 3000, code attendu 200. La route existe sur main depuis la fusion de la 1.12. Elle répond `{"ok":true}` si tout passe (base, droits du rôle de l'app, catalogue des 11 apps), sinon 503 avec une raison courte, par exemple `{"ok":false,"raison":"droits du rôle de l'app incomplets"}`.
 
-Le health check est désactivé pour l'instant : l'image déployée avant la 1.12b n'avait pas `curl`, et Coolify refusait le conteneur. Une fois l'image avec `curl` déployée (1.12b et suivantes), réactive-le avec les réglages ci-dessus.
+Le health check est actif depuis le 16/10/2026. L'image contient `curl`, que Coolify utilise pour l'appeler depuis le conteneur : sans lui, Coolify refuse tout nouveau conteneur et garde l'ancien.
 
 ## 7. Premier déploiement
 
