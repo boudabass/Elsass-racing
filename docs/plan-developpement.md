@@ -178,8 +178,11 @@ Spécifications : articles Odoo 949 (Saison v1.3) et 950 (Budget v1.1), catalogu
 - Mouvements, bouton + « Nouvelle dépense » en 3 champs avec photo du ticket, À confirmer, par épreuve, par membre, prévisionnel, export tableur. Contribution de l'assistance limitée à ses dépenses et à son solde. Le PDF de bilan de saison attend l'outil PDF du lot 3.
 
 ### 2.7 Liaisons Saison et Budget
-- Brief : `docs/briefs/2.7-liaisons-saison-budget.md`. Fin du lot 2.
+- Brief : `docs/briefs/2.7-liaisons-saison-budget.md`. Fait le 17/10 (8204d81, 65e1587), relu et accepté sous réserve de la 2.8.
 - `saison.engagement_paye` vers une dépense proposée, `budget.depense_creee` (catégorie engagement) vers « marquer payé », solde de la barre haute, widgets Budget, dépenses saisies hors ligne en épreuve.
+
+### 2.8 Corrections du lot 2
+- Brief : `docs/briefs/2.8-corrections-lot-2.md`. Issu de la vérification complète du lot 2 : caisse de la team en double, prévu visible par l'assistance, synchro des dépenses alignée sur le payeur, espèces dans Saison, filtres du calendrier en tiroir, solde sur téléphone. Fin du lot 2.
 
 ## 6. Méthode de travail
 
