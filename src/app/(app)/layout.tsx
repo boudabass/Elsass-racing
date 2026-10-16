@@ -19,8 +19,6 @@ import { SynchroProvider } from "@/core/synchro/client/react"
 import { EnregistrementSW } from "@/components/enregistrement-sw"
 import { NavigationHorsLigne } from "@/components/navigation-hors-ligne"
 import { Inbox } from "@/components/qg/icones"
-// Enregistre les gestionnaires de Saison (décisions de la boîte d'actions sur les résultats et la clôture).
-import "@/apps/saison/services-serveur"
 
 // Espace connecté : QG, apps, recherche. Charge une fois les données de la requête.
 export default async function LayoutApp({ children }: { children: ReactNode }) {

@@ -9,6 +9,8 @@
 // celles qui tournent, et on relit l'état de chaque livraison avant de la traiter.
 
 import { prismaPourTeam } from "@/lib/prisma"
+// Tous les gestionnaires, quel que soit le point d'entrée (cf. src/apps/gestionnaires-serveur.ts).
+import "@/apps/gestionnaires-serveur"
 
 import type { ContexteTeam } from "../contexte"
 
