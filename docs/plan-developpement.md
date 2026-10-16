@@ -158,10 +158,11 @@ Spécifications : articles Odoo 949 (Saison v1.3) et 950 (Budget v1.1), catalogu
 - Brief : `docs/briefs/2.1-saison-schema-services.md`. Fait le 16/10 (75bcf97), relu et accepté.
 
 ### 2.2 Saison, calendrier et fiche épreuve
-- Brief : `docs/briefs/2.2-saison-calendrier-fiche.md` (commence par les décisions sur les questions de la 2.1).
+- Brief : `docs/briefs/2.2-saison-calendrier-fiche.md`. Fait le 16/10 (6ec0522, 6958a34, 6704e2e tiroir du +, 897db42), relu et accepté.
 - Calendrier (liste et mois, filtres), bouton + « Nouvelle épreuve » en 3 champs, fiche épreuve en onglets (Infos, Engagements, Programme), fiche engagement (inscription, paiement). Masquage des montants pour l'assistance.
 
 ### 2.3 Saison, résultats, débrief et saisons
+- Brief : `docs/briefs/2.3-saison-resultats-saisons.md`.
 - Saisie du résultat, preuve, validation croisée, contestation, écran « Résultats à valider », débrief, écran de fin d'épreuve après validation, historique, création et clôture de saison.
 
 ### 2.4 Saison, préparation, reconnaissances, rappels et hors ligne
