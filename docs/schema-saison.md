@@ -299,7 +299,8 @@ Déclarations dans `synchro-serveur.ts`, registre dans `registre.ts` :
 ## Liaisons avec Budget (tâche 2.7)
 
 - Saison propose à Budget un paiement d'engagement (`saison.engagement_paye`) : Budget propose une dépense d'engagement, une seule en attente par engagement.
-- Budget demande à Saison de marquer un engagement payé quand une dépense d'engagement est saisie (`budget.depense_creee`) : action `marquer_engagement_paye`, clé `marquer_paye:<entryId>`. La décision enregistre le paiement avec la date, le montant, le mode et le payeur de la dépense, lus par une fonction de Budget (`lireDepenseEngagementDans`).
+- Budget demande à Saison de marquer un engagement payé quand une dépense d'engagement est saisie (`budget.depense_creee`) : action `marquer_engagement_paye`, clé `marquer_paye:<entryId>`. La décision enregistre le paiement avec la date, le montant, le mode et le payeur de la dépense, lus par une fonction de Budget (`lireDepenseEngagementDans`). Tout paiement enregistré dans Saison, saisie directe comprise, lève l'action `marquer_paye:<entryId>` restée en attente (`saison.action_levee`, dans `enregistrerPaiementDans`).
+- Mode de paiement : `especes` (valeur de `saison_paiement_mode`, migration `saison_paiement_especes`, libellé « Espèces »). Budget transmet les espèces telles quelles.
 - Pas de boucle (détails dans `docs/schema-budget.md`, section Liaisons).
 - Fiche épreuve : onglet « Dépenses » quand Budget est activée et que le membre a la contribution (contrat d'onglets, `src/core/sdk/onglets.ts`). Le composant est fourni par Budget.
 - Fin d'épreuve : ligne « Coût de l'épreuve » (Budget), seulement s'il existe une dépense.

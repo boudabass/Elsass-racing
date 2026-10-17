@@ -27,7 +27,7 @@ Conventions (`docs/conventions-schema.md`) :
 
 ## Initialisation
 
-Automatique, pas d'étape manuelle : au premier accès à Budget d'une team (`accesBudget`), et avant qu'une autre app propose un mouvement (`proposerMouvementDans`), `initialiserSiBesoin` crée les catégories par défaut (`src/apps/budget/categories-defaut.ts`), la caisse de la team et un payeur par membre actif ayant une personne. Idempotent : sans caisse, rien n'est fait deux fois. Le script `pnpm db:initialiser-budget` (`scripts/initialiser-budget.ts`) reste pour les vérifications ; l'app ne dépend pas de lui.
+Automatique, pas d'étape manuelle : au premier accès à Budget d'une team (`accesBudget`), et avant qu'une autre app propose un mouvement (`proposerMouvementDans`), `initialiserSiBesoin` crée les catégories par défaut (`src/apps/budget/categories-defaut.ts`), la caisse de la team et un payeur par membre actif ayant une personne. Idempotent : sans caisse, rien n'est fait deux fois. Une seule caisse de team : index unique partiel `budget_caisse_unique` (migration `budget_caisse_unique`, qui fusionne d'abord les doublons en douceur). La création tolère la course entre le layout et la page (erreur P2002 attrapée, puis relecture) ; test `db:verifier-bus`. Le script `pnpm db:initialiser-budget` (`scripts/initialiser-budget.ts`) reste pour les vérifications ; l'app ne dépend pas de lui.
 
 Un nouveau membre n'est pas abonné par événement. Son payeur est créé à la volée, de façon idempotente, la première fois qu'il saisit une dépense « payé par moi » (`payeurDuMembreDans`).
 
@@ -114,7 +114,7 @@ Sans écriture, une dépense n'est saisie qu'au nom de son payeur (celui qui la 
 Règle : une app propose, elle n'écrit jamais chez l'autre. Budget n'écrit aucune table `saison_`, Saison n'écrit aucune table `budget_`. Tout passe par les événements du catalogue et `core.action_decidee`.
 
 - **Engagement payé vers dépense proposée** (`src/apps/budget/liaisons-serveur.ts`) : sur `saison.engagement_paye`, une dépense d'engagement est proposée (catégorie de clé `engagement`, montant `montant_paye`, payeur = `payeurPersonId` ou la caisse). Une seule proposition en attente par engagement : un second paiement la met à jour (même clé d'action). Rien si une dépense d'engagement est déjà confirmée pour cet engagement. À la confirmation, la dépense porte `origine` proposee et `origine_ref` `saison:<entryId>`.
-- **Dépense d'engagement vers « marquer payé »** (`src/apps/saison/services-serveur.ts`) : sur `budget.depense_creee`, si la dépense est de catégorie `engagement`, rattachée à un engagement non payé, et non issue de Saison (`origine_ref` ne commence pas par `saison:`), Saison demande « Marquer l'engagement comme payé ? » (clé `marquer_paye:<entryId>`). La décision lit la dépense par `lireDepenseEngagementDans` (fonction de Budget) et appelle `enregistrerPaiementDans`. Mode : chèque, virement ou en ligne ; les espèces deviennent un virement (Saison n'a pas d'espèces).
+- **Dépense d'engagement vers « marquer payé »** (`src/apps/saison/services-serveur.ts`) : sur `budget.depense_creee`, si la dépense est de catégorie `engagement`, rattachée à un engagement non payé, et non issue de Saison (`origine_ref` ne commence pas par `saison:`), Saison demande « Marquer l'engagement comme payé ? » (clé `marquer_paye:<entryId>`). La décision lit la dépense par `lireDepenseEngagementDans` (fonction de Budget) et appelle `enregistrerPaiementDans`. Mode : chèque, virement, en ligne ou espèces (valeur `especes` ajoutée à `saison_paiement_mode`, migration `saison_paiement_especes`). Sans moyen : virement.
 - **Pas de boucle** : une proposition venant de Saison ne déclenche pas la demande « marquer payé » ; un paiement d'engagement dont une dépense est déjà confirmée ne propose rien. Vérifié dans les deux sens par `db:verifier-bus` (section 14).
 
 ## Modifier et supprimer (tâche 2.7, section 0)
@@ -141,8 +141,9 @@ Règle : une app propose, elle n'écrit jamais chez l'autre. Budget n'écrit auc
 
 ## Non fait ou à trancher
 
-- Filtres en tiroir du calendrier de Saison : non fait (même traitement que Budget, à reprendre).
-- Modification et suppression hors ligne depuis l'écran : la synchro les accepte (registre), l'écran reste en ligne.
-- Le solde de la barre haute ne s'affiche qu'à partir de md (téléphone : pas de solde dans la barre).
-- Le prévisionnel par épreuve est affiché dans Par épreuve, pas dans l'écran Prévisionnel (par saison).
+- Modification et suppression hors ligne depuis l'écran : la synchro les accepte (registre), l'écran reste en ligne. Limite connue, acceptée à la revue du lot 2.
+- Le solde sur téléphone est une ligne compacte sous la barre haute (menu de Budget non retenu) ; dans la barre, il reste à partir de md.
+- Le prévisionnel par épreuve est affiché dans Par épreuve et dans l'onglet Dépenses de la fiche épreuve, pas dans l'écran Prévisionnel (par saison). Limite connue, acceptée.
+- Prévu de l'épreuve : invisible à la contribution. Filtré côté serveur (`lireDepensesEpreuve`, règle `voitTout` : niveau lecture, puis à partir de l'écriture), testé en e2e (`budget-saison.spec.ts`).
+- Synchro de `budget_expense` au niveau contribution : l'appareil suit la personne qui paie (comme en ligne), et une écriture n'est permise que sur les dépenses qu'elle paie.
 - Justificatifs (`justificatif_file_id`) : lot 5. PDF de bilan : lot 3.
