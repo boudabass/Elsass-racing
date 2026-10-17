@@ -103,7 +103,7 @@ export default async function PageMouvements({
             <ul className="flex flex-wrap gap-2" aria-label="Filtres actifs">
               {pastilles.map((pastille) => (
                 <li key={pastille.cle}>
-                  <Link href={pastille.retirer} className="inline-flex min-h-9 items-center gap-2 rounded-full border border-bordure bg-surface px-3 py-1 text-sm">
+                  <Link href={pastille.retirer} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-bordure bg-surface px-3 py-1 text-sm">
                     {pastille.libelle}
                     <span aria-hidden>×</span>
                     <span className="sr-only">Retirer ce filtre</span>

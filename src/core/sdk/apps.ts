@@ -44,7 +44,9 @@ export function calculerApps({ role, activees, acces, defauts, registre, avertir
     }
 
     const niveau = niveauEffectif({ role, appCle: activee.appCle, acces, defauts })
-    if (!aAuMoins(niveau, "lecture")) continue
+    // Réglages reste visible pour tous : les rubriques personnelles sont ouvertes à chaque membre.
+    // Le menu masque les rubriques de la team sous le niveau lecture (niveauMinimum du manifeste).
+    if (!aAuMoins(niveau, "lecture") && activee.appCle !== "settings") continue
 
     visibles.push({ manifeste, niveau, ordre: activee.ordre })
   }

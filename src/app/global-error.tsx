@@ -39,11 +39,11 @@ export default function ErreurGlobale({ error }: { error: Error & { digest?: str
           <button
             type="button"
             onClick={() => window.location.reload()}
-            style={{ background: "#d7141a", color: "#fff", border: 0, borderRadius: 6, padding: "10px 20px", fontSize: 16 }}
+            style={{ background: "#d7141a", color: "#fff", border: 0, borderRadius: 6, padding: "10px 20px", fontSize: 16, minHeight: 44 }}
           >
             Recharger
           </button>
-          <a href="/qg" style={{ color: "#f4f4f5", border: "1px solid #2a2a30", borderRadius: 6, padding: "10px 20px", textDecoration: "none" }}>
+          <a href="/qg" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#f4f4f5", border: "1px solid #2a2a30", borderRadius: 6, padding: "10px 20px", textDecoration: "none" }}>
             Retour au QG
           </a>
         </div>

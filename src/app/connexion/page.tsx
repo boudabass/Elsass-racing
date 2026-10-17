@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 
 import { lireSession } from "@/core/auth/session-serveur"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { NettoyageLocal } from "@/components/nettoyage-local"
 
 import { FormulaireConnexion } from "./formulaire-connexion"
@@ -20,7 +20,7 @@ export default async function PageConnexion({
       <NettoyageLocal />
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl">Connexion</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Connexion</h1>
         </CardHeader>
         <CardContent>
           <FormulaireConnexion erreurInitiale={erreur} emailInitial={email} />

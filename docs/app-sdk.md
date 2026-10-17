@@ -73,7 +73,7 @@ pnpm typecheck
 ## 8. Ce que le socle fait pour l'app
 
 - Garde : toute Server Action commence par `exigerAcces(cle, niveau)` (`src/core/droits/garde-serveur.ts`).
-- Menu et liste des apps : `appsVisibles` (`src/core/sdk/apps-serveur.ts`) ne montre que les apps activées de niveau au moins lecture, Réglages en dernier pour le responsable.
+- Menu et liste des apps : `appsVisibles` (`src/core/sdk/apps-serveur.ts`) ne montre que les apps activées de niveau au moins lecture, Réglages en dernier pour le responsable. Réglages reste visible pour tous : ses rubriques personnelles sont ouvertes à chaque membre, et les rubriques de la team sont masquées sous « lecture » (`niveauMinimum` du manifeste).
 - Livraison des événements : prévue au lot suivant, selon les abonnés déclarés ici.
 
 ## 9. Rendre une table disponible hors ligne
