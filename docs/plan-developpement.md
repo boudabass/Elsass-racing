@@ -2,7 +2,14 @@
 
 Version 0.2, 16/10/2026 au soir. Rédigé par l'orchestrateur à partir des articles Odoo Knowledge 946 (cahier des charges), 947 (architecture), 948 (socle v1.3), 953 (UI), 960 (enveloppe du QG) et 962 (catalogue). En cas d'écart avec ces articles, les articles font foi.
 
-## 0. État au 16/10/2026
+## 0. État au 18/10/2026
+
+- **Lot 2 terminé et en production** (Saison et Budget : tâches 2.1 à 2.11, fusion 308be05 le 17/10).
+- **Tâches 2.12 à 2.17 en production** (dcf301a, 18/10) : audit technique, navigation allégée, nettoyage du code et socle commun des apps, finitions visuelles, boutons et liens communs, erreurs serveur.
+- **Tests** : 392 unitaires, 74 de bout en bout sur le build de production, plus les trois vérifications en base.
+- **Suite** : lot 3 (Voiture et Partenaires), puis les lots 4 à 6, puis l'app de démarrage, puis la création de la Koehling Racing Team et les invitations.
+
+### État au 16/10/2026 (historique)
 
 - **Lot 1 terminé.** Toutes les tâches de la section 5 sont faites, testées et fusionnées dans main (dernier merge c0a3292).
 - **En production** sur https://elsass-racing.theelsassisch.com (Coolify, health check actif). Team en production : « The Elsassisch Racing Team », team de test, John responsable. Connexion et changement de couleur vérifiés par John sur mobile.
