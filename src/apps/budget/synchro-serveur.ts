@@ -13,7 +13,7 @@ import type { ContexteTeam } from "@/core/contexte"
 import { aAuMoins } from "@/core/droits/niveaux"
 import { RefusSynchro } from "@/core/synchro/erreurs"
 import { apresPosition } from "@/core/synchro/position"
-import type { ClientTeam, DeclarationSynchro, EtatLigneSynchro, Tx } from "@/core/synchro/registre"
+import { refusLectureSeule, socleSynchro, type ClientTeam, type DeclarationSynchro, type EtatLigneSynchro, type Tx } from "@/core/synchro/registre"
 import { prismaPourTeam } from "@/lib/prisma"
 
 import { aRembourser, confirmeeDOffice } from "./regles"
@@ -21,28 +21,6 @@ import { emettreDepenseSynchronisee, emettreSoldeDepenseSynchronise } from "./se
 import { modifierDepenseTx, supprimerDepenseTx } from "./depenses-tx"
 
 const DATE_CIVILE = /^\d{4}-\d{2}-\d{2}$/
-
-interface Socle {
-  id: string
-  rev: number
-  createdAt: Date
-  updatedAt: Date
-  deletedAt: Date | null
-  createdBy: string | null
-  updatedBy: string | null
-}
-
-function socle(ligne: Socle) {
-  return {
-    id: ligne.id,
-    rev: ligne.rev,
-    createdAt: ligne.createdAt.toISOString(),
-    updatedAt: ligne.updatedAt.toISOString(),
-    deletedAt: ligne.deletedAt?.toISOString() ?? null,
-    createdBy: ligne.createdBy,
-    updatedBy: ligne.updatedBy,
-  }
-}
 
 // Saison de la dépense : celle de l'épreuve, sinon celle dont les dates contiennent le jour.
 async function saisonDeLaDepense(tx: Tx, ctx: ContexteTeam, eventId: string | null, date: string): Promise<string | null> {
@@ -54,10 +32,6 @@ async function saisonDeLaDepense(tx: Tx, ctx: ContexteTeam, eventId: string | nu
   const jour = new Date(`${date}T00:00:00Z`)
   const saison = await tx.coreSeason.findFirst({ where: { teamId: ctx.teamId, deletedAt: null, dateDebut: { lte: jour }, dateFin: { gte: jour } }, select: { id: true } })
   return saison?.id ?? null
-}
-
-function refusLectureSeule(): never {
-  throw new RefusSynchro("Cette donnée se lit seulement hors ligne : elle ne s'écrit pas depuis l'appareil.")
 }
 
 const schemaDepense = z
@@ -97,7 +71,7 @@ const budgetExpenseSynchro: DeclarationSynchro = {
       take: limite,
     })
     return lignes.map((l) => ({
-      ...socle(l),
+      ...socleSynchro(l),
       date: l.date.toISOString().slice(0, 10),
       montant: l.montant,
       categoryId: l.categoryId,
@@ -245,7 +219,7 @@ const budgetCategorySynchro = referentiel(
   "lecture",
   async (client: ClientTeam, teamId, position, limite) => {
     const lignes = await client.budgetCategory.findMany({ where: { teamId, ...apresPosition(position) }, orderBy: [{ updatedAt: "asc" }, { id: "asc" }], take: limite })
-    return lignes.map((l) => ({ ...socle(l), nom: l.nom, sens: l.sens, parentId: l.parentId, couleur: l.couleur, icone: l.icone, ordre: l.ordre, active: l.active }))
+    return lignes.map((l) => ({ ...socleSynchro(l), nom: l.nom, sens: l.sens, parentId: l.parentId, couleur: l.couleur, icone: l.icone, ordre: l.ordre, active: l.active }))
   },
   async (tx, teamId, id) => {
     const ligne = await tx.budgetCategory.findFirst({ where: { id, teamId } })
@@ -259,7 +233,7 @@ const budgetPayerSynchro = referentiel(
   "contribution",
   async (client: ClientTeam, teamId, position, limite) => {
     const lignes = await client.budgetPayer.findMany({ where: { teamId, ...apresPosition(position) }, orderBy: [{ updatedAt: "asc" }, { id: "asc" }], take: limite })
-    return lignes.map((l) => ({ ...socle(l), type: l.type, personId: l.personId, nom: l.nom, actif: l.actif }))
+    return lignes.map((l) => ({ ...socleSynchro(l), type: l.type, personId: l.personId, nom: l.nom, actif: l.actif }))
   },
   async (tx, teamId, id) => {
     const ligne = await tx.budgetPayer.findFirst({ where: { id, teamId } })

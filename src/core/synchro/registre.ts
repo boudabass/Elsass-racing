@@ -13,6 +13,7 @@ import type { ContexteTeam } from "@/core/contexte"
 import { prisma, prismaPourTeam } from "@/lib/prisma"
 
 import type { PositionCurseur } from "./curseur"
+import { RefusSynchro } from "./erreurs"
 import { apresPosition } from "./position"
 import { declarationsSaisonSynchro } from "@/apps/saison/synchro-serveur"
 import { declarationsBudgetSynchro } from "@/apps/budget/synchro-serveur"
@@ -20,6 +21,34 @@ import type { LigneSynchro } from "./protocole"
 
 export type ClientTeam = ReturnType<typeof prismaPourTeam>
 export type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+
+// Champs du socle de toute ligne synchronisée, au format de la synchro (dates en ISO).
+// Déclarés ici (fonctions déclarées, donc disponibles pendant le cycle registre ↔ synchro-serveur des apps).
+export interface Socle {
+  id: string
+  rev: number
+  createdAt: Date
+  updatedAt: Date
+  deletedAt: Date | null
+  createdBy: string | null
+  updatedBy: string | null
+}
+
+export function socleSynchro(ligne: Socle) {
+  return {
+    id: ligne.id,
+    rev: ligne.rev,
+    createdAt: ligne.createdAt.toISOString(),
+    updatedAt: ligne.updatedAt.toISOString(),
+    deletedAt: ligne.deletedAt?.toISOString() ?? null,
+    createdBy: ligne.createdBy,
+    updatedBy: ligne.updatedBy,
+  }
+}
+
+export function refusLectureSeule(): never {
+  throw new RefusSynchro("Cette donnée se lit seulement hors ligne : elle ne s'écrit pas depuis l'appareil.")
+}
 
 export interface EtatLigneSynchro {
   rev: number
