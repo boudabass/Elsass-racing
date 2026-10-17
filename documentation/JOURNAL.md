@@ -70,3 +70,14 @@
 - Marge basse de `main` : `pb-48` ramené à `pb-32` sur téléphone, la hauteur de la barre basse seule.
 - Prévisionnel sur ordinateur : tous les éléments de la ligne sur la première rangée de grille (`sm:row-start-1`), « Prévu » et « Réel » ne passent plus sous le nom de la catégorie.
 - Vérifications : typecheck, 391 tests unitaires, build isolé (`.next-build`), e2e `prochaine-etape` (dont le nouveau contrôle « bulle absente sur téléphone ») et suites `saison` et `previsionnel` sur le build de production, captures régénérées sur le build de production.
+
+## 17/10/2026 : brief 2.11, passe de finition V2
+
+- Échecs intermittents e2e : cause côté app et côté test. `liste-john-suite` (« Marquer payé ») : boîte d'actions périmée restée ouverte (drapeau `perime` dans `src/core/synchro/client/react.tsx`, `router.refresh()` à l'ouverture dans `src/components/qg/conteneur-boite.tsx`) ; le test attend désormais l'ouverture seule, avec `toPass`. `saison` j-bis : lien ciblé par son nom, puis `engagementsEnBase` (`e2e/aide/session.ts`). P2034 : reprise bornée à 3 essais (`src/lib/reprise-conflit.ts`, utilisé par `src/apps/settings/preferences-serveur.ts`). Garde `null` sur la saison masquée (`src/apps/saison/lectures-serveur.ts`).
+- Budget sur téléphone 360 px : synthèse compacte à trois lignes ; « Ajouter une dépense » avant « Exporter (CSV) », export en lien discret ; même ordre dans l'onglet Dépenses de la fiche épreuve.
+- Fondu de défilement (`mask-image`) sur le menu d'app et les onglets de fiche, seulement en cas de débordement (`src/components/qg/fondu-defilement.ts`).
+- Prévisionnel : « — » discret, avec `sr-only` « Pas de prévu, rien dépensé ». Solde à zéro en texte discret (`src/components/qg/barre-haute.tsx`).
+- Thème clair : captures à 360 px `budget-bouton-principal-clair`, `budget-previsionnel-saison-clair`, `budget-nouvelle-depense-clair` ; contrôle e2e des contrastes (`e2e/captures-clair.spec.ts`) : texte du bouton principal ≥ 4,5:1, contour du champ Montant ≥ 3:1.
+- Captures : `docs/captures` régénérées sur le build de production (`E2E=1`, sans indicateur de développement). « Prochaine étape » masquée sous `md`, donc absente des captures à 360 px.
+- Erreurs serveur P2025, `TypeError` sur `null` (id, clotureeAt, couleurPrincipale), `[synchro]` et `[saison]` recalcul : présentes pendant les passes, aucun échec de test ; non investiguées (consigne). Pic mémoire de `next start` : ~811 Mo, en hausse pendant une passe, sous le seuil de 2 Go.
+- Vérifications : typecheck, vitest 396/396, `impeccable detect` sans constat sur les fichiers touchés, e2e complet 63/63 trois fois de suite sur build de production.
