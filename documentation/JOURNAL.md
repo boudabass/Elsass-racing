@@ -92,3 +92,10 @@
 - Nettoyage : `src/components/ui/sidebar.tsx` et `src/hooks/use-mobile.tsx` supprimés (aucun import).
 - Erreurs serveur observées pendant la passe, non investiguées (consigne) : P2025 (« No record was found »), `TypeError` sur `null`, et une fois `P2003` sur `core_domain_event_team_id_fkey` pendant le recalcul de Saison au QG (probablement une équipe de test supprimée en cours de passe, à confirmer).
 - Vérifications : typecheck, vitest 396/396, e2e complet 67/67 sur build de production (`E2E=1`, port 3101), captures `docs/captures/audit-*` et autres régénérées sur ce build.
+
+## 17/10/2026 : brief 2.13, navigation allégée
+
+- Liens « ← Calendrier » (Résultats à valider, Historique) et « ← Mouvements » (À confirmer, Recette) retirés des pages du menu. Les liens de retour des pages de détail restent.
+- Réglages : un seul menu, celui du haut. La colonne de gauche est retirée. Le menu masque les rubriques de la team sous le niveau lecture (`niveauMinimum` sur Identité, Association, Membres, Rôles et droits, Apps).
+- Réglages reste visible pour tous (`calculerApps`), pour que l'assistance et l'invité gardent leurs rubriques personnelles. La page Réglages redirige vers l'identité pour qui peut la lire, sinon vers l'affichage.
+- Vérifications : typecheck, vitest 397/397, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 70/70 sur build de production. Tests ajoutés : Réglages visible à l'assistance (`apps.test.ts`), liens de retour retirés, Réglages pour le responsable et pour l'assistance (`e2e/audit-technique.spec.ts`).
