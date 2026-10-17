@@ -74,7 +74,7 @@ export function FormulaireNouvelleEpreuve() {
         </select>
       </Champ>
       <Message resultat={resultat} />
-      <Button type="submit" disabled={enCours} className="min-h-11">
+      <Button type="submit" disabled={enCours} className="min-h-11 sm:self-start">
         Ajouter l'épreuve
       </Button>
     </form>
@@ -189,7 +189,7 @@ export function FormulaireInfos({
       <div className="sm:col-span-2">
         <Message resultat={resultat} />
       </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2">
+      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2 sm:justify-self-start">
         Enregistrer les infos
       </Button>
     </form>
@@ -320,7 +320,7 @@ export function FormulairePaiement({ entryId, montantDu, personnes }: { entryId:
       <div className="sm:col-span-2">
         <Message resultat={resultat} />
       </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2">
+      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2 sm:justify-self-start">
         Enregistrer le paiement
       </Button>
     </form>
@@ -356,7 +356,7 @@ export function FormulaireInscription({ entryId, inscription }: { entryId: strin
       <div className="sm:col-span-2">
         <Message resultat={resultat} />
       </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2">
+      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2 sm:justify-self-start">
         Enregistrer l'inscription
       </Button>
     </form>
@@ -383,7 +383,7 @@ export function FormulaireSpeciale({ eventId }: { eventId: string }) {
       <div className="sm:col-span-4">
         <Message resultat={resultat} />
       </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-4">
+      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-4 sm:justify-self-start">
         Ajouter la spéciale
       </Button>
     </form>
@@ -423,7 +423,7 @@ export function FormulaireProgramme({ eventId, specialesIds }: { eventId: string
       <div className="sm:col-span-2">
         <Message resultat={resultat} />
       </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2">
+      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2 sm:justify-self-start">
         Ajouter au programme
       </Button>
     </form>

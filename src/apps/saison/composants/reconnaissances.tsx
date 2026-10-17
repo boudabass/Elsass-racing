@@ -169,7 +169,7 @@ function FormulaireRecce({ donnees }: { donnees: DonneesReconnaissances }) {
       <div className="sm:col-span-2">
         <Message resultat={resultat} />
       </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2">
+      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2 sm:justify-self-start">
         Enregistrer les règles
       </Button>
     </form>
@@ -264,7 +264,7 @@ function FormulaireSortie({ donnees, recceId }: { donnees: DonneesReconnaissance
             {resultat.message}
           </p>
         ))}
-      <Button type="submit" disabled={enCours} className="min-h-11">
+      <Button type="submit" disabled={enCours} className="min-h-11 sm:self-start">
         Ajouter la sortie
       </Button>
     </form>

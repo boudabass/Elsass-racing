@@ -14,7 +14,7 @@ import {
   type Resultat,
 } from "../actions"
 import { formaterDuree } from "../regles-resultats"
-import { CHAMP } from "@/lib/classes-formulaire"
+import { CHAMP, LIEN } from "@/lib/classes-formulaire"
 import { Message } from "./formulaires"
 
 // Onglet Résultats : la saisie tient en peu de champs ; « Plus de détails » déplie le reste.
@@ -81,7 +81,7 @@ export function FormulaireResultat({
         type="button"
         onClick={() => setDetails((ouvert) => !ouvert)}
         aria-expanded={details}
-        className="min-h-11 justify-self-start text-sm underline sm:col-span-3"
+        className={`${LIEN} justify-self-start text-sm sm:col-span-3`}
       >
         {details ? "Moins de détails" : "Plus de détails"}
       </button>
@@ -137,7 +137,7 @@ export function FormulaireResultat({
       <div className="sm:col-span-3">
         <Message resultat={resultat} />
       </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-3">
+      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-3 sm:justify-self-start">
         Enregistrer le résultat
       </Button>
     </form>
