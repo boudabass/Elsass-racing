@@ -10,6 +10,7 @@ import { z } from "zod"
 
 import { jourDeParis } from "@/core/dates"
 import type { ContexteTeam } from "@/core/contexte"
+import { rouvrirAction } from "@/core/actions/actions-serveur"
 import { exigerAcces } from "@/core/droits/garde-serveur"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 import { emettre } from "@/core/evenements/bus-serveur"
@@ -780,15 +781,6 @@ async function appliquerDecisionBudget(ctx: ContexteTeam, evenement: EvenementRe
     if (!(erreur instanceof ErreurBudget)) throw erreur
     await rouvrirAction(prismaPourTeam(ctx.teamId, ctx.userId), ctx, donnees.cleUnicite, erreur.message)
   }
-}
-
-// Même règle que rouvrirAction de Saison (services-serveur.ts).
-async function rouvrirAction(client: Client, ctx: ContexteTeam, cleUnicite: string | undefined, motif: string): Promise<void> {
-  if (!cleUnicite) return
-  await client.coreAction.updateMany({
-    where: { teamId: ctx.teamId, cleUnicite },
-    data: { statut: "en_attente", decision: null, decideeParMembershipId: null, decideeAt: null, messageRefus: motif, updatedBy: ctx.userId },
-  })
 }
 
 // Événements d'une dépense créée (en ligne, par une suggestion confirmée, ou par la synchro). Une seule

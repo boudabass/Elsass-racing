@@ -99,3 +99,17 @@
 - Réglages : un seul menu, celui du haut. La colonne de gauche est retirée. Le menu masque les rubriques de la team sous le niveau lecture (`niveauMinimum` sur Identité, Association, Membres, Rôles et droits, Apps).
 - Réglages reste visible pour tous (`calculerApps`), pour que l'assistance et l'invité gardent leurs rubriques personnelles. La page Réglages redirige vers l'identité pour qui peut la lire, sinon vers l'affichage.
 - Vérifications : typecheck, vitest 397/397, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 70/70 sur build de production. Tests ajoutés : Réglages visible à l'assistance (`apps.test.ts`), liens de retour retirés, Réglages pour le responsable et pour l'assistance (`e2e/audit-technique.spec.ts`).
+
+## 17/10/2026 : brief 2.14, nettoyage avant le lot 3
+
+- Code mort retiré : 30 composants jamais importés dans `src/components/ui/` (restent button, card, dropdown-menu, input, label, sheet, toggle) et 22 lignes de `package.json` (21 paquets `@radix-ui/react-*` et sonner). Lockfile suivi par `pnpm remove`. `docs/stack-reference.md` mis à jour (7 fichiers ui, sonner et Radix retirés du tableau).
+- Socle commun, sans changement visible ni de comportement :
+  - `src/core/sdk/actions-serveur.ts` : `Resultat`, `ErreurMetier`, `texte`, `texteOuNull`, `messageDe`, `executer`. Saison et Budget s'y branchent ; `ErreurSaison` et `ErreurBudget` héritent de `ErreurMetier`. `textePlein` de Saison devient `texteOuNull`.
+  - `src/core/sdk/ecran-serveur.ts` : `accesEcranApp`. `saison/ecran.ts` et `budget/ecran.ts` n'en sont plus que des appels.
+  - `src/core/actions/actions-serveur.ts` : `rouvrirAction`, une seule copie au lieu de deux.
+  - `src/core/synchro/registre.ts` : `socleSynchro`, `refusLectureSeule` et `Socle`, retirés des `synchro-serveur.ts` des deux apps.
+  - `src/components/formulaire/message.tsx` : `Message` (prop `ok`), réexporté par Saison.
+  - `src/lib/euros.ts` : `formatEuros` et `enEuros`. `formaterEuros` (fin d'épreuve) et `formaterSolde` (barre haute) deviennent `formatEuros`.
+  - `libelleRole` de `settings/composants/personnelles.tsx` supprimé au profit de `core/auth/libelles.ts` (tables identiques).
+- Points d'attention : `messageDe` accepte désormais toute `ErreurMetier` (une erreur métier d'une autre app s'afficherait telle quelle ; aucune action actuelle ne la propage). `registre.ts` et les `synchro-serveur.ts` des apps s'importent dans les deux sens (cycle sûr : fonctions déclarées, aucun autre importeur des `synchro-serveur`).
+- Vérifications : typecheck, vitest 397/397, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 70/70 sur build de production (port 3101). Captures régénérées par l'e2e puis restaurées (`docs/captures` inchangé). Erreur `P2003` sur `core_domain_event_team_id_fkey` relevée dans le journal de l'e2e pendant le recalcul de Saison au QG : déjà observée en 2.11, toujours non investiguée, sans effet sur les tests.

@@ -10,37 +10,10 @@ import { emettre } from "@/core/evenements/bus-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 import { RefusSynchro } from "@/core/synchro/erreurs"
 import { apresPosition } from "@/core/synchro/position"
-import type { ClientTeam, DeclarationSynchro, EtatLigneSynchro, Tx } from "@/core/synchro/registre"
+import { refusLectureSeule, socleSynchro, type ClientTeam, type DeclarationSynchro, type EtatLigneSynchro, type Tx } from "@/core/synchro/registre"
 import { prismaPourTeam } from "@/lib/prisma"
 
 import { refusEcritureSaison } from "./regles-resultats"
-
-// Champs du socle de toute ligne synchronisée, au format de la synchro (dates en ISO).
-interface Socle {
-  id: string
-  rev: number
-  createdAt: Date
-  updatedAt: Date
-  deletedAt: Date | null
-  createdBy: string | null
-  updatedBy: string | null
-}
-
-function socle(ligne: Socle) {
-  return {
-    id: ligne.id,
-    rev: ligne.rev,
-    createdAt: ligne.createdAt.toISOString(),
-    updatedAt: ligne.updatedAt.toISOString(),
-    deletedAt: ligne.deletedAt?.toISOString() ?? null,
-    createdBy: ligne.createdBy,
-    updatedBy: ligne.updatedBy,
-  }
-}
-
-function refusLectureSeule(): never {
-  throw new RefusSynchro("Cette donnée se lit seulement hors ligne : elle ne s'écrit pas depuis l'appareil.")
-}
 
 const DATE_CIVILE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -109,7 +82,7 @@ const coreEventSynchro: DeclarationSynchro = {
       take: limite,
     })
     return lignes.map((l) => ({
-      ...socle(l),
+      ...socleSynchro(l),
       nom: l.nom,
       type: l.type,
       lieu: l.lieu,
@@ -156,7 +129,7 @@ const saisonStageSynchro = tableEpreuve(
       take: limite,
     })
     return lignes.map((l) => ({
-      ...socle(l),
+      ...socleSynchro(l),
       eventId: l.eventId,
       numero: l.numero,
       nom: l.nom,
@@ -181,7 +154,7 @@ const saisonScheduleItemSynchro = tableEpreuve(
       take: limite,
     })
     return lignes.map((l) => ({
-      ...socle(l),
+      ...socleSynchro(l),
       eventId: l.eventId,
       type: l.type,
       stageId: l.stageId,
@@ -207,7 +180,7 @@ const saisonRecceSynchro = tableEpreuve(
       take: limite,
     })
     return lignes.map((l) => ({
-      ...socle(l),
+      ...socleSynchro(l),
       eventId: l.eventId,
       debutAutorise: l.debutAutorise?.toISOString() ?? null,
       finAutorisee: l.finAutorisee?.toISOString() ?? null,
@@ -241,7 +214,7 @@ const saisonRecceSessionSynchro: DeclarationSynchro = {
       take: limite,
     })
     return lignes.map((l) => ({
-      ...socle(l),
+      ...socleSynchro(l),
       recceId: l.recceId,
       date: l.date.toISOString().slice(0, 10),
       personnes: l.personnes,
@@ -345,7 +318,7 @@ const saisonDebriefSynchro: DeclarationSynchro = {
       take: limite,
     })
     return lignes.map((l) => ({
-      ...socle(l),
+      ...socleSynchro(l),
       entryId: l.entryId,
       auteurMembershipId: l.auteurMembershipId,
       ressenti: l.ressenti,

@@ -1,6 +1,10 @@
 // Libellés français de Budget. Chaque valeur d'énumération du schéma a son libellé : le test
 // libelles.test.ts lit prisma/schema.prisma et échoue si une valeur n'en a pas.
 
+import { formatEuros } from "@/lib/euros"
+
+export { formatEuros }
+
 export const LIBELLE_SENS = { depense: "Dépense", recette: "Recette" } as const
 
 export const LIBELLE_MOYEN = {
@@ -50,13 +54,6 @@ export const LIBELLES_PAR_ENUMERATION = {
 export function libelle(enumeration: keyof typeof LIBELLES_PAR_ENUMERATION, valeur: string): string {
   const table: Record<string, string> = LIBELLES_PAR_ENUMERATION[enumeration]
   return table[valeur] ?? valeur
-}
-
-// Montant en centimes -> « 1 234,50 € ». Espace insécable de milliers, virgule décimale.
-const formatEuro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" })
-
-export function formatEuros(centimes: number): string {
-  return formatEuro.format(centimes / 100)
 }
 
 // Solde en clair (le signe seul ne se lit pas). Positif : la team doit de l'argent. Négatif : le membre doit à la team.

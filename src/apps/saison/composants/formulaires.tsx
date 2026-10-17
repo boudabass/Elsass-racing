@@ -3,6 +3,7 @@
 import { useActionState, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 
+import { Message } from "@/components/formulaire/message"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -26,18 +27,7 @@ import {
 export { CHAMP } from "@/lib/classes-formulaire"
 import { CHAMP } from "@/lib/classes-formulaire"
 
-export function Message({ resultat }: { resultat: Resultat | null }) {
-  if (!resultat) return null
-  return resultat.ok ? (
-    <p role="status" className="text-sm text-etat-ok">
-      Enregistré.
-    </p>
-  ) : (
-    <p role="alert" className="text-sm text-etat-rouge">
-      {resultat.message}
-    </p>
-  )
-}
+export { Message }
 
 export function Champ({ libelle, children, id }: { libelle: string; children: ReactNode; id: string }) {
   return (

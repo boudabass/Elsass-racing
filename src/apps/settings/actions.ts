@@ -11,6 +11,7 @@ import { emettre } from "@/core/evenements/bus-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 import { annulerInvitation, creerInvitation, renvoyerInvitation } from "@/core/invitations/invitations-serveur"
 import { schemaEmail } from "@/core/auth/jetons"
+import { texte } from "@/core/sdk/actions-serveur"
 
 import { APPS } from "@/core/catalogue"
 import { NIVEAUX, type Niveau } from "@/core/droits/niveaux"
@@ -38,10 +39,6 @@ async function ctxGestion(): Promise<{ ctx: ContexteTeam; nomTeam: string }> {
     ctx: { teamId: team.id, userId: session.userId, membership: { id: membership.id, role: membership.role } },
     nomTeam: team.nom,
   }
-}
-
-function texte(formData: FormData, cle: string): string {
-  return String(formData.get(cle) ?? "").trim()
 }
 
 function messageErreur(erreur: unknown): string {

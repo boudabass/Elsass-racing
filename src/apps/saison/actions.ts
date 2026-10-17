@@ -4,10 +4,7 @@
 // services-serveur.ts : jamais une fonction …Dans(ctx, …) (cf. actions.test.ts).
 // Chaque action renvoie { ok: true } ou { ok: false, message } en français.
 
-import { revalidatePath } from "next/cache"
-import { z } from "zod"
-
-import { ErreurAcces, libelleErreurAcces } from "@/core/droits/erreurs"
+import { executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-serveur"
 
 import {
   ErreurSaison,
@@ -31,34 +28,9 @@ import {
 import { parserDuree } from "./regles-resultats"
 import { instantParis } from "./regles"
 
-export type Resultat = { ok: true; id?: string } | { ok: false; message: string }
+export type { Resultat }
 
-function messageDe(erreur: unknown): string {
-  if (erreur instanceof ErreurSaison) return erreur.message
-  if (erreur instanceof ErreurAcces) return libelleErreurAcces(erreur)
-  if (erreur instanceof z.ZodError) return erreur.issues[0]?.message ?? "Donnée invalide."
-  return "L'enregistrement n'a pas pu être fait. Réessaie."
-}
-
-async function executer(action: () => Promise<string | void>): Promise<Resultat> {
-  try {
-    const id = await action()
-    revalidatePath("/apps/saison", "layout")
-    return { ok: true, id: id ?? undefined }
-  } catch (erreur) {
-    return { ok: false, message: messageDe(erreur) }
-  }
-}
-
-function texte(donnees: FormData, cle: string): string {
-  return String(donnees.get(cle) ?? "").trim()
-}
-
-// Champ optionnel : vide devient null.
-function textePlein(donnees: FormData, cle: string): string | null {
-  const valeur = texte(donnees, cle)
-  return valeur === "" ? null : valeur
-}
+const executerSaison = (action: () => Promise<string | void>) => executer("/apps/saison", action)
 
 // Montant saisi en euros (virgule ou point), stocké en centimes.
 function centimes(donnees: FormData, cle: string): number | null {
@@ -84,12 +56,12 @@ function entier(donnees: FormData, cle: string): number | null {
 
 // Date calendaire AAAA-MM-JJ, vide devient null.
 function dateCivile(donnees: FormData, cle: string): string | null {
-  return textePlein(donnees, cle)
+  return texteOuNull(donnees, cle)
 }
 
 // Date et heure d'un champ datetime-local (fuseau de Paris, heure d'été ou d'hiver), en ISO.
 function instant(donnees: FormData, cle: string): string | null {
-  const brut = textePlein(donnees, cle)
+  const brut = texteOuNull(donnees, cle)
   if (!brut) return null
   const date = instantParis(brut)
   if (!date) throw new ErreurSaison("Date et heure invalides.")
@@ -97,7 +69,7 @@ function instant(donnees: FormData, cle: string): string | null {
 }
 
 export async function creerEpreuveAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() =>
+  return executerSaison(() =>
     creerEpreuve({
       nom: texte(donnees, "nom"),
       dateDebut: texte(donnees, "dateDebut"),
@@ -109,13 +81,13 @@ export async function creerEpreuveAction(_etat: Resultat | null, donnees: FormDa
 
 export async function modifierInfosAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   const entree: EntreeInfos = {
-    lieu: textePlein(donnees, "lieu"),
-    departement: textePlein(donnees, "departement"),
-    lienOfficiel: textePlein(donnees, "lienOfficiel"),
-    organisateurContactId: textePlein(donnees, "organisateurContactId"),
-    asaContactId: textePlein(donnees, "asaContactId"),
-    championnat: textePlein(donnees, "championnat"),
-    lienResultats: textePlein(donnees, "lienResultats"),
+    lieu: texteOuNull(donnees, "lieu"),
+    departement: texteOuNull(donnees, "departement"),
+    lienOfficiel: texteOuNull(donnees, "lienOfficiel"),
+    organisateurContactId: texteOuNull(donnees, "organisateurContactId"),
+    asaContactId: texteOuNull(donnees, "asaContactId"),
+    championnat: texteOuNull(donnees, "championnat"),
+    lienResultats: texteOuNull(donnees, "lienResultats"),
     engagementsOuverture: dateCivile(donnees, "engagementsOuverture"),
     engagementsCloture: dateCivile(donnees, "engagementsCloture"),
     tarifNormal: centimes(donnees, "tarifNormal"),
@@ -124,23 +96,23 @@ export async function modifierInfosAction(_etat: Resultat | null, donnees: FormD
     nbSpeciales: entier(donnees, "nbSpeciales"),
     kmChronometresPrevus: nombre(donnees, "kmChronometresPrevus"),
     kmTotal: nombre(donnees, "kmTotal"),
-    lieuParcAssistance: textePlein(donnees, "lieuParcAssistance"),
-    adresseEnvoiDossier: textePlein(donnees, "adresseEnvoiDossier"),
+    lieuParcAssistance: texteOuNull(donnees, "lieuParcAssistance"),
+    adresseEnvoiDossier: texteOuNull(donnees, "adresseEnvoiDossier"),
   }
-  return executer(() => modifierInfosEpreuve(texte(donnees, "eventId"), entree))
+  return executerSaison(() => modifierInfosEpreuve(texte(donnees, "eventId"), entree))
 }
 
 export async function annulerEpreuveAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() => annulerEpreuve(texte(donnees, "eventId")))
+  return executerSaison(() => annulerEpreuve(texte(donnees, "eventId")))
 }
 
 export async function engagerVoitureAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() =>
+  return executerSaison(() =>
     creerEngagement({
       eventId: texte(donnees, "eventId"),
       vehicleId: texte(donnees, "vehicleId"),
-      piloteId: textePlein(donnees, "piloteId"),
-      copiloteId: textePlein(donnees, "copiloteId"),
+      piloteId: texteOuNull(donnees, "piloteId"),
+      copiloteId: texteOuNull(donnees, "copiloteId"),
     }),
   )
 }
@@ -148,34 +120,34 @@ export async function engagerVoitureAction(_etat: Resultat | null, donnees: Form
 export async function enregistrerPaiementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   const montant = centimes(donnees, "montant")
   if (montant === null) return { ok: false, message: "Indique le montant payé." }
-  return executer(() =>
+  return executerSaison(() =>
     enregistrerPaiement(texte(donnees, "entryId"), {
       payeLe: texte(donnees, "payeLe"),
       mode: texte(donnees, "mode") as "virement",
-      payeurPersonId: textePlein(donnees, "payeurPersonId"),
+      payeurPersonId: texteOuNull(donnees, "payeurPersonId"),
       montant,
     }),
   )
 }
 
 export async function modifierInscriptionAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() =>
+  return executerSaison(() =>
     modifierInscription(texte(donnees, "entryId"), {
-      concurrentNom: textePlein(donnees, "concurrentNom"),
+      concurrentNom: texteOuNull(donnees, "concurrentNom"),
       montantDu: centimes(donnees, "montantDu"),
       dossierEnvoyeLe: instant(donnees, "dossierEnvoyeLe"),
       confirmationRecueLe: instant(donnees, "confirmationRecueLe"),
       listeEngagesPubliee: donnees.get("listeEngagesPubliee") === "on",
-      remarques: textePlein(donnees, "remarques"),
-      numeroCourse: textePlein(donnees, "numeroCourse"),
-      groupe: textePlein(donnees, "groupe"),
-      classe: textePlein(donnees, "classe"),
+      remarques: texteOuNull(donnees, "remarques"),
+      numeroCourse: texteOuNull(donnees, "numeroCourse"),
+      groupe: texteOuNull(donnees, "groupe"),
+      classe: texteOuNull(donnees, "classe"),
     }),
   )
 }
 
 export async function ajouterSpecialeAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() =>
+  return executerSaison(() =>
     ajouterSpeciale(texte(donnees, "eventId"), {
       numero: entier(donnees, "numero") ?? 0,
       nom: texte(donnees, "nom"),
@@ -187,13 +159,13 @@ export async function ajouterSpecialeAction(_etat: Resultat | null, donnees: For
 }
 
 export async function ajouterProgrammeAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() =>
+  return executerSaison(() =>
     ajouterProgramme(texte(donnees, "eventId"), {
       type: texte(donnees, "type") as "depart",
-      stageId: textePlein(donnees, "stageId"),
+      stageId: texteOuNull(donnees, "stageId"),
       numeroPassage: entier(donnees, "numeroPassage"),
       heurePrevue: instant(donnees, "heurePrevue"),
-      lieu: textePlein(donnees, "lieu"),
+      lieu: texteOuNull(donnees, "lieu"),
     }),
   )
 }
@@ -211,11 +183,11 @@ function tempsMs(donnees: FormData, cle: string): number | null {
 
 export async function saisirResultatAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   const entryId = texte(donnees, "entryId")
-  return executer(() =>
+  return executerSaison(() =>
     saisirResultat(entryId, {
       statutFinal: texte(donnees, "statutFinal") as "arrivee",
-      causeAbandon: textePlein(donnees, "causeAbandon"),
-      stageAbandonId: textePlein(donnees, "stageAbandonId"),
+      causeAbandon: texteOuNull(donnees, "causeAbandon"),
+      stageAbandonId: texteOuNull(donnees, "stageAbandonId"),
       classementGeneral: entier(donnees, "classementGeneral"),
       classementClasse: entier(donnees, "classementClasse"),
       nbClasses: entier(donnees, "nbClasses"),
@@ -230,42 +202,42 @@ export async function saisirResultatAction(_etat: Resultat | null, donnees: Form
 }
 
 export async function joindrePreuveAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() =>
-    joindrePreuve(texte(donnees, "entryId"), { preuveLien: textePlein(donnees, "preuveLien") }),
+  return executerSaison(() =>
+    joindrePreuve(texte(donnees, "entryId"), { preuveLien: texteOuNull(donnees, "preuveLien") }),
   )
 }
 
 export async function validerResultatAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() => validerResultat(texte(donnees, "entryId")))
+  return executerSaison(() => validerResultat(texte(donnees, "entryId")))
 }
 
 export async function contesterResultatAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() => contesterResultat(texte(donnees, "entryId"), texte(donnees, "commentaire")))
+  return executerSaison(() => contesterResultat(texte(donnees, "entryId"), texte(donnees, "commentaire")))
 }
 
 export async function creerSaisonAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   const annee = entier(donnees, "annee") ?? 0
   const debut = texte(donnees, "dateDebut")
   const fin = texte(donnees, "dateFin")
-  return executer(() => creerSaison(annee, debut && fin ? { debut, fin } : undefined))
+  return executerSaison(() => creerSaison(annee, debut && fin ? { debut, fin } : undefined))
 }
 
 export async function cloturerSaisonAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() => cloturerSaison(texte(donnees, "seasonId")))
+  return executerSaison(() => cloturerSaison(texte(donnees, "seasonId")))
 }
 
 // --- Tâche 2.4 : reconnaissances ---
 
 export async function enregistrerRecceAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() =>
+  return executerSaison(() =>
     enregistrerRecce(texte(donnees, "eventId"), {
       debutAutorise: instant(donnees, "debutAutorise"),
       finAutorisee: instant(donnees, "finAutorisee"),
       passagesAutorises: entier(donnees, "passagesAutorises"),
       vitesseMax: entier(donnees, "vitesseMax"),
-      vehiculeId: textePlein(donnees, "vehiculeId"),
+      vehiculeId: texteOuNull(donnees, "vehiculeId"),
       plaqueRecue: donnees.get("plaqueRecue") === "on",
-      consignes: textePlein(donnees, "consignes"),
+      consignes: texteOuNull(donnees, "consignes"),
     }),
   )
 }

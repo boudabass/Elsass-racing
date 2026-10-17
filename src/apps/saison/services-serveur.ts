@@ -21,6 +21,8 @@ import { emettre } from "@/core/evenements/bus-serveur"
 import { newId } from "@/core/ids"
 import { ErreurBudget } from "@/apps/budget/erreurs"
 import { lireDepenseEngagementDans } from "@/apps/budget/liaisons-serveur"
+import { rouvrirAction } from "@/core/actions/actions-serveur"
+import { ErreurMetier } from "@/core/sdk/actions-serveur"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 
 import {
@@ -54,7 +56,7 @@ export async function accesSaison(requis: Niveau): Promise<{ ctx: ContexteTeam; 
 }
 
 // Refus métier : le message est en français et s'affiche tel quel à l'utilisateur.
-export class ErreurSaison extends Error {
+export class ErreurSaison extends ErreurMetier {
   constructor(message: string) {
     super(message)
     this.name = "ErreurSaison"
@@ -1127,20 +1129,6 @@ async function appliquerDecision(ctx: ContexteTeam, evenement: { donnees: unknow
       await rouvrirAction(client, ctx, donnees.cleUnicite, erreur.message)
     }
   }
-}
-
-// La règle a refusé la décision : l'action redevient en attente, avec le motif affiché dans la boîte.
-async function rouvrirAction(
-  client: ReturnType<typeof prismaPourTeam>,
-  ctx: ContexteTeam,
-  cleUnicite: string | undefined,
-  motif: string,
-): Promise<void> {
-  if (!cleUnicite) return
-  await client.coreAction.updateMany({
-    where: { teamId: ctx.teamId, cleUnicite },
-    data: { statut: "en_attente", decision: null, decideeParMembershipId: null, decideeAt: null, messageRefus: motif, updatedBy: ctx.userId },
-  })
 }
 
 // Enregistré à l'import du module : l'app Saison reçoit les décisions de la boîte d'actions.

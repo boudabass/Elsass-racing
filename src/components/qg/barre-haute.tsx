@@ -4,14 +4,10 @@ import { House, Search } from "lucide-react"
 
 import { deconnexionAction } from "@/core/auth/actions"
 import { basculerTerrainAction } from "@/core/actions/formulaires"
+import { formatEuros } from "@/lib/euros"
 
 import { IndicateurSynchro } from "./indicateur-synchro"
 import { Logo } from "./logo"
-
-const formatEuro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" })
-function formaterSolde(centimes: number): string {
-  return formatEuro.format(centimes / 100)
-}
 
 // La couleur n'est qu'un renfort : la phrase du solde dit déjà qui doit quoi.
 function couleurSolde(centimes: number): string {
@@ -21,7 +17,7 @@ function couleurSolde(centimes: number): string {
 }
 
 function libelleSolde(solde: { libelle: string; montantCentimes: number; texte?: string }): string {
-  return solde.texte ?? `${solde.libelle} : ${formaterSolde(solde.montantCentimes)}`
+  return solde.texte ?? `${solde.libelle} : ${formatEuros(solde.montantCentimes)}`
 }
 
 export interface BarreHauteDonnees {
@@ -75,7 +71,7 @@ export function BarreHaute({
               <>
                 <span className="text-xs text-texte-discret">{donnees.solde.libelle}</span>
                 <span className={`chiffre text-base font-medium ${couleurSolde(donnees.solde.montantCentimes)}`}>
-                  {formaterSolde(donnees.solde.montantCentimes)}
+                  {formatEuros(donnees.solde.montantCentimes)}
                 </span>
               </>
             )}
@@ -167,7 +163,7 @@ export function BarreHaute({
             <>
               <span className="text-texte-discret">{donnees.solde.libelle}</span>
               <span className={`chiffre font-medium ${couleurSolde(donnees.solde.montantCentimes)}`}>
-                {formaterSolde(donnees.solde.montantCentimes)}
+                {formatEuros(donnees.solde.montantCentimes)}
               </span>
             </>
           )}

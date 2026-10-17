@@ -154,3 +154,17 @@ export async function listerActionsVisibles(ctx: ContexteTeam): Promise<ActionBo
   })
   return visibles
 }
+
+// La règle a refusé la décision : l'action redevient en attente, avec le motif affiché dans la boîte.
+export async function rouvrirAction(
+  client: ReturnType<typeof prismaPourTeam>,
+  ctx: ContexteTeam,
+  cleUnicite: string | undefined,
+  motif: string,
+): Promise<void> {
+  if (!cleUnicite) return
+  await client.coreAction.updateMany({
+    where: { teamId: ctx.teamId, cleUnicite },
+    data: { statut: "en_attente", decision: null, decideeParMembershipId: null, decideeAt: null, messageRefus: motif, updatedBy: ctx.userId },
+  })
+}

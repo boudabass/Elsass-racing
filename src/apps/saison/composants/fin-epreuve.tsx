@@ -1,9 +1,5 @@
 import { LIBELLE_STATUT_RESULTAT } from "@/apps/saison/libelles"
-
-const formatEuro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" })
-function formaterEuros(centimes: number): string {
-  return formatEuro.format(centimes / 100)
-}
+import { formatEuros } from "@/lib/euros"
 
 // Écran de fin d'épreuve : construit uniquement avec des données validées et existantes.
 // Garde-fous de l'article 953 : du positif seulement, rien de bloquant. Le coût n'apparaît pas
@@ -59,7 +55,7 @@ export function FinEpreuve({
         {coutEpreuve !== null && (
           <>
             <dt className="text-texte-discret">Coût de l'épreuve</dt>
-            <dd className="tabular-nums">{formaterEuros(coutEpreuve)}</dd>
+            <dd className="tabular-nums">{formatEuros(coutEpreuve)}</dd>
           </>
         )}
         <dt className="text-texte-discret">Total de la saison</dt>

@@ -1,5 +1,7 @@
+import { ErreurMetier } from "@/core/sdk/actions-serveur"
+
 // Refus métier de Budget : le message est en français et s'affiche tel quel à l'utilisateur.
-export class ErreurBudget extends Error {
+export class ErreurBudget extends ErreurMetier {
   constructor(message: string) {
     super(message)
     this.name = "ErreurBudget"

@@ -3,10 +3,7 @@
 // Server Actions de Budget. N'exportent que des enveloppes des fonctions gardées de services-serveur.ts,
 // jamais une fonction …Dans(ctx, …). Chacune renvoie { ok: true } ou { ok: false, message } en français.
 
-import { revalidatePath } from "next/cache"
-import { z } from "zod"
-
-import { ErreurAcces, libelleErreurAcces } from "@/core/droits/erreurs"
+import { executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-serveur"
 
 import { montantSaisi } from "./saisie"
 import {
@@ -24,33 +21,9 @@ import {
   supprimerRecette,
 } from "./services-serveur"
 
-export type Resultat = { ok: true; id?: string } | { ok: false; message: string }
+export type { Resultat }
 
-function messageDe(erreur: unknown): string {
-  if (erreur instanceof ErreurBudget) return erreur.message
-  if (erreur instanceof ErreurAcces) return libelleErreurAcces(erreur)
-  if (erreur instanceof z.ZodError) return erreur.issues[0]?.message ?? "Donnée invalide."
-  return "L'enregistrement n'a pas pu être fait. Réessaie."
-}
-
-async function executer(action: () => Promise<string | void>): Promise<Resultat> {
-  try {
-    const id = await action()
-    revalidatePath("/apps/budget", "layout")
-    return { ok: true, id: id ?? undefined }
-  } catch (erreur) {
-    return { ok: false, message: messageDe(erreur) }
-  }
-}
-
-function texte(donnees: FormData, cle: string): string {
-  return String(donnees.get(cle) ?? "").trim()
-}
-
-function texteOuNull(donnees: FormData, cle: string): string | null {
-  const valeur = texte(donnees, cle)
-  return valeur === "" ? null : valeur
-}
+const executerBudget = (action: () => Promise<string | void>) => executer("/apps/budget", action)
 
 function montantOuErreur(donnees: FormData, cle: string): number {
   const centimes = montantSaisi(texte(donnees, cle))
@@ -59,7 +32,7 @@ function montantOuErreur(donnees: FormData, cle: string): number {
 }
 
 export async function creerDepenseAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() => {
+  return executerBudget(() => {
     const date = texteOuNull(donnees, "date")
     return creerDepense({
       montant: montantOuErreur(donnees, "montant"),
@@ -73,7 +46,7 @@ export async function creerDepenseAction(_etat: Resultat | null, donnees: FormDa
 }
 
 export async function creerRecetteAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(async () => {
+  return executerBudget(async () => {
     const enNature = donnees.get("enNature") === "on"
     const encaissee = donnees.get("statut") === "encaissee"
     const recetteId = await creerRecette({
@@ -93,13 +66,13 @@ export async function creerRecetteAction(_etat: Resultat | null, donnees: FormDa
 }
 
 export async function encaisserRecetteAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() => encaisserRecette({ recetteId: texte(donnees, "recetteId"), payerId: texte(donnees, "payerId") }))
+  return executerBudget(() => encaisserRecette({ recetteId: texte(donnees, "recetteId"), payerId: texte(donnees, "payerId") }))
 }
 
 // Remboursement : le montant total est celui de l'écran ; chaque dépense cochée porte son montant
 // (champ « montant-<id> »). Le service vérifie que le total des lignes égale le montant.
 export async function rembourserAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() => {
+  return executerBudget(() => {
     const lignes = Array.from(donnees.getAll("depense")).map((depenseId) => ({
       expenseId: String(depenseId),
       montant: montantOuErreur(donnees, `montant-${String(depenseId)}`),
@@ -118,7 +91,7 @@ export async function rembourserAction(_etat: Resultat | null, donnees: FormData
 
 // Prévisionnel en un seul envoi : un champ « prevu-<catégorie> » par ligne. Un champ vide n'est pas enregistré.
 export async function enregistrerPrevisionnelAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(async () => {
+  return executerBudget(async () => {
     const seasonId = texte(donnees, "seasonId")
     const eventId = texteOuNull(donnees, "eventId")
     for (const cle of Array.from(donnees.keys())) {
@@ -135,7 +108,7 @@ export async function enregistrerPrevisionnelAction(_etat: Resultat | null, donn
 }
 
 export async function confirmerSuggestionAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() =>
+  return executerBudget(() =>
     confirmerSuggestion(texte(donnees, "id"), {
       payerId: texteOuNull(donnees, "payerId") ?? undefined,
       categoryId: texteOuNull(donnees, "categoryId") ?? undefined,
@@ -144,14 +117,14 @@ export async function confirmerSuggestionAction(_etat: Resultat | null, donnees:
 }
 
 export async function ignorerSuggestionAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(async () => {
+  return executerBudget(async () => {
     await ignorerSuggestion(texte(donnees, "id"))
   })
 }
 
 // Modification d'un mouvement (dépense ou recette selon le champ « type »).
 export async function modifierMouvementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(async () => {
+  return executerBudget(async () => {
     const eventId = texteOuNull(donnees, "eventId")
     const date = texteOuNull(donnees, "date") ?? undefined
     if (texte(donnees, "type") === "recette") {
@@ -178,7 +151,7 @@ export async function modifierMouvementAction(_etat: Resultat | null, donnees: F
 
 // Suppression après confirmation explicite (case cochée).
 export async function supprimerMouvementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(async () => {
+  return executerBudget(async () => {
     if (donnees.get("confirme") !== "on") throw new ErreurBudget("Coche la case pour confirmer la suppression.")
     if (texte(donnees, "type") === "recette") await supprimerRecette(texte(donnees, "id"))
     else await supprimerDepense(texte(donnees, "id"))
