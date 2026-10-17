@@ -43,7 +43,7 @@ Ouvertes à tout membre de la team, même sans droit sur Réglages (`src/apps/se
 - **Mon compte** : adresse en lecture seule, téléphone modifiable, teams et rôle. « Quitter cette team » passe la membership à `parti` et émet `settings.membre_retire`. Refusé au dernier responsable, avec la raison (`peutChangerAcces`).
 - **Apprentissage progressif** : à la première ouverture d'une app par un membre, `/apps/[cle]` affiche l'écran explicatif (`src/core/sdk/decouverte.ts`). « Commencer » ajoute la clé à `appsDecouvertes`. Pas encore : l'écran ne disparaît pas quand l'app contient des données, car aucune app n'a encore de données.
 
-Initiales de la team : une seule règle, `initialesTeam` (`src/core/theme/initiales.ts`), utilisée par la barre haute et l'aperçu des couleurs.
+Icône de la team : une icône QG (maison) remplace les initiales, à toutes les tailles, dans la barre haute et l'aperçu des couleurs. Les initiales ne sont plus affichées nulle part.
 
 ## Pas encore livré
 
