@@ -25,6 +25,19 @@ function echapper(texte: string): string {
   return texte.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
+// Brief 2.16, point 1 : à 1280 px, chaque bouton d'envoi visible a la largeur de son texte (400 px au plus).
+async function verifierBoutonsEtroits(page: Page, ecran: string): Promise<void> {
+  const boutons = page.locator("main button[type=submit]")
+  const nombre = await boutons.count()
+  for (let rang = 0; rang < nombre; rang++) {
+    const bouton = boutons.nth(rang)
+    if (!(await bouton.isVisible())) continue
+    const texte = ((await bouton.textContent()) ?? "").trim()
+    const largeur = (await bouton.boundingBox())?.width ?? 0
+    expect(largeur, `${ecran} · bouton « ${texte} » à 1280 px`).toBeLessThanOrEqual(400)
+  }
+}
+
 test("connexion, 360 px : un seul titre principal « Connexion », champ et bouton d'envoi à 44 px", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 })
   await page.goto("/connexion")
@@ -223,4 +236,72 @@ test("une seule colonne : le titre de chaque page Saison et Budget s'aligne sous
   await expect(onglets).toBeVisible()
   const ecartOnglets = Math.abs((await bordContenu(onglets)) - (await bordContenu(titreFiche)))
   expect(ecartOnglets, "Onglets de la fiche épreuve à 1280 px").toBeLessThanOrEqual(1)
+})
+
+// Brief 2.16, point 1 : sur ordinateur, les boutons d'envoi ont la largeur de leur texte. Parcours à 1280 px.
+test("boutons d'envoi, 1280 px : aucun ne dépasse 400 px sur les menus de Saison et Budget, la fiche épreuve, Ajouter une dépense et Réglages", async ({ page, equipe }) => {
+  test.setTimeout(300_000)
+  await preparerSaison(equipe, SAISON)
+  await connecterParLien(page, equipe)
+  await page.setViewportSize({ width: 1280, height: 800 })
+
+  // Une épreuve pour que la fiche et ses onglets existent.
+  await page.goto("/apps/saison/nouvelle")
+  await page.getByLabel("Nom de l'épreuve").fill("Boutons e2e")
+  await page.getByLabel("Premier jour").fill(`${SAISON}-07-10`)
+  await page.getByLabel("Dernier jour").fill(`${SAISON}-07-11`)
+  await page.getByRole("button", { name: "Ajouter l'épreuve" }).click()
+  await expect(page).toHaveURL(/\/apps\/saison\/epreuves\/[0-9a-f-]+/)
+  const fiche = new URL(page.url()).pathname
+
+  for (const [adresse, nomApp] of [
+    ["/apps/saison", "Saison"],
+    ["/apps/budget", "Budget"],
+  ] as const) {
+    await page.goto(adresse)
+    const menu = page.getByRole("navigation", { name: `Menu de ${nomApp}` })
+    const entrees = await menu.getByRole("link").evaluateAll((liens) =>
+      liens.map((lien) => ({ nom: lien.textContent?.trim() ?? "", chemin: new URL((lien as HTMLAnchorElement).href).pathname })),
+    )
+    expect(entrees.length).toBeGreaterThan(1)
+
+    for (const entree of entrees) {
+      await menu.getByRole("link", { name: entree.nom, exact: true }).click()
+      await expect(page).toHaveURL(new RegExp(`${echapper(entree.chemin)}$`))
+      await verifierBoutonsEtroits(page, `${nomApp} · ${entree.nom}`)
+    }
+  }
+
+  await page.goto(fiche)
+  const onglets = page.getByRole("navigation", { name: "Onglets de l'épreuve" })
+  for (const nom of ["Infos", "Engagements", "Reconnaissances", "Résultats"]) {
+    await onglets.getByRole("link", { name: nom, exact: true }).click()
+    await verifierBoutonsEtroits(page, `Fiche épreuve · ${nom}`)
+  }
+
+  await page.goto("/apps/budget/nouvelle")
+  await expect(page.getByLabel("Montant (€)")).toBeVisible()
+  await verifierBoutonsEtroits(page, "Budget · Ajouter une dépense")
+
+  await page.goto("/apps/settings/identite")
+  await expect(page.getByRole("heading", { name: "Identité", exact: true })).toBeVisible()
+  await verifierBoutonsEtroits(page, "Réglages · Identité")
+})
+
+// Brief 2.16, point 1 : sous sm, le bouton d'envoi fait toute la largeur du formulaire (à 2 px près).
+test("boutons d'envoi, 360 px : « Ajouter la dépense » fait toute la largeur du formulaire, à 2 px près", async ({ page, equipe }) => {
+  await preparerSaison(equipe, SAISON)
+  await connecterParLien(page, equipe)
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto("/apps/budget/nouvelle")
+  await expect(page.getByLabel("Montant (€)")).toBeVisible()
+
+  const bouton = page.getByRole("button", { name: "Ajouter la dépense", exact: true })
+  const formulaire = page.locator("main form", { has: bouton })
+  const largeurBouton = (await bouton.boundingBox())?.width ?? 0
+  const largeurFormulaire = (await formulaire.boundingBox())?.width ?? 0
+  expect(
+    Math.abs(largeurBouton - largeurFormulaire),
+    `Ajouter la dépense à 360 px : bouton ${largeurBouton} px, formulaire ${largeurFormulaire} px`,
+  ).toBeLessThanOrEqual(2)
 })
