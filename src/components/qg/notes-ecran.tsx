@@ -58,7 +58,7 @@ export function NotesEcran({ userId, peutEcrire }: { userId: string; peutEcrire:
             className="rounded-md border border-bordure bg-surface p-3 text-base"
             placeholder="Ce qu'il faut retenir, ce qu'il faut faire…"
           />
-          <button type="submit" disabled={nouvelle.trim() === ""} className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-white hover:opacity-90 disabled:opacity-40">
+          <button type="submit" disabled={nouvelle.trim() === ""} className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90 disabled:opacity-40">
             Enregistrer la note
           </button>
         </form>
@@ -80,7 +80,7 @@ export function NotesEcran({ userId, peutEcrire }: { userId: string; peutEcrire:
                   className="rounded-md border border-bordure bg-fond p-3"
                 />
                 <div className="flex gap-2">
-                  <button type="button" onClick={enregistrerEdition} className="cible-tactile rounded-md bg-marque px-4 py-2 font-medium text-white">
+                  <button type="button" onClick={enregistrerEdition} className="cible-tactile rounded-md bg-marque px-4 py-2 font-medium text-marque-texte">
                     Enregistrer
                   </button>
                   <button type="button" onClick={() => setEdition(null)} className="cible-tactile rounded-md border border-bordure px-4 py-2">

@@ -9,3 +9,11 @@ export class ErreurAppareilRevoque extends Error {
     this.name = "ErreurAppareilRevoque"
   }
 }
+
+// Refus métier d'une opération de synchro : le message part tel quel à l'appareil (rien n'est écrit).
+export class RefusSynchro extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "RefusSynchro"
+  }
+}

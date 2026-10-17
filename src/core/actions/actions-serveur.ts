@@ -58,6 +58,7 @@ export async function decider(ctx: ContexteTeam, actionId: string, cleBouton: st
       decision: cleBouton,
       decideeParMembershipId: ctx.membership.id,
       decideeAt: new Date(),
+      messageRefus: null,
     },
   })
 
@@ -120,6 +121,7 @@ export async function listerActionsVisibles(ctx: ContexteTeam): Promise<ActionBo
   })
 
   const actions: ActionBoite[] = lignes.map((l) => ({
+    messageRefus: l.messageRefus,
     id: l.id,
     appOrigine: l.appOrigine,
     type: l.type,

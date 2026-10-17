@@ -12,6 +12,7 @@ import { listerActionsVisibles } from "@/core/actions/actions-serveur"
 import { grouperActions, type GroupeAction } from "@/core/actions/regroupement"
 import type { ActionBoite } from "@/core/actions/filtrage"
 import { choisirProchaineEtape, type ProchaineEtape, type EpreuveProchaine } from "@/core/actions/prochaine-etape"
+import { prochaineEpreuveDeLEquipe } from "@/apps/saison/widgets-serveur"
 
 export type NiveauAlerte = "orange" | "rouge"
 
@@ -32,18 +33,14 @@ export interface DonneesQg {
   modeTerrain: boolean
 }
 
-// Jour civil (minuit UTC) : les dates d'épreuve sont des dates sans heure.
-function aujourdhui(): Date {
-  const maintenant = new Date()
-  return new Date(Date.UTC(maintenant.getUTCFullYear(), maintenant.getUTCMonth(), maintenant.getUTCDate()))
-}
 
 export async function chargerQg(ctx: ContexteTeam, modeTerrain: boolean): Promise<DonneesQg> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const maintenant = new Date()
-  const jour = aujourdhui()
 
-  const [team, apps, actions, alertes, taches, saison, epreuve] = await Promise.all([
+  // Prochaine épreuve : la règle de Saison (engagée en priorité), la même que le calendrier.
+  const epreuvePromise = prochaineEpreuveDeLEquipe(ctx, maintenant)
+  const [team, apps, actions, alertes, taches, saison] = await Promise.all([
     client.coreTeam.findUniqueOrThrow({
       where: { id: ctx.teamId },
       select: { id: true, nom: true, slug: true, couleurPrincipale: true, logoFileId: true },
@@ -61,11 +58,6 @@ export async function chargerQg(ctx: ContexteTeam, modeTerrain: boolean): Promis
     client.coreSeason.findFirst({
       where: { teamId: ctx.teamId, enCours: true },
       select: { nom: true },
-    }),
-    client.coreEvent.findFirst({
-      where: { teamId: ctx.teamId, dateFin: { gte: jour }, statut: { not: "annulee" } },
-      orderBy: { dateDebut: "asc" },
-      select: { id: true, nom: true, dateDebut: true, dateFin: true, lieu: true, type: true },
     }),
   ])
 
@@ -88,6 +80,7 @@ export async function chargerQg(ctx: ContexteTeam, modeTerrain: boolean): Promis
     tachesParApp[tache.app] = (tachesParApp[tache.app] ?? 0) + 1
   }
 
+  const epreuve = await epreuvePromise
   const prochaineEpreuve = epreuve
     ? { id: epreuve.id, nom: epreuve.nom, dateDebut: epreuve.dateDebut, dateFin: epreuve.dateFin, lieu: epreuve.lieu, type: epreuve.type }
     : null

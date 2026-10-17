@@ -10,6 +10,7 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "../src/generated/prisma/client"
 import { newId } from "../src/core/ids"
 import { appliquerOperations } from "../src/core/synchro/pousser"
+import { declarationDe } from "../src/core/synchro/registre"
 import { memoriserSynchro, tirerPaquets } from "../src/core/synchro/tirer"
 import { ErreurAppareilRevoque } from "../src/core/synchro/erreurs"
 import { reponseErreurAcces } from "../src/core/synchro/reponses"
@@ -187,6 +188,125 @@ async function main(): Promise<void> {
     const recree = await bd.coreSyncCursor.count({ where: { deviceId: devD } })
     controle("un curseur disparu est recréé pour un appareil encore connecté", recree === 1)
     await bd.coreDevice.delete({ where: { id: devD } })
+
+    // 12. Saison hors ligne (article 949, section 9) : lecture seule, écriture par contribution propre, débrief privé.
+    controle(
+      "le registre déclare les tables de Saison hors ligne",
+      ["core_event", "saison_stage", "saison_schedule_item", "saison_recce", "saison_recce_session", "saison_debrief"].every((cle) => declarationDe(cle) !== undefined),
+    )
+    const saisonSync = newId()
+    await bd.coreSeason.create({
+      data: { id: saisonSync, teamId, annee: 2032, nom: "Saison synchro", dateDebut: new Date("2032-01-01"), dateFin: new Date("2032-12-31"), enCours: true },
+    })
+    const epreuveSync = newId()
+    await bd.coreEvent.create({
+      data: { id: epreuveSync, teamId, seasonId: saisonSync, type: "rallye", nom: "Rallye synchro", dateDebut: new Date("2032-06-01"), dateFin: new Date("2032-06-02") },
+    })
+    const recceSync = newId()
+    await bd.saisonRecce.create({ data: { id: recceSync, teamId, eventId: epreuveSync } })
+    const vehiculeSync = newId()
+    await bd.coreVehicle.create({ data: { id: vehiculeSync, teamId, type: "course", nomCourt: "Voiture synchro" } })
+    const entreeSync = newId()
+    await bd.coreEventEntry.create({ data: { id: entreeSync, teamId, eventId: epreuveSync, vehicleId: vehiculeSync, statut: "arrivee" } })
+
+    const refusLectureSeule = await appliquerOperations(ctxA, devA, [
+      operation({ table: "saison_stage", type: "modifier", id: newId(), revLue: 1, champs: { nom: "Écrit depuis l'appareil" } }),
+    ])
+    controle(
+      "une table de Saison en lecture seule refuse toute écriture depuis l'appareil",
+      refusLectureSeule[0]?.statut === "refusee" && (refusLectureSeule[0]?.raison ?? "").includes("se lit seulement"),
+    )
+
+    const idSortie = newId()
+    const creationSortie = await appliquerOperations(ctxEquipage, devA, [
+      operation({ table: "saison_recce_session", type: "creer", id: idSortie, champs: { recceId: recceSync, date: "2032-06-01", personnes: [], speciales: [], passages: 2, notes: "Reco test" } }),
+    ])
+    controle("l'équipage écrit une sortie de reco hors ligne : appliquée", creationSortie[0]?.statut === "appliquee")
+    const sortieBase = await bd.saisonRecceSession.findUnique({ where: { id: idSortie }, select: { createdBy: true, passages: true } })
+    controle("la sortie est en base, à l'auteur de la synchro", sortieBase?.createdBy === eqUserId && sortieBase?.passages === 2)
+
+    const sortieAssistance = await appliquerOperations(ctxB, devB, [
+      operation({ table: "saison_recce_session", type: "creer", id: newId(), champs: { recceId: recceSync, date: "2032-06-01", personnes: [], speciales: [], passages: null, notes: null } }),
+    ])
+    controle("l'assistance ne peut pas écrire de sortie de reco", sortieAssistance[0]?.statut === "refusee")
+
+    const idDebrief = newId()
+    const debriefEquipage = await appliquerOperations(ctxEquipage, devA, [
+      operation({
+        table: "saison_debrief",
+        type: "creer",
+        id: idDebrief,
+        champs: { entryId: entreeSync, ressenti: 4, pointsPositifs: "Bon départ", pointsAAmeliorer: null, problemesVoiture: null },
+      }),
+    ])
+    controle("l'équipage écrit son débrief hors ligne : appliqué", debriefEquipage[0]?.statut === "appliquee")
+    const tirageAssistance = await tirerPaquets(ctxB, {})
+    controle("l'assistance ne reçoit jamais les débriefs", (tirageAssistance.tables["saison_debrief"]?.lignes ?? []).length === 0)
+    const tirageEquipageDebrief = await tirerPaquets(ctxEquipage, {})
+    controle("l'équipage reçoit le débrief", (tirageEquipageDebrief.tables["saison_debrief"]?.lignes ?? []).some((ligne) => ligne.id === idDebrief))
+    const evenementsDebrief = await bd.coreDomainEvent.count({
+      where: { teamId: ctxEquipage.teamId, nom: "saison.debrief_saisi", donnees: { path: ["entryId"], equals: entreeSync } },
+    })
+    controle("le débrief hors ligne émet son événement, une seule fois", evenementsDebrief === 1)
+
+    await bd.coreSeason.update({ where: { id: saisonSync }, data: { clotureeAt: new Date(), enCours: false } })
+    const apresCloture = await appliquerOperations(ctxEquipage, devA, [
+      operation({ table: "saison_recce_session", type: "creer", id: newId(), champs: { recceId: recceSync, date: "2032-06-02", personnes: [], speciales: [], passages: null, notes: null } }),
+    ])
+    controle("une saison clôturée n'accepte plus de sortie hors ligne", apresCloture[0]?.statut === "refusee" && /clôturée/.test(apresCloture[0]?.raison ?? ""))
+
+    // Budget hors ligne (tâche 2.7, section 0) : l'équipier saisit, modifie et supprime sa dépense par la même
+    // synchro ; il ne saisit pas la dépense payée par la caisse ; chaque création émet ses événements une fois.
+    const budgetServices = await import("../src/apps/budget/services-serveur")
+    await budgetServices.initialiserBudgetDans(ctxA)
+    const personneEquipier = newId()
+    await bd.corePerson.create({ data: { id: personneEquipier, teamId, nom: "Equipier", prenom: "Synchro" } })
+    await bd.coreMembership.update({ where: { id: eqMemId }, data: { personId: personneEquipier } })
+    await budgetServices.initialiserBudgetDans(ctxA)
+    const categorieRepas = await bd.budgetCategory.findFirst({ where: { teamId, nom: "Repas", sens: "depense" }, select: { id: true } })
+    const payeurEquipier = await bd.budgetPayer.findFirst({ where: { teamId, personId: personneEquipier }, select: { id: true } })
+    const caisse = await bd.budgetPayer.findFirst({ where: { teamId, type: "caisse_team" }, select: { id: true } })
+    const idDepenseHL = newId()
+    const champsDepense = { date: "2032-06-03", montant: 1200, categoryId: categorieRepas?.id ?? "", libelle: "Repas synchro", payerId: payeurEquipier?.id ?? "", eventId: null, moyen: null }
+    const creationHL = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "creer", id: idDepenseHL, champs: champsDepense })])
+    const depenseHL = await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } })
+    controle("l'équipier saisit une dépense hors ligne : appliquée, confirmée, à rembourser", creationHL[0]?.statut === "appliquee" && depenseHL?.confirmee === true && depenseHL?.aRembourser === true)
+    // L'assistance (contribution) ne saisit que ce qu'elle paie elle-même : la caisse est refusée. (L'équipage,
+    // qui a l'écriture, peut payer avec la caisse.)
+    const refusCaisse = await appliquerOperations(ctxB, devB, [operation({ table: "budget_expense", type: "creer", id: newId(), champs: { ...champsDepense, payerId: caisse?.id ?? "" } })])
+    controle("l'assistance ne saisit pas une dépense payée par la caisse", refusCaisse[0]?.statut === "refusee" && /toi-même/.test(refusCaisse[0]?.raison ?? ""))
+    const evenementsCreation = await bd.coreDomainEvent.count({ where: { teamId, nom: "budget.depense_creee" } })
+    controle("la création hors ligne émet budget.depense_creee une seule fois", evenementsCreation === 1)
+
+    const revAvantModif = (await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } }))?.rev ?? 1
+    const modifHL = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "modifier", id: idDepenseHL, revLue: revAvantModif, champs: { ...champsDepense, montant: 1500 } })])
+    controle("la modification hors ligne est appliquée", modifHL[0]?.statut === "appliquee" && (await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } }))?.montant === 1500)
+
+    const revAvantSuppr = (await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } }))?.rev ?? 1
+    const supprHL = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "supprimer", id: idDepenseHL, revLue: revAvantSuppr })])
+    controle("la suppression hors ligne est appliquée", supprHL[0]?.statut === "appliquee" && (await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } }))?.deletedAt != null)
+
+    // Périmètre du payeur, comme en ligne (correction 2.8, point 3) : au niveau contribution, l'appareil suit la
+    // personne qui paie, pas le créateur de la ligne.
+    const personneAssistance = newId()
+    await bd.corePerson.create({ data: { id: personneAssistance, teamId, nom: "Assistance", prenom: "Synchro" } })
+    await bd.coreMembership.update({ where: { id: assMemId }, data: { personId: personneAssistance } })
+    await budgetServices.initialiserBudgetDans(ctxA)
+    const payeurAssistance = await bd.budgetPayer.findFirst({ where: { teamId, personId: personneAssistance }, select: { id: true } })
+    const lignesBudgetAssistance = async () => (await tirerPaquets(ctxB, {})).tables["budget_expense"]?.lignes ?? []
+
+    const saisieParLeResponsable = await budgetServices.creerDepenseDans(ctxA, { montant: 2000, categoryId: categorieRepas?.id ?? "", libelle: "Payée par l'assistance", payerId: payeurAssistance?.id ?? "" })
+    controle("l'assistance reçoit une dépense saisie par le responsable et payée par elle", (await lignesBudgetAssistance()).some((ligne) => ligne.id === saisieParLeResponsable))
+
+    const idSaisieAssistance = newId()
+    const creationAssistance = await appliquerOperations(ctxB, devB, [operation({ table: "budget_expense", type: "creer", id: idSaisieAssistance, champs: { ...champsDepense, montant: 800, payerId: payeurAssistance?.id ?? "" } })])
+    controle("l'assistance saisit hors ligne une dépense qu'elle paie : appliquée", creationAssistance[0]?.statut === "appliquee")
+    await budgetServices.modifierDepenseDans(ctxA, idSaisieAssistance, { montant: 800, categoryId: categorieRepas?.id ?? "", libelle: "Reprise par le responsable", payerId: payeurEquipier?.id ?? "", eventId: null })
+    controle("l'assistance ne reçoit plus une dépense dont le payeur a changé", !(await lignesBudgetAssistance()).some((ligne) => ligne.id === idSaisieAssistance))
+
+    const revSaisieResp = (await bd.budgetExpense.findUnique({ where: { id: saisieParLeResponsable } }))?.rev ?? 1
+    const modifPayeeParElle = await appliquerOperations(ctxB, devB, [operation({ table: "budget_expense", type: "modifier", id: saisieParLeResponsable, revLue: revSaisieResp, champs: { ...champsDepense, montant: 2100, payerId: payeurAssistance?.id ?? "" } })])
+    controle("l'assistance modifie hors ligne une dépense qu'elle paie, même saisie par le responsable", modifPayeeParElle[0]?.statut === "appliquee")
   } finally {
     await nettoyer([teamId, teamAutreId], [respUserId, assUserId, eqUserId], [devA, devB])
     console.log("Nettoyage fait.")

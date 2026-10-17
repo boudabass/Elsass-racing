@@ -34,6 +34,8 @@ export interface ActionBoite {
   createdAt: Date
   reporteeJusquAu: Date | null
   statut: string
+  // Motif du refus de la dernière décision par l'app d'origine (null sinon).
+  messageRefus: string | null
 }
 
 // Lit le Json stocké, avec les valeurs par défaut : niveau ecriture, pas terrain.

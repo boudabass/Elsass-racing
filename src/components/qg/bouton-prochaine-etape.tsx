@@ -1,17 +1,16 @@
+"use client"
+
 import Link from "next/link"
 
 import type { ProchaineEtape } from "@/core/actions/prochaine-etape"
 import { libelleCompteARebours } from "@/core/actions/prochaine-etape"
 
 // Bouton flottant « Prochaine étape », sur tous les écrans du QG.
+// Sur téléphone, il n'apparaît pas : la boîte d'actions et le J-xx de la barre haute font ce travail.
+// Sur ordinateur, il reste en bas à droite.
 export function BoutonProchaineEtape({ etape, maintenant }: { etape: ProchaineEtape; maintenant: Date }) {
-  if (etape.genre === "rien") {
-    return (
-      <div className="fixed bottom-24 right-4 z-40 max-w-xs rounded-lg border border-bordure bg-surface px-4 py-3 text-sm text-texte-discret shadow-lg md:bottom-6 md:right-6">
-        Rien d'urgent pour l'instant.
-      </div>
-    )
-  }
+  // Rien d'urgent : pas de bulle. Elle recouvrait le contenu, sur ordinateur comme sur téléphone, pour un message sans action.
+  if (etape.genre === "rien") return null
 
   // Action : la boîte d'actions s'ouvre sur cette action (pas l'app d'origine, qui n'a pas
   // encore d'écran). Compte à rebours : la saison.
@@ -24,7 +23,8 @@ export function BoutonProchaineEtape({ etape, maintenant }: { etape: ProchaineEt
   return (
     <Link
       href={destination}
-      className="cible-tactile fixed bottom-24 right-4 z-40 flex max-w-xs flex-col rounded-lg bg-marque px-4 py-3 text-white shadow-lg hover:opacity-90 md:bottom-6 md:right-6"
+      aria-label={titreAffiche}
+      className="cible-tactile fixed bottom-6 right-6 z-40 hidden max-w-xs flex-col rounded-lg bg-marque px-4 py-3 text-marque-texte shadow-lg hover:opacity-90 md:flex"
     >
       {compteARebours && <span className="chiffre titre-rallye text-lg leading-none">{compteARebours}</span>}
       <span className={compteARebours ? "mt-1 text-sm" : "font-semibold leading-snug"}>{titreAffiche}</span>

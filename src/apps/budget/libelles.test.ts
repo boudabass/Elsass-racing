@@ -1,0 +1,94 @@
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
+
+import { describe, expect, it } from "vitest"
+
+import { LIBELLES_PAR_ENUMERATION, formatEuros, libelle, phraseEcart, phraseSoldeMembre, phraseSoldeMoi } from "./libelles"
+import { cellule, csvMouvements, montantFrancais } from "./csv"
+
+// Valeurs de chaque énumération de Budget, lues dans le schéma : un ajout sans libellé fait échouer ce test.
+function valeursDeLEnumeration(schema: string, nom: string): string[] {
+  const debut = schema.indexOf(`enum ${nom} {`)
+  if (debut < 0) throw new Error(`Énumération introuvable : ${nom}`)
+  const fin = schema.indexOf("}", debut)
+  return schema
+    .slice(debut, fin)
+    .split(/\r?\n/)
+    .slice(1)
+    .map((ligne) => ligne.trim())
+    .filter((ligne) => /^[a-z_]+$/.test(ligne))
+}
+
+describe("libellés de Budget", () => {
+  const schema = readFileSync(resolve(process.cwd(), "prisma/schema.prisma"), "utf8")
+
+  it.each(Object.keys(LIBELLES_PAR_ENUMERATION))("chaque valeur de %s a son libellé", (nom) => {
+    const valeurs = valeursDeLEnumeration(schema, nom)
+    const libelles = Object.keys(LIBELLES_PAR_ENUMERATION[nom as keyof typeof LIBELLES_PAR_ENUMERATION])
+    expect(valeurs.length).toBeGreaterThan(0)
+    expect(libelles.sort()).toEqual([...valeurs].sort())
+  })
+
+  it("une valeur inconnue est renvoyée telle quelle, sans planter", () => {
+    expect(libelle("BudgetSens", "depense")).toBe("Dépense")
+    expect(libelle("BudgetSens", "autre")).toBe("autre")
+  })
+})
+
+describe("montants", () => {
+  it("euros en français, avec le symbole", () => {
+    // Intl sépare les milliers par une espace insécable fine : on la ramène à une espace ordinaire.
+    const texte = formatEuros(123450).replace(/[  ]/g, " ")
+    expect(texte).toBe("1 234,50 €")
+  })
+
+  it("export : virgule décimale, deux chiffres après la virgule", () => {
+    expect(montantFrancais(1234)).toBe("12,34")
+    expect(montantFrancais(5)).toBe("0,05")
+    expect(montantFrancais(120_000)).toBe("1200,00")
+  })
+})
+
+describe("export CSV", () => {
+  it("échappe le point-virgule, les guillemets et les retours à la ligne", () => {
+    expect(cellule("a;b")).toBe('"a;b"')
+    expect(cellule('dit "oui"')).toBe('"dit ""oui"""')
+    expect(cellule("ligne 1\nligne 2")).toBe('"ligne 1\nligne 2"')
+    expect(cellule("simple")).toBe("simple")
+  })
+
+  it("commence par un BOM UTF-8 et utilise le point-virgule", () => {
+    const csv = csvMouvements([
+      { date: "2026-10-17", sens: "Dépense", libelle: "Pneus; avant", categorie: "Pneus", payeur: "Moi", montantCentimes: 45_050, statut: "Confirmée" },
+    ])
+    expect(csv.startsWith("﻿")).toBe(true)
+    const lignes = csv.slice(1).split("\r\n").filter((ligne) => ligne !== "")
+    expect(lignes[0]).toBe("Date;Sens;Libellé;Catégorie;Payeur;Montant (€);Statut")
+    expect(lignes[1]).toBe('2026-10-17;Dépense;"Pneus; avant";Pneus;Moi;450,50;Confirmée')
+  })
+})
+
+describe("phrases de solde", () => {
+  it("dit en clair qui doit quoi, à la première personne", () => {
+    expect(phraseSoldeMoi(4_500)).toBe(`La team te doit ${formatEuros(4_500)}`)
+    expect(phraseSoldeMoi(-4_500)).toBe(`Tu dois ${formatEuros(4_500)} à la team`)
+    expect(phraseSoldeMoi(0)).toBe("Rien à régler")
+  })
+
+  it("dit en clair qui doit quoi, pour un membre nommé", () => {
+    expect(phraseSoldeMembre(4_500, "Jean")).toBe(`La team doit ${formatEuros(4_500)} à Jean`)
+    expect(phraseSoldeMembre(-4_500, "Jean")).toBe(`Jean doit ${formatEuros(4_500)} à la team`)
+    expect(phraseSoldeMembre(0, "Jean")).toBe("Rien à régler")
+  })
+})
+
+describe("phrase d'écart du prévisionnel", () => {
+  it("couvre les cas sans prévu, dépassé, au plafond, dans le prévu et proche", () => {
+    expect(phraseEcart(null, 30_000, null, "rouge")).toBe(`Pas de prévu, ${formatEuros(30_000)} dépensés`)
+    expect(phraseEcart(null, 0, null, null)).toBe("Pas de prévu, rien dépensé")
+    expect(phraseEcart(100_000, 130_000, 130, "rouge")).toBe(`Dépassé de ${formatEuros(30_000)}`)
+    expect(phraseEcart(100_000, 100_000, 100, "orange")).toBe("Au plafond, 100 %")
+    expect(phraseEcart(100_000, 42_000, 42, "vert")).toBe("Dans le prévu, 42 %")
+    expect(phraseEcart(100_000, 95_000, 95, "orange")).toBe("Proche du plafond, 95 %")
+  })
+})

@@ -87,3 +87,24 @@ Une table n'est synchronisée que si elle est déclarée dans le registre de la 
 5. Vérifier : `pnpm test`, `pnpm db:verifier-synchro` (à étendre pour la nouvelle table), et un test e2e hors ligne.
 
 Côté écran : `useTable("<table>")` lit la base locale, `useMoteurSynchro().ecrireLocal(...)` écrit. Une écriture n'attend jamais le réseau. Détails et limites : `docs/synchro.md`.
+
+## Onglets de fiche apportés par une autre app (tâche 2.7)
+
+Une app peut ajouter un onglet à la fiche d'une autre app. Le contrat est dans `src/core/sdk/onglets.ts` :
+
+1. Déclarer l'onglet dans la liste de la fiche : `{ cle, libelle, app, niveauMinimum, composant }`. `composant` est le composant serveur de l'app, qui reçoit `{ ficheId }` et appelle ses propres fonctions de lecture. La liste vit dans `src/apps/onglets-fiches.ts` (couche de composition : elle connaît les apps, le socle et la fiche non). Pour la fiche épreuve : `ONGLETS_FICHE_EPREUVE`.
+2. Dans la page de la fiche, appeler `ongletsVisibles(contexte, liste)` : l'onglet n'est retenu que si son app est activée pour la team et que le membre a au moins `niveauMinimum`.
+3. Ajouter l'onglet à la barre (`Onglets`), et rendre `onglet.composant` avec `ficheId`. La fiche ne connaît pas l'app qui fournit l'onglet. L'app qui possède la fiche ne lit jamais les tables de l'autre.
+
+Exemple : Budget fournit l'onglet « Dépenses » de la fiche épreuve (`PanneauDepensesEpreuve`, déclaré dans `src/apps/onglets-fiches.ts`). Garage, Médias et Check-lists pourront suivre le même chemin.
+
+## Menu d'une app, rendu par le socle (tâche 2.9)
+
+Le menu déclaré dans `manifeste.menu` est rendu par le socle, sur toutes les apps (`src/components/qg/menu-app.tsx`, dans le layout de l'espace connecté). Il apparaît sous le titre sur ordinateur, en rangée défilante sur téléphone, et l'entrée de la page courante est marquée (`aria-current`).
+
+Chaque entrée peut porter ses droits, en plus du niveau d'accès à l'app :
+
+- `niveauMinimum` : niveau requis pour voir l'entrée (ex. « À confirmer » : `ecriture`).
+- `masquePour` : niveaux pour lesquels l'entrée est masquée (ex. « Prévisionnel » : `["contribution"]`, l'assistance ne voit pas le prévu).
+
+Le filtre est `entreeVisible` (`src/core/sdk/manifeste.ts`). Il ne remplace pas les contrôles de la page : la page garde sa propre garde (`accesEcran`, `exigerAcces`).

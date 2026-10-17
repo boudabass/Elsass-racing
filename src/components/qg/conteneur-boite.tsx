@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, type ReactNode } from "react"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
@@ -21,12 +21,19 @@ export function ConteneurBoite({
 }) {
   const parametres = useSearchParams()
   const chemin = usePathname()
+  const router = useRouter()
   const cible = ecouteUrl ? parametres.get("boite") : null
   const [ouvert, setOuvert] = useState(false)
 
   useEffect(() => {
     if (cible) setOuvert(true)
   }, [cible])
+
+  // À l'ouverture, le contenu serveur (actions, compteur) se relit : une synchro faite pendant que le
+  // panneau était fermé n'a pas pu rafraîchir la boîte.
+  useEffect(() => {
+    if (ouvert) router.refresh()
+  }, [ouvert, router])
 
   // Le panneau est monté à l'ouverture : on attend une image avant de chercher l'action.
   useEffect(() => {

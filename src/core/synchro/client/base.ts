@@ -24,23 +24,43 @@ export interface CurseurLocal {
 
 export interface SchemaLocal extends DBSchema {
   core_note: { key: string; value: LigneLocale }
+  core_event: { key: string; value: LigneLocale }
+  saison_stage: { key: string; value: LigneLocale }
+  saison_schedule_item: { key: string; value: LigneLocale }
+  saison_recce: { key: string; value: LigneLocale }
+  saison_recce_session: { key: string; value: LigneLocale }
+  saison_debrief: { key: string; value: LigneLocale }
+  budget_expense: { key: string; value: LigneLocale }
+  budget_category: { key: string; value: LigneLocale }
+  budget_payer: { key: string; value: LigneLocale }
   operations_en_attente: { key: string; value: OperationEnAttente }
   curseurs: { key: string; value: CurseurLocal }
 }
 
-export const TABLES_LOCALES = ["core_note"] as const
+export const TABLES_LOCALES = ["core_note", "core_event", "saison_stage", "saison_schedule_item", "saison_recce", "saison_recce_session", "saison_debrief", "budget_expense", "budget_category", "budget_payer"] as const
 export type TableLocale = (typeof TABLES_LOCALES)[number]
 
 export function nomBase(userId: string, teamId: string): string {
   return `${PREFIXE_BASE}${userId}-${teamId}`
 }
 
+// Version 2 : magasins de Saison. Version 3 : magasins de Budget. Une base plus ancienne reçoit les
+// magasins manquants à l'ouverture.
+export const VERSION_BASE = 3
+
 export function ouvrirBase(userId: string, teamId: string): Promise<IDBPDatabase<SchemaLocal>> {
-  return openDB<SchemaLocal>(nomBase(userId, teamId), 1, {
+  return openDB<SchemaLocal>(nomBase(userId, teamId), VERSION_BASE, {
     upgrade(db) {
-      db.createObjectStore("core_note", { keyPath: "id" })
-      db.createObjectStore("operations_en_attente", { keyPath: "idOperation" })
-      db.createObjectStore("curseurs", { keyPath: "table" })
+      const magasins: string[] = [...TABLES_LOCALES, "operations_en_attente", "curseurs"]
+      for (const magasin of magasins) {
+        if (magasin === "operations_en_attente") {
+          if (!db.objectStoreNames.contains("operations_en_attente")) db.createObjectStore("operations_en_attente", { keyPath: "idOperation" })
+        } else if (magasin === "curseurs") {
+          if (!db.objectStoreNames.contains("curseurs")) db.createObjectStore("curseurs", { keyPath: "table" })
+        } else if (!db.objectStoreNames.contains(magasin as TableLocale)) {
+          db.createObjectStore(magasin as TableLocale, { keyPath: "id" })
+        }
+      }
     },
   })
 }

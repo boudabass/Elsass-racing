@@ -91,7 +91,7 @@ async function actionRequise(ctx: ContexteTeam, evenement: EvenementRecu): Promi
   const reouverture =
     existante.statut === "en_attente"
       ? {}
-      : { statut: "en_attente" as const, decision: null, decideeParMembershipId: null, decideeAt: null, reporteeJusquAu: null }
+      : { statut: "en_attente" as const, decision: null, decideeParMembershipId: null, decideeAt: null, reporteeJusquAu: null, messageRefus: null }
 
   await client.coreAction.update({
     where: { id: existante.id },

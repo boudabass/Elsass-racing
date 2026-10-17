@@ -2,7 +2,8 @@ import nodemailer from "nodemailer"
 
 // Envoi de mail. En production, SMTP_HOST est obligatoire : pas de repli console,
 // l'erreur est explicite au premier envoi. Hors production sans SMTP_HOST, le mail
-// est affiché dans la console du serveur, pour travailler sans serveur SMTP.
+// est affiché dans la console du serveur, pour travailler sans serveur SMTP. Même repli pour
+// le build de production des tests de bout en bout (E2E=1).
 
 export interface MailSortant {
   a: string
@@ -40,7 +41,8 @@ export async function envoyerMail({ a, sujet, texte, html }: MailSortant): Promi
   const expediteur = process.env.MAIL_FROM ?? expediteurParDefaut
 
   if (!process.env.SMTP_HOST) {
-    if (process.env.NODE_ENV === "production") {
+    // E2E=1 : build de production des tests de bout en bout (port 3101), jamais posé sur Coolify.
+    if (process.env.NODE_ENV === "production" && process.env.E2E !== "1") {
       throw new Error("SMTP_HOST absent en production : impossible d'envoyer le mail.")
     }
     console.log(`\n--- Mail (console, SMTP_HOST absent) ---\nDe : ${expediteur}\nÀ : ${a}\nSujet : ${sujet}\n\n${texte}\n---\n`)

@@ -13,6 +13,9 @@ import type { ContexteTeam } from "@/core/contexte"
 import { prisma, prismaPourTeam } from "@/lib/prisma"
 
 import type { PositionCurseur } from "./curseur"
+import { apresPosition } from "./position"
+import { declarationsSaisonSynchro } from "@/apps/saison/synchro-serveur"
+import { declarationsBudgetSynchro } from "@/apps/budget/synchro-serveur"
 import type { LigneSynchro } from "./protocole"
 
 export type ClientTeam = ReturnType<typeof prismaPourTeam>
@@ -32,6 +35,8 @@ export interface DeclarationSynchro {
   app: AppCle
   niveauLecture: NiveauAcces
   contributionPropre: boolean
+  // Lecture seule depuis l'appareil : reçue hors ligne, jamais écrite par la synchro.
+  lectureSeule: boolean
   schemaChamps: z.ZodType<Record<string, unknown>>
   // auteurId renseigné : seulement les lignes de cet auteur (périmètre « ses lignes », niveau contribution).
   lirePaquet(
@@ -46,14 +51,12 @@ export interface DeclarationSynchro {
   // Renvoient false si la ligne n'existe plus (rien n'a été écrit).
   modifier(tx: Tx, ctx: ContexteTeam, id: string, champs: Record<string, unknown>): Promise<boolean>
   supprimer(tx: Tx, ctx: ContexteTeam, id: string): Promise<boolean>
+  // Facultatif : après une opération appliquée (transaction validée), pour les effets qui ne vont pas
+  // dans la transaction, par exemple un événement du bus. Une erreur ici est journalisée, pas renvoyée.
+  apresApplication?(ctx: ContexteTeam, id: string, type: "creer" | "modifier" | "supprimer"): Promise<void>
 }
 
-// Après la position du curseur : updated_at strictement plus récent, ou même date et id plus grand.
-function apresPosition(position: PositionCurseur | null) {
-  if (!position) return {}
-  const date = new Date(position.date)
-  return { OR: [{ updatedAt: { gt: date } }, { updatedAt: date, id: { gt: position.id } }] }
-}
+// Après la position du curseur : voir position.ts.
 
 const schemaNote = z
   .object({
@@ -71,6 +74,7 @@ const noteSynchro: DeclarationSynchro = {
   app: "equipe",
   niveauLecture: "lecture",
   contributionPropre: true,
+  lectureSeule: false,
   schemaChamps: schemaNote,
 
   async lirePaquet(client, teamId, position, limite, auteurId) {
@@ -141,7 +145,7 @@ const noteSynchro: DeclarationSynchro = {
   },
 }
 
-const REGISTRE: DeclarationSynchro[] = [noteSynchro]
+const REGISTRE: DeclarationSynchro[] = [noteSynchro, ...declarationsSaisonSynchro, ...declarationsBudgetSynchro]
 
 export function declarationDe(cle: string): DeclarationSynchro | undefined {
   return REGISTRE.find((declaration) => declaration.cle === cle)

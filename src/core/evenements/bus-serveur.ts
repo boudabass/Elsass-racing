@@ -7,8 +7,6 @@ import type { ContexteTeam } from "../contexte"
 import { EVENEMENTS } from "./catalogue"
 import { emetteurDe, estNomValide } from "./evenements"
 import { traiterEnAttente } from "./traitement-serveur"
-// Enregistre les gestionnaires du socle (effet de bord à l'import).
-import "../actions/gestionnaires-serveur"
 
 export class ErreurEvenement extends Error {
   constructor(message: string) {

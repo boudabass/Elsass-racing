@@ -20,7 +20,7 @@ export function EcranDecouverte({ appCle, nom, lignes }: { appCle: string; nom: 
       </ul>
       <form action={marquerAppDecouverte}>
         <input type="hidden" name="appCle" value={appCle} />
-        <button type="submit" className="cible-tactile rounded-md bg-marque px-5 py-3 font-medium text-white hover:opacity-90">
+        <button type="submit" className="cible-tactile rounded-md bg-marque px-5 py-3 font-medium text-marque-texte hover:opacity-90">
           Commencer
         </button>
       </form>

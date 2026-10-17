@@ -12,8 +12,8 @@ Trois niveaux : unitaires, vérifications en base, bout en bout. Chacun se lance
 
 Scripts tsx qui se connectent à la base locale. Ils créent des données de test et les suppriment dans un `finally`.
 
-- `pnpm db:verifier-rls` : cloisonnement par team (lecture, écriture, insertion inter-teams refusées), et RLS activé sur toute table publique qui porte `team_id`.
-- `pnpm db:verifier-bus` : bus d'événements, livraisons, gestionnaires du socle.
+- `pnpm db:verifier-rls` : cloisonnement par team (lecture, écriture, insertion inter-teams refusées), et RLS activé sur toute table publique qui porte `team_id`. Étendu à Saison : RLS forcé, politique et droits des douze tables `saison_`, cloisonnement d'un championnat.
+- `pnpm db:verifier-bus` : bus d'événements, livraisons, gestionnaires du socle. Étendu à Saison : engagement puis paiement, destinataires exacts (`docs/schema-saison.md`). Étendu en 2.4 : signaux de préparation, refus de décision avec motif gardé, relance de validation après 48 heures.
 
 Pré-requis : `pnpm db:up`, puis `pnpm db:deploy` si la base est neuve.
 
@@ -55,7 +55,7 @@ Les écritures de l'aide sont en SQL direct (`pg`). Le client Prisma généré e
 | `e2e/hors-ligne.spec.ts` | projet `hors-ligne`, serveur de production (port 3101, `.next-e2e-prod`, `next build` puis `next start`). Connexion, note en ligne, visite de `/qg` et `/notes`, passage hors ligne, rechargement depuis le cache du service worker, note hors ligne (badge « En attente », indicateur « 1 modification en attente »), retour du réseau et présence en base. Second test : sans rechargement, la note part au retour du réseau. Troisième et quatrième tests (1.11b) : « + » puis « Note » depuis le QG hors ligne ouvre les notes sans erreur, puis la création fonctionne ; une app jamais visitée hors ligne affiche la page de repli, sans écran d'erreur |
 | `e2e/erreurs.spec.ts` | écran d'erreur en français sur `/erreur-test` (hors production), avec envoi au journal (204) ; le journal refuse un envoi sans session (401) |
 
-Synchro hors ligne : unitaires `src/core/synchro/*.test.ts` (curseur, conflit, contribution, attente, protocole) ; base `pnpm db:verifier-synchro` (deux appareils simulés, conflit journalisé, rejeu idempotent, table refusée, isolement entre teams, contribution, nettoyage final). Détails : `docs/synchro.md`.
+Synchro hors ligne : unitaires `src/core/synchro/*.test.ts` (curseur, conflit, contribution, attente, protocole) ; base `pnpm db:verifier-synchro` (deux appareils simulés, conflit journalisé, rejeu idempotent, table refusée, isolement entre teams, contribution, nettoyage final). Étendu à Saison (2.4) : registre, tables en lecture seule refusées, sortie de l'équipage, débrief jamais reçu par l'assistance, saison clôturée refusée. Détails : `docs/synchro.md`.
 
 Tests unitaires ajoutés pour le déploiement : `src/lib/url-publique.test.ts` (base des redirections selon l'environnement, refus de la production sans `APP_URL`), `src/lib/stockage.test.ts` (dossier des fichiers), `src/core/catalogue-sql.test.ts` (la dernière migration `_core_catalogue` est exactement le SQL généré depuis le catalogue), `src/lib/sante.test.ts` (décision de santé : la première étape en échec donne la raison). `src/lib/sante-decision.ts` est séparé de `sante.ts` pour rester testable sans base.
 

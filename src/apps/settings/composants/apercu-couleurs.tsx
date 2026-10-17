@@ -59,7 +59,7 @@ export function ApercuCouleurs({
         <div style={styleSombre} className="rounded-lg bg-[#0B0B0C] p-3 text-[#F4F4F5]">
           <p className="mb-2 text-xs text-[#A1A1AA]">Thème sombre</p>
           <div className="flex items-center gap-2 rounded-md bg-[#151518] px-3 py-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold text-white" style={{ background: "var(--marque)" }}>
+            <span className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold text-marque-texte" style={{ background: "var(--marque)" }}>
               {initiales}
             </span>
             <span className="text-sm">{nomTeam}</span>
@@ -72,7 +72,7 @@ export function ApercuCouleurs({
         <div style={styleClair} className="rounded-lg bg-white p-3 text-[#111113]">
           <p className="mb-2 text-xs text-[#52525B]">Thème clair</p>
           <div className="flex items-center gap-2 rounded-md bg-[#F4F4F5] px-3 py-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold text-white" style={{ background: "var(--marque)" }}>
+            <span className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold text-marque-texte" style={{ background: "var(--marque)" }}>
               {initiales}
             </span>
             <span className="text-sm">{nomTeam}</span>

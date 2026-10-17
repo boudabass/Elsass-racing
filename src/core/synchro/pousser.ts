@@ -11,6 +11,7 @@ import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 import { decideModification, decideSuppression } from "./conflit"
 import { peutEcrire } from "./contribution"
 import { resultatDejaNote, type Operation, type ResultatOperation } from "./protocole"
+import { RefusSynchro } from "./erreurs"
 import { declarationDe, type DeclarationSynchro, type Tx } from "./registre"
 
 export async function appliquerOperations(
@@ -41,9 +42,15 @@ async function appliquerUne(ctx: ContexteTeam, deviceId: string, operation: Oper
     return { idOperation: operation.idOperation, statut: "refusee", raison: "Cette donnée ne se synchronise pas." }
   }
 
+  // Lecture seule : ce qui vient de la base n'est jamais réécrit par un appareil.
+  if (declaration.lectureSeule) {
+    return { idOperation: operation.idOperation, statut: "refusee", raison: "Cette donnée se lit seulement hors ligne : elle ne s'écrit pas depuis l'appareil." }
+  }
+
+  let ecrit: ResultatOperation
   try {
     const niveau = await niveauDe(ctx, declaration.app)
-    return await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    ecrit = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
       const resultat = await decider(tx, ctx, declaration, operation, niveau)
       await tx.coreSyncOperation.create({
         data: {
@@ -60,10 +67,18 @@ async function appliquerUne(ctx: ContexteTeam, deviceId: string, operation: Oper
       return resultat
     })
   } catch (erreur) {
+    // Refus métier levé dans la transaction : rien n'est écrit, le message part à l'appareil.
+    if (erreur instanceof RefusSynchro) return { idOperation: operation.idOperation, statut: "refusee", raison: erreur.message }
     // Erreur de base : la transaction est annulée, rien n'est appliqué ni noté. Un nouvel envoi réessaiera.
     console.error("[synchro] opération non appliquée :", erreur)
     return { idOperation: operation.idOperation, statut: "refusee", raison: "L'enregistrement n'a pas pu être fait. Réessaie." }
   }
+
+  // La transaction est validée : ce qui suit ne peut plus la défaire, et son échec ne change pas le résultat.
+  if (ecrit.statut === "appliquee" && declaration.apresApplication) {
+    await declaration.apresApplication(ctx, operation.id, operation.type).catch((erreur: unknown) => console.error("[synchro] suite non faite :", erreur))
+  }
+  return ecrit
 }
 
 async function decider(

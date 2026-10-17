@@ -28,7 +28,7 @@ export function EcranVide({
       {action && (
         <Link
           href={action.href}
-          className="cible-tactile mt-2 inline-flex items-center rounded-md bg-marque px-5 py-2 font-medium text-white hover:opacity-90"
+          className="cible-tactile mt-2 inline-flex items-center rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90"
         >
           {action.libelle}
         </Link>

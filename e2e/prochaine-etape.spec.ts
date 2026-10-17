@@ -18,3 +18,14 @@ test("le bouton Prochaine étape affiche Valider le résultat du Gaschney et ouv
   await expect(panneau.getByRole("heading", { name: "Valider le résultat du Gaschney" })).toBeVisible()
   await expect(panneau.locator("article", { hasText: "Valider le résultat du Gaschney" })).toBeInViewport()
 })
+
+test("sur téléphone, la bulle Prochaine étape n'apparaît pas : la boîte d'actions fait ce travail", async ({ page, equipe }) => {
+  preparerDonneesCaptures(equipe)
+  await connecterParLien(page, equipe)
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto("/qg")
+
+  // La barre haute et la boîte restent là ; seule la bulle flottante disparaît.
+  await expect(page.getByRole("button", { name: /Synchronisé|En ligne|Hors ligne|En attente/ }).first()).toBeVisible()
+  await expect(page.getByRole("link", { name: /Valider le résultat du Gaschney/ })).toBeHidden()
+})

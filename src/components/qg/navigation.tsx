@@ -1,6 +1,5 @@
 "use client"
 
-import type { ReactNode } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Search } from "lucide-react"
@@ -19,11 +18,9 @@ export interface AppNavigation {
 export function Navigation({
   apps,
   entreesPlus,
-  boiteMobile,
 }: {
   apps: AppNavigation[]
   entreesPlus: EntreePlus[]
-  boiteMobile: ReactNode
 }) {
   const chemin = usePathname()
   const actif = (href: string) => chemin === href || chemin.startsWith(`${href}/`)
@@ -43,7 +40,7 @@ export function Navigation({
               title={app.nom}
               aria-current={actif(href) ? "page" : undefined}
               className={`cible-tactile flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-md text-xs transition-colors duration-150 ${
-                actif(href) ? "bg-marque text-white" : "text-texte-discret hover:bg-surface-2 hover:text-texte"
+                actif(href) ? "bg-marque text-marque-texte" : "text-texte-discret hover:bg-surface-2 hover:text-texte"
               }`}
             >
               <Icone className="h-5 w-5" aria-hidden />
@@ -55,16 +52,12 @@ export function Navigation({
 
       <nav
         aria-label="Navigation rapide"
-        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-bordure bg-surface md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-bordure bg-surface md:hidden"
       >
         <Link href="/qg" className="cible-tactile flex flex-col items-center justify-center gap-1 py-2 text-xs" aria-current={chemin === "/qg" ? "page" : undefined}>
           <House className="h-5 w-5" aria-hidden />
           QG
         </Link>
-        <div className="flex flex-col items-center justify-center gap-1 py-2 text-xs">
-          {boiteMobile}
-          Actions
-        </div>
         <div className="flex flex-col items-center justify-center gap-1 py-2 text-xs">
           <BoutonPlus entrees={entreesPlus} />
           Ajouter

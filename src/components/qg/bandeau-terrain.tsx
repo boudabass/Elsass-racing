@@ -15,7 +15,7 @@ export function BandeauTerrain({ epreuve }: { epreuve: string }) {
       <div className="flex gap-2">
         <form action={basculerTerrainAction}>
           <input type="hidden" name="actif" value="1" />
-          <button type="submit" className="cible-tactile rounded-md bg-marque px-4 py-2 text-sm font-medium text-white hover:opacity-90">
+          <button type="submit" className="cible-tactile rounded-md bg-marque px-4 py-2 text-sm font-medium text-marque-texte hover:opacity-90">
             Passer en mode terrain
           </button>
         </form>

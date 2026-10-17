@@ -10,7 +10,11 @@ export const manifesteSaison: ManifesteApp = {
   icone: "calendar-days",
   version: "0.1.0",
   requiert: [],
-  menu: [{ libelle: "Accueil", chemin: "/" }],
+  menu: [
+    { libelle: "Calendrier", chemin: "/" },
+    { libelle: "Résultats à valider", chemin: "/a-valider", niveauMinimum: "ecriture" },
+    { libelle: "Historique", chemin: "/historique" },
+  ],
   widgets: [...WIDGETS.saison],
   evenementsEmis: evenementsEmisPar("saison"),
   evenementsEcoutes: evenementsEcoutesPar("saison"),

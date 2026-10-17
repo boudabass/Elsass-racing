@@ -82,11 +82,27 @@ Une ligne lue plus tôt peut disparaître avant l'écriture (appareil déconnect
 - Poussée : une ligne disparue donne `refusee` « Cet élément n'existe plus. », sans journal de conflit.
 - Contrôles : `pnpm db:verifier-synchro` (appareil supprimé entre deux tirages, 401, aucun log ; curseur seul supprimé, recréé).
 
+
+## Tables de Saison hors ligne (tâche 2.4)
+
+Six tables de Saison suivent la procédure de `docs/app-sdk.md`, section 9 (registre, cinq fonctions par table, `TABLES_LOCALES`, schéma local, vérifications).
+
+- **Lecture seule** (`lectureSeule: true` dans la déclaration) : `core_event`, `saison_stage`, `saison_schedule_item`, `saison_recce`. `pousser.ts` refuse toute opération sur ces tables avant même de les lire : elles se reçoivent, elles ne s'écrivent pas depuis l'appareil.
+- **Contribution propre** : `saison_recce_session` (niveau de lecture « lecture », donc l'assistance les voit) et `saison_debrief` (niveau de lecture « contribution », donc l'assistance ne les reçoit jamais). Chacun ne modifie que ses lignes au niveau contribution.
+- **Refus métier** : une règle de Saison (saison clôturée, personne ou spéciale hors de la team ou de l'épreuve, débrief en double) lève `RefusSynchro`. La transaction est annulée, l'opération est notée `refusee` avec son message en français, et l'appareil le montre.
+- **Base locale** : version 2. Une base créée en version 1 reçoit les nouveaux magasins à l'ouverture. Les magasins existants ne sont pas touchés.
+- **Préchargement** : les pages `?onglet=programme` et `?onglet=reconnaissances` de la prochaine épreuve sont demandées au service worker avec les pages clés (`/qg`, `/notes`).
+
+- **Débrief hors ligne** : le formulaire de débrief de la fiche engagement écrit dans la base locale (`saison_debrief`, `ecrireLocal`) et s'affiche hors ligne, comme les sorties de reco. La ligne locale de cet appareil l'emporte sur celle du rendu serveur. Une fois l'écriture validée par le serveur, l'événement `saison.debrief_saisi` est émis (crochet `apresApplication` de `DeclarationSynchro`, appelé après la transaction ; son échec est journalisé sans changer le résultat de l'opération).
+
+Vérifications : `db:verifier-synchro` (registre, lecture seule refusée, sortie de l'équipage appliquée, sortie de l'assistance refusée, débrief jamais reçu par l'assistance, événement du débrief émis une seule fois, saison clôturée refusée) et `e2e/saison-hors-ligne.spec.ts` (programme en mode avion, sortie saisie hors ligne puis synchronisée au retour du réseau ; débrief saisi hors ligne, en base et événement émis au retour du réseau).
+
+Limite : un débrief créé sur un autre appareil n'est visible ici qu'après la première synchronisation : tant qu'il n'est pas sur cet appareil, un nouveau débrief y est créé et sera refusé à l'envoi (« Tu as déjà un débrief pour cette épreuve »).
 ## Limites connues
 
 - Pas de worker en arrière-plan : la synchro tourne dans l'onglet ouvert, et le service worker ne rejoue rien seul.
 - Un changement de niveau ne relance pas un tirage complet : un membre promu garde son curseur, et ne reçoit pas rétroactivement les lignes des autres. À traiter avec un tirage complet lors d'un changement de niveau.
-- Une seule table synchronisable : `core_note`. Les autres apps viendront avec leurs écrans.
+- Tables synchronisables : `core_note` (equipe) et, depuis la tâche 2.4, six tables de Saison (voir la section suivante). Les autres apps viendront avec leurs écrans.
 - Les auteurs sont affichés « Toi » ou « Un membre » : pas encore de nom sur les notes.
 - Le conflit est visible dans le journal de la fiche, pas dans une interface dédiée.
 - Le rejeu d'une écriture n'est sûr que si le serveur a bien reçu la première : l'idempotence repose sur `idOperation`.
@@ -98,3 +114,21 @@ Une ligne lue plus tôt peut disparaître avant l'écriture (appareil déconnect
 - Base : `pnpm db:verifier-synchro` (deux appareils simulés, conflit journalisé, rejeu idempotent, table refusée, isolement entre teams, contribution, périmètre de lecture de l'assistance et de l'équipage).
 - E2E, projet `chromium` (développement) : `e2e/hors-ligne.spec.ts` ne tourne pas ici.
 - E2E, projet `hors-ligne` (production, port 3101) : `e2e/hors-ligne.spec.ts`. Connexion, note en ligne, visite de `/qg` et `/notes`, passage hors ligne, rechargement depuis le cache, note hors ligne avec badge et indicateur, retour du réseau et contrôle en base.
+
+## Dépenses de Budget hors ligne (tâche 2.6)
+
+- `budget_expense` : contribution propre (`src/apps/budget/synchro-serveur.ts`). Un membre ne saisit hors ligne que les dépenses qu'il paie lui-même (contrôle de payeur dans la transaction). Une dépense ne se modifie ni ne se supprime depuis l'appareil : `RefusSynchro` avec message en français.
+- `budget_category` et `budget_payer` : lecture seule, lisibles hors ligne pour le formulaire « Nouvelle dépense ».
+- À l'application (transaction validée), `apresApplication` émet `budget.depense_creee`, `budget.depense_confirmee`, `budget.solde_modifie` (payeur membre) et, au franchissement, `budget.depassement_previsionnel`.
+- Base locale : version 3 (magasins `budget_expense`, `budget_category`, `budget_payer`).
+- Test e2e : `e2e/budget-hors-ligne.spec.ts` (projet « hors-ligne »).
+
+## Dépenses de Budget : modification et suppression (tâche 2.7)
+
+- `budget_expense` accepte les opérations `modifier` et `supprimer`, avec la même règle qu'en ligne (`src/apps/budget/depenses-tx.ts`) : contribution propre (on ne modifie que ses lignes au niveau contribution), payeur contrôlé, montant non inférieur à ce qui est remboursé.
+- Après application, `apresApplication` reçoit le type de l'opération : une création émet les événements de la dépense ; une modification ou une suppression émet `budget.solde_modifie` pour le payeur membre.
+- Le registre passe le type de l'opération à `apresApplication(ctx, id, type)`.
+
+## Rafraîchissement après une synchro (tâche 2.9, point 2)
+
+Quand le serveur applique des opérations poussées, le moteur prévient ses abonnés serveur ; le fournisseur de synchro appelle alors `router.refresh()`. Une dépense d'engagement crée ainsi son action dans la boîte, et la boîte, le compteur et le solde se mettent à jour sans rechargement. Reproduction : `e2e/boite-reproduction.spec.ts`.

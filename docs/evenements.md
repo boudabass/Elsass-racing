@@ -18,6 +18,7 @@ Il n'y a pas de worker. Le traitement s'exécute **dans la requête qui vient d'
 - Sans gestionnaire : la livraison passe à `traite`, avec `derniereErreur = "aucun gestionnaire"`. C'est normal tant que les apps ne sont pas écrites.
 - Gestionnaire qui échoue : `erreur`, `tentatives + 1`, `derniereErreur` = le message. Le traitement continue avec la suivante. Une livraison en erreur est retentée aux appels suivants, jusqu'à 5 tentatives, puis laissée en erreur.
 - Un gestionnaire n'écrit que dans ses propres tables, ou par les fonctions du socle.
+- Un gestionnaire peut émettre à son tour. Le traitement imbriqué ne reprend ni la livraison en cours, ni une livraison déjà traitée entre-temps (`traitement-serveur.ts`).
 
 ## Boîte d'actions (`core_action`)
 
@@ -64,9 +65,54 @@ Un événement `<app>.action_requise` est traité par le socle (`src/core/action
 4. La ligne « pourquoi » vient d'une table par priorité (`pourquoi`).
 5. Sans action : compte à rebours « J-n <épreuve> » (« Aujourd'hui <épreuve> » le jour même), sinon rien.
 
+## Charges utiles
+
+Chaque événement porte un objet `donnees`. Les champs non décrits ici ne sont pas lus. Une charge utile invalide est ignorée par le gestionnaire, sans erreur.
+
+### Préparation de l'épreuve (Saison)
+
+Quatre événements disent qu'un point de préparation d'une épreuve à venir est en retard. Saison les écoute (`enregistrerGestionnaire`, `src/apps/saison/services-serveur.ts`) et tient une ligne par engagement et par point.
+
+| Événement | Émis par | Point de préparation |
+|---|---|---|
+| `equipe.licence_expire_bientot` | Équipe | `licences` |
+| `equipe.homologation_expire_bientot` | Équipe | `homologations` |
+| `voiture.papier_expire_bientot` | Voiture | `papiers` |
+| `garage.piece_zone_rouge` | Garage | `pieces` |
+
+Charge utile, la même pour les quatre :
+
+```ts
+{
+  detail?: string,      // jusqu'à 300 caractères, affiché tel quel sur le point
+  regle?: boolean,      // absent ou faux : le point est ouvert ; vrai : il est réglé
+  vehicleId?: uuid,     // limite aux engagements de cette voiture
+  personId?: uuid,      // limite aux engagements où cette personne est pilote ou copilote
+}
+```
+
+Sans `vehicleId` ni `personId`, l'événement vise tous les engagements à venir de la team. Les engagements visés : épreuve « envisagée » ou « en cours », engagement « envisagé », « inscrit » ou « payé ».
+
+Ce format est une convention de Saison, pas une description du catalogue. Les apps Équipe, Voiture et Garage doivent l'émettre tel quel ; à confirmer avec leurs responsables lors de leur lot.
+
+### Débrief (Saison)
+
+`saison.debrief_saisi` : `{ entryId: uuid, eventId: uuid, auteurMembershipId: uuid }`. Émis à chaque écriture de débrief, en ligne comme hors ligne, une fois l'écriture validée par le serveur (crochet `apresApplication` de la synchro, `src/apps/saison/synchro-serveur.ts`). Le texte du débrief n'est pas dans l'événement : il est privé à l'équipage.
+
+### Budget
+
+Charges utiles des événements de Budget : voir `docs/schema-budget.md` (section Événements). Le mouvement à confirmer est une demande de la boîte d'actions : `{ type: "mouvement_a_confirmer", cleUnicite: "budget_suggestion:<id>", ficheType: "mouvement", ficheId, destinataires, boutons: [confirmer, ignorer], priorite: 5 }`.
+
 ## Vérifier
 
 ```bash
 pnpm db:verifier-bus   # bus, livraisons, boîte d'actions, décision, levée, cloisonnement
 pnpm test
 ```
+
+## Liaisons Saison et Budget (tâche 2.7)
+
+- `saison.engagement_paye` (Saison vers Budget) : Budget propose une dépense d'engagement. Charge utile lue : `{ entryId, eventId, montant_paye, payeurPersonId? }`. Une seule proposition en attente par `entryId`.
+- `budget.depense_creee` (Budget vers Saison) : Saison demande « marquer payé » pour une dépense d'engagement. Charge utile : `{ depenseId, montant, date, categoryId, categorieCle, payerId, personneId, eventId, seasonId, entryId, origineRef }`. `categorieCle` vaut `engagement` pour la catégorie d'engagement ; `origineRef` vaut `saison:<entryId>` pour une proposition venant de Saison.
+- Action `marquer_engagement_paye` (Saison) : `cleUnicite` `marquer_paye:<entryId>`, boutons `marquer_paye` et `ignorer`.
+- Budget émet `budget.depense_creee` par `emettreDepenseCreee` (une seule source, en ligne comme en synchro). Une modification ou une suppression émet `budget.solde_modifie`.
