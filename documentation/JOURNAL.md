@@ -81,3 +81,14 @@
 - Captures : `docs/captures` régénérées sur le build de production (`E2E=1`, sans indicateur de développement). « Prochaine étape » masquée sous `md`, donc absente des captures à 360 px.
 - Erreurs serveur P2025, `TypeError` sur `null` (id, clotureeAt, couleurPrincipale), `[synchro]` et `[saison]` recalcul : présentes pendant les passes, aucun échec de test ; non investiguées (consigne). Pic mémoire de `next start` : ~811 Mo, en hausse pendant une passe, sous le seuil de 2 Go.
 - Vérifications : typecheck, vitest 396/396, `impeccable detect` sans constat sur les fichiers touchés, e2e complet 63/63 trois fois de suite sur build de production.
+
+## 17/10/2026 : brief 2.12, corrections de l'audit technique
+
+- Zones de toucher à 44 px : boutons (`min-h-11`), champs (`min-h-11`), pastilles de filtres et de budget, bouton « Recharger » et lien « Retour au QG » de `global-error.tsx`. Test budget 360 px : bloc de liste à 44 px au moins (`e2e/budget-saison.spec.ts`).
+- Un seul titre principal : `connexion` (« Connexion »), `equipes` (deux titres de niveau 2), `apps/settings` (« Réglages » en `h1`).
+- Réduction des animations : `prefers-reduced-motion` dans `src/app/globals.css` retire le glissement des tiroirs et fenêtres (sélecteur `[class*="animate-in"]`, puisque la classe réelle est `data-[state=open]:animate-in`). Contrôle e2e dans `e2e/audit-technique.spec.ts`.
+- Classe de champ unique : `CHAMP` et `BOUTON` dans `src/lib/classes-formulaire.ts`, reprises par Budget, Saison et Réglages ; plus de constante locale dupliquée.
+- Indicateur de synchro : `role="status"` sur un texte visuellement caché (« 1 modification en attente », « Hors ligne », « En ligne »), au lieu du libellé visible qui changeait chaque minute.
+- Nettoyage : `src/components/ui/sidebar.tsx` et `src/hooks/use-mobile.tsx` supprimés (aucun import).
+- Erreurs serveur observées pendant la passe, non investiguées (consigne) : P2025 (« No record was found »), `TypeError` sur `null`, et une fois `P2003` sur `core_domain_event_team_id_fkey` pendant le recalcul de Saison au QG (probablement une équipe de test supprimée en cours de passe, à confirmer).
+- Vérifications : typecheck, vitest 396/396, e2e complet 67/67 sur build de production (`E2E=1`, port 3101), captures `docs/captures/audit-*` et autres régénérées sur ce build.
