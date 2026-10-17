@@ -97,3 +97,14 @@ Une app peut ajouter un onglet à la fiche d'une autre app. Le contrat est dans 
 3. Ajouter l'onglet à la barre (`Onglets`), et rendre `onglet.composant` avec `ficheId`. La fiche ne connaît pas l'app qui fournit l'onglet. L'app qui possède la fiche ne lit jamais les tables de l'autre.
 
 Exemple : Budget fournit l'onglet « Dépenses » de la fiche épreuve (`PanneauDepensesEpreuve`, déclaré dans `src/apps/onglets-fiches.ts`). Garage, Médias et Check-lists pourront suivre le même chemin.
+
+## Menu d'une app, rendu par le socle (tâche 2.9)
+
+Le menu déclaré dans `manifeste.menu` est rendu par le socle, sur toutes les apps (`src/components/qg/menu-app.tsx`, dans le layout de l'espace connecté). Il apparaît sous le titre sur ordinateur, en rangée défilante sur téléphone, et l'entrée de la page courante est marquée (`aria-current`).
+
+Chaque entrée peut porter ses droits, en plus du niveau d'accès à l'app :
+
+- `niveauMinimum` : niveau requis pour voir l'entrée (ex. « À confirmer » : `ecriture`).
+- `masquePour` : niveaux pour lesquels l'entrée est masquée (ex. « Prévisionnel » : `["contribution"]`, l'assistance ne voit pas le prévu).
+
+Le filtre est `entreeVisible` (`src/core/sdk/manifeste.ts`). Il ne remplace pas les contrôles de la page : la page garde sa propre garde (`accesEcran`, `exigerAcces`).

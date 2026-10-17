@@ -1,11 +1,15 @@
 "use client"
 
+import { useState } from "react"
+
 import { useEtatSynchro } from "@/core/synchro/client/react"
 
 // Indicateur discret de la barre haute : « Hors ligne », « 3 modifications en attente », ou
-// « Synchronisé il y a 2 min ». Un conflit n'apparaît pas ici : il est dans le journal de la fiche.
+// « Synchronisé il y a 2 min ». Sur téléphone, une simple pastille : le détail s'affiche au toucher.
+// Un conflit n'apparaît pas ici : il est dans le journal de la fiche.
 export function IndicateurSynchro() {
   const etat = useEtatSynchro()
+  const [detail, setDetail] = useState(false)
 
   let libelle = "En ligne"
   let couleur = "text-etat-ok"
@@ -22,9 +26,25 @@ export function IndicateurSynchro() {
   }
 
   return (
-    <span role="status" aria-live="polite" className={`flex max-w-[10rem] items-center gap-1.5 truncate text-xs ${couleur}`}>
-      <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-current" />
-      <span className="truncate">{libelle}</span>
+    <span className="relative">
+      <button
+        type="button"
+        onClick={() => setDetail((ouvert) => !ouvert)}
+        aria-label={libelle}
+        aria-expanded={detail}
+        className={`cible-tactile flex items-center justify-center px-1 sm:hidden ${couleur}`}
+      >
+        <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-current" />
+      </button>
+      {detail && (
+        <span role="status" className="absolute right-0 top-full z-50 mt-1 whitespace-nowrap rounded-md border border-bordure bg-surface px-2 py-1 text-xs text-texte shadow-lg sm:hidden">
+          {libelle}
+        </span>
+      )}
+      <span role="status" aria-live="polite" className={`hidden max-w-[10rem] items-center gap-1.5 truncate text-xs sm:flex ${couleur}`}>
+        <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-current" />
+        <span className="truncate">{libelle}</span>
+      </span>
     </span>
   )
 }

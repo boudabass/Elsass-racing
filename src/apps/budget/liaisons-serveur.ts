@@ -17,6 +17,7 @@ import { prismaPourTeam } from "@/lib/prisma"
 
 import { ErreurBudget, refus } from "./erreurs"
 import { modePaiementSaison, voitTout } from "./regles"
+import { phraseSoldeMoi } from "./libelles"
 import { lireSoldeMoi, listerMouvements } from "./lectures-serveur"
 import { accesBudget, initialiserSiBesoin, payeurDePersonneDans, PRIORITE_MOUVEMENT_A_CONFIRMER } from "./services-serveur"
 
@@ -174,7 +175,7 @@ export async function coutDeLEpreuve(eventId: string): Promise<number | null> {
 
 // Solde affiché dans la barre haute : « Mon solde » au niveau contribution, sinon le solde de la saison en
 // cours (recettes encaissées moins dépenses confirmées). Null sans lecture ni saison en cours.
-export async function lireSoldeBarreHaute(): Promise<{ libelle: string; montantCentimes: number } | null> {
+export async function lireSoldeBarreHaute(): Promise<{ libelle: string; montantCentimes: number; texte?: string } | null> {
   let contexte: ContexteTeam
   let niveau: string
   try {
@@ -188,7 +189,8 @@ export async function lireSoldeBarreHaute(): Promise<{ libelle: string; montantC
   if (niveau === "contribution") {
     const moi = await lireSoldeMoi()
     if (!moi) return null
-    return { libelle: "Mon solde", montantCentimes: moi.du - moi.trop }
+    const montantCentimes = moi.du - moi.trop
+    return { libelle: "Mon solde", montantCentimes, texte: phraseSoldeMoi(montantCentimes) }
   }
   const client = prismaPourTeam(contexte.teamId, contexte.userId)
   const aujourdhui = new Date(`${jourDeParis(new Date())}T00:00:00Z`)

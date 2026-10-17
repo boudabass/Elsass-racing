@@ -56,7 +56,7 @@ test("budget : dépense, solde, remboursement partiel puis complet, proposition 
 
   // Le solde du membre : 45,50 € dus, à rembourser.
   await page.goto("/apps/budget/membres")
-  await expect(page.getByText(/Solde\s+45,50/)).toBeVisible()
+  await expect(page.getByText(/La team doit\s+45,50/)).toBeVisible()
 
   // Remboursement partiel (20 €) depuis la caisse, puis le reste.
   await page.goto(`/apps/budget/membres?rembourser=${personneResponsable}`)

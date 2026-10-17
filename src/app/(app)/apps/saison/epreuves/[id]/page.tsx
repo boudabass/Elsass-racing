@@ -35,12 +35,11 @@ import { Onglets } from "@/apps/saison/composants/onglets"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { aAuMoins } from "@/core/droits/niveaux"
 
-// Fiche d'une épreuve, en trois onglets : Infos, Engagements, Programme. Les onglets prêt,
-// reconnaissances et résultats arrivent aux tâches suivantes et ne sont pas affichés ici.
+// Fiche d'une épreuve. « Prêt pour l'épreuve ? » est le premier onglet, et l'onglet par défaut (brief 2.9).
 const ONGLETS = [
+  { cle: "pret", libelle: "Prêt pour l'épreuve ?" },
   { cle: "infos", libelle: "Infos" },
   { cle: "engagements", libelle: "Engagements" },
-  { cle: "pret", libelle: "Prêt pour l'épreuve ?" },
   { cle: "programme", libelle: "Programme" },
   { cle: "reconnaissances", libelle: "Reconnaissances" },
   { cle: "resultats", libelle: "Résultats" },
@@ -61,7 +60,7 @@ export default async function PageEpreuve({
     return <EcranVide icone={Lock} titre={acces.titre} lignes={acces.lignes} action={{ libelle: "Retour au calendrier", href: "/apps/saison" }} />
   }
   const { id } = await params
-  const { onglet = "infos" } = await searchParams
+  const { onglet = "pret" } = await searchParams
   const fiche = await lireEpreuve(id)
   if (!fiche) notFound()
 
@@ -173,6 +172,9 @@ export default async function PageEpreuve({
                     {LIBELLE_STATUT_ENGAGEMENT[engagement.statut as keyof typeof LIBELLE_STATUT_ENGAGEMENT] ?? engagement.statut}
                   </span>
                 </Link>
+                <Link href={`/apps/saison/engagements/${engagement.id}#debrief`} className="px-4 pb-3 text-sm underline">
+                  Débrief
+                </Link>
               </li>
             ))}
           </ul>
@@ -237,9 +239,16 @@ export default async function PageEpreuve({
                     {engagement.numeroCourse ? ` · n° ${engagement.numeroCourse}` : ""}
                   </h2>
                   <p className="text-sm text-texte-discret">{engagement.equipage ?? "Équipage non renseigné"}</p>
-                  <Link href={`/apps/saison/engagements/${engagement.id}`} className="text-sm underline">
-                    Ouvrir l'engagement
-                  </Link>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <Link href={`/apps/saison/engagements/${engagement.id}`} className="underline">
+                      Ouvrir l'engagement
+                    </Link>
+                    {resultat && (
+                      <Link href={`/apps/saison/engagements/${engagement.id}#debrief`} className="underline">
+                        Débrief
+                      </Link>
+                    )}
+                  </div>
                   {resultat && (
                     <p className={`text-sm font-medium ${COULEUR_VALIDATION[resultat.validation] ?? ""}`}>
                       {libelle(LIBELLE_VALIDATION_RESULTAT, resultat.validation)}

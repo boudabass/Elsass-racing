@@ -8,13 +8,17 @@ import { useEffect, useRef } from "react"
 export function Onglets({ base, onglets, actif }: { base: string; onglets: ReadonlyArray<{ cle: string; libelle: string }>; actif: string }) {
   const barre = useRef<HTMLElement>(null)
 
+  // Ne défile que la barre elle-même : scrollIntoView faisait aussi bouger la page et rognait le premier onglet.
   useEffect(() => {
-    const courant = barre.current?.querySelector<HTMLElement>('[aria-current="page"]')
-    courant?.scrollIntoView({ block: "nearest", inline: "center" })
+    const barreEl = barre.current
+    const courant = barreEl?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!barreEl || !courant) return
+    const decalage = courant.offsetLeft - (barreEl.clientWidth - courant.offsetWidth) / 2
+    barreEl.scrollLeft = Math.max(0, decalage)
   }, [actif])
 
   return (
-    <nav ref={barre} className="-mx-4 flex gap-2 overflow-x-auto border-b border-bordure px-4" aria-label="Onglets de l'épreuve">
+    <nav ref={barre} className="-mx-4 flex gap-2 overflow-x-auto border-b border-bordure px-4 [scrollbar-width:thin]" aria-label="Onglets de l'épreuve">
       {onglets.map((tab) => (
         <Link
           key={tab.cle}

@@ -147,3 +147,9 @@ Règle : une app propose, elle n'écrit jamais chez l'autre. Budget n'écrit auc
 - Prévu de l'épreuve : invisible à la contribution. Filtré côté serveur (`lireDepensesEpreuve`, règle `voitTout` : niveau lecture, puis à partir de l'écriture), testé en e2e (`budget-saison.spec.ts`).
 - Synchro de `budget_expense` au niveau contribution : l'appareil suit la personne qui paie (comme en ligne), et une écriture n'est permise que sur les dépenses qu'elle paie.
 - Justificatifs (`justificatif_file_id`) : lot 5. PDF de bilan : lot 3.
+
+## Action « mouvement à confirmer » et solde en clair (tâche 2.9)
+
+- Une suggestion traitée sur la page À confirmer (confirmée ou ignorée) lève son action `budget_suggestion:<id>` dans la boîte, par `budget.action_levee`. Une décision de la boîte sur une suggestion déjà traitée ne rouvre plus l'action : elle la lève. `rouvrirAction` ne sert qu'aux refus de règle réels.
+- Solde d'un membre écrit en clair (`phraseSoldeMoi`, `phraseSoldeMembre` dans `libelles.ts`) : « La team te doit … », « Tu dois … à la team », « Rien à régler ».
+- Engagement concerné : préremplissage par la catégorie « Engagement » (clé `engagement`) et l'épreuve choisies.

@@ -114,11 +114,13 @@ Dans Git Bash. Remplace seulement `MOT_DE_PASSE_POSTGRES` par le mot de passe de
 ```
 cd "/c/Users/George/Desktop/The Elsassisch/Projet/Elsass Racing"
 export DATABASE_URL_MIGRATION='postgresql://postgres:MOT_DE_PASSE_POSTGRES@37.59.108.111:54330/postgres'
-pnpm team:creer --nom "The Elsassisch Racing Team" --slug the-elsassisch-racing-team --email theelsassisch@gmail.com
+pnpm team:creer --nom "The Elsassisch Racing Team" --slug the-elsassisch-racing-team --email theelsassisch@gmail.com --prenom-responsable Prénom --nom-responsable Nom
 unset DATABASE_URL_MIGRATION
 ```
 
-Résultat attendu : un message qui confirme la team, le compte responsable et les 11 apps activées. Si la commande dit que la team existe déjà, rien n'a été créé en double.
+Les arguments `--prenom-responsable` et `--nom-responsable` sont obligatoires : la commande crée aussi la fiche personne du responsable, liée à son compte et à son adhésion. Sans elle, le responsable n'est ni pilote, ni dans les soldes Budget. `--nom` reste le nom de la team.
+
+Résultat attendu : un message qui confirme la team, le responsable (nom, prénom et adresse) et les 11 apps activées. Si la commande dit que la team existe déjà, rien n'a été créé en double.
 
 ### 8.4 Refermer la base
 

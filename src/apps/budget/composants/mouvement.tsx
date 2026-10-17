@@ -115,7 +115,7 @@ export function FormulaireMouvement({
         </div>
       </form>
 
-      <form action={actionSupprimer} className="flex flex-col gap-3 rounded-md border border-bordure p-4">
+      <form id="supprimer" action={actionSupprimer} className="flex scroll-mt-24 flex-col gap-3 rounded-md border border-bordure p-4">
         <input type="hidden" name="id" value={valeurs.id} />
         <input type="hidden" name="type" value={valeurs.type} />
         <label className="flex min-h-11 items-center gap-3">

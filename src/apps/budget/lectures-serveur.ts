@@ -129,6 +129,8 @@ export async function lireMouvement(id: string): Promise<MouvementLu | null> {
 
 // Choix des formulaires : catégories, payeurs actifs, « moi », épreuves (et la première en cours).
 export async function lireChoix(): Promise<{
+  // Catégorie « Engagement » : elle préremplit l'engagement concerné d'une dépense.
+  categorieEngagementId: string | null
   categoriesDepense: Array<{ id: string; nom: string }>
   categoriesRecette: Array<{ id: string; nom: string }>
   payeurs: Array<{ id: string; nom: string; type: string }>
@@ -141,7 +143,7 @@ export async function lireChoix(): Promise<{
   const { ctx } = await accesBudget("contribution")
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const [categories, payeurs, epreuves, saisons, moi, engagements] = await Promise.all([
-    client.budgetCategory.findMany({ where: { teamId: ctx.teamId, active: true, deletedAt: null }, orderBy: [{ ordre: "asc" }, { nom: "asc" }], select: { id: true, nom: true, sens: true } }),
+    client.budgetCategory.findMany({ where: { teamId: ctx.teamId, active: true, deletedAt: null }, orderBy: [{ ordre: "asc" }, { nom: "asc" }], select: { id: true, nom: true, sens: true, cle: true } }),
     client.budgetPayer.findMany({ where: { teamId: ctx.teamId, actif: true, deletedAt: null }, orderBy: [{ type: "asc" }, { nom: "asc" }], select: { id: true, nom: true, type: true, personId: true } }),
     client.coreEvent.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, orderBy: [{ dateDebut: "desc" }], select: { id: true, nom: true, seasonId: true, dateDebut: true, dateFin: true } }),
     client.coreSeason.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, orderBy: [{ annee: "desc" }], select: { id: true, annee: true } }),
@@ -151,6 +153,7 @@ export async function lireChoix(): Promise<{
   const aujourdhui = new Date(`${jourDeParis(new Date())}T00:00:00Z`)
   const enCours = epreuves.find((epreuve) => epreuve.dateDebut <= aujourdhui && epreuve.dateFin >= aujourdhui)
   return {
+    categorieEngagementId: categories.find((categorie) => categorie.cle === "engagement")?.id ?? null,
     categoriesDepense: categories.filter((categorie) => categorie.sens === "depense").map(({ id, nom }) => ({ id, nom })),
     categoriesRecette: categories.filter((categorie) => categorie.sens === "recette").map(({ id, nom }) => ({ id, nom })),
     payeurs: payeurs.map(({ id, nom, type }) => ({ id, nom, type })),

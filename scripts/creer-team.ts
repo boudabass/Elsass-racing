@@ -1,6 +1,9 @@
-// Crée une team, son responsable, et active les 11 apps du catalogue.
-// Usage : pnpm team:creer --nom "Nom de la team" --slug nom-de-la-team --email adresse@exemple.fr
+// Crée une team, son responsable (compte et fiche personne), et active les 11 apps du catalogue.
+// Usage : pnpm team:creer --nom "Nom de la team" --slug nom-de-la-team --email adresse@exemple.fr \
+//           --prenom-responsable Prénom --nom-responsable Nom
 // Refuse si le slug existe déjà. Ne touche à rien d'autre.
+// La fiche personne du responsable est obligatoire : sans elle, il n'est ni pilote ni dans les soldes Budget.
+// (Les arguments de la personne ne sont pas --nom : --nom désigne la team.)
 
 import { config as chargerEnv } from "dotenv"
 import { PrismaPg } from "@prisma/adapter-pg"
@@ -36,6 +39,8 @@ if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) {
 const analyseEmail = schemaEmail.safeParse(obligatoire(lireArgument("email"), "Argument --email manquant."))
 if (!analyseEmail.success) sortirAvecErreur("Argument --email invalide.")
 const email = analyseEmail.data
+const prenomResponsable = obligatoire(lireArgument("prenom-responsable")?.trim(), "Argument --prenom-responsable manquant.")
+const nomResponsable = obligatoire(lireArgument("nom-responsable")?.trim(), "Argument --nom-responsable manquant.")
 
 const connectionString = process.env.DATABASE_URL_MIGRATION ?? process.env.DATABASE_URL
 if (!connectionString) sortirAvecErreur("DATABASE_URL absente (ni DATABASE_URL_MIGRATION).")
@@ -57,11 +62,26 @@ async function main() {
       data: { id: newId(), nom, slug, statut: "active" },
     })
 
+    // Fiche personne du responsable, liée à son compte, puis à son adhésion (pilote, soldes Budget).
+    const personneId = newId()
+    await tx.corePerson.create({
+      data: {
+        id: personneId,
+        teamId: team.id,
+        prenom: prenomResponsable,
+        nom: nomResponsable,
+        email,
+        membreTeam: true,
+        userId: utilisateur.id,
+      },
+    })
+
     await tx.coreMembership.create({
       data: {
         id: newId(),
         teamId: team.id,
         userId: utilisateur.id,
+        personId: personneId,
         role: "responsable",
         statut: "actif",
       },
@@ -80,7 +100,7 @@ async function main() {
     })
   })
 
-  console.log(`Team « ${nom} » créée (slug ${slug}), ${email} responsable, ${APPS.length} apps activées.`)
+  console.log(`Team « ${nom} » créée (slug ${slug}), ${prenomResponsable} ${nomResponsable} (${email}) responsable, ${APPS.length} apps activées.`)
 }
 
 main()

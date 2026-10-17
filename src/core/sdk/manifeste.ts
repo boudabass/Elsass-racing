@@ -8,12 +8,24 @@ import { APPS, type AppCle } from "../catalogue"
 import { abonnesDe, emetteurDe, estNomValide } from "../evenements/evenements"
 import { EVENEMENTS } from "../evenements/catalogue"
 
+import { aAuMoins, type Niveau } from "../droits/niveaux"
+
 import { WIDGETS } from "./widgets-catalogue"
 
 export interface EntreeMenu {
   libelle: string
   // Relatif à /apps/<cle>, avec une barre oblique initiale : "/identite".
   chemin: string
+  // Droits de l'entrée (la page garde ses propres contrôles) : niveau minimum requis, et niveaux
+  // pour lesquels l'entrée est masquée. Sans règle, l'entrée suit le niveau d'accès à l'app.
+  niveauMinimum?: Niveau
+  masquePour?: Niveau[]
+}
+
+// Vrai si l'entrée doit apparaître pour un membre de ce niveau sur l'app. Pur.
+export function entreeVisible(entree: EntreeMenu, niveau: Niveau): boolean {
+  if (entree.niveauMinimum && !aAuMoins(niveau, entree.niveauMinimum)) return false
+  return !(entree.masquePour ?? []).includes(niveau)
 }
 
 export interface ManifesteApp {

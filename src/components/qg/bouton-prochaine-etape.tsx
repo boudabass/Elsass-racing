@@ -7,7 +7,8 @@ import { libelleCompteARebours } from "@/core/actions/prochaine-etape"
 export function BoutonProchaineEtape({ etape, maintenant }: { etape: ProchaineEtape; maintenant: Date }) {
   if (etape.genre === "rien") {
     return (
-      <div className="fixed bottom-24 right-4 z-40 max-w-xs rounded-lg border border-bordure bg-surface px-4 py-3 text-sm text-texte-discret shadow-lg md:bottom-6 md:right-6">
+      // Sur téléphone, la bulle masquée : elle recouvrait le bas du contenu pour un message sans action.
+      <div className="fixed bottom-24 right-4 z-40 hidden max-w-xs rounded-lg border border-bordure bg-surface px-4 py-3 text-sm text-texte-discret shadow-lg md:bottom-6 md:right-6 md:block">
         Rien d'urgent pour l'instant.
       </div>
     )

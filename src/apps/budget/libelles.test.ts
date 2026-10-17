@@ -3,7 +3,7 @@ import { resolve } from "node:path"
 
 import { describe, expect, it } from "vitest"
 
-import { LIBELLES_PAR_ENUMERATION, formatEuros, libelle } from "./libelles"
+import { LIBELLES_PAR_ENUMERATION, formatEuros, libelle, phraseSoldeMembre, phraseSoldeMoi } from "./libelles"
 import { cellule, csvMouvements, montantFrancais } from "./csv"
 
 // Valeurs de chaque énumération de Budget, lues dans le schéma : un ajout sans libellé fait échouer ce test.
@@ -65,5 +65,19 @@ describe("export CSV", () => {
     const lignes = csv.slice(1).split("\r\n").filter((ligne) => ligne !== "")
     expect(lignes[0]).toBe("Date;Sens;Libellé;Catégorie;Payeur;Montant (€);Statut")
     expect(lignes[1]).toBe('2026-10-17;Dépense;"Pneus; avant";Pneus;Moi;450,50;Confirmée')
+  })
+})
+
+describe("phrases de solde", () => {
+  it("dit en clair qui doit quoi, à la première personne", () => {
+    expect(phraseSoldeMoi(4_500)).toBe(`La team te doit ${formatEuros(4_500)}`)
+    expect(phraseSoldeMoi(-4_500)).toBe(`Tu dois ${formatEuros(4_500)} à la team`)
+    expect(phraseSoldeMoi(0)).toBe("Rien à régler")
+  })
+
+  it("dit en clair qui doit quoi, pour un membre nommé", () => {
+    expect(phraseSoldeMembre(4_500, "Jean")).toBe(`La team doit ${formatEuros(4_500)} à Jean`)
+    expect(phraseSoldeMembre(-4_500, "Jean")).toBe(`Jean doit ${formatEuros(4_500)} à la team`)
+    expect(phraseSoldeMembre(0, "Jean")).toBe("Rien à régler")
   })
 })

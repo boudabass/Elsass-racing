@@ -58,3 +58,16 @@ const formatEuro = new Intl.NumberFormat("fr-FR", { style: "currency", currency:
 export function formatEuros(centimes: number): string {
   return formatEuro.format(centimes / 100)
 }
+
+// Solde en clair (le signe seul ne se lit pas). Positif : la team doit de l'argent. Négatif : le membre doit à la team.
+export function phraseSoldeMoi(centimes: number): string {
+  if (centimes === 0) return "Rien à régler"
+  if (centimes > 0) return `La team te doit ${formatEuros(centimes)}`
+  return `Tu dois ${formatEuros(-centimes)} à la team`
+}
+
+export function phraseSoldeMembre(centimes: number, nom: string): string {
+  if (centimes === 0) return "Rien à régler"
+  if (centimes > 0) return `La team doit ${formatEuros(centimes)} à ${nom}`
+  return `${nom} doit ${formatEuros(-centimes)} à la team`
+}

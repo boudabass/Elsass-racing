@@ -12,7 +12,7 @@ export const manifesteSaison: ManifesteApp = {
   requiert: [],
   menu: [
     { libelle: "Calendrier", chemin: "/" },
-    { libelle: "Résultats à valider", chemin: "/a-valider" },
+    { libelle: "Résultats à valider", chemin: "/a-valider", niveauMinimum: "ecriture" },
     { libelle: "Historique", chemin: "/historique" },
   ],
   widgets: [...WIDGETS.saison],

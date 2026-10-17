@@ -30,6 +30,7 @@ export default async function PageNouvelleDepense({ searchParams }: { searchPara
       <FormulaireDepense
         options={{
           categories: choix.categoriesDepense,
+          categorieEngagementId: choix.categorieEngagementId,
           payeurs,
           moiId: choix.moiId,
           epreuves: choix.epreuves.map(({ id, nom }) => ({ id, nom })),

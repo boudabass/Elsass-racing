@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { manifesteSettings } from "../../apps/settings/manifest"
 
-import { validerManifeste, type ManifesteApp } from "./manifeste"
+import { entreeVisible, validerManifeste, type ManifesteApp } from "./manifeste"
 
 function copie(): ManifesteApp {
   return structuredClone(manifesteSettings)
@@ -71,5 +71,24 @@ describe("validerManifeste", () => {
   it("refuse un chemin de menu sans barre oblique initiale", () => {
     const m = { ...copie(), menu: [{ libelle: "Identité", chemin: "identite" }] }
     expect(validerManifeste(m)).toEqual([expect.stringContaining("identite")])
+  })
+})
+
+describe("entreeVisible : droits d'une entrée de menu", () => {
+  it("sans règle, l'entrée suit le niveau d'accès à l'app", () => {
+    expect(entreeVisible({ libelle: "Mouvements", chemin: "/" }, "lecture")).toBe(true)
+  })
+
+  it("niveauMinimum masque l'entrée en dessous du niveau requis", () => {
+    const aConfirmer = { libelle: "À confirmer", chemin: "/a-confirmer", niveauMinimum: "ecriture" as const }
+    expect(entreeVisible(aConfirmer, "contribution")).toBe(false)
+    expect(entreeVisible(aConfirmer, "ecriture")).toBe(true)
+  })
+
+  it("masquePour cache l'entrée aux niveaux listés, sans toucher aux autres", () => {
+    const previsionnel = { libelle: "Prévisionnel", chemin: "/previsionnel", masquePour: ["contribution" as const] }
+    expect(entreeVisible(previsionnel, "contribution")).toBe(false)
+    expect(entreeVisible(previsionnel, "lecture")).toBe(true)
+    expect(entreeVisible(previsionnel, "gestion")).toBe(true)
   })
 })

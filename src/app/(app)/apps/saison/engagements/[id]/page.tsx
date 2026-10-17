@@ -132,6 +132,7 @@ export default async function PageEngagement({ params }: { params: Promise<{ id:
               {debrief.problemesVoiture && <p>Voiture : {debrief.problemesVoiture}</p>}
             </article>
           ))}
+          <span id="debrief" className="block scroll-mt-24" aria-hidden />
           {peutEcrire && (
             <FormulaireDebrief
               entryId={id}

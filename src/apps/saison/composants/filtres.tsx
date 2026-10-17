@@ -83,7 +83,7 @@ export function FiltresCalendrier({
   )
 
   return (
-    <>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
       <div className="hidden flex-wrap items-end gap-3 md:flex">{controles}</div>
 
       <div className="md:hidden">
@@ -108,7 +108,7 @@ export function FiltresCalendrier({
       </div>
 
       {nombreActifs > 0 && (
-        <ul className="flex w-full flex-wrap gap-2" aria-label="Filtres actifs">
+        <ul className="flex flex-wrap gap-2" aria-label="Filtres actifs">
           {pastilles.map((pastille) => (
             <li key={pastille.cle}>
               <button
@@ -124,6 +124,6 @@ export function FiltresCalendrier({
           ))}
         </ul>
       )}
-    </>
+    </div>
   )
 }

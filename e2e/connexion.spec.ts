@@ -8,7 +8,7 @@ test("a. connexion par lien : arrivée sur le QG avec la team et ses 11 tuiles",
   await expect(page).toHaveURL(/\/qg$/)
   await expect(page.getByRole("link", { name: `${equipe.nomTeam} : retour au QG` })).toBeVisible()
   // « E2E <horodatage> » : première lettre du premier mot utile, puis celle du horodatage.
-  await expect(page.locator("header span.bg-marque")).toHaveText(`E${equipe.horodatage.charAt(0).toUpperCase()}`)
+  await expect(page.locator("header span.bg-marque.font-bold")).toHaveText(`E${equipe.horodatage.charAt(0).toUpperCase()}`)
   await expect(tuilesDuQg(page)).toHaveCount(11)
 })
 

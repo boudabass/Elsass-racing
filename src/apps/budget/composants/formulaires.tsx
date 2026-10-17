@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useMemo, useState, type FormEvent } from "react"
 import { useActionState } from "react"
 
@@ -41,6 +42,7 @@ export function enEuros(centimes: number): string {
 
 export interface OptionsDepense {
   categories: Array<{ id: string; nom: string }>
+  categorieEngagementId: string | null
   engagements: Array<{ id: string; eventId: string; libelle: string }>
   payeurs: Array<{ id: string; nom: string; type: string }>
   moiId: string | null
@@ -51,8 +53,24 @@ export interface OptionsDepense {
 
 export function FormulaireDepense({ options }: { options: OptionsDepense }) {
   const moteur = useMoteurSynchro()
-  const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null)
+  const [message, setMessage] = useState<{ ok: boolean; texte: string; boite?: boolean } | null>(null)
   const [enCours, setEnCours] = useState(false)
+  // Catégorie, épreuve et engagement : contrôlés, pour préremplir l'engagement concerné.
+  const [categorieChoisie, setCategorieChoisie] = useState("")
+  const [epreuveChoisie, setEpreuveChoisie] = useState(options.epreuveEnCoursId ?? "")
+  const [engagementChoisi, setEngagementChoisi] = useState("")
+
+  // Catégorie Engagement et épreuve choisies : l'engagement de cette épreuve est prérempli s'il n'y en a qu'un ;
+  // s'il y en a plusieurs, ils sont proposés en tête, sans rien choisir à la place de la personne.
+  const engagementsDeLaCategorie = categorieChoisie !== "" && categorieChoisie === options.categorieEngagementId
+  function prechoisirEngagement(categorie: string, epreuve: string) {
+    const concernes = categorie === options.categorieEngagementId && epreuve ? options.engagements.filter((entree) => entree.eventId === epreuve) : []
+    setEngagementChoisi(concernes.length === 1 ? concernes[0].id : "")
+  }
+  const engagementsAffiches = useMemo(() => {
+    if (!engagementsDeLaCategorie || !epreuveChoisie) return options.engagements
+    return [...options.engagements].sort((a, b) => Number(b.eventId === epreuveChoisie) - Number(a.eventId === epreuveChoisie))
+  }, [options.engagements, engagementsDeLaCategorie, epreuveChoisie])
 
   // « Moi » en premier, puis la caisse, puis les autres.
   const payeurs = useMemo(
@@ -95,7 +113,10 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
         },
       })
       formulaire.reset()
-      setMessage({ ok: true, texte: "Enregistré. La dépense part dès que l'appareil est connecté." })
+      setCategorieChoisie("")
+      setEpreuveChoisie(options.epreuveEnCoursId ?? "")
+      setEngagementChoisi("")
+      setMessage({ ok: true, texte: "Enregistré. La dépense part dès que l'appareil est connecté.", boite: entryId !== "" })
     } catch {
       setMessage({ ok: false, texte: "La dépense n'a pas pu être enregistrée sur cet appareil." })
     } finally {
@@ -115,7 +136,7 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
         <label htmlFor="categoryId" className="font-medium">
           Catégorie
         </label>
-        <select id="categoryId" name="categoryId" required defaultValue="" className={CHAMP}>
+        <select id="categoryId" name="categoryId" required value={categorieChoisie} onChange={(evenement) => { setCategorieChoisie(evenement.target.value); prechoisirEngagement(evenement.target.value, epreuveChoisie) }} className={CHAMP}>
           <option value="" disabled>
             Choisis une catégorie
           </option>
@@ -151,7 +172,16 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
             <label htmlFor="eventId" className="text-sm text-texte-discret">
               Épreuve
             </label>
-            <select id="eventId" name="eventId" defaultValue={options.epreuveEnCoursId ?? ""} className={CHAMP}>
+            <select
+              id="eventId"
+              name="eventId"
+              value={epreuveChoisie}
+              onChange={(evenement) => {
+                setEpreuveChoisie(evenement.target.value)
+                prechoisirEngagement(categorieChoisie, evenement.target.value)
+              }}
+              className={CHAMP}
+            >
               <option value="">Aucune</option>
               {options.epreuves.map((epreuve) => (
                 <option key={epreuve.id} value={epreuve.id}>
@@ -164,9 +194,9 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
             <label htmlFor="entryId" className="text-sm text-texte-discret">
               Engagement concerné (pour un engagement d'épreuve)
             </label>
-            <select id="entryId" name="entryId" defaultValue="" className={CHAMP}>
+            <select id="entryId" name="entryId" value={engagementChoisi} onChange={(evenement) => setEngagementChoisi(evenement.target.value)} className={CHAMP}>
               <option value="">Aucun</option>
-              {options.engagements.map((entree) => (
+              {engagementsAffiches.map((entree) => (
                 <option key={entree.id} value={entree.id}>
                   {entree.libelle}
                 </option>
@@ -184,6 +214,12 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
       {message && (
         <p role={message.ok ? "status" : "alert"} className={`text-sm ${message.ok ? "text-etat-ok" : "text-etat-rouge"}`}>
           {message.texte}
+          {message.boite && (
+            <>
+              {" "}
+              Si cet engagement reste à payer, une action attend dans la <Link href="/qg" className="underline">boîte d'actions</Link>, une fois l'appareil connecté.
+            </>
+          )}
         </p>
       )}
       <button type="submit" disabled={enCours} className={`${BOUTON} w-full`}>

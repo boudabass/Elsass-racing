@@ -9,6 +9,7 @@ import { modeTerrainDuMembre, terrainProposeJourEpreuve } from "@/apps/settings/
 import { libelleCompteARebours } from "@/core/actions/prochaine-etape"
 import { BarreHaute } from "@/components/qg/barre-haute"
 import { lireSoldeBarreHaute } from "@/apps/budget/liaisons-serveur"
+import { listerTeamsDe } from "@/core/auth/team-serveur"
 import { BandeauTerrain } from "@/components/qg/bandeau-terrain"
 import { BoiteActions } from "@/components/qg/boite-actions"
 import { BoutonProchaineEtape } from "@/components/qg/bouton-prochaine-etape"
@@ -20,6 +21,8 @@ import { SynchroProvider } from "@/core/synchro/client/react"
 import { EnregistrementSW } from "@/components/enregistrement-sw"
 import { NavigationHorsLigne } from "@/components/navigation-hors-ligne"
 import { Inbox } from "@/components/qg/icones"
+import { MenuApp, type MenuDeApp } from "@/components/qg/menu-app"
+import { entreeVisible } from "@/core/sdk/manifeste"
 
 // Espace connecté : QG, apps, recherche. Charge une fois les données de la requête.
 export default async function LayoutApp({ children }: { children: ReactNode }) {
@@ -36,6 +39,8 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
   const proposeBandeau = await terrainProposeJourEpreuve(contexte)
   const donnees = await donneesQg(terrain)
   const solde = await lireSoldeBarreHaute()
+  // Entrée « Changer de team » du menu : seulement si le compte appartient à plusieurs teams.
+  const plusieursTeams = (await listerTeamsDe(contexte.userId)).length > 1
   const maintenant = new Date()
   const aujourdhui = maintenant.toISOString().slice(0, 10)
 
@@ -54,21 +59,22 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
       )}
     </button>
   )
-  // Deux instances : la barre haute écoute le paramètre « boite » (lien du bouton Prochaine
-  // étape) ; la barre basse, sur téléphone, n'écoute pas, pour n'ouvrir qu'un seul panneau.
+  // Une seule boîte, dans la barre haute (sur tous les écrans) : elle écoute le paramètre « boite »
+  // (lien du bouton Prochaine étape).
   const boite = (
     <ConteneurBoite declencheur={declencheur} ecouteUrl>
-      <BoiteActions groupes={donnees.groupes} />
-    </ConteneurBoite>
-  )
-  const boiteMobile = (
-    <ConteneurBoite declencheur={declencheur}>
       <BoiteActions groupes={donnees.groupes} />
     </ConteneurBoite>
   )
 
   const entreesPlus = entreesDuMenuPlus(donnees.role, terrain)
   const apps = donnees.apps.map(({ manifeste }) => ({ cle: manifeste.cle, nom: manifeste.nom, icone: manifeste.icone }))
+  // Menus des apps, filtrés par les droits du membre : le socle rend celui de l'app courante.
+  const menus: MenuDeApp[] = donnees.apps.map(({ manifeste, niveau }) => ({
+    cle: manifeste.cle,
+    nom: manifeste.nom,
+    entrees: manifeste.menu.filter((entree) => entreeVisible(entree, niveau)).map(({ libelle, chemin }) => ({ libelle, chemin })),
+  }))
 
   // Bandeau « jour d'épreuve » : épreuve en cours aujourd'hui, pas en mode terrain, pas refusé aujourd'hui.
   const epreuve = donnees.prochaineEpreuve
@@ -94,14 +100,18 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
           nombreActions: nombre,
           modeTerrain: terrain,
           solde,
+          plusieursTeams,
         }}
         boite={boite}
       />
 
       <div className="mx-auto flex max-w-6xl">
-        <Navigation apps={apps} entreesPlus={entreesPlus} boiteMobile={boiteMobile} />
+        <Navigation apps={apps} entreesPlus={entreesPlus} />
         {/* Marge basse : la hauteur du bouton Prochaine étape et de la barre basse, pour que la dernière ligne reste cliquable. */}
-        <main className="min-w-0 flex-1 px-4 pb-48 pt-6 md:px-8 md:pb-24">{children}</main>
+        <main className="min-w-0 flex-1 px-4 pb-48 pt-6 md:px-8 md:pb-24">
+          <MenuApp menus={menus} />
+          {children}
+        </main>
       </div>
 
       <BoutonProchaineEtape etape={donnees.prochaineEtape} maintenant={maintenant} />

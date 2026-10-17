@@ -402,7 +402,21 @@ async function main() {
     const depenseProposee = await proprietaire.budgetExpense.findFirst({ where: { teamId: team.id, origine: "proposee" } })
     controle("la dépense proposée est confirmée par un humain, avec son origine", depenseProposee?.confirmee === true && depenseProposee?.origineRef === `garage:${idSuggestion}`)
 
-    // Décision refusée par la règle (suggestion déjà ignorée) : l'action revient en attente, avec son motif.
+    // Suggestion confirmée depuis la page À confirmer : l'action « mouvement à confirmer » est levée.
+    const idPage = await budget.proposerMouvementDans(ctx, {
+      appOrigine: "garage",
+      evenementOrigine: "garage.piece_achetee",
+      sens: "depense",
+      montant: 1_200,
+      categoryId: catPieces,
+      libelle: "Suggestion confirmée par la page",
+      eventId: epreuveBudget,
+    })
+    await budget.confirmerSuggestionDans(ctx, idPage)
+    const actionPage = await proprietaire.coreAction.findFirst({ where: { teamId: team.id, cleUnicite: `budget_suggestion:${idPage}` } })
+    controle("confirmer depuis la page lève l'action « mouvement à confirmer »", actionPage?.statut === "annulee", actionPage?.statut ?? "absente")
+
+    // Suggestion ignorée depuis la page : l'action est levée aussi.
     const idIgnoree = await budget.proposerMouvementDans(ctx, {
       appOrigine: "garage",
       evenementOrigine: "garage.intervention_facturee",
@@ -414,12 +428,17 @@ async function main() {
     })
     await budget.ignorerSuggestionDans(ctx, idIgnoree)
     const actionIgnoree = await proprietaire.coreAction.findFirst({ where: { teamId: team.id, cleUnicite: `budget_suggestion:${idIgnoree}` } })
+    controle("ignorer depuis la page lève l'action « mouvement à confirmer »", actionIgnoree?.statut === "annulee", actionIgnoree?.statut ?? "absente")
+
+    // Action restée en attente pour une suggestion déjà traitée (état hérité de la version précédente) :
+    // la décision de la boîte ne la rouvre pas, elle reste close, sans motif de refus.
+    await proprietaire.coreAction.update({ where: { id: actionIgnoree?.id ?? "" }, data: { statut: "en_attente" } })
     await decider(ctx, actionIgnoree?.id ?? "", "confirmer")
-    const actionRefusee = await proprietaire.coreAction.findFirst({ where: { teamId: team.id, cleUnicite: `budget_suggestion:${idIgnoree}` } })
+    const actionDecideeBudget = await proprietaire.coreAction.findFirst({ where: { teamId: team.id, cleUnicite: `budget_suggestion:${idIgnoree}` } })
     controle(
-      "une décision refusée par la règle remet l'action en attente, avec son motif",
-      actionRefusee?.statut === "en_attente" && (actionRefusee?.messageRefus ?? "").includes("n'est plus en attente"),
-      actionRefusee?.messageRefus ?? "",
+      "une décision sur une suggestion déjà traitée ne rouvre pas l'action",
+      actionDecideeBudget?.statut === "decidee" && actionDecideeBudget?.messageRefus === null,
+      `${actionDecideeBudget?.statut ?? "absente"} / ${actionDecideeBudget?.messageRefus ?? "sans motif"}`,
     )
 
     // Remboursement : partiel, puis un trop qui dépasse le reste dû est refusé.

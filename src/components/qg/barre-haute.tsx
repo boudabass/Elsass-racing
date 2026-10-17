@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
-import { Search } from "lucide-react"
+import { House, Search } from "lucide-react"
 
 import { deconnexionAction } from "@/core/auth/actions"
 import { basculerTerrainAction } from "@/core/actions/formulaires"
@@ -13,6 +13,15 @@ function formaterSolde(centimes: number): string {
   return formatEuro.format(centimes / 100)
 }
 
+// La couleur n'est qu'un renfort : la phrase du solde dit déjà qui doit quoi.
+function couleurSolde(centimes: number): string {
+  return centimes < 0 ? "text-etat-rouge" : "text-etat-ok"
+}
+
+function libelleSolde(solde: { libelle: string; montantCentimes: number; texte?: string }): string {
+  return solde.texte ?? `${solde.libelle} : ${formaterSolde(solde.montantCentimes)}`
+}
+
 export interface BarreHauteDonnees {
   nomTeam: string
   saison: string | null
@@ -20,7 +29,10 @@ export interface BarreHauteDonnees {
   nombreActions: number
   modeTerrain: boolean
   // Solde de Budget (saison en cours, ou « Mon solde » en contribution) ; null si rien à montrer.
-  solde: { libelle: string; montantCentimes: number } | null
+  // texte : phrase en clair (solde d'un membre) ; sans elle, le libellé et le montant.
+  solde: { libelle: string; montantCentimes: number; texte?: string } | null
+  // Le compte appartient à plusieurs teams : le menu propose d'en changer.
+  plusieursTeams: boolean
 }
 
 // Barre haute : identité de la team, saison, prochaine épreuve, boîte d'actions, recherche,
@@ -36,7 +48,13 @@ export function BarreHaute({
     <header className="sticky top-0 z-30 border-b border-bordure bg-fond/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 md:px-6">
         <Link href="/qg" className="cible-tactile flex items-center gap-3" aria-label={`${donnees.nomTeam} : retour au QG`}>
-          <Logo nom={donnees.nomTeam} />
+          {/* Pas encore de logo téléversé : les initiales sur ordinateur, une icône QG sur téléphone. */}
+          <span aria-hidden className="titre-rallye flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-marque text-white sm:hidden">
+            <House className="h-5 w-5" aria-hidden />
+          </span>
+          <span className="hidden sm:block">
+            <Logo nom={donnees.nomTeam} />
+          </span>
           <span className="hidden flex-col leading-tight sm:flex">
             <span className="titre-rallye text-lg">{donnees.nomTeam}</span>
             {donnees.saison && <span className="text-xs text-texte-discret">{donnees.saison}</span>}
@@ -47,14 +65,18 @@ export function BarreHaute({
           <Link
             href="/apps/budget"
             className="hidden flex-col leading-tight md:flex"
-            aria-label={`${donnees.solde.libelle} : ${formaterSolde(donnees.solde.montantCentimes)}`}
+            aria-label={`${donnees.solde.libelle} : ${libelleSolde(donnees.solde)}`}
           >
-            <span className="text-xs text-texte-discret">{donnees.solde.libelle}</span>
-            <span
-              className={`chiffre text-base font-medium ${donnees.solde.montantCentimes < 0 ? "text-etat-rouge" : "text-etat-ok"}`}
-            >
-              {formaterSolde(donnees.solde.montantCentimes)}
-            </span>
+            {donnees.solde.texte ? (
+              <span className={`text-sm font-medium ${couleurSolde(donnees.solde.montantCentimes)}`}>{donnees.solde.texte}</span>
+            ) : (
+              <>
+                <span className="text-xs text-texte-discret">{donnees.solde.libelle}</span>
+                <span className={`chiffre text-base font-medium ${couleurSolde(donnees.solde.montantCentimes)}`}>
+                  {formaterSolde(donnees.solde.montantCentimes)}
+                </span>
+              </>
+            )}
           </Link>
         )}
 
@@ -68,7 +90,7 @@ export function BarreHaute({
 
           {/* Mobile : compte à rebours, sans le nom de l'épreuve. */}
           {donnees.prochaine && (
-            <span className="chiffre titre-rallye mr-1 text-base text-marque lg:hidden">{donnees.prochaine.compteARebours}</span>
+            <span className="chiffre titre-rallye mr-1 whitespace-nowrap text-base text-marque lg:hidden">{donnees.prochaine.compteARebours}</span>
           )}
 
           <div className="relative">{boite}</div>
@@ -109,6 +131,11 @@ export function BarreHaute({
               <Link href="/notes" className="cible-tactile flex items-center rounded-md px-3 hover:bg-surface-2">
                 Notes de la team
               </Link>
+              {donnees.plusieursTeams && (
+                <Link href="/equipes" className="cible-tactile flex items-center rounded-md px-3 hover:bg-surface-2">
+                  Changer de team
+                </Link>
+              )}
               <form action={basculerTerrainAction} className="md:hidden">
                 <input type="hidden" name="actif" value={donnees.modeTerrain ? "0" : "1"} />
                 <button type="submit" className="cible-tactile flex w-full items-center rounded-md px-3 text-left hover:bg-surface-2">
@@ -130,12 +157,18 @@ export function BarreHaute({
         <Link
           href="/apps/budget"
           className="flex items-center justify-between gap-2 border-t border-bordure px-4 py-1 text-xs md:hidden"
-          aria-label={`${donnees.solde.libelle} : ${formaterSolde(donnees.solde.montantCentimes)}`}
+          aria-label={`${donnees.solde.libelle} : ${libelleSolde(donnees.solde)}`}
         >
-          <span className="text-texte-discret">{donnees.solde.libelle}</span>
-          <span className={`chiffre font-medium ${donnees.solde.montantCentimes < 0 ? "text-etat-rouge" : "text-etat-ok"}`}>
-            {formaterSolde(donnees.solde.montantCentimes)}
-          </span>
+          {donnees.solde.texte ? (
+            <span className={`font-medium ${couleurSolde(donnees.solde.montantCentimes)}`}>{donnees.solde.texte}</span>
+          ) : (
+            <>
+              <span className="text-texte-discret">{donnees.solde.libelle}</span>
+              <span className={`chiffre font-medium ${couleurSolde(donnees.solde.montantCentimes)}`}>
+                {formaterSolde(donnees.solde.montantCentimes)}
+              </span>
+            </>
+          )}
         </Link>
       )}
     </header>

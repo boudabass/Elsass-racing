@@ -658,7 +658,10 @@ export async function confirmerSuggestionDans(ctx: ContexteTeam, id: string, mod
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const suggestion = await client.budgetSuggestion.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null } })
   if (!suggestion) refus("Suggestion introuvable dans cette team.")
-  if (suggestion.statut !== "en_attente") refus("Cette suggestion n'est plus en attente.")
+  if (suggestion.statut !== "en_attente") {
+    await leverActionSuggestion(ctx, suggestion.actionCle)
+    refus("Cette suggestion n'est plus en attente.")
+  }
   const categorieId = modifs.categoryId ?? suggestion.categoryId
   if (modifs.categoryId) {
     const categorie = await client.budgetCategory.findFirst({ where: { id: categorieId, teamId: ctx.teamId, sens: suggestion.sens, active: true, deletedAt: null }, select: { id: true } })
@@ -721,6 +724,7 @@ export async function confirmerSuggestionDans(ctx: ContexteTeam, id: string, mod
     where: { id, teamId: ctx.teamId },
     data: { statut: "confirmee", mouvementId, rev: { increment: 1 }, updatedBy: ctx.userId },
   })
+  await leverActionSuggestion(ctx, suggestion.actionCle)
   return mouvementId
 }
 
@@ -731,20 +735,44 @@ export async function ignorerSuggestion(id: string): Promise<void> {
 
 export async function ignorerSuggestionDans(ctx: ContexteTeam, id: string): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
-  const suggestion = await client.budgetSuggestion.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null }, select: { statut: true } })
+  const suggestion = await client.budgetSuggestion.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null }, select: { statut: true, actionCle: true } })
   if (!suggestion) refus("Suggestion introuvable dans cette team.")
-  if (suggestion.statut !== "en_attente") refus("Cette suggestion n'est plus en attente.")
+  if (suggestion.statut !== "en_attente") {
+    await leverActionSuggestion(ctx, suggestion.actionCle)
+    refus("Cette suggestion n'est plus en attente.")
+  }
   await client.budgetSuggestion.updateMany({
     where: { id, teamId: ctx.teamId },
     data: { statut: "ignoree", rev: { increment: 1 }, updatedBy: ctx.userId },
   })
+  await leverActionSuggestion(ctx, suggestion.actionCle)
+}
+
+// Lève l'action « Confirmer le mouvement » de la boîte, quel que soit l'écran où la suggestion a été traitée.
+// Sans effet si l'action est déjà décidée (la boîte l'a close elle-même).
+async function leverActionSuggestion(ctx: ContexteTeam, actionCle: string | null): Promise<void> {
+  if (!actionCle) return
+  await emettre(ctx, "budget.action_levee", { cleUnicite: actionCle })
 }
 
 // Décision de la boîte d'actions : même règle que les fonctions publiques. Un refus métier remet l'action
-// en attente, avec son motif (même règle que Saison).
+// en attente, avec son motif (même règle que Saison). Une suggestion déjà traitée ailleurs ne rouvre rien :
+// l'action est levée.
 async function appliquerDecisionBudget(ctx: ContexteTeam, evenement: EvenementRecu): Promise<void> {
   const donnees = evenement.donnees as { type?: string; decision?: string; cleUnicite?: string; ficheId?: string }
   if (donnees.type !== "mouvement_a_confirmer" || !donnees.ficheId) return
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const suggestion = await client.budgetSuggestion.findFirst({
+    where: { id: donnees.ficheId, teamId: ctx.teamId, deletedAt: null },
+    select: { statut: true },
+  })
+  if (suggestion && suggestion.statut !== "en_attente") {
+    await client.coreAction.updateMany({
+      where: { teamId: ctx.teamId, cleUnicite: donnees.cleUnicite, statut: "en_attente" },
+      data: { statut: "annulee" },
+    })
+    return
+  }
   try {
     if (donnees.decision === "confirmer") await confirmerSuggestionDans(ctx, donnees.ficheId)
     if (donnees.decision === "ignorer") await ignorerSuggestionDans(ctx, donnees.ficheId)

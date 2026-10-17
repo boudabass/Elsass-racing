@@ -5,7 +5,7 @@ import { accesEcran } from "@/apps/budget/ecran"
 import { FormulaireRemboursement } from "@/apps/budget/composants/formulaires"
 import { BOUTON, MONTANT } from "@/apps/budget/composants/classes"
 import { lireARembourser, lireChoix, lireMembres } from "@/apps/budget/lectures-serveur"
-import { formatEuros } from "@/apps/budget/libelles"
+import { formatEuros, phraseSoldeMembre } from "@/apps/budget/libelles"
 import { jourDeParis } from "@/core/dates"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { aAuMoins } from "@/core/droits/niveaux"
@@ -36,8 +36,8 @@ export default async function PageParMembre({ searchParams }: { searchParams: Pr
             <span className="font-medium">{membre.nom}</span>
             <span className="text-texte-discret">Avancé {formatEuros(membre.avance)}</span>
             <span className="text-texte-discret">Remboursé {formatEuros(membre.rembourse)}</span>
-            <span className={`${MONTANT} ${membre.trop > 0 ? "text-etat-rouge" : ""}`}>
-              {membre.trop > 0 ? `Trop perçu ${formatEuros(membre.trop)}` : `Solde ${formatEuros(membre.du)}`}
+            <span className={`${membre.du - membre.trop < 0 ? "text-etat-rouge" : ""}`}>
+              {phraseSoldeMembre(membre.du - membre.trop, membre.nom)}
             </span>
             {peutRembourser && membre.du > 0 && (
               <Link href={`/apps/budget/membres?rembourser=${membre.personneId}`} className="text-marque">

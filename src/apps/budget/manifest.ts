@@ -12,11 +12,12 @@ export const manifesteBudget: ManifesteApp = {
   requiert: [],
   menu: [
     { libelle: "Mouvements", chemin: "/" },
-    { libelle: "À confirmer", chemin: "/a-confirmer" },
+    { libelle: "À confirmer", chemin: "/a-confirmer", niveauMinimum: "ecriture" },
     { libelle: "Par épreuve", chemin: "/epreuves" },
     { libelle: "Par membre", chemin: "/membres" },
-    { libelle: "Prévisionnel", chemin: "/previsionnel" },
-    { libelle: "Recette", chemin: "/recette" },
+    // L'assistance (contribution) ne voit pas le prévu : même règle que la page.
+    { libelle: "Prévisionnel", chemin: "/previsionnel", masquePour: ["contribution"] },
+    { libelle: "Recette", chemin: "/recette", niveauMinimum: "ecriture" },
   ],
   widgets: [...WIDGETS.budget],
   evenementsEmis: evenementsEmisPar("budget"),
