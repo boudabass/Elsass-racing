@@ -116,16 +116,22 @@ export async function rembourserAction(_etat: Resultat | null, donnees: FormData
   })
 }
 
-export async function definirPrevisionnelAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executer(() =>
-    definirPrevisionnel({
-      seasonId: texte(donnees, "seasonId"),
-      categoryId: texte(donnees, "categoryId"),
-      eventId: texteOuNull(donnees, "eventId"),
-      montant: montantOuErreur(donnees, "montant"),
-      commentaire: texteOuNull(donnees, "commentaire"),
-    }),
-  )
+// Prévisionnel en un seul envoi : un champ « prevu-<catégorie> » par ligne. Un champ vide n'est pas enregistré.
+export async function enregistrerPrevisionnelAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(async () => {
+    const seasonId = texte(donnees, "seasonId")
+    const eventId = texteOuNull(donnees, "eventId")
+    for (const cle of Array.from(donnees.keys())) {
+      if (!cle.startsWith("prevu-") || texte(donnees, cle) === "") continue
+      await definirPrevisionnel({
+        seasonId,
+        categoryId: cle.slice("prevu-".length),
+        eventId,
+        montant: montantOuErreur(donnees, cle),
+        commentaire: null,
+      })
+    }
+  })
 }
 
 export async function confirmerSuggestionAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {

@@ -1,0 +1,100 @@
+"use client"
+
+import { useActionState } from "react"
+
+import { enregistrerPrevisionnelAction, type Resultat } from "../actions"
+import { formatEuros } from "../libelles"
+import { enEuros } from "./formulaires"
+import { BOUTON, CHAMP } from "./classes"
+
+export interface LignePrevu {
+  categorieId: string
+  nom: string
+  prevu: number | null
+  reel: number
+  // Phrase d'écart, et couleur pour le renfort visuel.
+  ecart: string
+  couleur: "vert" | "orange" | "rouge" | null
+}
+
+const COULEUR: Record<string, string> = { vert: "text-etat-ok", orange: "text-etat-orange", rouge: "text-etat-rouge" }
+
+// Prévisionnel : une grille (catégorie, prévu, réel, écart). Le prévu se saisit sur la ligne ; un seul bouton
+// enregistre toutes les lignes remplies. Sans droit d'écriture (modifiable = faux), seulement les valeurs.
+export function GrillePrevisionnel({
+  seasonId,
+  eventId,
+  lignes,
+  modifiable,
+  cle,
+}: {
+  seasonId: string
+  eventId: string | null
+  lignes: LignePrevu[]
+  modifiable: boolean
+  cle: string
+}) {
+  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(enregistrerPrevisionnelAction, null)
+
+  const contenu = (
+    <ul className="flex flex-col divide-y divide-bordure rounded-lg border border-bordure bg-surface">
+      {lignes.map((ligne) => (
+        <li
+          key={`${cle}-${ligne.categorieId}`}
+          className="flex flex-col gap-1 px-4 py-2 text-sm sm:grid sm:grid-cols-[minmax(0,1fr)_9rem_9rem_minmax(0,16rem)] sm:items-center sm:gap-x-4 sm:py-2.5"
+        >
+          <div className="flex items-baseline justify-between gap-3 sm:contents">
+            <span className="min-w-0 truncate font-medium">{ligne.nom}</span>
+            <span className={`${ligne.couleur ? COULEUR[ligne.couleur] : "text-texte-discret"} text-right font-medium sm:col-start-4 sm:text-left`}>
+              {ligne.ecart}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3 sm:contents">
+            <span className="sm:col-start-2 sm:text-right">
+              {modifiable ? (
+                <label className="flex items-center justify-end gap-1">
+                  <span className="sr-only">Prévu pour {ligne.nom} (€)</span>
+                  <input
+                    name={`prevu-${ligne.categorieId}`}
+                    inputMode="decimal"
+                    defaultValue={ligne.prevu === null ? "" : enEuros(ligne.prevu)}
+                    placeholder="0,00"
+                    className={`${CHAMP} w-full max-w-32 py-1 text-right font-mono tabular-nums`}
+                  />
+                </label>
+              ) : (
+                <span className="font-mono tabular-nums">{ligne.prevu === null ? <span className="font-sans text-texte-discret">Pas prévu</span> : formatEuros(ligne.prevu)}</span>
+              )}
+            </span>
+            <span className="font-mono tabular-nums text-texte sm:col-start-3 sm:text-right">{formatEuros(ligne.reel)}</span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+
+  if (!modifiable) return contenu
+
+  return (
+    <form action={action} className="flex flex-col gap-3">
+      <input type="hidden" name="seasonId" value={seasonId} />
+      {eventId && <input type="hidden" name="eventId" value={eventId} />}
+      {contenu}
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={enCours} className={BOUTON}>
+          Enregistrer les prévus
+        </button>
+        {resultat &&
+          (resultat.ok ? (
+            <p role="status" className="text-sm text-etat-ok">
+              Enregistré.
+            </p>
+          ) : (
+            <p role="alert" className="text-sm text-etat-rouge">
+              {resultat.message}
+            </p>
+          ))}
+      </div>
+    </form>
+  )
+}

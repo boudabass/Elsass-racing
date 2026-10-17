@@ -32,9 +32,9 @@ test("prévisionnel : saisie pour la saison, puis pour une épreuve, par clic ; 
   await expect(page.getByText(/Aucun montant prévu pour la saison/)).toBeVisible()
 
   // Saisie d'un prévu sur la première ligne, pour la saison entière.
-  const premiereLigne = page.locator("form:has(input[name='montant'])").first()
-  await premiereLigne.locator("input[name='montant']").fill("3000")
-  await premiereLigne.getByRole("button", { name: "Enregistrer" }).click()
+  const premiereLigne = page.locator("form").filter({ has: page.locator("input[name^='prevu-']") }).first()
+  await premiereLigne.locator("input[name^='prevu-']").first().fill("3000")
+  await premiereLigne.getByRole("button", { name: "Enregistrer les prévus" }).click()
   await expect(page.getByText("Dans le prévu, 0 %").first()).toBeVisible()
   await page.screenshot({ path: "docs/captures/budget-previsionnel-saison-1280x900.png", fullPage: true })
 
@@ -43,9 +43,9 @@ test("prévisionnel : saisie pour la saison, puis pour une épreuve, par clic ; 
   await expect(page).toHaveURL(/epreuve=/)
   await expect(page.getByText(/Le prévu de cette épreuve/)).toBeVisible()
   await expect(page.getByText(/Aucun montant prévu pour l'épreuve Rallye prévu e2e/)).toBeVisible()
-  const ligneEpreuve = page.locator("form:has(input[name='montant'])").first()
-  await ligneEpreuve.locator("input[name='montant']").fill("500")
-  await ligneEpreuve.getByRole("button", { name: "Enregistrer" }).click()
+  const ligneEpreuve = page.locator("form").filter({ has: page.locator("input[name^='prevu-']") }).first()
+  await ligneEpreuve.locator("input[name^='prevu-']").first().fill("500")
+  await ligneEpreuve.getByRole("button", { name: "Enregistrer les prévus" }).click()
   await expect(page.getByText("Dans le prévu, 0 %").first()).toBeVisible()
   await page.screenshot({ path: "docs/captures/budget-previsionnel-epreuve-1280x900.png", fullPage: true })
 

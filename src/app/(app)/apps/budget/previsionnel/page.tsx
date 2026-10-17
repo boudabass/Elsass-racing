@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/budget/ecran"
-import { LignePrevisionnel } from "@/apps/budget/composants/formulaires"
+import { GrillePrevisionnel } from "@/apps/budget/composants/previsionnel"
 import { lireChoix, lirePrevisionnel } from "@/apps/budget/lectures-serveur"
 import { formatEuros, phraseEcart } from "@/apps/budget/libelles"
 import { jourDeParis } from "@/core/dates"
@@ -12,7 +12,6 @@ import { aAuMoins } from "@/core/droits/niveaux"
 // Prévisionnel : le prévu par catégorie, pour la saison entière ou pour une épreuve choisie. Le réel ne
 // compte que les dépenses confirmées. Voir : écriture (l'assistance ne le voit pas). Modifier : gestion.
 
-const COULEUR: Record<string, string> = { vert: "text-etat-ok", orange: "text-etat-orange", rouge: "text-etat-rouge" }
 
 export default async function PagePrevisionnel({ searchParams }: { searchParams: Promise<{ saison?: string; epreuve?: string }> }) {
   const acces = await accesEcran("ecriture")
@@ -67,32 +66,26 @@ export default async function PagePrevisionnel({ searchParams }: { searchParams:
             </p>
           )}
 
-          <div className="hidden grid-cols-[1fr_8rem_8rem_auto] gap-x-4 text-sm text-texte-discret sm:grid">
+          <div className="hidden grid-cols-[minmax(0,1fr)_9rem_9rem_minmax(0,16rem)] gap-x-4 px-4 text-sm text-texte-discret sm:grid">
             <span>Catégorie</span>
             <span className="text-right">Prévu</span>
             <span className="text-right">Réel</span>
             <span>Écart</span>
           </div>
-          <ul className="flex flex-col divide-y divide-bordure rounded-lg border border-bordure bg-surface">
-            {lignes.map((ligne) => (
-              <li key={`${ligne.categorieId}-${epreuve?.id ?? "saison"}`} className="flex flex-col gap-2 px-4 py-3 text-sm sm:grid sm:grid-cols-[1fr_8rem_8rem_auto] sm:items-center sm:gap-x-4">
-                <span className="font-medium">{ligne.nom}</span>
-                <span className="font-mono tabular-nums sm:text-right">{ligne.prevu === null ? "Pas prévu" : formatEuros(ligne.prevu)}</span>
-                <span className="font-mono tabular-nums sm:text-right">{formatEuros(ligne.reel)}</span>
-                <span className={`${ligne.couleur ? COULEUR[ligne.couleur] ?? "" : "text-texte-discret"} font-medium`}>
-                  {phraseEcart(ligne.prevu, ligne.reel, ligne.pourcent, ligne.couleur as "vert" | "orange" | "rouge" | null)}
-                </span>
-                {modifiable && (
-                  <LignePrevisionnel
-                    seasonId={saisonId}
-                    eventId={epreuve?.id ?? null}
-                    categorie={{ id: ligne.categorieId, nom: ligne.nom }}
-                    prevuCentimes={ligne.prevu}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
+          <GrillePrevisionnel
+            cle={epreuve?.id ?? "saison"}
+            seasonId={saisonId}
+            eventId={epreuve?.id ?? null}
+            modifiable={modifiable}
+            lignes={lignes.map((ligne) => ({
+              categorieId: ligne.categorieId,
+              nom: ligne.nom,
+              prevu: ligne.prevu,
+              reel: ligne.reel,
+              ecart: phraseEcart(ligne.prevu, ligne.reel, ligne.pourcent, ligne.couleur as "vert" | "orange" | "rouge" | null),
+              couleur: ligne.couleur as "vert" | "orange" | "rouge" | null,
+            }))}
+          />
         </>
       )}
       <p className="text-xs text-texte-discret">Date du jour : {jourDeParis(new Date())}</p>
