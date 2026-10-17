@@ -3,7 +3,7 @@ import { resolve } from "node:path"
 
 import { describe, expect, it } from "vitest"
 
-import { LIBELLES_PAR_ENUMERATION, formatEuros, libelle, phraseSoldeMembre, phraseSoldeMoi } from "./libelles"
+import { LIBELLES_PAR_ENUMERATION, formatEuros, libelle, phraseEcart, phraseSoldeMembre, phraseSoldeMoi } from "./libelles"
 import { cellule, csvMouvements, montantFrancais } from "./csv"
 
 // Valeurs de chaque énumération de Budget, lues dans le schéma : un ajout sans libellé fait échouer ce test.
@@ -79,5 +79,16 @@ describe("phrases de solde", () => {
     expect(phraseSoldeMembre(4_500, "Jean")).toBe(`La team doit ${formatEuros(4_500)} à Jean`)
     expect(phraseSoldeMembre(-4_500, "Jean")).toBe(`Jean doit ${formatEuros(4_500)} à la team`)
     expect(phraseSoldeMembre(0, "Jean")).toBe("Rien à régler")
+  })
+})
+
+describe("phrase d'écart du prévisionnel", () => {
+  it("couvre les cas sans prévu, dépassé, au plafond, dans le prévu et proche", () => {
+    expect(phraseEcart(null, 30_000, null, "rouge")).toBe(`Pas de prévu, ${formatEuros(30_000)} dépensés`)
+    expect(phraseEcart(null, 0, null, null)).toBe("Pas de prévu, rien dépensé")
+    expect(phraseEcart(100_000, 130_000, 130, "rouge")).toBe(`Dépassé de ${formatEuros(30_000)}`)
+    expect(phraseEcart(100_000, 100_000, 100, "orange")).toBe("Au plafond, 100 %")
+    expect(phraseEcart(100_000, 42_000, 42, "vert")).toBe("Dans le prévu, 42 %")
+    expect(phraseEcart(100_000, 95_000, 95, "orange")).toBe("Proche du plafond, 95 %")
   })
 })

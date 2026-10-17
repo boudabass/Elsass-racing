@@ -441,13 +441,24 @@ export function FormulaireRemboursement({
 
 // --- Prévisionnel : une ligne par catégorie ----------------------------------------------------
 
-export function LignePrevisionnel({ seasonId, categorie, prevuCentimes }: { seasonId: string; categorie: { id: string; nom: string }; prevuCentimes: number | null }) {
+export function LignePrevisionnel({
+  seasonId,
+  eventId,
+  categorie,
+  prevuCentimes,
+}: {
+  seasonId: string
+  eventId: string | null
+  categorie: { id: string; nom: string }
+  prevuCentimes: number | null
+}) {
   const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(definirPrevisionnelAction, null)
   return (
-    <form action={action} className="grid items-center gap-3 sm:grid-cols-[1fr_auto_auto]">
+    <form action={action} className="grid items-center gap-3 sm:col-span-4 sm:grid-cols-[1fr_auto_auto]">
       <input type="hidden" name="seasonId" value={seasonId} />
       <input type="hidden" name="categoryId" value={categorie.id} />
-      <span className="font-medium">{categorie.nom}</span>
+      {eventId && <input type="hidden" name="eventId" value={eventId} />}
+      <span className="sr-only">{categorie.nom}</span>
       <label className="flex items-center gap-2 text-sm">
         <span className="sr-only">Prévu pour {categorie.nom} (€)</span>
         <input name="montant" inputMode="decimal" defaultValue={prevuCentimes === null ? "" : enEuros(prevuCentimes)} className={`${CHAMP} w-32 text-right font-mono tabular-nums`} />

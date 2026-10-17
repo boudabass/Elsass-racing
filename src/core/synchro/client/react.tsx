@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react"
+import { useRouter } from "next/navigation"
 
 import { MoteurSynchro, type EtatSynchro } from "./moteur"
 import { nomBase, type LigneLocale, type TableLocale } from "./base"
@@ -22,11 +23,16 @@ const ContexteSynchro = createContext<MoteurSynchro | null>(null)
 
 export function SynchroProvider({ userId, teamId, children }: { userId: string; teamId: string; children: ReactNode }) {
   const moteur = useMemo(() => moteurPour(userId, teamId), [userId, teamId])
+  const router = useRouter()
 
   useEffect(() => {
     void moteur.demarrer()
     return () => moteur.arreter()
   }, [moteur])
+
+  // Quand le serveur a appliqué des opérations (une dépense d'engagement crée une action dans la boîte),
+  // l'espace connecté, rendu côté serveur, se relit : boîte, compteur et solde sont à jour sans rechargement.
+  useEffect(() => moteur.abonnerAuServeur(() => router.refresh()), [moteur, router])
 
   return <ContexteSynchro.Provider value={moteur}>{children}</ContexteSynchro.Provider>
 }

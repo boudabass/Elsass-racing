@@ -71,3 +71,13 @@ export function phraseSoldeMembre(centimes: number, nom: string): string {
   if (centimes > 0) return `La team doit ${formatEuros(centimes)} à ${nom}`
   return `${nom} doit ${formatEuros(-centimes)} à la team`
 }
+
+// L'écart du prévisionnel en une phrase (la couleur n'est qu'un renfort). Pur.
+export function phraseEcart(prevu: number | null, reel: number, pourcent: number | null, couleur: "vert" | "orange" | "rouge" | null): string {
+  if (prevu === null) return reel > 0 ? `Pas de prévu, ${formatEuros(reel)} dépensés` : "Pas de prévu, rien dépensé"
+  if (reel > prevu) return `Dépassé de ${formatEuros(reel - prevu)}`
+  if (pourcent === null) return "Dans le prévu"
+  if (pourcent >= 100) return "Au plafond, 100 %"
+  if (couleur === "vert") return `Dans le prévu, ${Math.round(pourcent)} %`
+  return `Proche du plafond, ${Math.round(pourcent)} %`
+}

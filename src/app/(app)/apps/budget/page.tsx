@@ -97,21 +97,22 @@ export default async function PageMouvements({
         valeurs={{ saison: saisonId ?? "", epreuve: parametres.epreuve ?? "", categorie: parametres.categorie ?? "", membre: parametres.membre ?? "" }}
         afficherMembres={toutVisible}
         nombreActifs={pastilles.length}
+        pastilles={
+          pastilles.length > 0 ? (
+            <ul className="flex flex-wrap gap-2" aria-label="Filtres actifs">
+              {pastilles.map((pastille) => (
+                <li key={pastille.cle}>
+                  <Link href={pastille.retirer} className="inline-flex min-h-9 items-center gap-2 rounded-full border border-bordure bg-surface px-3 py-1 text-sm">
+                    {pastille.libelle}
+                    <span aria-hidden>×</span>
+                    <span className="sr-only">Retirer ce filtre</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null
+        }
       />
-
-      {pastilles.length > 0 && (
-        <ul className="flex flex-wrap gap-2" aria-label="Filtres actifs">
-          {pastilles.map((pastille) => (
-            <li key={pastille.cle}>
-              <Link href={pastille.retirer} className="inline-flex min-h-9 items-center gap-2 rounded-full border border-bordure bg-surface px-3 py-1 text-sm">
-                {pastille.libelle}
-                <span aria-hidden>×</span>
-                <span className="sr-only">Retirer ce filtre</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
 
       <dl className="grid gap-3 text-sm sm:grid-cols-3" aria-label="Totaux de la sélection">
         <div className="rounded-lg border border-bordure bg-surface p-4">

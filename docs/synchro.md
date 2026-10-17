@@ -128,3 +128,7 @@ Limite : un débrief créé sur un autre appareil n'est visible ici qu'après la
 - `budget_expense` accepte les opérations `modifier` et `supprimer`, avec la même règle qu'en ligne (`src/apps/budget/depenses-tx.ts`) : contribution propre (on ne modifie que ses lignes au niveau contribution), payeur contrôlé, montant non inférieur à ce qui est remboursé.
 - Après application, `apresApplication` reçoit le type de l'opération : une création émet les événements de la dépense ; une modification ou une suppression émet `budget.solde_modifie` pour le payeur membre.
 - Le registre passe le type de l'opération à `apresApplication(ctx, id, type)`.
+
+## Rafraîchissement après une synchro (tâche 2.9, point 2)
+
+Quand le serveur applique des opérations poussées, le moteur prévient ses abonnés serveur ; le fournisseur de synchro appelle alors `router.refresh()`. Une dépense d'engagement crée ainsi son action dans la boîte, et la boîte, le compteur et le solde se mettent à jour sans rechargement. Reproduction : `e2e/boite-reproduction.spec.ts`.

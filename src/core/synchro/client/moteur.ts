@@ -29,6 +29,8 @@ export class MoteurSynchro {
   // Ouverture paresseuse et partagée : une lecture qui arrive avant demarrer() attend la même ouverture.
   private ouverture: Promise<IDBPDatabase<SchemaLocal>> | null = null
   private ecouteurs = new Set<Ecouteur>()
+  private ecouteursServeur = new Set<Ecouteur>()
+  private serveurAApplique = false
   private etat: EtatSynchro = { enLigne: true, enAttente: 0, derniereSync: null, erreur: null }
   private minuteur: ReturnType<typeof setTimeout> | null = null
   private intervalle: ReturnType<typeof setInterval> | null = null
@@ -77,6 +79,15 @@ export class MoteurSynchro {
     this.ecouteurs.add(ecouteur)
     return () => {
       this.ecouteurs.delete(ecouteur)
+    }
+  }
+
+  // Écouteurs prévenus quand le serveur a appliqué des opérations : il a pu créer des actions (boîte) ou
+  // changer des chiffres (solde, compteur) que l'écran, rendu côté serveur, ne connaît pas encore.
+  abonnerAuServeur(ecouteur: Ecouteur): () => void {
+    this.ecouteursServeur.add(ecouteur)
+    return () => {
+      this.ecouteursServeur.delete(ecouteur)
     }
   }
 
@@ -150,6 +161,10 @@ export class MoteurSynchro {
     this.notifier()
     try {
       await this.pousser()
+      if (this.serveurAApplique) {
+        this.serveurAApplique = false
+        Array.from(this.ecouteursServeur).forEach((ecouteur) => ecouteur())
+      }
       await this.tirer()
       this.echecs = 0
       this.etat = { ...this.etat, enLigne: true, derniereSync: new Date().toISOString(), erreur: null }
@@ -188,6 +203,7 @@ export class MoteurSynchro {
       for (const resultat of resultats) {
         const operation = paquet.find((o) => o.idOperation === resultat.idOperation)
         if (!operation) continue
+        if (resultat.statut === "appliquee") this.serveurAApplique = true
         await db.delete("operations_en_attente", operation.idOperation)
         await this.libererLigne(operation, resultat)
       }

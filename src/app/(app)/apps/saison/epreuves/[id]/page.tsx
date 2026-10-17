@@ -3,7 +3,8 @@ import { notFound } from "next/navigation"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/saison/ecran"
-import { lireEpreuve, lirePreparation, lireReconnaissances, lireResultatsEpreuve, listerChoixEngagement, listerContacts } from "@/apps/saison/lectures-serveur"
+import { lireEpreuve, lireFinDEpreuve, lirePreparation, lireReconnaissances, lireResultatsEpreuve, listerChoixEngagement, listerContacts } from "@/apps/saison/lectures-serveur"
+import { FinEpreuve } from "@/apps/saison/composants/fin-epreuve"
 import { PanneauPreparation } from "@/apps/saison/composants/preparation"
 import { ONGLETS_FICHE_EPREUVE } from "@/apps/onglets-fiches"
 import { contexteQg } from "@/core/qg/donnees"
@@ -74,6 +75,8 @@ export default async function PageEpreuve({
   const choix = peutEcrire ? await listerChoixEngagement() : null
   const contacts = peutEcrire ? (await listerContacts()).contacts : []
   const resultats = onglet === "resultats" ? await lireResultatsEpreuve(id) : null
+  // Bloc de fin d'épreuve : seulement pour un résultat validé (lireFinDEpreuve renvoie null sinon).
+  const fins = resultats ? await Promise.all(resultats.engagements.map((engagement) => lireFinDEpreuve(engagement.id))) : []
   const preparation = onglet === "pret" ? await lirePreparation(id) : null
   const reco = onglet === "reconnaissances" ? await lireReconnaissances(id) : null
   const annulee = epreuve.statut === "annulee"
@@ -228,8 +231,9 @@ export default async function PageEpreuve({
           {resultats.engagements.length === 0 && (
             <p className="text-texte-discret">Aucun engagement n'est encore parti ou terminé.</p>
           )}
-          {resultats.engagements.map((engagement) => {
+          {resultats.engagements.map((engagement, index) => {
             const resultat = engagement.resultat
+            const fin = fins[index]
             const modifiable = resultats.niveau !== "lecture" && !resultats.saisonCloturee && (aAuMoins(resultats.niveau, "ecriture"))
             return (
               <article key={engagement.id} className="flex flex-col gap-3 rounded-lg border border-bordure bg-surface p-4">
@@ -256,6 +260,22 @@ export default async function PageEpreuve({
                     </p>
                   )}
                 </header>
+
+                {fin && (
+                  <FinEpreuve
+                    epreuve={fin.epreuve}
+                    statutFinal={fin.statutFinal}
+                    classementGeneral={fin.classementGeneral}
+                    classementClasse={fin.classementClasse}
+                    nbPartantsClasse={fin.nbPartantsClasse}
+                    kmChronometres={fin.kmChronometres}
+                    kmSaison={fin.kmSaison}
+                    aDebrief={fin.aDebrief}
+                    peutDebriefer={modifiable}
+                    sansPreuve={fin.sansPreuve}
+                    coutEpreuve={null}
+                  />
+                )}
 
                 {resultat && (
                   <dl className="grid gap-1 text-sm sm:grid-cols-2">

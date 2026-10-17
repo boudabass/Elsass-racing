@@ -153,3 +153,7 @@ Règle : une app propose, elle n'écrit jamais chez l'autre. Budget n'écrit auc
 - Une suggestion traitée sur la page À confirmer (confirmée ou ignorée) lève son action `budget_suggestion:<id>` dans la boîte, par `budget.action_levee`. Une décision de la boîte sur une suggestion déjà traitée ne rouvre plus l'action : elle la lève. `rouvrirAction` ne sert qu'aux refus de règle réels.
 - Solde d'un membre écrit en clair (`phraseSoldeMoi`, `phraseSoldeMembre` dans `libelles.ts`) : « La team te doit … », « Tu dois … à la team », « Rien à régler ».
 - Engagement concerné : préremplissage par la catégorie « Engagement » (clé `engagement`) et l'épreuve choisies.
+
+## Prévisionnel par épreuve (tâche 2.9, point 5.2)
+
+Le prévu d'une épreuve est une ligne de `budget_forecast` avec `event_id` renseigné (le schéma existait déjà, aucune migration). Le prévisionnel de la saison garde `event_id` vide. Le réel d'une épreuve ne compte que ses dépenses confirmées. Saisie : gestion, comme pour la saison.

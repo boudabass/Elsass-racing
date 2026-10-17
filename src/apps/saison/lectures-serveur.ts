@@ -2,6 +2,7 @@
 // renvoient le niveau effectif : l'écran s'en sert pour n'afficher aucun bouton d'écriture.
 // Les montants (inscription, tarifs) passent par masquerMontants : jamais un simple masquage CSS.
 
+import { jourDeParis } from "@/core/dates"
 import { prismaPourTeam } from "@/lib/prisma"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 
@@ -626,4 +627,26 @@ export async function lireKmChronometresValides(saisonId: string): Promise<numbe
     select: { kmChronometres: true },
   })
   return Math.round(lignes.reduce((total, ligne) => total + Number(ligne.kmChronometres ?? 0), 0) * 10) / 10
+}
+
+// Identifiants des épreuves passées de la saison en cours (20 plus récentes), pour précharger leurs fiches
+// hors ligne (brief 2.9, point 8). Vide si le membre n'a pas accès à Saison ou s'il n'y a pas de saison en cours.
+export async function lireIdsEpreuvesPasseesSaisonEnCours(): Promise<string[]> {
+  let ctx: Awaited<ReturnType<typeof accesSaison>>["ctx"]
+  try {
+    ;({ ctx } = await accesSaison("lecture"))
+  } catch {
+    return []
+  }
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const saison = await client.coreSeason.findFirst({ where: { teamId: ctx.teamId, deletedAt: null, enCours: true }, select: { id: true } })
+  if (!saison) return []
+  const aujourdhui = new Date(`${jourDeParis(new Date())}T00:00:00Z`)
+  const epreuves = await client.coreEvent.findMany({
+    where: { teamId: ctx.teamId, seasonId: saison.id, deletedAt: null, dateFin: { lt: aujourdhui } },
+    orderBy: [{ dateDebut: "desc" }],
+    take: 20,
+    select: { id: true },
+  })
+  return epreuves.map((epreuve) => epreuve.id)
 }

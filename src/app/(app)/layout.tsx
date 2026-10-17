@@ -10,6 +10,7 @@ import { libelleCompteARebours } from "@/core/actions/prochaine-etape"
 import { BarreHaute } from "@/components/qg/barre-haute"
 import { lireSoldeBarreHaute } from "@/apps/budget/liaisons-serveur"
 import { listerTeamsDe } from "@/core/auth/team-serveur"
+import { lireIdsEpreuvesPasseesSaisonEnCours } from "@/apps/saison/lectures-serveur"
 import { BandeauTerrain } from "@/components/qg/bandeau-terrain"
 import { BoiteActions } from "@/components/qg/boite-actions"
 import { BoutonProchaineEtape } from "@/components/qg/bouton-prochaine-etape"
@@ -79,7 +80,10 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
   // Bandeau « jour d'épreuve » : épreuve en cours aujourd'hui, pas en mode terrain, pas refusé aujourd'hui.
   const epreuve = donnees.prochaineEpreuve
   // Pages de la prochaine épreuve, préchargées pour la spéciale (programme et reconnaissances).
-  const pagesHorsLigne = epreuve ? [`/apps/saison/epreuves/${epreuve.id}?onglet=programme`, `/apps/saison/epreuves/${epreuve.id}?onglet=reconnaissances`] : []
+  const pagesProchaine = epreuve ? [`/apps/saison/epreuves/${epreuve.id}?onglet=programme`, `/apps/saison/epreuves/${epreuve.id}?onglet=reconnaissances`] : []
+  // Épreuves passées de la saison en cours (fiche et résultats) : consultables hors ligne (brief 2.9, point 8).
+  const pagesPassees = (await lireIdsEpreuvesPasseesSaisonEnCours()).flatMap((id) => [`/apps/saison/epreuves/${id}`, `/apps/saison/epreuves/${id}?onglet=resultats`])
+  const pagesHorsLigne = [...pagesProchaine, ...pagesPassees]
   const jour = new Date(`${aujourdhui}T00:00:00Z`)
   const enCours = epreuve !== null && epreuve.dateDebut <= jour && epreuve.dateFin >= jour
   const bandeauRefuse = magasin.get(COOKIE_BANDEAU_TERRAIN)?.value === aujourdhui

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -18,6 +18,7 @@ export function FiltresMouvements({
   valeurs,
   afficherMembres,
   nombreActifs,
+  pastilles,
 }: {
   saisons: Array<{ id: string; annee: number }>
   epreuves: Array<{ id: string; nom: string }>
@@ -26,6 +27,8 @@ export function FiltresMouvements({
   valeurs: { saison: string; epreuve: string; categorie: string; membre: string }
   afficherMembres: boolean
   nombreActifs: number
+  // Pastilles des filtres actifs : sur téléphone, sur la même rangée que le bouton Filtres ; sur ordinateur, sous le formulaire.
+  pastilles: ReactNode
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -96,9 +99,10 @@ export function FiltresMouvements({
         <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Filtres des mouvements" onSubmit={(evenement) => evenement.preventDefault()}>
           {controles}
         </form>
+        {pastilles && <div className="mt-3">{pastilles}</div>}
       </div>
 
-      <div className="md:hidden">
+      <div className="flex flex-wrap items-center gap-2 md:hidden">
         <button
           type="button"
           onClick={() => setTiroirOuvert(true)}
@@ -117,6 +121,7 @@ export function FiltresMouvements({
             </form>
           </SheetContent>
         </Sheet>
+        {pastilles}
       </div>
     </>
   )

@@ -258,15 +258,16 @@ export async function lireMembres(): Promise<
 }
 
 // Prévisionnel de la saison, par catégorie de dépense : prévu, réel confirmé, écart et couleur.
-export async function lirePrevisionnel(saisonId: string): Promise<
+// Prévu et réel par catégorie : de la saison entière, ou d'une épreuve (prévu et dépenses confirmées de cette épreuve).
+export async function lirePrevisionnel(saisonId: string, epreuveId: string | null = null): Promise<
   Array<{ categorieId: string; nom: string; prevu: number | null; reel: number; ecart: number; pourcent: number | null; couleur: Couleur | null }>
 > {
   const { ctx } = await accesBudget("lecture")
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const [categories, previsions, depenses] = await Promise.all([
     client.budgetCategory.findMany({ where: { teamId: ctx.teamId, sens: "depense", active: true, deletedAt: null }, orderBy: [{ ordre: "asc" }], select: { id: true, nom: true } }),
-    client.budgetForecast.findMany({ where: { teamId: ctx.teamId, seasonId: saisonId, eventId: null, deletedAt: null }, select: { categoryId: true, montant: true } }),
-    client.budgetExpense.findMany({ where: { teamId: ctx.teamId, seasonId: saisonId, confirmee: true, deletedAt: null }, select: { categoryId: true, montant: true } }),
+    client.budgetForecast.findMany({ where: { teamId: ctx.teamId, seasonId: saisonId, eventId: epreuveId, deletedAt: null }, select: { categoryId: true, montant: true } }),
+    client.budgetExpense.findMany({ where: { teamId: ctx.teamId, seasonId: saisonId, ...(epreuveId ? { eventId: epreuveId } : {}), confirmee: true, deletedAt: null }, select: { categoryId: true, montant: true } }),
   ])
   return categories.map((categorie) => {
     const prevu = previsions.find((prevision) => prevision.categoryId === categorie.id)?.montant ?? null

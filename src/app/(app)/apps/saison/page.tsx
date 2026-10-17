@@ -4,6 +4,7 @@ import { Lock } from "lucide-react"
 import { accesEcran } from "@/apps/saison/ecran"
 import { compterResultatsAValider, listerEpreuves, listerSaisons } from "@/apps/saison/lectures-serveur"
 import { FiltresCalendrier } from "@/apps/saison/composants/filtres"
+import { FormulaireNouvelleSaison } from "@/apps/saison/composants/saisons"
 import { resteAFaire } from "@/apps/saison/reste-a-faire"
 import { jourDeParis } from "@/core/dates"
 import { jourCivil, prochaineEpreuve, type StatutEpreuve } from "@/apps/saison/regles"
@@ -52,6 +53,27 @@ export default async function PageCalendrier({
   const { saisons } = await listerSaisons()
   const saisonCourante = saisons.find((saison) => saison.enCours) ?? saisons[0] ?? null
   const saisonId = parametres.saison ?? saisonCourante?.id ?? null
+
+  // Team sans saison : aucun chemin n'existait pour en ouvrir une. Le formulaire est celui de l'historique (gestion).
+  if (saisons.length === 0) {
+    const peutCreer = aAuMoins(acces.niveau, "gestion")
+    return (
+      <section className="mx-auto flex max-w-xl flex-col items-start gap-6 px-4 py-10">
+        <h1 className="font-titre text-2xl uppercase">Saison</h1>
+        <p className="text-texte-discret">
+          Aucune saison pour cette team. Ouvre la première saison : ses épreuves s'y rangeront.
+        </p>
+        {peutCreer ? (
+          <div className="flex w-full flex-col gap-3">
+            <h2 className="font-medium">Créer la saison</h2>
+            <FormulaireNouvelleSaison prochaineAnnee={new Date().getUTCFullYear()} />
+          </div>
+        ) : (
+          <p className="text-sm text-texte-discret">Le responsable ou un gestionnaire ouvre la saison.</p>
+        )}
+      </section>
+    )
+  }
 
   const { epreuves: toutes } = await listerEpreuves(saisonId)
   const aValider = await compterResultatsAValider()
