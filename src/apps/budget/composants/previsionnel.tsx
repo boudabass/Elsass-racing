@@ -44,7 +44,7 @@ export function GrillePrevisionnel({
           className="flex flex-col gap-1 px-4 py-2 text-sm sm:grid sm:grid-cols-[minmax(0,1fr)_9rem_9rem_minmax(0,16rem)] sm:items-center sm:gap-x-4 sm:py-2.5"
         >
           <div className="flex items-baseline justify-between gap-3 sm:contents">
-            <span className="min-w-0 truncate font-medium">{ligne.nom}</span>
+            <span className="min-w-0 break-words font-medium">{ligne.nom}</span>
             <span className={`${ligne.couleur ? COULEUR[ligne.couleur] : "text-texte-discret"} text-right font-medium sm:col-start-4 sm:text-left`}>
               {ligne.ecart}
             </span>

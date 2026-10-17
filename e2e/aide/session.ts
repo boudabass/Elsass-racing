@@ -370,3 +370,14 @@ export async function preverEpreuveEnBase(equipe: Equipe, eventId: string, monta
     [newId(), equipe.teamId, montant, eventId],
   )
 }
+
+// Véhicule de reconnaissance de la team (type reco) : la liste des règles de reco ne propose que ceux-là.
+export async function ajouterVehiculeDeReco(equipe: Equipe, nomCourt: string): Promise<string> {
+  const id = newId()
+  await bd().query(
+    `INSERT INTO core_vehicle (id, team_id, type, nom_court, actif, updated_at)
+     VALUES ($1, $2, 'reco'::core_vehicle_type, $3, true, now())`,
+    [id, equipe.teamId, nomCourt],
+  )
+  return id
+}
