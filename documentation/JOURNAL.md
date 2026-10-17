@@ -125,3 +125,19 @@
 - Tests : `e2e/audit-technique.spec.ts` gagne « une seule colonne » (360 et 1280 px, écart de bord mesuré à 1 px près entre le menu et le titre, puis onglets à 1280 px). `e2e/connexion.spec.ts:11` vérifie l'icône au lieu des initiales, sur accord de l'orchestrateur, puisque le point 6 le rend obsolète.
 - Vérifications : typecheck, vitest 392/392, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 71/71 sur build de production (port 3101). Captures régénérées par l'e2e et commitées (`docs/captures`).
 - Points d'attention : pas de capture Réglages Identité à 1280 px ; `identite-1440x900.png` montre l'aperçu avec l'icône et sert de référence. Les journaux serveur de l'e2e contiennent des `P2025` sur `coreTeam.findUniqueOrThrow` : non investigués, sans effet sur les tests.
+
+## 17/10/2026 : brief 2.16, finitions boutons et liens
+
+
+
+- Boutons d'envoi : à partir de `sm`, un bouton d'envoi prend la largeur de son texte ; sous `sm`, il reste pleine largeur. Dans une grille : `sm:col-span-*` avec `sm:justify-self-start`. Dans une colonne `flex-col` : `sm:self-start` (et `w-full sm:w-auto` quand le bouton avait `w-full`, cas de « Ajouter la dépense »). Corrigés : Saison (ouverture de saison, épreuves, inscriptions, programme, spéciales, règles, sorties, résultats), Budget (dépense, recette, remboursement) et recherche (« Chercher »). Liste et parents dans le rapport du brief.
+
+- Classe `BOUTON_SECONDAIRE` dans `src/lib/classes-formulaire.ts` : même hauteur et même retrait que `BOUTON`, sans fond de couleur. Utilisée pour « Voir » (épreuves Budget), « Ignorer » (formulaires Budget) et « Revenir aux droits du rôle » (Réglages). La copie locale de `personnelles.tsx` est supprimée. Les boutons d'envoi écrits à la main passent à `BOUTON`.
+
+- Liens : `LIEN` pour « Plus de détails » (résultats Saison), « Modifier » (notes de la team, seule la classe change) et le nom d'épreuve (liste Budget, avec `font-medium`). Les autres boutons restent en place : leur parent ne les étire pas sur téléphone (`flex-row` à `sm` ou `flex-wrap`).
+
+- Tests : `e2e/audit-technique.spec.ts` gagne deux tests. À 1280 px, aucun bouton d'envoi visible ne dépasse 400 px sur les écrans parcourus. À 360 px, « Ajouter la dépense » fait toute la largeur du formulaire, à 2 px près.
+
+- Vérifications : typecheck, vitest 392/392, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 73/73 sur build de production (port 3101). Captures régénérées par l'e2e et commitées (`docs/captures`, 34 fichiers).
+
+- Points d'attention : le grep `underline` sur `src --include=*.tsx` ne renvoie plus que `src/components/ui/button.tsx` ; la classe `LIEN` est dans un fichier `.ts`, donc hors de ce grep. Les journaux serveur de l'e2e contiennent des `P2003` et `P2025` (déjà relevés, non investigués) et une `TypeError` « reading 'id' » sur la route `budget/export` quand l'équipe est absente ; elle était déjà présente au passage du brief 2.15, non investiguée, sans effet sur les tests.
