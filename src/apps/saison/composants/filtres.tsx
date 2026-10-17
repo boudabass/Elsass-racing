@@ -114,7 +114,7 @@ export function FiltresCalendrier({
               <button
                 type="button"
                 onClick={() => changer(pastille.cle, "")}
-                className="inline-flex min-h-9 items-center gap-2 rounded-full border border-bordure bg-surface px-3 py-1 text-sm"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-bordure bg-surface px-3 py-1 text-sm"
               >
                 {pastille.libelle}
                 <span aria-hidden>×</span>

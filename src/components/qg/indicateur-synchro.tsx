@@ -31,6 +31,10 @@ export function IndicateurSynchro() {
     couleur = "text-texte-discret"
   }
 
+  // Ce que lit un lecteur d'écran : l'état seul, sans la durée qui change à chaque minute.
+  let etatAnnonce = libelle
+  if (etat.enAttente === 0 && etat.enLigne && etat.derniereSync) etatAnnonce = "En ligne"
+
   useEffect(() => {
     if (!detail) return
     const fermer = (evenement: PointerEvent) => {
@@ -56,10 +60,11 @@ export function IndicateurSynchro() {
           {libelle}
         </span>
       )}
-      <span role="status" aria-live="polite" className={`hidden max-w-[10rem] items-center gap-1.5 truncate text-xs sm:flex ${couleur}`}>
+      <span className={`hidden max-w-[10rem] items-center gap-1.5 truncate text-xs sm:flex ${couleur}`}>
         <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-current" />
         <span className="truncate">{libelle}</span>
       </span>
+      <span role="status" className="sr-only">{etatAnnonce}</span>
     </span>
   )
 }

@@ -5,7 +5,7 @@ import { libelleRole } from "@/core/auth/libelles"
 import { lireSession } from "@/core/auth/session-serveur"
 import { listerTeamsDe } from "@/core/auth/team-serveur"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
 
 export default async function PageEquipes() {
   const session = await lireSession()
@@ -18,7 +18,7 @@ export default async function PageEquipes() {
       {teams.length === 0 ? (
         <Card className="w-full max-w-sm text-center">
           <CardHeader>
-            <CardTitle>Tu n&apos;as pas encore de team</CardTitle>
+            <h1 className="font-semibold leading-none tracking-tight">Tu n&apos;as pas encore de team</h1>
             <CardDescription>Demande une invitation au responsable de ta team.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -32,7 +32,7 @@ export default async function PageEquipes() {
       ) : (
         <Card className="w-full max-w-sm">
           <CardHeader>
-            <CardTitle>Choisis ta team</CardTitle>
+            <h1 className="font-semibold leading-none tracking-tight">Choisis ta team</h1>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {teams.map(({ team, role }) => (

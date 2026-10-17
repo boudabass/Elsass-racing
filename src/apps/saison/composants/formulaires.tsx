@@ -23,8 +23,8 @@ import {
 // Formulaires de la fiche et du calendrier. Chacun appelle une Server Action et affiche le
 // message français de la garde ou de la règle. Aucun écran ne compte sur une vérification CSS.
 
-export const CHAMP =
-  "min-h-11 w-full rounded-md border border-bordure-champ bg-surface px-3 py-2 text-texte focus:outline-none focus:ring-2 focus:ring-marque"
+export { CHAMP } from "@/lib/classes-formulaire"
+import { CHAMP } from "@/lib/classes-formulaire"
 
 export function Message({ resultat }: { resultat: Resultat | null }) {
   if (!resultat) return null

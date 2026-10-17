@@ -148,6 +148,8 @@ test("budget : tiroir de filtres et pastilles sur téléphone, onglet Dépenses,
   await page.getByRole("dialog").getByRole("combobox", { name: "Catégorie" }).selectOption({ label: "Péages" })
   await page.keyboard.press("Escape")
   await expect(page.getByRole("list", { name: "Filtres actifs" }).getByText("Péages")).toBeVisible()
+  // Brief 2.12 : la pastille tient une cible tactile de 44 px.
+  expect((await page.getByRole("list", { name: "Filtres actifs" }).locator("li > *").first().boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
 
   // Modification puis suppression de la dépense (case de confirmation).
   const depense = await depenseBudgetParLibelle(equipe, "Péages")
@@ -253,6 +255,8 @@ test("calendrier de Saison : tiroir de filtres et pastilles retirables sur tél�
   await page.keyboard.press("Escape")
   const pastilles = page.getByRole("list", { name: "Filtres actifs" })
   await expect(pastilles).toBeVisible()
+  // Brief 2.12 : la première pastille tient une cible tactile de 44 px.
+  expect((await pastilles.locator("li > *").first().boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
   await expect(page.getByRole("button", { name: /Filtres \(1\)/ })).toBeVisible()
   await page.screenshot({ path: "docs/captures/saison-filtres-tiroir-360x740.png" })
 

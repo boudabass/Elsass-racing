@@ -4,10 +4,10 @@ import { useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { CHAMP } from "@/lib/classes-formulaire"
 import { newId } from "@/core/ids"
 import { useMoteurSynchro, useTable } from "@/core/synchro/client/react"
 
-const CHAMP = "min-h-11 w-full rounded-md border border-bordure-champ bg-surface px-3 py-2 text-texte focus:outline-none focus:ring-2 focus:ring-marque"
 
 export interface ValeursDebrief {
   ressenti: number
