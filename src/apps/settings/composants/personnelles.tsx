@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label"
 import { libelleRole } from "@/core/auth/libelles"
 import type { ContexteTeam } from "@/core/contexte"
 import { appsVisibles } from "@/core/sdk/apps-serveur"
-import { BOUTON, CHAMP } from "@/lib/classes-formulaire"
+import { BOUTON, BOUTON_SECONDAIRE, CHAMP } from "@/lib/classes-formulaire"
 import { prisma } from "@/lib/prisma"
 import { adhesionsDuCompte, listerAppareils, listerExports, listerNotifications, listerSuppressions } from "../personnelles-serveur"
 import { ludiqueEffectif } from "../regles-personnelles"
@@ -21,7 +21,6 @@ import {
   sauverTelephone,
 } from "../actions-personnelles"
 
-const BOUTON_SECONDAIRE = "cible-tactile rounded-md border border-bordure px-3 py-1 text-sm hover:bg-surface-2"
 const dateCourte = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" })
 
 // Mention d'attente standard : un libellé court, et la raison en clair.

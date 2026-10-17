@@ -2,6 +2,7 @@ import { contexteQg, donneesQg } from "@/core/qg/donnees"
 import { modeTerrainDuMembre } from "@/apps/settings/preferences-serveur"
 import { rechercher, grouperParApp } from "@/core/recherche/recherche-serveur"
 import { iconeApp } from "@/components/qg/icones"
+import { BOUTON } from "@/lib/classes-formulaire"
 
 export default async function PageRecherche({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = "" } = await searchParams
@@ -34,7 +35,7 @@ export default async function PageRecherche({ searchParams }: { searchParams: Pr
           placeholder="Une épreuve, un pilote, une pièce…"
           className="cible-tactile w-full rounded-md border border-bordure-champ bg-surface px-4 py-2 text-texte placeholder:text-texte-discret"
         />
-        <button type="submit" className="cible-tactile rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90">
+        <button type="submit" className={BOUTON}>
           Chercher
         </button>
       </form>

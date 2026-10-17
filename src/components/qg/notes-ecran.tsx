@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 
 import { newId } from "@/core/ids"
 import { useMoteurSynchro, useTable } from "@/core/synchro/client/react"
+import { LIEN } from "@/lib/classes-formulaire"
 
 const dateCourte = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" })
 
@@ -99,7 +100,7 @@ export function NotesEcran({ userId, peutEcrire }: { userId: string; peutEcrire:
                     <button
                       type="button"
                       onClick={() => setEdition({ id: note.id, texte: String(note.texte) })}
-                      className="cible-tactile underline-offset-4 hover:underline"
+                      className={LIEN}
                     >
                       Modifier
                     </button>
