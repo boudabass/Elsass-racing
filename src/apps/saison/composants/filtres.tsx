@@ -38,7 +38,7 @@ export function FiltresCalendrier({
     router.push(`${chemin}?${suivant.toString()}`)
   }
 
-  const champ = "min-h-11 rounded-md border border-bordure bg-surface px-2"
+  const champ = "min-h-11 rounded-md border border-bordure-champ bg-surface px-2"
   const pastilles = [
     ...(type ? [{ cle: "type", libelle: types[type] ?? type }] : []),
     ...(statut ? [{ cle: "statut", libelle: statuts[statut] ?? statut }] : []),

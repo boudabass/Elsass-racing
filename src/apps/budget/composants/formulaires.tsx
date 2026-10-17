@@ -129,7 +129,7 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
         <label htmlFor="montant" className="font-medium">
           Montant (€)
         </label>
-        <input id="montant" name="montant" inputMode="decimal" autoFocus required placeholder="0,00" className={`${CHAMP} text-2xl font-mono tabular-nums`} />
+        <input id="montant" name="montant" inputMode="decimal" autoFocus required placeholder="0,00" className={`${CHAMP} text-2xl chiffre`} />
       </div>
       <div className="flex flex-col gap-1">
         <label htmlFor="categoryId" className="font-medium">
@@ -390,12 +390,12 @@ export function FormulaireRemboursement({
               aria-label={`Montant pour ${depense.libelle}`}
               value={montants[depense.id] ?? ""}
               onChange={(e) => setMontants((precedent) => ({ ...precedent, [depense.id]: e.target.value }))}
-              className={`${CHAMP} w-28 text-right font-mono tabular-nums`}
+              className={`${CHAMP} w-28 text-right chiffre`}
             />
           </div>
         ))}
       </fieldset>
-      <p className="font-mono tabular-nums">Total à rembourser : {enEuros(total)} €</p>
+      <p className="chiffre">Total à rembourser : {enEuros(total)} €</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label htmlFor="date" className="text-sm text-texte-discret">

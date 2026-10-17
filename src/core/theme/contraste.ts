@@ -51,3 +51,11 @@ export function ajusterPourFond(couleur: string, fond: string, minimum = MINIMUM
   }
   return cible
 }
+
+// Texte posé sur une couleur pleine (bouton, pastille) : blanc ou quasi-noir, celui qui contraste le mieux.
+export const TEXTE_CLAIR = "#FFFFFF"
+export const TEXTE_SOMBRE = "#111113"
+
+export function texteSur(fond: string): string {
+  return contraste(TEXTE_CLAIR, fond) >= contraste(TEXTE_SOMBRE, fond) ? TEXTE_CLAIR : TEXTE_SOMBRE
+}

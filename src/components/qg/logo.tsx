@@ -8,7 +8,7 @@ export function Logo({ nom, taille = "md" }: { nom: string; taille?: "md" | "lg"
   return (
     <span
       aria-hidden
-      className={`titre-rallye flex shrink-0 items-center justify-center rounded-md bg-marque font-bold text-white ${dimension}`}
+      className={`titre-rallye flex shrink-0 items-center justify-center rounded-md bg-marque font-bold text-marque-texte ${dimension}`}
     >
       {initialesTeam(nom)}
     </span>

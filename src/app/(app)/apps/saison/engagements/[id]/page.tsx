@@ -52,7 +52,7 @@ export default async function PageEngagement({ params }: { params: Promise<{ id:
 
   return (
     <section className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
-      <Link href={`/apps/saison/epreuves/${engagement.epreuve.id}?onglet=engagements`} className="text-sm text-texte-discret">
+      <Link href={`/apps/saison/epreuves/${engagement.epreuve.id}?onglet=engagements`} className="cible-tactile inline-flex items-center text-sm text-texte-discret">
         ← {engagement.epreuve.nom}
       </Link>
       <header className="flex flex-col gap-1">

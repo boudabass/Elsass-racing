@@ -170,7 +170,7 @@ function FicheMouvement({ mouvement, retour }: { mouvement: MouvementLu; retour:
   const estDepense = mouvement.type === "depense"
   return (
     <article className="flex flex-col gap-3 rounded-lg border border-bordure bg-surface p-4 text-sm">
-      <Link href={retour} className="text-texte-discret md:hidden">
+      <Link href={retour} className="cible-tactile inline-flex items-center text-texte-discret md:hidden">
         ← Retour à la liste
       </Link>
       <h2 className="text-base font-medium">{mouvement.libelle}</h2>

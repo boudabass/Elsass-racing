@@ -22,7 +22,7 @@ export interface EntreePlus {
   href?: string
 }
 
-const CLASSE_DECLENCHEUR = "cible-tactile items-center justify-center rounded-md bg-marque text-white hover:opacity-90"
+const CLASSE_DECLENCHEUR = "cible-tactile items-center justify-center rounded-md bg-marque text-marque-texte hover:opacity-90"
 
 // Menu « + » : les entrées sont déjà filtrées par les droits du membre (dans le layout).
 // Sur PC (md et plus) : menu déroulant à droite. Sur téléphone : tiroir qui monte du bas, aux

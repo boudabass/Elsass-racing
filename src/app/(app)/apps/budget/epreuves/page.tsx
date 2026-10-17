@@ -38,7 +38,7 @@ export default async function PageParEpreuve({ searchParams }: { searchParams: P
           <label htmlFor="saison" className="text-texte-discret">
             Saison
           </label>
-          <select id="saison" name="saison" defaultValue={saisonId ?? ""} className="min-h-11 rounded-md border border-bordure bg-surface px-3">
+          <select id="saison" name="saison" defaultValue={saisonId ?? ""} className="min-h-11 rounded-md border border-bordure-champ bg-surface px-3">
             {choix.saisons.map((saison) => (
               <option key={saison.id} value={saison.id}>
                 {saison.annee}
@@ -54,15 +54,15 @@ export default async function PageParEpreuve({ searchParams }: { searchParams: P
       <dl className="grid gap-3 text-sm sm:grid-cols-3">
         <div className="rounded-lg border border-bordure bg-surface p-4">
           <dt className="text-texte-discret">Coût moyen d&apos;un rallye</dt>
-          <dd className="font-mono tabular-nums">{donnees?.moyenneRallye === null || donnees?.moyenneRallye === undefined ? "Pas encore de rallye chiffré" : formatEuros(donnees.moyenneRallye)}</dd>
+          <dd className="chiffre">{donnees?.moyenneRallye === null || donnees?.moyenneRallye === undefined ? "Pas encore de rallye chiffré" : formatEuros(donnees.moyenneRallye)}</dd>
         </div>
         <div className="rounded-lg border border-bordure bg-surface p-4">
           <dt className="text-texte-discret">Coût du km chronométré</dt>
-          <dd className="font-mono tabular-nums">{coutKm === null ? "Pas encore de km validés" : `${formatEuros(coutKm)} / km`}</dd>
+          <dd className="chiffre">{coutKm === null ? "Pas encore de km validés" : `${formatEuros(coutKm)} / km`}</dd>
         </div>
         <div className="rounded-lg border border-bordure bg-surface p-4">
           <dt className="text-texte-discret">Km chronométrés validés</dt>
-          <dd className="font-mono tabular-nums">{km.toFixed(1)} km</dd>
+          <dd className="chiffre">{km.toFixed(1)} km</dd>
         </div>
       </dl>
 
@@ -76,7 +76,7 @@ export default async function PageParEpreuve({ searchParams }: { searchParams: P
                 <Link href={`/apps/budget?epreuve=${epreuve.id}`} className="font-medium hover:underline">
                   {epreuve.nom}
                 </Link>
-                <span className="font-mono tabular-nums">
+                <span className="chiffre">
                   {formatEuros(epreuve.total)}
                   {epreuve.prevuCentimes !== null && <span className="text-texte-discret"> · prévu {formatEuros(epreuve.prevuCentimes)}</span>}
                 </span>
@@ -97,7 +97,7 @@ export default async function PageParEpreuve({ searchParams }: { searchParams: P
                       <span className="h-3 rounded bg-surface-2" aria-hidden>
                         <span className="block h-3 rounded bg-marque" style={{ width: `${(ligne.montant / maximum) * 100}%` }} />
                       </span>
-                      <span className="font-mono tabular-nums">{formatEuros(ligne.montant)}</span>
+                      <span className="chiffre">{formatEuros(ligne.montant)}</span>
                     </li>
                   ))}
                 </ul>

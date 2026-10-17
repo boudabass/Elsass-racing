@@ -32,9 +32,9 @@ export default async function PageRecherche({ searchParams }: { searchParams: Pr
           defaultValue={requete}
           autoFocus
           placeholder="Une épreuve, un pilote, une pièce…"
-          className="cible-tactile w-full rounded-md border border-bordure bg-surface px-4 py-2 text-texte placeholder:text-texte-discret"
+          className="cible-tactile w-full rounded-md border border-bordure-champ bg-surface px-4 py-2 text-texte placeholder:text-texte-discret"
         />
-        <button type="submit" className="cible-tactile rounded-md bg-marque px-5 py-2 font-medium text-white hover:opacity-90">
+        <button type="submit" className="cible-tactile rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90">
           Chercher
         </button>
       </form>

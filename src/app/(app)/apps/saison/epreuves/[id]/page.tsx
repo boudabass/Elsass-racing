@@ -83,7 +83,7 @@ export default async function PageEpreuve({
 
   return (
     <section className="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-6">
-      <Link href="/apps/saison" className="text-sm text-texte-discret">
+      <Link href="/apps/saison" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
         ← Calendrier
       </Link>
       <header className="flex flex-col gap-1">
@@ -175,7 +175,7 @@ export default async function PageEpreuve({
                     {LIBELLE_STATUT_ENGAGEMENT[engagement.statut as keyof typeof LIBELLE_STATUT_ENGAGEMENT] ?? engagement.statut}
                   </span>
                 </Link>
-                <Link href={`/apps/saison/engagements/${engagement.id}#debrief`} className="px-4 pb-3 text-sm underline">
+                <Link href={`/apps/saison/engagements/${engagement.id}#debrief`} className="cible-tactile inline-flex items-center px-4 pb-3 text-sm underline">
                   Débrief
                 </Link>
               </li>
@@ -244,11 +244,11 @@ export default async function PageEpreuve({
                   </h2>
                   <p className="text-sm text-texte-discret">{engagement.equipage ?? "Équipage non renseigné"}</p>
                   <div className="flex flex-wrap gap-4 text-sm">
-                    <Link href={`/apps/saison/engagements/${engagement.id}`} className="underline">
+                    <Link href={`/apps/saison/engagements/${engagement.id}`} className="cible-tactile inline-flex items-center underline">
                       Ouvrir l'engagement
                     </Link>
                     {resultat && (
-                      <Link href={`/apps/saison/engagements/${engagement.id}#debrief`} className="underline">
+                      <Link href={`/apps/saison/engagements/${engagement.id}#debrief`} className="cible-tactile inline-flex items-center underline">
                         Débrief
                       </Link>
                     )}
@@ -293,7 +293,7 @@ export default async function PageEpreuve({
                     <dt className="text-texte-discret">Preuve</dt>
                     <dd className="break-all">
                       {resultat.preuveLien ? (
-                        <a href={resultat.preuveLien} className="underline">
+                        <a href={resultat.preuveLien} className="cible-tactile inline-flex items-center underline">
                           {resultat.preuveLien}
                         </a>
                       ) : (

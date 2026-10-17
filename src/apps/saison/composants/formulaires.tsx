@@ -24,7 +24,7 @@ import {
 // message français de la garde ou de la règle. Aucun écran ne compte sur une vérification CSS.
 
 export const CHAMP =
-  "min-h-11 w-full rounded-md border border-bordure bg-surface px-3 py-2 text-texte focus:outline-none focus:ring-2 focus:ring-marque"
+  "min-h-11 w-full rounded-md border border-bordure-champ bg-surface px-3 py-2 text-texte focus:outline-none focus:ring-2 focus:ring-marque"
 
 export function Message({ resultat }: { resultat: Resultat | null }) {
   if (!resultat) return null
@@ -222,7 +222,7 @@ export function BoutonAnnulerEpreuve({ eventId }: { eventId: string }) {
         <div className="flex flex-col gap-2">
           <p className="text-sm">L'épreuve passera en annulée. Les engagements restent visibles.</p>
           <div className="flex gap-2">
-            <Button type="submit" disabled={enCours} className="min-h-11 bg-etat-rouge">
+            <Button type="submit" disabled={enCours} className="min-h-11 bg-etat-rouge text-etat-rouge-texte">
               Confirmer l'annulation
             </Button>
             <Button type="button" variant="outline" className="min-h-11" onClick={() => setConfirmer(false)}>

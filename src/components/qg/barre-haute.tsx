@@ -15,7 +15,7 @@ function formaterSolde(centimes: number): string {
 
 // La couleur n'est qu'un renfort : la phrase du solde dit déjà qui doit quoi.
 function couleurSolde(centimes: number): string {
-  return centimes < 0 ? "text-etat-rouge" : "text-etat-ok"
+  return centimes < 0 ? "text-texte" : "text-etat-ok"
 }
 
 function libelleSolde(solde: { libelle: string; montantCentimes: number; texte?: string }): string {
@@ -49,7 +49,7 @@ export function BarreHaute({
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 md:px-6">
         <Link href="/qg" className="cible-tactile flex items-center gap-3" aria-label={`${donnees.nomTeam} : retour au QG`}>
           {/* Pas encore de logo téléversé : les initiales sur ordinateur, une icône QG sur téléphone. */}
-          <span aria-hidden className="titre-rallye flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-marque text-white sm:hidden">
+          <span aria-hidden className="titre-rallye flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-marque text-marque-texte sm:hidden">
             <House className="h-5 w-5" aria-hidden />
           </span>
           <span className="hidden sm:block">
@@ -110,7 +110,7 @@ export function BarreHaute({
             <button
               type="submit"
               className={`cible-tactile rounded-md border px-3 py-1 text-sm ${
-                donnees.modeTerrain ? "border-marque bg-marque text-white" : "border-bordure text-texte-discret hover:bg-surface-2"
+                donnees.modeTerrain ? "border-marque bg-marque text-marque-texte" : "border-bordure text-texte-discret hover:bg-surface-2"
               }`}
             >
               {donnees.modeTerrain ? "Terrain : activé" : "Mode terrain"}

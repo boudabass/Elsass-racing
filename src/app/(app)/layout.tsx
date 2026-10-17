@@ -54,7 +54,7 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
     >
       <Inbox className="h-5 w-5" aria-hidden />
       {nombre > 0 && (
-        <span className="chiffre absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-marque px-1 text-xs font-semibold text-white">
+        <span className="chiffre absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-marque px-1 text-xs font-semibold text-marque-texte">
           {nombre}
         </span>
       )}

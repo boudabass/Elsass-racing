@@ -41,7 +41,7 @@ export function GrilleQG({
                     />
                   )}
                   {donnees.actions > 0 && (
-                    <span className="chiffre rounded-md bg-marque px-2 py-0.5 text-sm font-semibold text-white">
+                    <span className="chiffre rounded-md bg-marque px-2 py-0.5 text-sm font-semibold text-marque-texte">
                       {donnees.actions}
                     </span>
                   )}

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { cloturerSaisonAction, creerSaisonAction, type Resultat } from "../actions"
 import { Message } from "./formulaires"
 
-const CHAMP = "min-h-11 w-full rounded-md border border-bordure bg-surface px-3 py-2 text-texte focus:outline-none focus:ring-2 focus:ring-marque"
+const CHAMP = "min-h-11 w-full rounded-md border border-bordure-champ bg-surface px-3 py-2 text-texte focus:outline-none focus:ring-2 focus:ring-marque"
 
 // Nouvelle saison : année proposée (dernière + 1), dates du 1er janvier au 31 décembre modifiables.
 export function FormulaireNouvelleSaison({ prochaineAnnee }: { prochaineAnnee: number }) {

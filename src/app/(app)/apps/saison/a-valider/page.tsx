@@ -19,7 +19,7 @@ export default async function PageAValider() {
 
   return (
     <section className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
-      <Link href="/apps/saison" className="text-sm text-texte-discret">
+      <Link href="/apps/saison" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
         ← Calendrier
       </Link>
       <h1 className="font-titre text-2xl uppercase">Résultats à valider</h1>

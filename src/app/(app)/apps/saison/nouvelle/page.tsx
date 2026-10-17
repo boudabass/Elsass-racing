@@ -13,7 +13,7 @@ export default async function PageNouvelleEpreuve() {
   }
   return (
     <section className="mx-auto flex max-w-xl flex-col gap-5 px-4 py-6">
-      <Link href="/apps/saison" className="text-sm text-texte-discret">
+      <Link href="/apps/saison" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
         ← Calendrier
       </Link>
       <h1 className="font-titre text-2xl uppercase">Nouvelle épreuve</h1>

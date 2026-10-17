@@ -36,11 +36,11 @@ export default async function PageParMembre({ searchParams }: { searchParams: Pr
             <span className="font-medium">{membre.nom}</span>
             <span className="text-texte-discret">Avancé {formatEuros(membre.avance)}</span>
             <span className="text-texte-discret">Remboursé {formatEuros(membre.rembourse)}</span>
-            <span className={`${membre.du - membre.trop < 0 ? "text-etat-rouge" : ""}`}>
+            <span>
               {phraseSoldeMembre(membre.du - membre.trop, membre.nom)}
             </span>
             {peutRembourser && membre.du > 0 && (
-              <Link href={`/apps/budget/membres?rembourser=${membre.personneId}`} className="text-marque">
+              <Link href={`/apps/budget/membres?rembourser=${membre.personneId}`} className="cible-tactile inline-flex items-center underline underline-offset-4 decoration-marque decoration-2">
                 Rembourser
               </Link>
             )}

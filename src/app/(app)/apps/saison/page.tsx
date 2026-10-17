@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/saison/ecran"
-import { compterResultatsAValider, listerEpreuves, listerSaisons } from "@/apps/saison/lectures-serveur"
+import { listerEpreuves, listerSaisons } from "@/apps/saison/lectures-serveur"
 import { FiltresCalendrier } from "@/apps/saison/composants/filtres"
 import { FormulaireNouvelleSaison } from "@/apps/saison/composants/saisons"
 import { resteAFaire } from "@/apps/saison/reste-a-faire"
@@ -20,7 +20,7 @@ const COULEUR_STATUT: Record<StatutEpreuve, string> = {
   envisagee: "text-texte-discret",
   en_cours: "text-etat-ok",
   terminee: "text-texte",
-  annulee: "text-etat-rouge",
+  annulee: "text-texte-discret",
 }
 
 
@@ -76,7 +76,6 @@ export default async function PageCalendrier({
   }
 
   const { epreuves: toutes } = await listerEpreuves(saisonId)
-  const aValider = await compterResultatsAValider()
   const epreuves = toutes.filter(
     (epreuve) =>
       (!parametres.type || epreuve.type === parametres.type) && (!parametres.statut || epreuve.statut === parametres.statut),
@@ -90,7 +89,7 @@ export default async function PageCalendrier({
         <h1 className="font-titre text-2xl uppercase">Saison</h1>
         <p className="text-texte-discret">Ajoute ta première épreuve : elle prend ses dates, son lieu et ses engagements.</p>
         {peutEcrire && (
-          <Link href={lienNouvelle} className="rounded-md bg-marque px-4 py-3 font-medium text-white">
+          <Link href={lienNouvelle} className="inline-flex min-h-11 items-center rounded-md bg-marque px-4 py-3 font-medium text-marque-texte">
             Ajouter une épreuve
           </Link>
         )}
@@ -109,16 +108,8 @@ export default async function PageCalendrier({
     <section className="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-titre text-2xl uppercase">Saison {saisonCourante?.annee ?? ""}</h1>
-        <div className="flex flex-wrap gap-2 text-sm">
-          <Link href="/apps/saison/historique" className="min-h-11 rounded-md border border-bordure px-3 py-2">
-            Historique
-          </Link>
-          <Link href="/apps/saison/a-valider" className="min-h-11 rounded-md border border-bordure px-3 py-2">
-            Résultats à valider{aValider > 0 ? ` (${aValider})` : ""}
-          </Link>
-        </div>
         {peutEcrire && (
-          <Link href={lienNouvelle} className="rounded-md bg-marque px-4 py-2 text-sm font-medium text-white">
+          <Link href={lienNouvelle} className="inline-flex min-h-11 items-center rounded-md bg-marque px-4 py-2 text-sm font-medium text-marque-texte">
             Ajouter une épreuve
           </Link>
         )}

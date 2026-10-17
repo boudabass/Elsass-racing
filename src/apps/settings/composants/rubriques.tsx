@@ -77,7 +77,7 @@ async function Identite({ contexte, peutModifier, raison }: { contexte: Contexte
         />
         <div className="flex flex-col gap-2">
           <Label htmlFor="discipline">Discipline principale</Label>
-          <select id="discipline" name="discipline" defaultValue={equipe.disciplinePrincipale ?? "rallye"} disabled={!peutModifier} className="cible-tactile rounded-md border border-bordure bg-surface px-3">
+          <select id="discipline" name="discipline" defaultValue={equipe.disciplinePrincipale ?? "rallye"} disabled={!peutModifier} className="cible-tactile rounded-md border border-bordure-champ bg-surface px-3">
             {DISCIPLINES.map((d) => (
               <option key={d.valeur} value={d.valeur}>{d.libelle}</option>
             ))}
@@ -85,7 +85,7 @@ async function Identite({ contexte, peutModifier, raison }: { contexte: Contexte
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="fuseau">Fuseau horaire</Label>
-          <select id="fuseau" name="fuseau" defaultValue={equipe.fuseau} disabled={!peutModifier} className="cible-tactile rounded-md border border-bordure bg-surface px-3">
+          <select id="fuseau" name="fuseau" defaultValue={equipe.fuseau} disabled={!peutModifier} className="cible-tactile rounded-md border border-bordure-champ bg-surface px-3">
             {FUSEAUX.map((f) => (
               <option key={f} value={f}>{f}</option>
             ))}
@@ -96,7 +96,7 @@ async function Identite({ contexte, peutModifier, raison }: { contexte: Contexte
           <span className="font-medium">Bientôt</span> : le logo arrive avec le stockage des fichiers.
         </div>
         {peutModifier ? (
-          <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-white hover:opacity-90">Enregistrer</button>
+          <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90">Enregistrer</button>
         ) : (
           <p className="text-sm text-texte-discret">{raison}</p>
         )}
@@ -123,7 +123,7 @@ async function Association({ contexte, peutModifier, raison }: { contexte: Conte
         <Input id="associationSiege" name="associationSiege" defaultValue={equipe.associationSiege ?? ""} disabled={!peutModifier} />
       </div>
       {peutModifier ? (
-        <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-white hover:opacity-90">Enregistrer</button>
+        <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90">Enregistrer</button>
       ) : (
         <p className="text-sm text-texte-discret">{raison}</p>
       )}
@@ -157,7 +157,7 @@ async function Membres({ contexte, peutModifier, raison }: { contexte: Contexte;
                 <div className="flex flex-wrap items-center gap-2">
                   <form action={changerRole} className="flex items-center gap-2">
                     <input type="hidden" name="membershipId" value={m.id} />
-                    <select name="role" defaultValue={m.role} className="cible-tactile rounded-md border border-bordure bg-fond px-2">
+                    <select name="role" defaultValue={m.role} className="cible-tactile rounded-md border border-bordure-champ bg-fond px-2">
                       {ROLES.map((r) => (
                         <option key={r.valeur} value={r.valeur}>{r.libelle}</option>
                       ))}
@@ -218,7 +218,7 @@ async function Membres({ contexte, peutModifier, raison }: { contexte: Contexte;
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="role">Rôle</Label>
-              <select id="role" name="role" defaultValue="equipage" className="cible-tactile rounded-md border border-bordure bg-surface px-3">
+              <select id="role" name="role" defaultValue="equipage" className="cible-tactile rounded-md border border-bordure-champ bg-surface px-3">
                 {ROLES.map((r) => (
                   <option key={r.valeur} value={r.valeur}>{r.libelle}</option>
                 ))}
@@ -226,7 +226,7 @@ async function Membres({ contexte, peutModifier, raison }: { contexte: Contexte;
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="personneId">Personne de la team (sans compte)</Label>
-              <select id="personneId" name="personneId" defaultValue="" className="cible-tactile rounded-md border border-bordure bg-surface px-3">
+              <select id="personneId" name="personneId" defaultValue="" className="cible-tactile rounded-md border border-bordure-champ bg-surface px-3">
                 <option value="">Nouvelle personne</option>
                 {libres.map((p) => (
                   <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
@@ -237,7 +237,7 @@ async function Membres({ contexte, peutModifier, raison }: { contexte: Contexte;
               <Input name="prenom" placeholder="Prénom (si nouvelle personne)" />
               <Input name="nom" placeholder="Nom (si nouvelle personne)" />
             </div>
-            <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-white hover:opacity-90">Envoyer l&apos;invitation</button>
+            <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90">Envoyer l&apos;invitation</button>
           </form>
         ) : (
           <p className="text-sm text-texte-discret">{raison}</p>

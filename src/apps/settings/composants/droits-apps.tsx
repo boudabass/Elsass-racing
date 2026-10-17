@@ -63,7 +63,7 @@ export async function Droits({ contexte, peutModifier, raison }: { contexte: Con
                         name={`niveau_${app.cle}`}
                         defaultValue={effectif}
                         disabled={!peutModifier}
-                        className="cible-tactile rounded-md border border-bordure bg-fond px-2"
+                        className="cible-tactile rounded-md border border-bordure-champ bg-fond px-2"
                       >
                         {NIVEAUX.map((n) => (
                           <option key={n} value={n}>{LIBELLES_NIVEAU[n]}{n === defaut ? " (rôle)" : ""}</option>
@@ -75,7 +75,7 @@ export async function Droits({ contexte, peutModifier, raison }: { contexte: Con
               </div>
               {peutModifier ? (
                 <div className="flex flex-wrap gap-2">
-                  <button type="submit" className="cible-tactile rounded-md bg-marque px-4 py-2 font-medium text-white hover:opacity-90">Enregistrer</button>
+                  <button type="submit" className="cible-tactile rounded-md bg-marque px-4 py-2 font-medium text-marque-texte hover:opacity-90">Enregistrer</button>
                 </div>
               ) : (
                 <p className="text-sm text-texte-discret">{raison}</p>
@@ -133,7 +133,7 @@ export async function Apps({ contexte, peutModifier, raison }: { contexte: Conte
                 <form action={basculerApp}>
                   <input type="hidden" name="appCle" value={app.cle} />
                   <input type="hidden" name="activer" value={ligne.activee ? "0" : "1"} />
-                  <button type="submit" disabled={bloquee} className="cible-tactile rounded-md bg-marque px-3 font-medium text-white hover:opacity-90 disabled:opacity-40">
+                  <button type="submit" disabled={bloquee} className="cible-tactile rounded-md bg-marque px-3 font-medium text-marque-texte hover:opacity-90 disabled:opacity-40">
                     {ligne.activee ? "Désactiver" : "Activer"}
                   </button>
                 </form>
@@ -160,7 +160,7 @@ export async function JourEpreuve({ contexte, peutModifier, raison }: { contexte
           <span>Proposer le mode terrain le jour d'une épreuve</span>
         </label>
         {peutModifier ? (
-          <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-white hover:opacity-90">Enregistrer</button>
+          <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90">Enregistrer</button>
         ) : (
           <p className="text-sm text-texte-discret">{raison}</p>
         )}

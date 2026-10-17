@@ -19,9 +19,9 @@ import {
   sauverTelephone,
 } from "../actions-personnelles"
 
-const BOUTON = "cible-tactile rounded-md bg-marque px-5 py-2 font-medium text-white hover:opacity-90"
+const BOUTON = "cible-tactile rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90"
 const BOUTON_SECONDAIRE = "cible-tactile rounded-md border border-bordure px-3 py-1 text-sm hover:bg-surface-2"
-const CHAMP = "cible-tactile rounded-md border border-bordure bg-surface px-3"
+const CHAMP = "cible-tactile rounded-md border border-bordure-champ bg-surface px-3"
 const dateCourte = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" })
 
 // Mention d'attente standard : un libellé court, et la raison en clair.

@@ -18,7 +18,7 @@ export default async function PageAConfirmer() {
 
   return (
     <section className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
-      <Link href="/apps/budget" className="text-sm text-texte-discret">
+      <Link href="/apps/budget" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
         ← Mouvements
       </Link>
       <h1 className="titre-rallye text-3xl">À confirmer</h1>
@@ -30,7 +30,7 @@ export default async function PageAConfirmer() {
             <li key={suggestion.id} className="flex flex-col gap-3 rounded-lg border border-bordure bg-surface p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 className="font-medium">{suggestion.libelle}</h2>
-                <span className="font-mono tabular-nums">{formatEuros(suggestion.montantCentimes)}</span>
+                <span className="chiffre">{formatEuros(suggestion.montantCentimes)}</span>
               </div>
               <p className="text-sm text-texte-discret">
                 {libelle("BudgetSens", suggestion.sens)} · proposé par {suggestion.appOrigine}

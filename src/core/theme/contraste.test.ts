@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { ajusterPourFond, contraste, luminance } from "./contraste"
+import { variablesDeTeam } from "./variables"
 
 const FOND_SOMBRE = "#0B0B0C"
 const FOND_CLAIR = "#FFFFFF"
@@ -40,5 +41,18 @@ describe("ajustement des couleurs de team", () => {
   it("le rouge par défaut de la team demande un éclaircissement sur fond sombre", () => {
     const ajuste = ajusterPourFond("#D7141A", FOND_SOMBRE)
     expect(contraste(ajuste, FOND_SOMBRE)).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+describe("texte sur la couleur de marque", () => {
+  // Couleurs de team à tester : rouge par défaut, bleu, noir, jaune.
+  const TEAMS = ["#D7141A", "#1E40AF", "#000000", "#FFD400"]
+
+  it.each(TEAMS)("%s : le texte retenu atteint 4,5:1 sur la marque, en clair et en sombre", (principale) => {
+    const variables = variablesDeTeam({ couleurPrincipale: principale, couleurSecondaire: null })
+    const sombre = contraste(variables["--marque-texte-sombre"], variables["--marque-sombre"])
+    const clair = contraste(variables["--marque-texte-clair"], variables["--marque-clair"])
+    expect(sombre).toBeGreaterThanOrEqual(4.5)
+    expect(clair).toBeGreaterThanOrEqual(4.5)
   })
 })

@@ -44,7 +44,7 @@ export function BoiteActions({ groupes }: { groupes: GroupeAction[] }) {
 // Hiérarchie des boutons : le premier est plein, les suivants en contour, « Plus tard » discret.
 // Tous ont la même hauteur (même padding, même police).
 const BOUTON_BASE = "cible-tactile inline-flex items-center rounded-md px-4 py-2 font-medium"
-const BOUTON_PRINCIPAL = `${BOUTON_BASE} bg-marque text-white hover:opacity-90`
+const BOUTON_PRINCIPAL = `${BOUTON_BASE} bg-marque text-marque-texte hover:opacity-90`
 const BOUTON_SECONDAIRE = `${BOUTON_BASE} border border-marque text-marque hover:bg-surface-2`
 const BOUTON_DISCRET = `${BOUTON_BASE} border border-bordure text-texte-discret hover:bg-surface-2`
 

@@ -40,7 +40,7 @@ export function Navigation({
               title={app.nom}
               aria-current={actif(href) ? "page" : undefined}
               className={`cible-tactile flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-md text-xs transition-colors duration-150 ${
-                actif(href) ? "bg-marque text-white" : "text-texte-discret hover:bg-surface-2 hover:text-texte"
+                actif(href) ? "bg-marque text-marque-texte" : "text-texte-discret hover:bg-surface-2 hover:text-texte"
               }`}
             >
               <Icone className="h-5 w-5" aria-hidden />

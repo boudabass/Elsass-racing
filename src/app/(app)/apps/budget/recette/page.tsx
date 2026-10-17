@@ -19,7 +19,7 @@ export default async function PageNouvelleRecette() {
 
   return (
     <section className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-6">
-      <Link href="/apps/budget" className="text-sm text-texte-discret">
+      <Link href="/apps/budget" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
         ← Mouvements
       </Link>
       <h1 className="titre-rallye text-3xl">Nouvelle recette</h1>

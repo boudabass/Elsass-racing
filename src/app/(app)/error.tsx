@@ -23,7 +23,7 @@ export default function ErreurEspace({ error }: { error: Error & { digest?: stri
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="cible-tactile rounded-md bg-marque px-5 py-2 font-medium text-white hover:opacity-90"
+          className="cible-tactile rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90"
         >
           Recharger
         </button>

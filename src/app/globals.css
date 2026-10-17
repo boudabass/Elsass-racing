@@ -14,15 +14,20 @@
     --texte: #111113;
     --texte-discret: #52525b;
     --bordure: #d4d4d8;
+    /* Contour d'un champ : 3:1 sur le fond et sur la surface (WCAG 1.4.11). */
+    --bordure-champ: #8a8a92;
 
     /* Couleur de team, pour ce thème (injectée par le layout). */
     --marque: var(--marque-clair, #b91c1c);
     --marque-2: var(--marque-2-clair, #f4f3f1);
+    /* Texte posé sur la marque, choisi par la team (blanc ou quasi-noir). */
+    --marque-texte: var(--marque-texte-clair, #ffffff);
 
     /* États : jamais remplacés par une couleur de team. */
     --etat-ok: #15803d;
     --etat-orange: #c2410c;
     --etat-rouge: #b91c1c;
+    --etat-rouge-texte: #ffffff;
   }
 
   .dark {
@@ -32,13 +37,16 @@
     --texte: #f4f4f5;
     --texte-discret: #a1a1aa;
     --bordure: #2a2a30;
+    --bordure-champ: #6b6b73;
 
     --marque: var(--marque-sombre, #f87171);
     --marque-2: var(--marque-2-sombre, #f4f3f1);
+    --marque-texte: var(--marque-texte-sombre, #111113);
 
     --etat-ok: #4ade80;
     --etat-orange: #fb923c;
     --etat-rouge: #f87171;
+    --etat-rouge-texte: #111113;
   }
 
   /* Tokens shadcn, alimentés par la palette ci-dessus. */
@@ -51,7 +59,7 @@
     --popover: var(--surface);
     --popover-foreground: var(--texte);
     --primary: var(--marque);
-    --primary-foreground: #ffffff;
+    --primary-foreground: var(--marque-texte);
     --secondary: var(--surface-2);
     --secondary-foreground: var(--texte);
     --muted: var(--surface-2);
@@ -59,9 +67,9 @@
     --accent: var(--surface-2);
     --accent-foreground: var(--texte);
     --destructive: var(--etat-rouge);
-    --destructive-foreground: #ffffff;
+    --destructive-foreground: var(--etat-rouge-texte);
     --border: var(--bordure);
-    --input: var(--bordure);
+    --input: var(--bordure-champ);
     --ring: var(--marque);
   }
 

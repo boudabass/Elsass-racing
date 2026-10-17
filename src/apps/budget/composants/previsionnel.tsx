@@ -5,7 +5,7 @@ import { useActionState } from "react"
 import { enregistrerPrevisionnelAction, type Resultat } from "../actions"
 import { formatEuros } from "../libelles"
 import { enEuros } from "./formulaires"
-import { BOUTON, CHAMP } from "./classes"
+import { BOUTON } from "./classes"
 
 export interface LignePrevu {
   categorieId: string
@@ -59,14 +59,14 @@ export function GrillePrevisionnel({
                     inputMode="decimal"
                     defaultValue={ligne.prevu === null ? "" : enEuros(ligne.prevu)}
                     placeholder="0,00"
-                    className={`${CHAMP} w-full max-w-32 py-1 text-right font-mono tabular-nums`}
+                    className="min-h-11 w-full max-w-32 rounded-md border border-bordure-champ bg-fond px-3 py-1 text-right text-texte focus:outline-none focus:ring-2 focus:ring-marque chiffre"
                   />
                 </label>
               ) : (
-                <span className="font-mono tabular-nums">{ligne.prevu === null ? <span className="font-sans text-texte-discret">Pas prévu</span> : formatEuros(ligne.prevu)}</span>
+                <span className="chiffre">{ligne.prevu === null ? <span className="text-texte-discret">Pas prévu</span> : formatEuros(ligne.prevu)}</span>
               )}
             </span>
-            <span className="font-mono tabular-nums text-texte sm:col-start-3 sm:text-right">{formatEuros(ligne.reel)}</span>
+            <span className="chiffre text-texte sm:col-start-3 sm:text-right">{formatEuros(ligne.reel)}</span>
           </div>
         </li>
       ))}
