@@ -8,7 +8,7 @@
 
 import { z } from "zod"
 
-import { jourDeParis } from "@/apps/saison/regles"
+import { jourDeParis } from "@/core/dates"
 import type { ContexteTeam } from "@/core/contexte"
 import { exigerAcces } from "@/core/droits/garde-serveur"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
@@ -247,6 +247,10 @@ function aujourdhui(): Date {
 
 // Catégories par défaut, caisse de la team, et un payeur par membre actif ayant une personne.
 // Idempotente : rejouable à volée (catégories et payeurs uniques).
+function estConflitUnicite(erreur: unknown): boolean {
+  return typeof erreur === "object" && erreur !== null && (erreur as { code?: string }).code === "P2002"
+}
+
 export async function initialiserBudgetDans(ctx: ContexteTeam): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const auteur = { createdBy: ctx.userId, updatedBy: ctx.userId }
@@ -263,9 +267,12 @@ export async function initialiserBudgetDans(ctx: ContexteTeam): Promise<void> {
     await client.budgetCategory.updateMany({ where: { teamId: ctx.teamId, sens: "depense", nom, cle: null }, data: { cle } })
   }
 
-  const caisse = await client.budgetPayer.findFirst({ where: { teamId: ctx.teamId, type: "caisse_team", deletedAt: null }, select: { id: true } })
+  const caisse = await client.budgetPayer.findFirst({ where: { teamId: ctx.teamId, type: "caisse_team", deletedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true } })
   if (!caisse) {
-    await client.budgetPayer.create({ data: { id: newId(), teamId: ctx.teamId, type: "caisse_team", nom: NOM_CAISSE_TEAM, actif: true, ...auteur } })
+    // Course avec une autre initialisation (layout et page, en parallèle) : l'index unique refuse le second, la caisse existe déjà.
+    await client.budgetPayer.create({ data: { id: newId(), teamId: ctx.teamId, type: "caisse_team", nom: NOM_CAISSE_TEAM, actif: true, ...auteur } }).catch((erreur: unknown) => {
+      if (!estConflitUnicite(erreur)) throw erreur
+    })
   }
 
   const membres = await client.coreMembership.findMany({
@@ -665,7 +672,7 @@ export async function confirmerSuggestionDans(ctx: ContexteTeam, id: string, mod
   const saisonId = lieu?.seasonId ?? (await saisonPourDate(client, ctx.teamId, aujourdhui()))
 
   if (suggestion.sens === "depense") {
-    const caisse = await client.budgetPayer.findFirst({ where: { teamId: ctx.teamId, type: "caisse_team", actif: true, deletedAt: null }, select: { id: true } })
+    const caisse = await client.budgetPayer.findFirst({ where: { teamId: ctx.teamId, type: "caisse_team", actif: true, deletedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true } })
     const payeurId = modifs.payerId ?? suggestion.payerId ?? caisse?.id
     if (!payeurId) refus("Aucune caisse de la team : initialise Budget avant de confirmer une dépense.")
     await client.budgetExpense.create({

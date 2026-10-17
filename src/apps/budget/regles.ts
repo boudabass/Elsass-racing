@@ -118,10 +118,11 @@ function somme(valeurs: readonly number[]): number {
   return valeurs.reduce((total, valeur) => total + valeur, 0)
 }
 
-// Mode de paiement de Saison (chèque, virement, en ligne) pour une dépense de Budget. Espèces : virement,
-// Saison n'a pas d'espèces.
-export function modePaiementSaison(moyen: string | null): "cheque" | "virement" | "en_ligne" {
+// Mode de paiement de Saison (chèque, virement, en ligne, espèces) pour une dépense de Budget. Sans moyen
+// renseigné : virement, comme avant.
+export function modePaiementSaison(moyen: string | null): "cheque" | "virement" | "en_ligne" | "especes" {
   if (moyen === "cheque") return "cheque"
   if (moyen === "carte") return "en_ligne"
+  if (moyen === "especes") return "especes"
   return "virement"
 }

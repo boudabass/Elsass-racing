@@ -75,6 +75,7 @@ export const LIBELLE_MODE_PAIEMENT: Record<SaisonPaiementMode, string> = {
   cheque: "Chèque",
   virement: "Virement",
   en_ligne: "Paiement en ligne",
+  especes: "Espèces",
 }
 
 export const LIBELLE_TYPE_ETAPE: Record<SaisonStageType, string> = {
@@ -104,7 +105,7 @@ export const LIBELLE_TYPE_DOCUMENT: Record<SaisonGeneratedDocType, string> = {
 
 // Types du schéma Prisma, repris ici pour que le compilateur les vérifie.
 type SaisonReadinessPoint = "paiement" | "licences" | "homologations" | "papiers" | "pieces"
-type SaisonPaiementMode = "cheque" | "virement" | "en_ligne"
+type SaisonPaiementMode = "cheque" | "virement" | "en_ligne" | "especes"
 type SaisonStageType = "speciale" | "manche_slalom" | "montee"
 type SaisonScheduleType =
   | "verif_administratives"

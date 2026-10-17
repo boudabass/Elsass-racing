@@ -1,7 +1,7 @@
 // Reconnaissances : position d'une sortie par rapport au créneau autorisé. Règle pure.
 // Une sortie hors créneau reste enregistrée : c'est une information, jamais un blocage.
 
-import { jourDeParis } from "./regles"
+import { jourDeParis } from "@/core/dates"
 
 export type PositionCreneau = "dans" | "hors" | "non_defini"
 

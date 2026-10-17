@@ -7,8 +7,8 @@ import { formatEuros } from "../libelles"
 // Onglet « Dépenses » de la fiche épreuve de Saison (composant serveur de Budget). Saison ne lit pas les
 // tables de Budget : elle affiche ce composant, qui appelle la fonction exposée par Budget. La contribution
 // ne voit que ses propres dépenses.
-export async function PanneauDepensesEpreuve({ eventId }: { eventId: string }) {
-  const donnees = await lireDepensesEpreuve(eventId)
+export async function PanneauDepensesEpreuve({ ficheId }: { ficheId: string }) {
+  const donnees = await lireDepensesEpreuve(ficheId)
   return (
     <section className="flex flex-col gap-5" aria-label="Dépenses de l'épreuve">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -22,7 +22,7 @@ export async function PanneauDepensesEpreuve({ eventId }: { eventId: string }) {
             </>
           )}
         </p>
-        <Link href={`/apps/budget/nouvelle?epreuve=${eventId}`} className={BOUTON}>
+        <Link href={`/apps/budget/nouvelle?epreuve=${ficheId}`} className={BOUTON}>
           Ajouter une dépense
         </Link>
       </div>

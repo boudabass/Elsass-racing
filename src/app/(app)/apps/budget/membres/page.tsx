@@ -6,7 +6,7 @@ import { FormulaireRemboursement } from "@/apps/budget/composants/formulaires"
 import { BOUTON, MONTANT } from "@/apps/budget/composants/classes"
 import { lireARembourser, lireChoix, lireMembres } from "@/apps/budget/lectures-serveur"
 import { formatEuros } from "@/apps/budget/libelles"
-import { jourDeParis } from "@/apps/saison/regles"
+import { jourDeParis } from "@/core/dates"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { aAuMoins } from "@/core/droits/niveaux"
 

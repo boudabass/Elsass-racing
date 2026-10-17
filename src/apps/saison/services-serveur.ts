@@ -294,7 +294,7 @@ export async function creerEngagementDans(ctx: ContexteTeam, entree: EntreeEngag
 const schemaPaiement = z
   .object({
     payeLe: dateCivile,
-    mode: z.enum(["cheque", "virement", "en_ligne"]),
+    mode: z.enum(["cheque", "virement", "en_ligne", "especes"]),
     payeurPersonId: z.string().uuid().nullable().optional(),
     montant: z.number().int("Le montant est en centimes entiers.").min(0, "Le montant ne peut pas être négatif."),
     devise: z.string().length(3).default("EUR"),
@@ -338,6 +338,8 @@ export async function enregistrerPaiementDans(ctx: ContexteTeam, entryId: string
   })
 
   await synchroniserEntree(ctx, entryId)
+  // Engagement tenu pour payé : une éventuelle demande « Marquer payé » restée dans la boîte n'a plus lieu d'être.
+  await leverAction(ctx, `marquer_paye:${entryId}`)
   await emettre(ctx, "saison.engagement_paye", {
     entryId,
     eventId: engagement.eventId,

@@ -5,6 +5,7 @@
 // Boucle évitée : une dépense confirmée pour un engagement (ou une proposition venant de Saison, origine
 // saison:<entryId>) ne déclenche plus rien. Voir docs/schema-budget.md, section Liaisons.
 
+import { jourDeParis } from "@/core/dates"
 import { z } from "zod"
 
 import { enregistrerGestionnaire, type EvenementRecu } from "@/core/evenements/gestionnaires"
@@ -15,7 +16,7 @@ import { newId } from "@/core/ids"
 import { prismaPourTeam } from "@/lib/prisma"
 
 import { ErreurBudget, refus } from "./erreurs"
-import { modePaiementSaison } from "./regles"
+import { modePaiementSaison, voitTout } from "./regles"
 import { lireSoldeMoi, listerMouvements } from "./lectures-serveur"
 import { accesBudget, initialiserSiBesoin, payeurDePersonneDans, PRIORITE_MOUVEMENT_A_CONFIRMER } from "./services-serveur"
 
@@ -50,7 +51,7 @@ export async function proposerDepenseEngagementDans(ctx: ContexteTeam, entree: z
   const epreuve = await client.coreEvent.findFirst({ where: { id: donnees.eventId, teamId: ctx.teamId, deletedAt: null }, select: { nom: true } })
   const payeurId = donnees.payeurPersonId
     ? await payeurDePersonneDans(ctx, donnees.payeurPersonId)
-    : (await client.budgetPayer.findFirst({ where: { teamId: ctx.teamId, type: "caisse_team", deletedAt: null }, select: { id: true } }))?.id ?? null
+    : (await client.budgetPayer.findFirst({ where: { teamId: ctx.teamId, type: "caisse_team", deletedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true } }))?.id ?? null
   const libelle = `Engagement ${epreuve?.nom ?? ""}`.trim()
 
   const enAttente = await client.budgetSuggestion.findFirst({
@@ -130,7 +131,7 @@ export interface DepenseEngagement {
   montant: number
   date: string
   payeurPersonId: string | null
-  mode: "cheque" | "virement" | "en_ligne"
+  mode: "cheque" | "virement" | "en_ligne" | "especes"
 }
 
 // Dépense d'engagement confirmée la plus récente pour cet engagement. Appelée par Saison, qui ne lit pas les
@@ -190,7 +191,7 @@ export async function lireSoldeBarreHaute(): Promise<{ libelle: string; montantC
     return { libelle: "Mon solde", montantCentimes: moi.du - moi.trop }
   }
   const client = prismaPourTeam(contexte.teamId, contexte.userId)
-  const aujourdhui = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)
+  const aujourdhui = new Date(`${jourDeParis(new Date())}T00:00:00Z`)
   const saison = await client.coreSeason.findFirst({
     where: { teamId: contexte.teamId, deletedAt: null, dateDebut: { lte: aujourdhui }, dateFin: { gte: aujourdhui } },
     select: { id: true },
@@ -204,14 +205,14 @@ export async function lireSoldeBarreHaute(): Promise<{ libelle: string; montantC
 }
 
 // Onglet « Dépenses » de la fiche épreuve : les mouvements de l'épreuve (la contribution ne voit que les siens),
-// le total, le détail par catégorie et le prévu de l'épreuve quand il existe.
+// le total, le détail par catégorie et, à partir du niveau lecture seulement, le prévu de l'épreuve.
 export async function lireDepensesEpreuve(eventId: string): Promise<{
   depenses: Array<{ id: string; date: string; libelle: string; categorieNom: string; montantCentimes: number; payeurNom: string | null }>
   totalCentimes: number
   parCategorie: Array<{ nom: string; montantCentimes: number }>
   prevuCentimes: number | null
 }> {
-  const { ctx } = await accesBudget("contribution")
+  const { ctx, niveau } = await accesBudget("contribution")
   const { mouvements } = await listerMouvements({ eventId })
   const depenses = mouvements.filter((mouvement) => mouvement.type === "depense" && mouvement.statut === "confirmee")
   const parCategorieMap = new Map<string, { nom: string; montantCentimes: number }>()
@@ -236,7 +237,8 @@ export async function lireDepensesEpreuve(eventId: string): Promise<{
     })),
     totalCentimes: depenses.reduce((total, depense) => total + depense.montantCentimes, 0),
     parCategorie: Array.from(parCategorieMap.values()),
-    prevuCentimes: prevu._count._all > 0 ? (prevu._sum.montant ?? 0) : null,
+    // Chiffre de la team : la contribution ne le reçoit pas, même si elle est au-dessus de la lecture (filtré ici).
+    prevuCentimes: voitTout(niveau) && prevu._count._all > 0 ? (prevu._sum.montant ?? 0) : null,
   }
 }
 

@@ -4,7 +4,7 @@ import { Lock } from "lucide-react"
 import { accesEcran } from "@/apps/budget/ecran"
 import { FormulaireDepense } from "@/apps/budget/composants/formulaires"
 import { lireChoix } from "@/apps/budget/lectures-serveur"
-import { jourDeParis } from "@/apps/saison/regles"
+import { jourDeParis } from "@/core/dates"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { aAuMoins } from "@/core/droits/niveaux"
 

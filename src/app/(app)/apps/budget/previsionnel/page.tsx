@@ -4,7 +4,7 @@ import { accesEcran } from "@/apps/budget/ecran"
 import { LignePrevisionnel } from "@/apps/budget/composants/formulaires"
 import { lireChoix, lirePrevisionnel } from "@/apps/budget/lectures-serveur"
 import { formatEuros, LIBELLE_ECART } from "@/apps/budget/libelles"
-import { jourDeParis } from "@/apps/saison/regles"
+import { jourDeParis } from "@/core/dates"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { aAuMoins } from "@/core/droits/niveaux"
 

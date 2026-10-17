@@ -1286,6 +1286,7 @@ enum SaisonPaiementMode {
   cheque
   virement
   en_ligne
+  especes
 
   @@map("saison_paiement_mode")
 }
@@ -1825,6 +1826,7 @@ model BudgetPayer {
   remboursements     BudgetReimbursement[]
   suggestions        BudgetSuggestion[]
 
+  // Une seule caisse de team : index unique partiel `budget_caisse_unique`, dans la migration (Prisma ne le décrit pas).
   @@unique([teamId, personId])
   @@index([teamId])
   @@index([teamId, deletedAt])

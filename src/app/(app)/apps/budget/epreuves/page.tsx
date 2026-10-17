@@ -6,7 +6,7 @@ import { lireChoix, lireCoutsParEpreuve } from "@/apps/budget/lectures-serveur"
 import { coutAuKm, ecartPrevisionnel } from "@/apps/budget/regles"
 import { formatEuros, LIBELLE_ECART } from "@/apps/budget/libelles"
 import { lireKmChronometresValides } from "@/apps/saison/lectures-serveur"
-import { jourDeParis } from "@/apps/saison/regles"
+import { jourDeParis } from "@/core/dates"
 import { EcranVide } from "@/components/qg/ecran-vide"
 
 // Coût réel de chaque épreuve de la saison : total, prévu quand il existe (avec l'écart en couleur),

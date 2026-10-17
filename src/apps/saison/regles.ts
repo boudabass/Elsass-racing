@@ -6,6 +6,7 @@
 // Prisma les renvoie pour @db.Date. Les instants (maintenant, horodatages) sont des Date réelles.
 // « Aujourd'hui » s'entend au calendrier de Paris.
 
+import { jourDeParis } from "@/core/dates"
 import type { Niveau } from "@/core/droits/niveaux"
 
 export type StatutEngagement = "envisage" | "inscrit" | "paye" | "parti" | "arrivee" | "abandon" | "forfait"
@@ -24,11 +25,6 @@ const DELAI_ROUGE_MS = 48 * HEURE_MS
 // Jour civil « AAAA-MM-JJ » d'une date calendaire (minuit UTC, tel que Prisma la renvoie).
 export function jourCivil(date: Date): string {
   return date.toISOString().slice(0, 10)
-}
-
-// Jour civil de Paris pour un instant donné.
-export function jourDeParis(instant: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(instant)
 }
 
 // Instant du début d'un jour civil à Paris (minuit local, heure d'été ou d'hiver).

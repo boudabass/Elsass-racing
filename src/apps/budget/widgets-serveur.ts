@@ -8,7 +8,7 @@ import { prismaPourTeam } from "@/lib/prisma"
 
 import { lirePrevisionnel, lireSoldeMoi, compterSuggestions } from "./lectures-serveur"
 import { ecartPrevisionnel, type Couleur } from "./regles"
-import { jourDeParis } from "@/apps/saison/regles"
+import { jourDeParis } from "@/core/dates"
 import { accesBudget } from "./services-serveur"
 
 export interface WidgetSaisonPrevisionnel {

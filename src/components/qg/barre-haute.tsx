@@ -24,7 +24,7 @@ export interface BarreHauteDonnees {
 }
 
 // Barre haute : identité de la team, saison, prochaine épreuve, boîte d'actions, recherche,
-// mode terrain et menu. Le solde de saison viendra avec l'app Budget : emplacement réservé.
+// mode terrain et menu. Le solde de Budget : dans la barre à partir de md, en ligne compacte sous elle sur téléphone.
 export function BarreHaute({
   donnees,
   boite,
@@ -124,6 +124,20 @@ export function BarreHaute({
           </details>
         </div>
       </div>
+
+      {/* Téléphone : le solde tient en une ligne compacte sous la barre (au-dessus de md, il est dans la barre). */}
+      {donnees.solde && (
+        <Link
+          href="/apps/budget"
+          className="flex items-center justify-between gap-2 border-t border-bordure px-4 py-1 text-xs md:hidden"
+          aria-label={`${donnees.solde.libelle} : ${formaterSolde(donnees.solde.montantCentimes)}`}
+        >
+          <span className="text-texte-discret">{donnees.solde.libelle}</span>
+          <span className={`chiffre font-medium ${donnees.solde.montantCentimes < 0 ? "text-etat-rouge" : "text-etat-ok"}`}>
+            {formaterSolde(donnees.solde.montantCentimes)}
+          </span>
+        </Link>
+      )}
     </header>
   )
 }

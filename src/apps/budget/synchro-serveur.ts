@@ -83,9 +83,16 @@ const budgetExpenseSynchro: DeclarationSynchro = {
   lectureSeule: false,
   schemaChamps: schemaDepense,
 
+  // Niveau contribution : ses dépenses, celles dont il est le payeur (règle de la lecture en ligne, voitTout).
   async lirePaquet(client: ClientTeam, teamId, position, limite, auteurId) {
+    let perimetre = {}
+    if (auteurId) {
+      const membre = await client.coreMembership.findFirst({ where: { teamId, userId: auteurId, deletedAt: null }, select: { personId: true } })
+      if (!membre?.personId) return []
+      perimetre = { payer: { personId: membre.personId } }
+    }
     const lignes = await client.budgetExpense.findMany({
-      where: { teamId, ...(auteurId ? { createdBy: auteurId } : {}), ...apresPosition(position) },
+      where: { teamId, ...perimetre, ...apresPosition(position) },
       orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
       take: limite,
     })
@@ -107,9 +114,16 @@ const budgetExpenseSynchro: DeclarationSynchro = {
   async trouver(tx: Tx, teamId, id): Promise<EtatLigneSynchro | null> {
     const ligne = await tx.budgetExpense.findFirst({ where: { id, teamId } })
     if (!ligne) return null
+    // Qui peut écrire la ligne au niveau contribution : celui dont la personne est le payeur (comme en lecture).
+    const payeur = await tx.budgetPayer.findFirst({ where: { id: ligne.payerId, teamId }, select: { personId: true } })
+    let auteurId = ligne.createdBy
+    if (payeur?.personId) {
+      const membre = await tx.coreMembership.findFirst({ where: { teamId, personId: payeur.personId, deletedAt: null }, select: { userId: true } })
+      auteurId = membre?.userId ?? null
+    }
     return {
       rev: ligne.rev,
-      auteurId: ligne.createdBy,
+      auteurId,
       supprimee: ligne.deletedAt !== null,
       contenu: { date: ligne.date.toISOString().slice(0, 10), montant: ligne.montant, categoryId: ligne.categoryId, libelle: ligne.libelle, payerId: ligne.payerId, eventId: ligne.eventId, moyen: ligne.moyen },
     }

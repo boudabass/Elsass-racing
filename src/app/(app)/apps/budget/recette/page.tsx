@@ -4,7 +4,7 @@ import { Lock } from "lucide-react"
 import { accesEcran } from "@/apps/budget/ecran"
 import { FormulaireRecette } from "@/apps/budget/composants/formulaires"
 import { lireChoix } from "@/apps/budget/lectures-serveur"
-import { jourDeParis } from "@/apps/saison/regles"
+import { jourDeParis } from "@/core/dates"
 import { EcranVide } from "@/components/qg/ecran-vide"
 
 // Nouvelle recette (écriture) : montant, catégorie, provenance ; prévue ou encaissée ; en nature avec sa

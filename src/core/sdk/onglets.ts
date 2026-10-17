@@ -5,6 +5,8 @@
 // Réutilisable par Garage, Médias et Check-lists : ajouter un onglet = une entrée dans la liste de la fiche
 // et un composant de l'app. Voir docs/app-sdk.md, section « Onglets de fiche ».
 
+import type { ReactNode } from "react"
+
 import type { ContexteTeam } from "@/core/contexte"
 import { niveauDe } from "@/core/actions/actions-serveur"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
@@ -15,10 +17,9 @@ export interface OngletApp {
   libelle: string
   app: string
   niveauMinimum: Niveau
+  // Composant serveur de l'app, qui reçoit l'identifiant de la fiche et appelle ses propres lectures.
+  composant: (props: { ficheId: string }) => ReactNode | Promise<ReactNode>
 }
-
-// Onglets de la fiche d'une épreuve, apportés par d'autres apps.
-export const ONGLETS_FICHE_EPREUVE: readonly OngletApp[] = [{ cle: "depenses", libelle: "Dépenses", app: "budget", niveauMinimum: "contribution" }]
 
 // Sous-ensemble des onglets visibles pour ce membre : app activée et niveau suffisant.
 export async function ongletsVisibles(contexte: ContexteTeam, onglets: readonly OngletApp[]): Promise<OngletApp[]> {

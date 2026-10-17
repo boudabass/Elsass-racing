@@ -10,7 +10,8 @@ import { aAuMoins } from "@/core/droits/niveaux"
 
 import { bilanSaison, type EngagementBilan } from "./regles-resultats"
 import { indicePourEngagement, pointsDePreparation } from "./preparation"
-import { jourDeParis, prochaineEpreuve, transitionResultat, type RoleMembre, type StatutEngagement, type StatutEpreuve, type StatutResultat, type ValidationResultat } from "./regles"
+import { jourDeParis } from "@/core/dates"
+import { prochaineEpreuve, transitionResultat, type RoleMembre, type StatutEngagement, type StatutEpreuve, type StatutResultat, type ValidationResultat } from "./regles"
 import { libelleBilan, libelleResultatsAValider, resumerPreparation } from "./widgets"
 
 // Prochaine épreuve de la team : engagée en priorité, sinon la prochaine à venir. Utilisée par le QG

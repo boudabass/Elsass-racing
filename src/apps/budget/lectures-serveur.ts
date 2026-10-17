@@ -2,6 +2,7 @@
 // composant ne reçoit jamais un chiffre qui ne lui revient pas. Sans écriture, on ne voit que ses propres
 // dépenses et son solde ; la lecture voit tout.
 
+import { jourDeParis } from "@/core/dates"
 import { prismaPourTeam } from "@/lib/prisma"
 
 import { accesBudget, personneDuMembreDans } from "./services-serveur"
@@ -147,7 +148,7 @@ export async function lireChoix(): Promise<{
     personneDuMembreDans(ctx),
     client.coreEventEntry.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true, eventId: true, vehicle: { select: { nomCourt: true } }, event: { select: { nom: true } } } }),
   ])
-  const aujourdhui = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)
+  const aujourdhui = new Date(`${jourDeParis(new Date())}T00:00:00Z`)
   const enCours = epreuves.find((epreuve) => epreuve.dateDebut <= aujourdhui && epreuve.dateFin >= aujourdhui)
   return {
     categoriesDepense: categories.filter((categorie) => categorie.sens === "depense").map(({ id, nom }) => ({ id, nom })),

@@ -3,7 +3,8 @@
 // Calendrier : jours civils de Paris. Un rappel dont la clé existe déjà n'est jamais recréé,
 // même décidé : sauf la relance de validation, qui met à jour la même action.
 
-import { jourCivil, jourDeParis, type StatutEngagement, type ValidationResultat } from "./regles"
+import { jourDeParis } from "@/core/dates"
+import { jourCivil, type StatutEngagement, type ValidationResultat } from "./regles"
 
 export const DELAI_RELANCE_VALIDATION_MS = 48 * 60 * 60 * 1000
 const JOUR_MS = 24 * 60 * 60 * 1000
