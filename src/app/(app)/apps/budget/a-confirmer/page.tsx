@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/budget/ecran"
@@ -18,9 +17,6 @@ export default async function PageAConfirmer() {
 
   return (
     <section className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
-      <Link href="/apps/budget" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
-        ← Mouvements
-      </Link>
       <h1 className="titre-rallye text-3xl">À confirmer</h1>
       {suggestions.length === 0 && <p className="text-texte-discret">Rien à confirmer pour l'instant.</p>}
       <ul className="flex flex-col gap-4">

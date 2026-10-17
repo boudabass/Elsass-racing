@@ -74,6 +74,18 @@ describe("calculerApps", () => {
     expect(visibles).toEqual([])
   })
 
+  it("Réglages reste visible à l'assistance, au niveau aucun, pour ses rubriques personnelles", () => {
+    const visibles = calculerApps({
+      role: "assistance",
+      activees: [{ appCle: "settings", activee: true, ordre: 1 }],
+      acces: [],
+      defauts: DROITS_PAR_DEFAUT,
+      registre: [manifesteSettings],
+      avertir: () => {},
+    })
+    expect(visibles.map((v) => [v.manifeste.cle, v.niveau])).toEqual([["settings", "aucun"]])
+  })
+
   it("un core_app_access de lecture rend une app visible à l'invité", () => {
     const visibles = calculerApps({
       role: "invite",
