@@ -2,9 +2,11 @@
 // ces valeurs en props : aucune requête dans les composants.
 
 import { cache } from "react"
+import { redirect } from "next/navigation"
 
 import { prismaPourTeam } from "@/lib/prisma"
 import { exigerContexte } from "@/core/droits/garde-serveur"
+import { ErreurAcces } from "@/core/droits/erreurs"
 import type { ContexteTeam } from "@/core/contexte"
 import { appsVisibles } from "@/core/sdk/apps-serveur"
 import type { AppVisible } from "@/core/sdk/apps"
@@ -109,8 +111,23 @@ export async function chargerQg(ctx: ContexteTeam, modeTerrain: boolean): Promis
   }
 }
 
+// Sans session : vers la connexion. Sans team valide : vers le choix de team. Les autres erreurs remontent.
+export function redirigerSiSansContexte(erreur: unknown): void {
+  if (erreur instanceof ErreurAcces && erreur.raison === "non_connecte") redirect("/connexion")
+  if (erreur instanceof ErreurAcces && erreur.raison === "aucune_team") redirect("/equipes")
+}
+
 // Une seule lecture par requête : le layout et la page partagent ces deux fonctions.
-export const contexteQg = cache(() => exigerContexte())
+// La redirection est ici, et non dans chaque page : les préchargements de liens (QG, recherche, notes)
+// rendent ces pages sans passer par le layout, et doivent renvoyer au même endroit.
+export const contexteQg = cache(async () => {
+  try {
+    return await exigerContexte()
+  } catch (erreur) {
+    redirigerSiSansContexte(erreur)
+    throw erreur
+  }
+})
 
 export const donneesQg = cache(async (modeTerrain: boolean): Promise<DonneesQg> => {
   const { contexte } = await contexteQg()

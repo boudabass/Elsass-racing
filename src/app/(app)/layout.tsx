@@ -2,8 +2,7 @@ import type { ReactNode } from "react"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
-import { ErreurAcces } from "@/core/droits/erreurs"
-import { contexteQg, donneesQg } from "@/core/qg/donnees"
+import { contexteQg, donneesQg, redirigerSiSansContexte } from "@/core/qg/donnees"
 import { COOKIE_BANDEAU_TERRAIN } from "@/core/qg/cookies"
 import { modeTerrainDuMembre, terrainProposeJourEpreuve } from "@/apps/settings/preferences-serveur"
 import { libelleCompteARebours } from "@/core/actions/prochaine-etape"
@@ -30,7 +29,7 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
   try {
     await contexteQg()
   } catch (erreur) {
-    if (erreur instanceof ErreurAcces && erreur.raison === "non_connecte") redirect("/connexion")
+    redirigerSiSansContexte(erreur)
     redirect("/equipes")
   }
   const { contexte } = await contexteQg()

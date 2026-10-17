@@ -5,7 +5,7 @@
 import type { ContexteTeam } from "@/core/contexte"
 import { ErreurAcces, libelleErreurAcces } from "@/core/droits/erreurs"
 import type { Niveau } from "@/core/droits/niveaux"
-import { contexteQg } from "@/core/qg/donnees"
+import { contexteQg, redirigerSiSansContexte } from "@/core/qg/donnees"
 import { prismaPourTeam } from "@/lib/prisma"
 
 export type AccesEcran =
@@ -18,7 +18,10 @@ export async function accesEcranApp(
   acces: (requis: Niveau) => Promise<{ ctx: ContexteTeam; niveau: Niveau }>,
   requis: Niveau,
 ): Promise<AccesEcran> {
-  const { contexte } = await contexteQg()
+  const { contexte } = await contexteQg().catch((erreur: unknown) => {
+    redirigerSiSansContexte(erreur)
+    throw erreur
+  })
   const activation = await prismaPourTeam(contexte.teamId, contexte.userId).coreTeamApp.findFirst({
     where: { teamId: contexte.teamId, appCle, activee: true, deletedAt: null },
     select: { id: true },
@@ -35,6 +38,7 @@ export async function accesEcranApp(
     const { ctx, niveau } = await acces(requis)
     return { ok: true, niveau, ctx: { teamId: ctx.teamId, userId: ctx.userId } }
   } catch (erreur) {
+    redirigerSiSansContexte(erreur)
     if (erreur instanceof ErreurAcces) {
       return { ok: false, titre: "Tu n'as pas accès à cette app", lignes: [libelleErreurAcces(erreur)] }
     }

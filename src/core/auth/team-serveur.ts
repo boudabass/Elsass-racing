@@ -48,6 +48,7 @@ export async function teamCourante() {
     },
     include: { team: true },
   })
-  if (!adhesion) return null
+  // La team doit exister : sans elle, les lectures qui suivent liraient team.id sur null.
+  if (!adhesion?.team) return null
   return { team: adhesion.team, membership: adhesion }
 }

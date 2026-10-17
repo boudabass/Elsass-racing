@@ -6,7 +6,7 @@ import { Affichage, Appareils, Compte, Donnees, Notifications } from "@/apps/set
 import { estRubriqueEquipe, RUBRIQUES_PERSONNELLES } from "@/apps/settings/rubriques"
 import { aAuMoins } from "@/core/droits/niveaux"
 import { niveauDe } from "@/core/actions/actions-serveur"
-import { contexteQg } from "@/core/qg/donnees"
+import { contexteQg, redirigerSiSansContexte } from "@/core/qg/donnees"
 import { lireSession } from "@/core/auth/session-serveur"
 import { EcranVide } from "@/components/qg/ecran-vide"
 
@@ -21,7 +21,10 @@ export default async function PageRubrique({
 }) {
   const { rubrique } = await params
   const { ok, erreur } = await searchParams
-  const { contexte } = await contexteQg()
+  const { contexte } = await contexteQg().catch((erreur: unknown) => {
+    redirigerSiSansContexte(erreur)
+    throw erreur
+  })
 
   if (estRubriqueEquipe(rubrique)) {
     if (!aAuMoins(await niveauDe(contexte, "settings"), "lecture")) {
