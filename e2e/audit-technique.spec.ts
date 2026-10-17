@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien, tuilesDuQg } from "./aide/navigation"
@@ -12,6 +12,17 @@ const SAISON = 2033
 async function capturer(page: Page, nom: string, largeur: number, hauteur: number): Promise<void> {
   await page.setViewportSize({ width: largeur, height: hauteur })
   await page.screenshot({ path: `docs/captures/audit-${nom}-${largeur}x${hauteur}.png`, fullPage: true })
+}
+
+// Bord gauche du contenu d'un élément : son x, plus son retrait gauche (le menu de téléphone a un retrait de 16 px).
+async function bordContenu(element: Locator): Promise<number> {
+  const boite = await element.boundingBox()
+  const retrait = await element.evaluate((noeud) => parseFloat(getComputedStyle(noeud).paddingLeft))
+  return (boite?.x ?? 0) + retrait
+}
+
+function echapper(texte: string): string {
+  return texte.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
 test("connexion, 360 px : un seul titre principal « Connexion », champ et bouton d'envoi à 44 px", async ({ page }) => {
@@ -132,6 +143,8 @@ test("Réglages, responsable : pas de colonne de rubriques, « Affichage » s'ou
   const menu = page.getByRole("navigation", { name: "Menu de Réglages" })
   await expect(menu.getByRole("link", { name: "Identité", exact: true })).toBeVisible()
   await expect(menu.getByRole("link", { name: "Affichage", exact: true })).toBeVisible()
+  // La redirection vers Identité finit après le menu : on attend le titre de la rubrique avant la capture.
+  await expect(page.getByRole("heading", { name: "Identité", exact: true })).toBeVisible()
   await capturer(page, "reglages-responsable", 360, 740)
   await capturer(page, "reglages-responsable", 1280, 800)
 
@@ -155,9 +168,59 @@ test("Réglages, assistance : arrive sur Affichage, menu sans les rubriques de l
     await expect(menu.getByRole("link", { name: "Mon compte", exact: true })).toBeVisible()
     await expect(menu.getByRole("link", { name: "Identité", exact: true })).toHaveCount(0)
     await expect(menu.getByRole("link", { name: "Membres", exact: true })).toHaveCount(0)
+    await expect(assist.getByRole("heading", { name: "Affichage", exact: true })).toBeVisible()
     await capturer(assist, "reglages-assistance", 360, 740)
     await capturer(assist, "reglages-assistance", 1280, 800)
   } finally {
     await contexte.close()
   }
+})
+
+// Brief 2.15, point 1 : une seule colonne. Le titre de chaque page s'aligne sous le menu de son app,
+// et la bande des onglets de la fiche épreuve s'aligne sous le titre à 1280 px.
+test("une seule colonne : le titre de chaque page Saison et Budget s'aligne sous le menu, à 360 px puis à 1280 px", async ({ page, equipe }) => {
+  test.setTimeout(300_000)
+  await preparerSaison(equipe, SAISON)
+  await connecterParLien(page, equipe)
+
+  for (const [largeur, hauteur] of [
+    [360, 740],
+    [1280, 800],
+  ] as const) {
+    await page.setViewportSize({ width: largeur, height: hauteur })
+    for (const [adresse, nomApp] of [
+      ["/apps/saison", "Saison"],
+      ["/apps/budget", "Budget"],
+    ] as const) {
+      await page.goto(adresse)
+      const menu = page.getByRole("navigation", { name: `Menu de ${nomApp}` })
+      const entrees = await menu.getByRole("link").evaluateAll((liens) =>
+        liens.map((lien) => ({ nom: lien.textContent?.trim() ?? "", chemin: new URL((lien as HTMLAnchorElement).href).pathname })),
+      )
+      expect(entrees.length).toBeGreaterThan(1)
+
+      for (const entree of entrees) {
+        await menu.getByRole("link", { name: entree.nom, exact: true }).click()
+        await expect(page).toHaveURL(new RegExp(`${echapper(entree.chemin)}$`))
+        const titre = page.getByRole("main").getByRole("heading", { level: 1 })
+        await expect(titre).toHaveCount(1)
+        await expect(titre).toBeVisible()
+        const ecart = Math.abs((await bordContenu(menu)) - (await bordContenu(titre)))
+        expect(ecart, `${nomApp} · ${entree.nom} à ${largeur} px`).toBeLessThanOrEqual(1)
+      }
+    }
+  }
+
+  // Fiche épreuve, à 1280 px (la largeur de la dernière boucle) : les onglets s'alignent sous le titre.
+  await page.goto("/apps/saison/nouvelle")
+  await page.getByLabel("Nom de l'épreuve").fill("Alignement e2e")
+  await page.getByLabel("Premier jour").fill(`${SAISON}-07-10`)
+  await page.getByLabel("Dernier jour").fill(`${SAISON}-07-11`)
+  await page.getByRole("button", { name: "Ajouter l'épreuve" }).click()
+  await expect(page).toHaveURL(/\/apps\/saison\/epreuves\/[0-9a-f-]+/)
+  const titreFiche = page.getByRole("main").getByRole("heading", { level: 1 })
+  const onglets = page.getByRole("navigation", { name: "Onglets de l'épreuve" })
+  await expect(onglets).toBeVisible()
+  const ecartOnglets = Math.abs((await bordContenu(onglets)) - (await bordContenu(titreFiche)))
+  expect(ecartOnglets, "Onglets de la fiche épreuve à 1280 px").toBeLessThanOrEqual(1)
 })
