@@ -141,3 +141,17 @@
 - Vérifications : typecheck, vitest 392/392, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 73/73 sur build de production (port 3101). Captures régénérées par l'e2e et commitées (`docs/captures`, 34 fichiers).
 
 - Points d'attention : le grep `underline` sur `src --include=*.tsx` ne renvoie plus que `src/components/ui/button.tsx` ; la classe `LIEN` est dans un fichier `.ts`, donc hors de ce grep. Les journaux serveur de l'e2e contiennent des `P2003` et `P2025` (déjà relevés, non investigués) et une `TypeError` « reading 'id' » sur la route `budget/export` quand l'équipe est absente ; elle était déjà présente au passage du brief 2.15, non investiguée, sans effet sur les tests.
+
+## 18/10/2026 : brief 2.17, erreurs serveur du journal e2e
+
+
+
+- Causes : (1) la fixture `equipe` était supprimée avant la fermeture de la page, donc des rendus en cours lisaient une team effacée ; (2) des pages du QG et de l'app (`qg`, `recherche`, `notes`, réglages, fiche d'épreuve, `[cle]`) appelaient `contexteQg()` sans redirection, et les préchargements de liens les rendaient en dehors du layout.
+
+- Corrections : `teamCourante` ne renvoie plus une team nulle (`adhesion?.team`) ; `contexteQg` redirige lui-même (`redirigerSiSansContexte` : connexion sans session, `/equipes` sans team valide) ; `ecran-serveur` et la page Réglages par rubrique suivent la même règle ; la fixture `page` dépend de `equipe` et attend la fin des requêtes en cours avant la suppression de la team.
+
+- Test ajouté : `e2e/erreurs.spec.ts`, une adhésion retirée pendant l'utilisation renvoie vers `/equipes` sans page d'erreur, et `/apps/budget/export` ne répond pas 500 (`retirerAdhesion` dans `e2e/aide/session.ts`, statut `parti`).
+
+- Comptes du journal e2e, avant (passage 2.16) puis après : P2003 et P2025 de 47 à 0 ; `reading 'id'` de 2 à 0 ; `ErreurAcces` de 23 à 0 (hors l'erreur volontaire de `/erreur-test`, qui n'apparaît pas dans ce décompte).
+
+- Vérifications : typecheck, vitest 392/392, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 74/74 sur build de production (port 3101). Captures restaurées, rien de visuel ne change.
