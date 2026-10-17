@@ -97,7 +97,8 @@ export async function lireEpreuve(eventId: string) {
       season: { select: { annee: true, nom: true, clotureeAt: true } },
     },
   })
-  if (!epreuve) return null
+  // Saison masquée (relation vue à null) : traitée comme une épreuve absente.
+  if (!epreuve?.season) return null
 
   const kmSpeciales = epreuve.saisonStages.reduce((total, stage) => total + Number(stage.longueurKm ?? 0) * (stage.nbPassages ?? 1), 0)
   return {
@@ -147,7 +148,8 @@ export async function lireEngagement(entryId: string) {
       saisonRegistration: true,
     },
   })
-  if (!engagement) return null
+  // Épreuve ou saison masquée (relation vue à null) : traité comme un engagement absent.
+  if (!engagement?.event?.season) return null
 
   return {
     niveau,
@@ -252,7 +254,8 @@ export async function lireResultatsEpreuve(eventId: string) {
       },
     },
   })
-  if (!epreuve) return null
+  // Saison masquée (relation vue à null) : traitée comme une épreuve absente.
+  if (!epreuve?.season) return null
   const speciales = await client.saisonStage.findMany({
     where: { eventId, teamId: ctx.teamId, deletedAt: null },
     select: { id: true, numero: true, nom: true },

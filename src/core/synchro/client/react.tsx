@@ -1,7 +1,7 @@
 "use client"
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react"
-import { useRouter } from "next/navigation"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
+import { usePathname, useRouter } from "next/navigation"
 
 import { MoteurSynchro, type EtatSynchro } from "./moteur"
 import { nomBase, type LigneLocale, type TableLocale } from "./base"
@@ -24,6 +24,10 @@ const ContexteSynchro = createContext<MoteurSynchro | null>(null)
 export function SynchroProvider({ userId, teamId, children }: { userId: string; teamId: string; children: ReactNode }) {
   const moteur = useMemo(() => moteurPour(userId, teamId), [userId, teamId])
   const router = useRouter()
+  const chemin = usePathname()
+  // Vrai de la demande de rafraîchissement jusqu'à l'arrivée du rendu serveur (nouveaux enfants).
+  const perime = useRef(false)
+  const cheminPrecedent = useRef(chemin)
 
   useEffect(() => {
     void moteur.demarrer()
@@ -32,7 +36,25 @@ export function SynchroProvider({ userId, teamId, children }: { userId: string; 
 
   // Quand le serveur a appliqué des opérations (une dépense d'engagement crée une action dans la boîte),
   // l'espace connecté, rendu côté serveur, se relit : boîte, compteur et solde sont à jour sans rechargement.
-  useEffect(() => moteur.abonnerAuServeur(() => router.refresh()), [moteur, router])
+  useEffect(
+    () =>
+      moteur.abonnerAuServeur(() => {
+        perime.current = true
+        router.refresh()
+      }),
+    [moteur, router],
+  )
+
+  // Une navigation pendant un rafraîchissement l'annule : le drapeau reste posé, on le refait sur la nouvelle page.
+  // Sans navigation, l'arrivée du rendu serveur (enfants renouvelés) lève le drapeau.
+  useEffect(() => {
+    if (cheminPrecedent.current !== chemin) {
+      cheminPrecedent.current = chemin
+      if (perime.current) router.refresh()
+      return
+    }
+    perime.current = false
+  }, [chemin, children, router])
 
   return <ContexteSynchro.Provider value={moteur}>{children}</ContexteSynchro.Provider>
 }

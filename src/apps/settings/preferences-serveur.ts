@@ -1,4 +1,5 @@
 import { prismaPourTeam } from "@/lib/prisma"
+import { avecReprisePourConflit } from "@/lib/reprise-conflit"
 import { newId } from "@/core/ids"
 import type { ContexteTeam } from "@/core/contexte"
 import type { SettingsLudique, SettingsTailleTexte, SettingsTheme } from "@/generated/prisma/client"
@@ -33,11 +34,14 @@ export async function prefsMembre(ctx: ContexteTeam): Promise<PrefsMembre> {
 
 // Écrit une partie des préférences du membre. La ligne est créée à la volée.
 export async function mettreAJourPrefsMembre(ctx: ContexteTeam, donnees: Partial<PrefsMembre>): Promise<void> {
-  await prismaPourTeam(ctx.teamId, ctx.userId).settingsMemberPref.upsert({
-    where: { membershipId: ctx.membership.id },
-    create: { id: newId(), teamId: ctx.teamId, membershipId: ctx.membership.id, ...donnees },
-    update: donnees,
-  })
+  // Deux écritures simultanées sur la même ligne (onglets ouverts) peuvent se croiser : P2034, reprise bornée.
+  await avecReprisePourConflit(() =>
+    prismaPourTeam(ctx.teamId, ctx.userId).settingsMemberPref.upsert({
+      where: { membershipId: ctx.membership.id },
+      create: { id: newId(), teamId: ctx.teamId, membershipId: ctx.membership.id, ...donnees },
+      update: donnees,
+    }),
+  )
 }
 
 // Ludique de la team (trophées et paliers). Vrai par défaut.
@@ -60,11 +64,14 @@ export async function modeTerrainDuMembre(ctx: ContexteTeam): Promise<boolean> {
 
 // Écrit le mode terrain du membre. La ligne de préférences est créée à la volée.
 export async function fixerModeTerrain(ctx: ContexteTeam, actif: boolean): Promise<void> {
-  await prismaPourTeam(ctx.teamId, ctx.userId).settingsMemberPref.upsert({
-    where: { membershipId: ctx.membership.id },
-    create: { id: newId(), teamId: ctx.teamId, membershipId: ctx.membership.id, modeTerrain: actif },
-    update: { modeTerrain: actif },
-  })
+  // Même reprise bornée que mettreAJourPrefsMembre : P2034 sur la ligne de préférences.
+  await avecReprisePourConflit(() =>
+    prismaPourTeam(ctx.teamId, ctx.userId).settingsMemberPref.upsert({
+      where: { membershipId: ctx.membership.id },
+      create: { id: newId(), teamId: ctx.teamId, membershipId: ctx.membership.id, modeTerrain: actif },
+      update: { modeTerrain: actif },
+    }),
+  )
 }
 
 // Réglage de la team : proposer le mode terrain le jour d'une épreuve. Vrai par défaut.
