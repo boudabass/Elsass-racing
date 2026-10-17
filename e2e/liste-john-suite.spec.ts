@@ -217,8 +217,18 @@ test("liste de John : Marquer payé dans la boîte, puis paiement direct dans Sa
 
   // Dans la boîte : « Marquer payé ». L'engagement est payé, et aucune nouvelle suggestion n'apparaît.
   await page.getByRole("link", { name: /retour au QG/ }).click()
-  await page.getByRole("button", { name: /Boîte d'actions/ }).first().click()
-  await page.getByRole("button", { name: "Marquer payé" }).first().click()
+  // Seule l'ouverture est relancée, et seulement tant que le panneau n'est pas visible. Une fois ouvert,
+  // « Marquer payé » doit être là dès la première ouverture : aucun nouveau clic ni rechargement ne la fait apparaître.
+  const boite = page.getByRole("dialog", { name: "Boîte d'actions" })
+  await expect(async () => {
+    if (!(await boite.isVisible())) {
+      await page.keyboard.press("Escape")
+      await page.getByRole("button", { name: /Boîte d'actions/ }).first().click()
+    }
+    await expect(boite).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 30_000 })
+  await expect(boite.getByRole("button", { name: "Marquer payé" }).first()).toBeVisible()
+  await boite.getByRole("button", { name: "Marquer payé" }).first().click()
   await page.goto(engagement)
   await expect(page.getByText("Payé").first()).toBeVisible()
   await page.goto("/apps/budget/a-confirmer")

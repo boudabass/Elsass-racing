@@ -143,6 +143,15 @@ export async function statutAction(equipe: Equipe, cleUnicite: string): Promise<
   return rows[0]?.statut ?? null
 }
 
+// Engagements de la team en base, non supprimés : une ligne par voiture engagée.
+export async function engagementsEnBase(equipe: Equipe): Promise<Array<{ id: string }>> {
+  const { rows } = await bd().query<{ id: string }>(
+    "SELECT id::text AS id FROM saison_registration WHERE team_id = $1 AND deleted_at IS NULL",
+    [equipe.teamId],
+  )
+  return rows
+}
+
 export async function compterEvenements(equipe: Equipe, nom: string): Promise<number> {
   const { rows } = await bd().query<{ n: number }>(
     "SELECT count(*)::int AS n FROM core_domain_event WHERE team_id = $1 AND nom = $2",

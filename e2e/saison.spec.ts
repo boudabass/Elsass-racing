@@ -1,6 +1,6 @@
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
-import { ajouterMembreConnectable, ajouterVoitureDeCourse, preparerSaison } from "./aide/session"
+import { ajouterMembreConnectable, ajouterVoitureDeCourse, engagementsEnBase, preparerSaison } from "./aide/session"
 
 // Saison (tâche 2.2) : création par le bouton +, fiche épreuve, engagement, paiement ; et ce que
 // voit l'assistance (lecture seule, sans montants). Les captures du calendrier et de la fiche sont
@@ -64,7 +64,8 @@ test("j-bis. saison : l'assistance voit l'épreuve, sans montant ni bouton d'éc
   await page.goto(`${adresseFiche}?onglet=engagements`)
   await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
   await page.getByRole("button", { name: "Engager la voiture" }).click()
-  await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
+  await expect(page.getByRole("link", { name: /Saxo test e2e/ }).first()).toBeVisible()
+  await expect.poll(async () => (await engagementsEnBase(equipe)).length).toBe(1)
 
   const membre = await ajouterMembreConnectable(equipe, "assistance")
   const contexteAssistance = await browser.newContext()
