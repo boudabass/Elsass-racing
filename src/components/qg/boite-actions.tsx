@@ -4,6 +4,7 @@ import { APPS } from "@/core/catalogue"
 import { deciderAction, reporterAction } from "@/core/actions/formulaires"
 import type { GroupeAction } from "@/core/actions/regroupement"
 import type { ActionBoite } from "@/core/actions/filtrage"
+import { LIEN } from "@/lib/classes-formulaire"
 
 // Liste de la boîte d'actions. Entièrement en formulaires : chaque décision et chaque
 // report est un envoi au serveur, sans JavaScript côté client.
@@ -98,7 +99,7 @@ function CarteAction({ action }: { action: ActionBoite }) {
         </details>
 
         {action.ficheType && (
-          <Link href={`/apps/${action.appOrigine}`} className="cible-tactile inline-flex items-center px-2 py-2 text-marque underline-offset-4 hover:underline">
+          <Link href={`/apps/${action.appOrigine}`} className={`${LIEN} px-2 py-2`}>
             Ouvrir
           </Link>
         )}

@@ -8,6 +8,7 @@ import { Message } from "@/components/formulaire/message"
 import { newId } from "@/core/ids"
 import { useMoteurSynchro } from "@/core/synchro/client/react"
 import { enEuros } from "@/lib/euros"
+import { LIEN } from "@/lib/classes-formulaire"
 
 export { enEuros }
 
@@ -200,7 +201,7 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
           {message.boite && (
             <>
               {" "}
-              Si cet engagement reste à payer, une action attend dans la <Link href="/qg" className="underline">boîte d'actions</Link>, une fois l'appareil connecté.
+              Si cet engagement reste à payer, une action attend dans la <Link href="/qg" className={LIEN}>boîte d'actions</Link>, une fois l'appareil connecté.
             </>
           )}
         </p>

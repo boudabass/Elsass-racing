@@ -5,7 +5,7 @@ import { accesEcran } from "@/apps/budget/ecran"
 import { GrillePrevisionnel } from "@/apps/budget/composants/previsionnel"
 import { lireChoix, lirePrevisionnel } from "@/apps/budget/lectures-serveur"
 import { formatEuros, phraseEcart } from "@/apps/budget/libelles"
-import { jourDeParis } from "@/core/dates"
+import { jourDeParis, jourEnFrancais } from "@/core/dates"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { aAuMoins } from "@/core/droits/niveaux"
 
@@ -32,12 +32,12 @@ export default async function PagePrevisionnel({ searchParams }: { searchParams:
   const adresse = (epreuveId: string | null) => (epreuveId ? `?saison=${saisonId}&epreuve=${epreuveId}` : `?saison=${saisonId}`)
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-6">
+    <section className="flex max-w-4xl flex-col gap-6">
       <h1 className="titre-rallye text-3xl">Prévisionnel</h1>
       {!saisonId && <p className="text-texte-discret">Aucune saison.</p>}
       {saisonId && (
         <>
-          <nav aria-label="Portée du prévisionnel" className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:thin]">
+          <nav aria-label="Portée du prévisionnel" className="-mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:px-0 [scrollbar-width:thin]">
             {[{ id: null, nom: "Saison entière" }, ...epreuvesSaison.map(({ id, nom }) => ({ id, nom }))].map((choixPortee) => {
               const actif = (epreuve?.id ?? null) === choixPortee.id
               return (
@@ -88,7 +88,7 @@ export default async function PagePrevisionnel({ searchParams }: { searchParams:
           />
         </>
       )}
-      <p className="text-xs text-texte-discret">Date du jour : {jourDeParis(new Date())}</p>
+      <p className="text-xs text-texte-discret">Date du jour : {jourEnFrancais(new Date())}</p>
     </section>
   )
 }

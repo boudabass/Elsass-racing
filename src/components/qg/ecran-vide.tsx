@@ -15,7 +15,7 @@ export function EcranVide({
   action?: { libelle: string; href: string }
 }) {
   return (
-    <section className="mx-auto flex max-w-md flex-col items-center gap-4 py-16 text-center">
+    <section className="flex max-w-md flex-col items-center gap-4 py-16 text-center">
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-2 text-marque">
         <Icone className="h-7 w-7" aria-hidden />
       </span>

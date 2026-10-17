@@ -4,3 +4,6 @@ export const CHAMP =
 
 export const BOUTON =
   "cible-tactile rounded-md bg-marque px-5 py-3 font-medium text-marque-texte hover:opacity-90 disabled:opacity-50"
+
+// Lien d'action dans le texte : souligné en permanence (le soulignement dit que c'est un lien), cible de 44 px.
+export const LIEN = "cible-tactile inline-flex items-center underline underline-offset-4 decoration-marque decoration-2 hover:text-marque"

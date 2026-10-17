@@ -3,6 +3,7 @@ import Link from "next/link"
 import { LIBELLE_POINT_PREPARATION, LIBELLE_STATUT_ENGAGEMENT, LIBELLE_STATUT_POINT } from "@/apps/saison/libelles"
 import { lieuDeReglage, type PointEtabli } from "@/apps/saison/preparation"
 import type { CouleurIndice, IndicePreparation } from "@/apps/saison/regles"
+import { LIEN } from "@/lib/classes-formulaire"
 
 // Panneau « Prêt pour l'épreuve ? » : un bloc par engagement. Il ne bloque jamais rien.
 // Les points « pas encore suivi » sont affichés tels quels : pas de fausse valeur.
@@ -60,7 +61,7 @@ export function PanneauPreparation({ engagements }: { engagements: EngagementPre
                   </span>
                   {point.detail && <span className="text-texte-discret">{point.detail}</span>}
                   {point.etat === "ouvert" && lieuDeReglage(point.point) === "fiche_engagement" && (
-                    <Link href={`/apps/saison/engagements/${engagement.id}`} className="cible-tactile inline-flex items-center underline">
+                    <Link href={`/apps/saison/engagements/${engagement.id}`} className={LIEN}>
                       Régler
                     </Link>
                   )}

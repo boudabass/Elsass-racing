@@ -18,7 +18,7 @@ export default async function PageAValider() {
   const { resultats } = await listerResultatsAValider()
 
   return (
-    <section className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
+    <section className="flex max-w-3xl flex-col gap-5">
       <h1 className="font-titre text-2xl uppercase">Résultats à valider</h1>
 
       {resultats.length === 0 && <p className="text-texte-discret">Rien à valider pour l'instant.</p>}

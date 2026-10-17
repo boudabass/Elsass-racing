@@ -31,7 +31,7 @@ export default async function PageParEpreuve({ searchParams }: { searchParams: P
   const coutKm = donnees ? coutAuKm(donnees.totalSaisonCentimes, km) : null
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-6">
+    <section className="flex max-w-4xl flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="titre-rallye text-3xl">Par épreuve</h1>
         <form className="flex items-center gap-2 text-sm">

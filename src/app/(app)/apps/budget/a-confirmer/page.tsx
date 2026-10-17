@@ -16,7 +16,7 @@ export default async function PageAConfirmer() {
   const [suggestions, choix] = await Promise.all([listerSuggestions(), lireChoix()])
 
   return (
-    <section className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
+    <section className="flex max-w-3xl flex-col gap-6">
       <h1 className="titre-rallye text-3xl">À confirmer</h1>
       {suggestions.length === 0 && <p className="text-texte-discret">Rien à confirmer pour l'instant.</p>}
       <ul className="flex flex-col gap-4">

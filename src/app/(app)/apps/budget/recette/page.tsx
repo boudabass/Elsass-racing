@@ -17,7 +17,7 @@ export default async function PageNouvelleRecette() {
   const choix = await lireChoix()
 
   return (
-    <section className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-6">
+    <section className="flex max-w-2xl flex-col gap-6">
       <h1 className="titre-rallye text-3xl">Nouvelle recette</h1>
       <FormulaireRecette
         categories={choix.categoriesRecette}

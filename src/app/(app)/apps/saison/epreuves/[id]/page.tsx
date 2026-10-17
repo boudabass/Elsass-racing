@@ -34,6 +34,7 @@ import {
 } from "@/apps/saison/libelles"
 import { Onglets } from "@/apps/saison/composants/onglets"
 import { EcranVide } from "@/components/qg/ecran-vide"
+import { LIEN } from "@/lib/classes-formulaire"
 import { aAuMoins } from "@/core/droits/niveaux"
 
 // Fiche d'une épreuve. « Prêt pour l'épreuve ? » est le premier onglet, et l'onglet par défaut (brief 2.9).
@@ -82,7 +83,7 @@ export default async function PageEpreuve({
   const annulee = epreuve.statut === "annulee"
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-6">
+    <section className="flex max-w-4xl flex-col gap-5">
       <Link href="/apps/saison" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
         ← Calendrier
       </Link>
@@ -175,7 +176,7 @@ export default async function PageEpreuve({
                     {LIBELLE_STATUT_ENGAGEMENT[engagement.statut as keyof typeof LIBELLE_STATUT_ENGAGEMENT] ?? engagement.statut}
                   </span>
                 </Link>
-                <Link href={`/apps/saison/engagements/${engagement.id}#debrief`} className="cible-tactile inline-flex items-center px-4 pb-3 text-sm underline">
+                <Link href={`/apps/saison/engagements/${engagement.id}#debrief`} className={`${LIEN} px-4 pb-3 text-sm`}>
                   Débrief
                 </Link>
               </li>
@@ -244,11 +245,11 @@ export default async function PageEpreuve({
                   </h2>
                   <p className="text-sm text-texte-discret">{engagement.equipage ?? "Équipage non renseigné"}</p>
                   <div className="flex flex-wrap gap-4 text-sm">
-                    <Link href={`/apps/saison/engagements/${engagement.id}`} className="cible-tactile inline-flex items-center underline">
+                    <Link href={`/apps/saison/engagements/${engagement.id}`} className={LIEN}>
                       Ouvrir l'engagement
                     </Link>
                     {resultat && (
-                      <Link href={`/apps/saison/engagements/${engagement.id}#debrief`} className="cible-tactile inline-flex items-center underline">
+                      <Link href={`/apps/saison/engagements/${engagement.id}#debrief`} className={LIEN}>
                         Débrief
                       </Link>
                     )}
@@ -293,7 +294,7 @@ export default async function PageEpreuve({
                     <dt className="text-texte-discret">Preuve</dt>
                     <dd className="break-all">
                       {resultat.preuveLien ? (
-                        <a href={resultat.preuveLien} className="cible-tactile inline-flex items-center underline">
+                        <a href={resultat.preuveLien} className={LIEN}>
                           {resultat.preuveLien}
                         </a>
                       ) : (

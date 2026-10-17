@@ -276,7 +276,7 @@ export function FormulaireEngagement({ eventId, choix }: { eventId: string; choi
       <div className="sm:col-span-3">
         <Message resultat={resultat} />
       </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-3">
+      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-3 sm:justify-self-start">
         Engager la voiture
       </Button>
     </form>
