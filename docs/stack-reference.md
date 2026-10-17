@@ -36,7 +36,6 @@ Les versions « résolues » viennent de `pnpm-lock.yaml` (lockfileVersion 9.0).
 | next-themes | ^0.4.6 | 0.4.6 |
 | leaflet | ^1.9.4 | 1.9.4 |
 | recharts | ^2.15.3 | 2.15.3 |
-| sonner | ^2.0.3 | 2.0.3 |
 | web-push | 3.6.7 | 3.6.7 |
 | date-fns | ^3.6.0 | 3.6.0 |
 | cmdk | ^1.1.1 | 1.1.1 |
@@ -51,7 +50,7 @@ Les versions « résolues » viennent de `pnpm-lock.yaml` (lockfileVersion 9.0).
 | tailwind-merge | ^3.3.0 | 3.3.0 |
 | tailwindcss-animate | ^1.0.7 | 1.0.7 |
 
-Radix UI (toutes en `^`, versions résolues) : accordion 1.2.11, alert-dialog 1.1.14, aspect-ratio 1.1.7, avatar 1.1.10, checkbox 1.3.2, collapsible 1.1.11, context-menu 2.2.15, dialog 1.1.14, dropdown-menu 2.1.15, hover-card 1.1.14, label 2.1.7, menubar 1.1.15, navigation-menu 1.2.13, popover 1.1.14, progress 1.1.7, radio-group 1.3.7, scroll-area 1.2.9, select 2.2.5, separator 1.1.7, slider 1.3.5, slot 1.2.3, switch 1.2.5, tabs 1.1.12, toggle 1.1.9, toggle-group 1.1.10, tooltip 1.2.7.
+Radix UI (toutes en `^`, versions résolues) : dialog 1.1.14, dropdown-menu 2.1.15, label 2.1.7, slot 1.2.3, toggle 1.1.9.
 
 ### Dépendances de développement
 
@@ -75,7 +74,7 @@ Radix UI (toutes en `^`, versions résolues) : accordion 1.2.11, alert-dialog 1.
 | @etalab/decoupage-administratif | ^6.0.0 | 6.0.0 (données des communes, spécifique au dico) |
 | @dyad-sh/nextjs-webpack-component-tagger | ^0.8.0 | 0.8.0 (actif seulement en `development`) |
 
-Remarque : shadcn/ui n'est pas une dépendance npm. Ses composants sont copiés dans `src/components/ui/` (47 fichiers).
+Remarque : shadcn/ui n'est pas une dépendance npm. Ses composants sont copiés dans `src/components/ui/` (7 fichiers).
 
 ---
 
@@ -129,7 +128,7 @@ Elsass_dico/
 └── src/
     ├── app/                            App Router (pages, actions, api, manifest.ts, layout.tsx, globals.css)
     ├── assets/                         polices woff (Archivo) et signature de marque
-    ├── components/                     composants métier + ui/ (shadcn, 47 fichiers)
+    ├── components/                     composants métier + ui/ (shadcn, 7 fichiers)
     ├── hooks/                          hooks React
     ├── lib/                            logique métier et utilitaires (préfixe -serveur.ts pour le serveur)
     ├── middleware.ts
