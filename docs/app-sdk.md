@@ -76,6 +76,19 @@ pnpm typecheck
 - Menu et liste des apps : `appsVisibles` (`src/core/sdk/apps-serveur.ts`) ne montre que les apps activées de niveau au moins lecture, Réglages en dernier pour le responsable. Réglages reste visible pour tous : ses rubriques personnelles sont ouvertes à chaque membre, et les rubriques de la team sont masquées sous « lecture » (`niveauMinimum` du manifeste).
 - Livraison des événements : prévue au lot suivant, selon les abonnés déclarés ici.
 
+### Socle à importer, pas à recopier (brief 2.14)
+
+Une nouvelle app importe ces éléments au lieu de les recopier :
+
+- `src/core/sdk/actions-serveur.ts` : `Resultat`, `ErreurMetier` (base des refus métier de l'app : son message s'affiche tel quel), `texte`, `texteOuNull`, `messageDe`, `executer(chemin, action)` (revalide le chemin de l'app et renvoie `{ ok, id }` ou `{ ok: false, message }`).
+- `src/core/sdk/ecran-serveur.ts` : `accesEcranApp(appCle, titre, acces, requis)`, la garde d'écran. Le `ecran.ts` de chaque app n'en est qu'un appel.
+- `src/core/actions/actions-serveur.ts` : `rouvrirAction(client, ctx, cleUnicite, motif)`, qui remet une action de la boîte en attente avec son motif de refus.
+- `src/core/synchro/registre.ts` : `socleSynchro(ligne)` (champs communs, au format de la synchro) et `refusLectureSeule()` pour les tables lues seulement hors ligne.
+- `src/components/formulaire/message.tsx` : `Message`, le message affiché sous un formulaire après une Server Action (prop `ok` pour le texte de succès).
+- `src/lib/euros.ts` : `formatEuros(centimes)` (« 1 234,50 € ») et `enEuros(centimes)` (« 12,50 » pour un champ de saisie).
+
+Les erreurs métier de Saison (`ErreurSaison`) et de Budget (`ErreurBudget`) héritent de `ErreurMetier`.
+
 ## 9. Rendre une table disponible hors ligne
 
 Une table n'est synchronisée que si elle est déclarée dans le registre de la synchro (`src/core/synchro/registre.ts`). Pour l'ajouter :
