@@ -7,6 +7,7 @@ import { exigerContexte } from "@/core/droits/garde-serveur"
 import { deconnecter, lireSession, magasinCookies } from "@/core/auth/session-serveur"
 import { teamCourante } from "@/core/auth/team-serveur"
 import { appsVisibles } from "@/core/sdk/apps-serveur"
+import { texte } from "@/core/sdk/actions-serveur"
 import { emettre } from "@/core/evenements/bus-serveur"
 import { newId } from "@/core/ids"
 import type { ContexteTeam } from "@/core/contexte"
@@ -30,10 +31,6 @@ const REGROUPEMENTS = ["immediat", "quotidien"] as const
 function retour(rubrique: string, erreur?: string): never {
   const base = `${RUBRIQUE}/${rubrique}`
   redirect(erreur ? `${base}?erreur=${encodeURIComponent(erreur)}` : `${base}?ok=1`)
-}
-
-function texte(formData: FormData, cle: string): string {
-  return String(formData.get(cle) ?? "").trim()
 }
 
 function choix<T extends string>(valeur: string, liste: readonly T[]): T {
