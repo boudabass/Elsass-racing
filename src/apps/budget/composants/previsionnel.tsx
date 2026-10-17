@@ -46,7 +46,15 @@ export function GrillePrevisionnel({
           <div className="flex items-baseline justify-between gap-3 sm:contents">
             <span className="min-w-0 break-words font-medium sm:row-start-1 sm:col-start-1">{ligne.nom}</span>
             <span className={`${ligne.couleur ? COULEUR[ligne.couleur] : "text-texte-discret"} text-right font-medium sm:row-start-1 sm:col-start-4 sm:text-left`}>
-              {ligne.ecart}
+              {ligne.prevu === null && ligne.reel === 0 ? (
+                // Rien de prévu ni dépensé : un tiret discret ; le sens reste lu par les lecteurs d'écran.
+                <>
+                  <span aria-hidden="true" className="text-texte-discret">—</span>
+                  <span className="sr-only">{ligne.ecart}</span>
+                </>
+              ) : (
+                ligne.ecart
+              )}
             </span>
           </div>
           <div className="flex items-center justify-between gap-3 sm:contents">

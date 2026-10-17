@@ -1,7 +1,10 @@
 "use client"
 
+import { useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+
+import { styleFondu, useFonduDefilement } from "./fondu-defilement"
 
 export interface MenuDeApp {
   cle: string
@@ -17,11 +20,17 @@ export function MenuApp({ menus }: { menus: MenuDeApp[] }) {
   const app = menus.find((m) => chemin === `/apps/${m.cle}` || chemin.startsWith(`/apps/${m.cle}/`))
   if (!app || app.entrees.length === 0) return null
 
-  const base = `/apps/${app.cle}`
+  return <RangeeMenu nomApp={app.nom} cleApp={app.cle} entrees={app.entrees} chemin={chemin} />
+}
+
+function RangeeMenu({ nomApp, cleApp, entrees, chemin }: { nomApp: string; cleApp: string; entrees: MenuDeApp["entrees"]; chemin: string }) {
+  const barre = useRef<HTMLElement>(null)
+  const fondu = useFonduDefilement(barre)
+  const base = `/apps/${cleApp}`
   return (
-    <nav aria-label={`Menu de ${app.nom}`} className="-mx-4 mb-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+    <nav ref={barre} style={styleFondu(fondu)} aria-label={`Menu de ${nomApp}`} className="-mx-4 mb-4 overflow-x-auto px-4 md:mx-0 md:px-0">
       <ul className="flex w-max gap-2 md:w-auto md:flex-wrap">
-        {app.entrees.map((entree) => {
+        {entrees.map((entree) => {
           const href = entree.chemin === "/" ? base : `${base}${entree.chemin}`
           const actif = entree.chemin === "/" ? chemin === base : chemin === href || chemin.startsWith(`${href}/`)
           return (

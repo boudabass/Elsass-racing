@@ -80,11 +80,12 @@ export default async function PageMouvements({
               {aConfirmer} à confirmer
             </Link>
           )}
-          <Link href={`/apps/budget/export${query ? `?${query}` : ""}`} className="rounded-md border border-bordure px-3 py-2 text-sm">
-            Exporter (CSV)
-          </Link>
           <Link href="/apps/budget/nouvelle" className={BOUTON}>
             Ajouter une dépense
+          </Link>
+          {/* Action secondaire : un lien discret, après le bouton principal. */}
+          <Link href={`/apps/budget/export${query ? `?${query}` : ""}`} className="inline-flex min-h-11 items-center px-2 text-sm text-texte-discret hover:text-texte">
+            Exporter (CSV)
           </Link>
         </div>
       </header>
@@ -114,21 +115,22 @@ export default async function PageMouvements({
         }
       />
 
-      <dl className="grid gap-3 text-sm sm:grid-cols-3" aria-label="Totaux de la sélection">
-        <div className="rounded-lg border border-bordure bg-surface p-4">
+      {/* Téléphone : une seule carte, trois lignes (libellé à gauche, montant à droite). Ordinateur : trois cartes. */}
+      <dl className="flex flex-col divide-y divide-bordure overflow-hidden rounded-lg border border-bordure bg-surface text-sm sm:grid sm:grid-cols-3 sm:gap-3 sm:divide-y-0 sm:overflow-visible sm:border-0 sm:bg-transparent" aria-label="Totaux de la sélection">
+        <div className="flex items-baseline justify-between gap-3 px-4 py-3 sm:block sm:rounded-lg sm:border sm:border-bordure sm:bg-surface sm:p-4">
           <dt className="text-texte-discret">Dépenses confirmées</dt>
-          <dd className={`${MONTANT} text-lg`}>{formatEuros(totalDepenses)}</dd>
+          <dd className={`${MONTANT} text-base sm:text-lg`}>{formatEuros(totalDepenses)}</dd>
         </div>
         {toutVisible && (
-          <div className="rounded-lg border border-bordure bg-surface p-4">
+          <div className="flex items-baseline justify-between gap-3 px-4 py-3 sm:block sm:rounded-lg sm:border sm:border-bordure sm:bg-surface sm:p-4">
             <dt className="text-texte-discret">Recettes</dt>
-            <dd className={`${MONTANT} text-lg text-etat-ok`}>{formatEuros(totalRecettes)}</dd>
+            <dd className={`${MONTANT} text-base text-etat-ok sm:text-lg`}>{formatEuros(totalRecettes)}</dd>
           </div>
         )}
         {toutVisible && (
-          <div className="rounded-lg border border-bordure bg-surface p-4">
+          <div className="flex items-baseline justify-between gap-3 px-4 py-3 sm:block sm:rounded-lg sm:border sm:border-bordure sm:bg-surface sm:p-4">
             <dt className="text-texte-discret">Recettes moins dépenses</dt>
-            <dd className={`${MONTANT} text-lg`}>{formatEuros(totalRecettes - totalDepenses)}</dd>
+            <dd className={`${MONTANT} text-base sm:text-lg`}>{formatEuros(totalRecettes - totalDepenses)}</dd>
           </div>
         )}
       </dl>

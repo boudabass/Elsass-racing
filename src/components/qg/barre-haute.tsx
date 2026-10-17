@@ -15,6 +15,8 @@ function formaterSolde(centimes: number): string {
 
 // La couleur n'est qu'un renfort : la phrase du solde dit déjà qui doit quoi.
 function couleurSolde(centimes: number): string {
+  // Zéro : rien à régler, couleur neutre. Positif : vert. Négatif : texte.
+  if (centimes === 0) return "text-texte-discret"
   return centimes < 0 ? "text-texte" : "text-etat-ok"
 }
 

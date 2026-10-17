@@ -3,10 +3,13 @@
 import Link from "next/link"
 import { useEffect, useRef } from "react"
 
+import { styleFondu, useFonduDefilement } from "@/components/qg/fondu-defilement"
+
 // Onglets de la fiche épreuve. Sur téléphone, ils défilent horizontalement sans couper l'écran ;
 // l'onglet actif est ramené dans la vue à l'affichage (sans effet sur la page elle-même).
 export function Onglets({ base, onglets, actif }: { base: string; onglets: ReadonlyArray<{ cle: string; libelle: string }>; actif: string }) {
   const barre = useRef<HTMLElement>(null)
+  const fondu = useFonduDefilement(barre)
 
   // Ne défile que la barre elle-même : scrollIntoView faisait aussi bouger la page et rognait le premier onglet.
   useEffect(() => {
@@ -18,7 +21,7 @@ export function Onglets({ base, onglets, actif }: { base: string; onglets: Reado
   }, [actif])
 
   return (
-    <nav ref={barre} className="-mx-4 flex gap-2 overflow-x-auto border-b border-bordure px-4 [scrollbar-width:thin]" aria-label="Onglets de l'épreuve">
+    <nav ref={barre} style={styleFondu(fondu)} className="-mx-4 flex gap-2 overflow-x-auto border-b border-bordure px-4 [scrollbar-width:thin]" aria-label="Onglets de l'épreuve">
       {onglets.map((tab) => (
         <Link
           key={tab.cle}
