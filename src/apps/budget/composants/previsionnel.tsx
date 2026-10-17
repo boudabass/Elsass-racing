@@ -44,13 +44,13 @@ export function GrillePrevisionnel({
           className="flex flex-col gap-1 px-4 py-2 text-sm sm:grid sm:grid-cols-[minmax(0,1fr)_9rem_9rem_minmax(0,16rem)] sm:items-center sm:gap-x-4 sm:py-2.5"
         >
           <div className="flex items-baseline justify-between gap-3 sm:contents">
-            <span className="min-w-0 break-words font-medium">{ligne.nom}</span>
-            <span className={`${ligne.couleur ? COULEUR[ligne.couleur] : "text-texte-discret"} text-right font-medium sm:col-start-4 sm:text-left`}>
+            <span className="min-w-0 break-words font-medium sm:row-start-1 sm:col-start-1">{ligne.nom}</span>
+            <span className={`${ligne.couleur ? COULEUR[ligne.couleur] : "text-texte-discret"} text-right font-medium sm:row-start-1 sm:col-start-4 sm:text-left`}>
               {ligne.ecart}
             </span>
           </div>
           <div className="flex items-center justify-between gap-3 sm:contents">
-            <span className="sm:col-start-2 sm:text-right">
+            <span className="sm:row-start-1 sm:col-start-2 sm:text-right">
               {modifiable ? (
                 <label className="flex items-center justify-end gap-1">
                   <span className="sr-only">Prévu pour {ligne.nom} (€)</span>
@@ -66,7 +66,7 @@ export function GrillePrevisionnel({
                 <span className="chiffre">{ligne.prevu === null ? <span className="text-texte-discret">Pas prévu</span> : formatEuros(ligne.prevu)}</span>
               )}
             </span>
-            <span className="chiffre text-texte sm:col-start-3 sm:text-right">{formatEuros(ligne.reel)}</span>
+            <span className="chiffre text-texte sm:row-start-1 sm:col-start-3 sm:text-right">{formatEuros(ligne.reel)}</span>
           </div>
         </li>
       ))}

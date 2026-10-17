@@ -111,8 +111,8 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
 
       <div className="mx-auto flex max-w-6xl">
         <Navigation apps={apps} entreesPlus={entreesPlus} />
-        {/* Marge basse : la hauteur du bouton Prochaine étape et de la barre basse, pour que la dernière ligne reste cliquable. */}
-        <main className="min-w-0 flex-1 px-4 pb-48 pt-6 md:px-8 md:pb-24">
+        {/* Marge basse : la hauteur de la barre basse sur téléphone, pour que la dernière ligne reste cliquable. */}
+        <main className="min-w-0 flex-1 px-4 pb-32 pt-6 md:px-8 md:pb-24">
           <MenuApp menus={menus} />
           {children}
         </main>

@@ -63,3 +63,10 @@
 - Montants : Budget passe de `font-mono tabular-nums` à `.chiffre` (constante `MONTANT`, Prévisionnel compris). Aucun `font-mono` restant dans `src`.
 - Captures : `docs/captures` régénérées sur le build de production (sans indicateur de développement), 360×740 et 1280. Captures de la barre haute en état à jour et hors ligne (`barre-haute-synchro-*`). Contrôle e2e du contraste du bouton principal en sombre (`e2e/contraste-marque.spec.ts`).
 - Vérifications : typecheck, 391 tests unitaires, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé (`.next-build`), e2e complet (61/61), `impeccable detect` sans constat sur les fichiers touchés.
+
+## 17/10/2026 : complément 2.10b (bulle, Prévisionnel)
+
+- Bulle « Prochaine étape » : sur téléphone, elle disparaît entièrement (action ou compte à rebours), la boîte d'actions et le J-xx de la barre haute font ce travail. Sur ordinateur, rien ne change. Le code de focus et de défilement est retiré.
+- Marge basse de `main` : `pb-48` ramené à `pb-32` sur téléphone, la hauteur de la barre basse seule.
+- Prévisionnel sur ordinateur : tous les éléments de la ligne sur la première rangée de grille (`sm:row-start-1`), « Prévu » et « Réel » ne passent plus sous le nom de la catégorie.
+- Vérifications : typecheck, 391 tests unitaires, build isolé (`.next-build`), e2e `prochaine-etape` (dont le nouveau contrôle « bulle absente sur téléphone ») et suites `saison` et `previsionnel` sur le build de production, captures régénérées sur le build de production.
