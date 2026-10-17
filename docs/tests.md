@@ -20,7 +20,7 @@ Pré-requis : `pnpm db:up`, puis `pnpm db:deploy` si la base est neuve.
 ## Bout en bout (Playwright)
 
 - Commande : `pnpm test:e2e` (`playwright test`). Premier passage sur un poste : `pnpm exec playwright install chromium`.
-- Configuration : `playwright.config.ts`. Un seul projet Chromium, un seul worker. Le serveur de test est lancé par Playwright : `pnpm dev --port 3100` avec `NEXT_DIST_DIR=.next-e2e` et `SMTP_HOST` vide, donc les mails s'affichent dans la console. `reuseExistingServer: false` : le serveur de développement du port 3000 n'est jamais utilisé ni arrêté.
+- Configuration : `playwright.config.ts`. Projets `chromium` et `hors-ligne`, un seul worker. Un seul serveur, lancé par Playwright : le build de production (`next build` puis `next start --port 3101`, `NEXT_DIST_DIR=.next-e2e-prod`, `SMTP_HOST` vide, `E2E=1`). Avec `E2E=1`, les mails s'affichent dans la console et `/erreur-test` existe. `reuseExistingServer: false` : le serveur de développement du port 3000 n'est jamais utilisé ni arrêté. L'ancien serveur `next dev` du port 3100 a été retiré le 17/10/2026 : il dépassait plusieurs Go et se relançait en pleine suite.
 - Rapport HTML : `playwright-report/` ; traces et captures d'échec : `test-results/`. Ces deux dossiers et `.next-e2e` sont ignorés par git et par Docker.
 
 ### Connexion de test sans porte dérobée
@@ -53,7 +53,7 @@ Les écritures de l'aide sont en SQL direct (`pg`). Le client Prisma généré e
 | `e2e/captures.spec.ts` | captures pleine page et boîte d'actions, sur une team avec les données de démonstration |
 | `e2e/deploiement.spec.ts` | `/api/sante` répond 200 `{ ok: true }` ; sans session, `/qg` et un lien invalide redirigent vers une adresse sur l'origine publique |
 | `e2e/hors-ligne.spec.ts` | projet `hors-ligne`, serveur de production (port 3101, `.next-e2e-prod`, `next build` puis `next start`). Connexion, note en ligne, visite de `/qg` et `/notes`, passage hors ligne, rechargement depuis le cache du service worker, note hors ligne (badge « En attente », indicateur « 1 modification en attente »), retour du réseau et présence en base. Second test : sans rechargement, la note part au retour du réseau. Troisième et quatrième tests (1.11b) : « + » puis « Note » depuis le QG hors ligne ouvre les notes sans erreur, puis la création fonctionne ; une app jamais visitée hors ligne affiche la page de repli, sans écran d'erreur |
-| `e2e/erreurs.spec.ts` | écran d'erreur en français sur `/erreur-test` (hors production), avec envoi au journal (204) ; le journal refuse un envoi sans session (401) |
+| `e2e/erreurs.spec.ts` | écran d'erreur en français sur `/erreur-test` (hors production, ou build de test avec `E2E=1`), avec envoi au journal (204) ; le journal refuse un envoi sans session (401) |
 
 Synchro hors ligne : unitaires `src/core/synchro/*.test.ts` (curseur, conflit, contribution, attente, protocole) ; base `pnpm db:verifier-synchro` (deux appareils simulés, conflit journalisé, rejeu idempotent, table refusée, isolement entre teams, contribution, nettoyage final). Étendu à Saison (2.4) : registre, tables en lecture seule refusées, sortie de l'équipage, débrief jamais reçu par l'assistance, saison clôturée refusée. Détails : `docs/synchro.md`.
 
