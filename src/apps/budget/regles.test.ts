@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   MESSAGE_LIGNE_TROP_GRANDE,
+  modePaiementSaison,
   aRembourser,
   confirmeeDOffice,
   coutAuKm,
@@ -21,6 +22,16 @@ import {
 
 const MOI = "personne-1"
 const AUTRE = "personne-2"
+
+describe("mode de paiement transmis à Saison", () => {
+  it("chèque, carte, espèces et virement ; sans moyen : virement", () => {
+    expect(modePaiementSaison("cheque")).toBe("cheque")
+    expect(modePaiementSaison("carte")).toBe("en_ligne")
+    expect(modePaiementSaison("virement")).toBe("virement")
+    expect(modePaiementSaison("especes")).toBe("especes")
+    expect(modePaiementSaison(null)).toBe("virement")
+  })
+})
 
 describe("à rembourser", () => {
   it("seule une dépense payée par un membre est à rembourser", () => {

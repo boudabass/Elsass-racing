@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest"
 
+import { jourDeParis } from "@/core/dates"
+
 import {
   instantParis,
   causeAbandonEngagement,
   clotureProposee,
   indicePreparation,
-  jourDeParis,
   masquerMontants,
   minuitParis,
   prochaineEpreuve,

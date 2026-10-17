@@ -329,6 +329,12 @@ async function main() {
     const personneBus = randomUUID()
     await proprietaire.corePerson.create({ data: { id: personneBus, teamId: team.id, nom: "Bus", prenom: "Verif" } })
     await proprietaire.coreMembership.update({ where: { id: adhesion }, data: { personId: personneBus } })
+    // Course à l'initialisation (layout et page, au premier accès) : la caisse existante est retirée en douceur,
+    // puis deux initialisations en parallèle ne doivent laisser qu'une seule caisse active.
+    await proprietaire.budgetPayer.updateMany({ where: { teamId: team.id, type: "caisse_team", deletedAt: null }, data: { deletedAt: new Date() } })
+    await Promise.all([budget.initialiserBudgetDans(ctx), budget.initialiserBudgetDans(ctx)])
+    const nbCaissesActives = await proprietaire.budgetPayer.count({ where: { teamId: team.id, type: "caisse_team", deletedAt: null } })
+    controle("deux initialisations en parallèle laissent une seule caisse active", nbCaissesActives === 1, `${nbCaissesActives}`)
     await budget.initialiserBudgetDans(ctx)
     const categoriesBudget = await proprietaire.budgetCategory.findMany({ where: { teamId: team.id }, select: { id: true, sens: true, nom: true } })
     const nbDepense = categoriesBudget.filter((categorie) => categorie.sens === "depense").length
@@ -338,7 +344,7 @@ async function main() {
     const nbCategories2 = await proprietaire.budgetCategory.count({ where: { teamId: team.id } })
     controle("une seconde initialisation ne crée aucun doublon", nbCategories2 === categoriesBudget.length, `${nbCategories2}`)
     const payeurMoi = await proprietaire.budgetPayer.findFirst({ where: { teamId: team.id, personId: personneBus } })
-    const nbCaisses = await proprietaire.budgetPayer.count({ where: { teamId: team.id, type: "caisse_team" } })
+    const nbCaisses = await proprietaire.budgetPayer.count({ where: { teamId: team.id, type: "caisse_team", deletedAt: null } })
     controle("le responsable a un payeur « membre » et la team une seule caisse", payeurMoi?.type === "membre" && nbCaisses === 1)
 
     const idCategorie = (nom: string): string => categoriesBudget.find((categorie) => categorie.nom === nom)?.id ?? ""
@@ -367,7 +373,7 @@ async function main() {
     controle("le dépassement n'est émis qu'au franchissement, une seule fois", (await compter("budget.depassement_previsionnel")) === 1)
 
     // Niveau contribution : une dépense payée par la caisse est refusée ; celle qu'on paie soi-même passe.
-    const caisse = await proprietaire.budgetPayer.findFirst({ where: { teamId: team.id, type: "caisse_team" } })
+    const caisse = await proprietaire.budgetPayer.findFirst({ where: { teamId: team.id, type: "caisse_team", deletedAt: null } })
     let refusCaisse = ""
     try {
       await budget.creerDepenseDans(ctx, { montant: 100, categoryId: catEngagement, libelle: "Caisse", payerId: caisse?.id ?? "" }, "contribution")
@@ -457,6 +463,14 @@ async function main() {
     controle("Saison lit la dépense d'engagement par la fonction de Budget", lue.montant === 30_000 && lue.mode === "virement", JSON.stringify(lue))
     await emettre(ctx, "saison.engagement_paye", { entryId: entreeDirecte, eventId: epreuveBudget, montant_paye: 30_000, devise: "EUR", payeurPersonId: personneBus })
     controle("le paiement de cet engagement ne propose rien en retour : pas de boucle", (await proprietaire.budgetSuggestion.count({ where: { teamId: team.id, entryId: entreeDirecte, deletedAt: null } })) === 0)
+
+    // Engagement payé saisi directement dans Saison : la demande « Marquer payé » restée en attente est levée.
+    const saisonServices = await import("../src/apps/saison/services-serveur")
+    await saisonServices.enregistrerPaiementDans(ctx, entreeDirecte, { payeLe: "2030-09-01", mode: "especes", montant: 30_000 })
+    const actionLevee = await proprietaire.coreAction.findFirst({ where: { teamId: team.id, cleUnicite: `marquer_paye:${entreeDirecte}` } })
+    controle("un paiement saisi dans Saison lève l'action « Marquer payé » restée en attente", actionLevee?.statut === "annulee", actionLevee?.statut ?? "absente")
+    const paiementEspeces = await proprietaire.saisonRegistration.findFirst({ where: { entryId: entreeDirecte, teamId: team.id }, select: { modePaiement: true } })
+    controle("les espèces sont transmises à Saison telles quelles", paiementEspeces?.modePaiement === "especes", paiementEspeces?.modePaiement ?? "aucun")
 
     // Widgets lus en base.
     controle("le widget « mouvements à confirmer » compte les suggestions en attente", (await widgets.widgetMouvementsAConfirmerDans(ctx)) === (await proprietaire.budgetSuggestion.count({ where: { teamId: team.id, statut: "en_attente", deletedAt: null } })))

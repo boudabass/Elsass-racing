@@ -285,6 +285,28 @@ async function main(): Promise<void> {
     const revAvantSuppr = (await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } }))?.rev ?? 1
     const supprHL = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "supprimer", id: idDepenseHL, revLue: revAvantSuppr })])
     controle("la suppression hors ligne est appliquée", supprHL[0]?.statut === "appliquee" && (await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } }))?.deletedAt != null)
+
+    // Périmètre du payeur, comme en ligne (correction 2.8, point 3) : au niveau contribution, l'appareil suit la
+    // personne qui paie, pas le créateur de la ligne.
+    const personneAssistance = newId()
+    await bd.corePerson.create({ data: { id: personneAssistance, teamId, nom: "Assistance", prenom: "Synchro" } })
+    await bd.coreMembership.update({ where: { id: assMemId }, data: { personId: personneAssistance } })
+    await budgetServices.initialiserBudgetDans(ctxA)
+    const payeurAssistance = await bd.budgetPayer.findFirst({ where: { teamId, personId: personneAssistance }, select: { id: true } })
+    const lignesBudgetAssistance = async () => (await tirerPaquets(ctxB, {})).tables["budget_expense"]?.lignes ?? []
+
+    const saisieParLeResponsable = await budgetServices.creerDepenseDans(ctxA, { montant: 2000, categoryId: categorieRepas?.id ?? "", libelle: "Payée par l'assistance", payerId: payeurAssistance?.id ?? "" })
+    controle("l'assistance reçoit une dépense saisie par le responsable et payée par elle", (await lignesBudgetAssistance()).some((ligne) => ligne.id === saisieParLeResponsable))
+
+    const idSaisieAssistance = newId()
+    const creationAssistance = await appliquerOperations(ctxB, devB, [operation({ table: "budget_expense", type: "creer", id: idSaisieAssistance, champs: { ...champsDepense, montant: 800, payerId: payeurAssistance?.id ?? "" } })])
+    controle("l'assistance saisit hors ligne une dépense qu'elle paie : appliquée", creationAssistance[0]?.statut === "appliquee")
+    await budgetServices.modifierDepenseDans(ctxA, idSaisieAssistance, { montant: 800, categoryId: categorieRepas?.id ?? "", libelle: "Reprise par le responsable", payerId: payeurEquipier?.id ?? "", eventId: null })
+    controle("l'assistance ne reçoit plus une dépense dont le payeur a changé", !(await lignesBudgetAssistance()).some((ligne) => ligne.id === idSaisieAssistance))
+
+    const revSaisieResp = (await bd.budgetExpense.findUnique({ where: { id: saisieParLeResponsable } }))?.rev ?? 1
+    const modifPayeeParElle = await appliquerOperations(ctxB, devB, [operation({ table: "budget_expense", type: "modifier", id: saisieParLeResponsable, revLue: revSaisieResp, champs: { ...champsDepense, montant: 2100, payerId: payeurAssistance?.id ?? "" } })])
+    controle("l'assistance modifie hors ligne une dépense qu'elle paie, même saisie par le responsable", modifPayeeParElle[0]?.statut === "appliquee")
   } finally {
     await nettoyer([teamId, teamAutreId], [respUserId, assUserId, eqUserId], [devA, devB])
     console.log("Nettoyage fait.")

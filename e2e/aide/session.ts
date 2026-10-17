@@ -359,3 +359,14 @@ export async function depenseBudgetParLibelle(equipe: Equipe, libelle: string): 
   )
   return rows[0] ?? null
 }
+
+// Prévu d'une épreuve dans la catégorie Engagement (tâche 2.8 : l'assistance ne doit pas le voir).
+export async function preverEpreuveEnBase(equipe: Equipe, eventId: string, montant: number): Promise<void> {
+  await bd().query(
+    `INSERT INTO budget_forecast (id, team_id, season_id, category_id, event_id, montant, devise, updated_at)
+     SELECT $1, $2, e.season_id, c.id, e.id, $3, 'EUR', now()
+     FROM core_event e JOIN budget_category c ON c.team_id = e.team_id AND c.nom = 'Engagement' AND c.sens = 'depense'
+     WHERE e.id = $4 AND e.team_id = $2`,
+    [newId(), equipe.teamId, montant, eventId],
+  )
+}
