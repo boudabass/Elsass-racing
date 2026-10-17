@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { libelleRole } from "@/core/auth/libelles"
 import type { ContexteTeam } from "@/core/contexte"
 import { appsVisibles } from "@/core/sdk/apps-serveur"
 import { BOUTON, CHAMP } from "@/lib/classes-formulaire"
@@ -373,12 +374,3 @@ export async function Compte({ contexte }: { contexte: ContexteTeam }) {
   )
 }
 
-function libelleRole(role: string): string {
-  const libelles: Record<string, string> = {
-    responsable: "Responsable",
-    equipage: "Équipage",
-    assistance: "Assistance",
-    invite: "Invité",
-  }
-  return libelles[role] ?? role
-}

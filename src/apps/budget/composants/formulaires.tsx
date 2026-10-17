@@ -4,8 +4,12 @@ import Link from "next/link"
 import { useMemo, useState, type FormEvent } from "react"
 import { useActionState } from "react"
 
+import { Message } from "@/components/formulaire/message"
 import { newId } from "@/core/ids"
 import { useMoteurSynchro } from "@/core/synchro/client/react"
+import { enEuros } from "@/lib/euros"
+
+export { enEuros }
 
 import {
   confirmerSuggestionAction,
@@ -16,26 +20,6 @@ import {
 } from "../actions"
 import { montantSaisi } from "../saisie"
 import { BOUTON, CHAMP } from "./classes"
-
-// --- Messages ----------------------------------------------------------------------------------
-
-function Message({ resultat, ok }: { resultat: Resultat | null; ok?: string }) {
-  if (!resultat) return null
-  return resultat.ok ? (
-    <p role="status" className="text-sm text-etat-ok">
-      {ok ?? "Enregistré."}
-    </p>
-  ) : (
-    <p role="alert" className="text-sm text-etat-rouge">
-      {resultat.message}
-    </p>
-  )
-}
-
-// Centimes -> « 12,50 » pour un champ de saisie.
-export function enEuros(centimes: number): string {
-  return (centimes / 100).toFixed(2).replace(".", ",")
-}
 
 // --- Nouvelle dépense (trois champs) : écrite dans la base locale, donc utilisable hors ligne ---
 
