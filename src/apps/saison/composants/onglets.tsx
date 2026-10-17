@@ -21,7 +21,7 @@ export function Onglets({ base, onglets, actif }: { base: string; onglets: Reado
   }, [actif])
 
   return (
-    <nav ref={barre} style={styleFondu(fondu)} className="-mx-4 flex gap-2 overflow-x-auto border-b border-bordure px-4 [scrollbar-width:thin]" aria-label="Onglets de l'épreuve">
+    <nav ref={barre} style={styleFondu(fondu)} className="-mx-4 flex gap-2 overflow-x-auto border-b border-bordure px-4 md:mx-0 md:px-0 [scrollbar-width:thin]" aria-label="Onglets de l'épreuve">
       {onglets.map((tab) => (
         <Link
           key={tab.cle}

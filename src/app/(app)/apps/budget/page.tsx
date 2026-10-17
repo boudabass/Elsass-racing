@@ -71,7 +71,7 @@ export default async function PageMouvements({
   const adresse = (id: string) => `/apps/budget?${query ? `${query}&` : ""}m=${id}`
 
   return (
-    <section className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6">
+    <section className="flex max-w-6xl flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="titre-rallye text-3xl">Mouvements</h1>
         <div className="flex flex-wrap gap-2">

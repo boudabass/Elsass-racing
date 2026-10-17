@@ -27,7 +27,7 @@ export default async function PageMouvement({ params }: { params: Promise<{ id: 
   const payeurs = peutChoisirPayeur ? choix.payeurs : choix.payeurs.filter((payeur) => payeur.id === choix.moiId)
 
   return (
-    <section className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-6">
+    <section className="flex max-w-2xl flex-col gap-6">
       <Link href="/apps/budget" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
         ← Mouvements
       </Link>

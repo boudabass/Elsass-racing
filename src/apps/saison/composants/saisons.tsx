@@ -31,7 +31,7 @@ export function FormulaireNouvelleSaison({ prochaineAnnee }: { prochaineAnnee: n
       <div className="sm:col-span-3">
         <Message resultat={resultat} />
       </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-3">
+      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-3 sm:justify-self-start">
         Ouvrir la saison
       </Button>
     </form>

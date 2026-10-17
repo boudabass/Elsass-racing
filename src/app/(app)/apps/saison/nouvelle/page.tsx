@@ -12,7 +12,7 @@ export default async function PageNouvelleEpreuve() {
     return <EcranVide icone={Lock} titre={acces.titre} lignes={acces.lignes} action={{ libelle: "Retour au calendrier", href: "/apps/saison" }} />
   }
   return (
-    <section className="mx-auto flex max-w-xl flex-col gap-5 px-4 py-6">
+    <section className="flex max-w-xl flex-col gap-5">
       <Link href="/apps/saison" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
         ← Calendrier
       </Link>

@@ -58,7 +58,7 @@ export default async function PageCalendrier({
   if (saisons.length === 0) {
     const peutCreer = aAuMoins(acces.niveau, "gestion")
     return (
-      <section className="mx-auto flex max-w-xl flex-col items-start gap-6 px-4 py-10">
+      <section className="flex max-w-xl flex-col items-start gap-6">
         <h1 className="font-titre text-2xl uppercase">Saison</h1>
         <p className="text-texte-discret">
           Aucune saison pour cette team. Ouvre la première saison : ses épreuves s'y rangeront.
@@ -85,7 +85,7 @@ export default async function PageCalendrier({
 
   if (toutes.length === 0) {
     return (
-      <section className="mx-auto flex max-w-xl flex-col items-start gap-4 px-4 py-10">
+      <section className="flex max-w-xl flex-col items-start gap-4">
         <h1 className="font-titre text-2xl uppercase">Saison</h1>
         <p className="text-texte-discret">Ajoute ta première épreuve : elle prend ses dates, son lieu et ses engagements.</p>
         {peutEcrire && (
@@ -105,7 +105,7 @@ export default async function PageCalendrier({
   const moisAffiche = parametres.mois ?? (prochaine ? moisDe(prochaine) : jourCivil(new Date()).slice(0, 7))
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-6">
+    <section className="flex max-w-4xl flex-col gap-5">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-titre text-2xl uppercase">Saison {saisonCourante?.annee ?? ""}</h1>
         {peutEcrire && (

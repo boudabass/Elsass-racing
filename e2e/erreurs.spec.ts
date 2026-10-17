@@ -1,5 +1,6 @@
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
+import { retirerAdhesion } from "./aide/session"
 
 // Écran d'erreur en français et journal : une page de test qui lève une erreur (hors production).
 test("une erreur affiche l'écran en français et part au journal du serveur", async ({ page, equipe }) => {
@@ -24,4 +25,21 @@ test("le journal des erreurs refuse un envoi sans session", async ({ request }) 
     maxRedirects: 0,
   })
   expect(reponse.status()).toBe(401)
+})
+
+// Brief 2.17 : un membre retiré pendant qu'il a l'app ouverte est renvoyé vers le choix de team,
+// sans page d'erreur, et les routes (export) ne répondent pas 500.
+test("une adhésion retirée pendant l'utilisation renvoie vers le choix de team, sans page d'erreur", async ({ page, equipe }) => {
+  await connecterParLien(page, equipe)
+  await page.goto("/apps/budget")
+  await expect(page.getByRole("link", { name: "Par épreuve" }).first()).toBeVisible()
+
+  await retirerAdhesion(equipe.responsable)
+
+  await page.getByRole("link", { name: "Par épreuve" }).first().click()
+  await page.waitForURL(/\/equipes/)
+  await expect(page.getByRole("heading", { name: "Quelque chose s'est mal passé." })).toHaveCount(0)
+
+  const reponse = await page.request.get("/apps/budget/export")
+  expect(reponse.status()).toBeLessThan(500)
 })

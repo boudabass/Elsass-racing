@@ -4,6 +4,7 @@ import { Lock } from "lucide-react"
 import { accesEcran } from "@/apps/budget/ecran"
 import { FormulaireRemboursement } from "@/apps/budget/composants/formulaires"
 import { BOUTON, MONTANT } from "@/apps/budget/composants/classes"
+import { LIEN } from "@/lib/classes-formulaire"
 import { lireARembourser, lireChoix, lireMembres } from "@/apps/budget/lectures-serveur"
 import { formatEuros, phraseSoldeMembre } from "@/apps/budget/libelles"
 import { jourDeParis } from "@/core/dates"
@@ -26,7 +27,7 @@ export default async function PageParMembre({ searchParams }: { searchParams: Pr
   const payeursHorsMembre = choix.payeurs.filter((payeur) => payeur.type !== "membre").map(({ id, nom }) => ({ id, nom }))
 
   return (
-    <section className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
+    <section className="flex max-w-3xl flex-col gap-6">
       <h1 className="titre-rallye text-3xl">Par membre</h1>
 
       {membres.length === 0 && <p className="text-texte-discret">Aucun membre à afficher.</p>}
@@ -40,7 +41,7 @@ export default async function PageParMembre({ searchParams }: { searchParams: Pr
               {phraseSoldeMembre(membre.du - membre.trop, membre.nom)}
             </span>
             {peutRembourser && membre.du > 0 && (
-              <Link href={`/apps/budget/membres?rembourser=${membre.personneId}`} className="cible-tactile inline-flex items-center underline underline-offset-4 decoration-marque decoration-2">
+              <Link href={`/apps/budget/membres?rembourser=${membre.personneId}`} className={LIEN}>
                 Rembourser
               </Link>
             )}

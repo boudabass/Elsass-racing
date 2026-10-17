@@ -105,6 +105,14 @@ export async function ajouterEquipier(equipe: Equipe): Promise<Membre> {
   return membre
 }
 
+// Le membre quitte la team : son adhésion passe à « parti ». Ses sessions restent valides.
+export async function retirerAdhesion(membre: Membre): Promise<void> {
+  await bd().query(
+    "UPDATE core_membership SET statut = 'parti'::core_membership_statut, updated_at = now() WHERE id = $1",
+    [membre.membershipId],
+  )
+}
+
 // Jeton de code avec un code connu. Le formulaire demande un code après l'adresse : l'aide
 // ajoute ce jeton après cette étape, avec le même hachage que l'app.
 export async function ajouterCodeConnu(email: string, code: string = CODE_CONNU): Promise<void> {

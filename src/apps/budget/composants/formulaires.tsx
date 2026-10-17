@@ -8,6 +8,7 @@ import { Message } from "@/components/formulaire/message"
 import { newId } from "@/core/ids"
 import { useMoteurSynchro } from "@/core/synchro/client/react"
 import { enEuros } from "@/lib/euros"
+import { BOUTON_SECONDAIRE, LIEN } from "@/lib/classes-formulaire"
 
 export { enEuros }
 
@@ -200,12 +201,12 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
           {message.boite && (
             <>
               {" "}
-              Si cet engagement reste à payer, une action attend dans la <Link href="/qg" className="underline">boîte d'actions</Link>, une fois l'appareil connecté.
+              Si cet engagement reste à payer, une action attend dans la <Link href="/qg" className={LIEN}>boîte d'actions</Link>, une fois l'appareil connecté.
             </>
           )}
         </p>
       )}
-      <button type="submit" disabled={enCours} className={`${BOUTON} w-full`}>
+      <button type="submit" disabled={enCours} className={`${BOUTON} w-full sm:w-auto sm:self-start`}>
         Ajouter la dépense
       </button>
     </form>
@@ -317,7 +318,7 @@ export function FormulaireRecette({
       <div className="sm:col-span-2">
         <Message resultat={resultat} />
       </div>
-      <button type="submit" disabled={enCours} className={`${BOUTON} sm:col-span-2`}>
+      <button type="submit" disabled={enCours} className={`${BOUTON} sm:col-span-2 sm:justify-self-start`}>
         Enregistrer la recette
       </button>
     </form>
@@ -415,7 +416,7 @@ export function FormulaireRemboursement({
         </div>
       </div>
       <Message resultat={resultat} ok={`Remboursement enregistré pour ${personne.nom}.`} />
-      <button type="submit" disabled={enCours || total <= 0} className={BOUTON}>
+      <button type="submit" disabled={enCours || total <= 0} className={`${BOUTON} sm:self-start`}>
         Rembourser
       </button>
     </form>
@@ -474,7 +475,7 @@ export function ActionsSuggestion({
       </form>
       <form action={actionIgnorer} className="flex items-center gap-3">
         <input type="hidden" name="id" value={id} />
-        <button type="submit" disabled={enCoursIgnorer} className="cible-tactile rounded-md border border-bordure px-5 py-3 text-sm">
+        <button type="submit" disabled={enCoursIgnorer} className={BOUTON_SECONDAIRE}>
           Ignorer
         </button>
         <Message resultat={ignoration} ok="Ignoré." />

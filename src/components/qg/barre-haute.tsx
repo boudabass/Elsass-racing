@@ -7,7 +7,6 @@ import { basculerTerrainAction } from "@/core/actions/formulaires"
 import { formatEuros } from "@/lib/euros"
 
 import { IndicateurSynchro } from "./indicateur-synchro"
-import { Logo } from "./logo"
 
 // La couleur n'est qu'un renfort : la phrase du solde dit déjà qui doit quoi.
 function couleurSolde(centimes: number): string {
@@ -46,12 +45,9 @@ export function BarreHaute({
     <header className="sticky top-0 z-30 border-b border-bordure bg-fond/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 md:px-6">
         <Link href="/qg" className="cible-tactile flex items-center gap-3" aria-label={`${donnees.nomTeam} : retour au QG`}>
-          {/* Pas encore de logo téléversé : les initiales sur ordinateur, une icône QG sur téléphone. */}
-          <span aria-hidden className="titre-rallye flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-marque text-marque-texte sm:hidden">
+          {/* Pas encore de logo téléversé : une icône QG, à toutes les tailles. */}
+          <span aria-hidden className="titre-rallye flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-marque text-marque-texte">
             <House className="h-5 w-5" aria-hidden />
-          </span>
-          <span className="hidden sm:block">
-            <Logo nom={donnees.nomTeam} />
           </span>
           <span className="hidden flex-col leading-tight sm:flex">
             <span className="titre-rallye text-lg">{donnees.nomTeam}</span>

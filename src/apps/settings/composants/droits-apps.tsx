@@ -3,6 +3,7 @@ import { NIVEAUX, niveauEffectif, type Niveau } from "@/core/droits/niveaux"
 import { contexteQg } from "@/core/qg/donnees"
 import { prisma, prismaPourTeam } from "@/lib/prisma"
 import { Label } from "@/components/ui/label"
+import { BOUTON, BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
 
 import { basculerApp, deplacerApp, revenirAuxDroitsDuRole, sauverDroitsMembre, sauverJourEpreuve } from "../actions"
 import { peutDesactiver } from "../droits-regles"
@@ -75,7 +76,7 @@ export async function Droits({ contexte, peutModifier, raison }: { contexte: Con
               </div>
               {peutModifier ? (
                 <div className="flex flex-wrap gap-2">
-                  <button type="submit" className="cible-tactile rounded-md bg-marque px-4 py-2 font-medium text-marque-texte hover:opacity-90">Enregistrer</button>
+                  <button type="submit" className={BOUTON}>Enregistrer</button>
                 </div>
               ) : (
                 <p className="text-sm text-texte-discret">{raison}</p>
@@ -84,7 +85,7 @@ export async function Droits({ contexte, peutModifier, raison }: { contexte: Con
             {peutModifier && exceptions.length > 0 && (
               <form action={revenirAuxDroitsDuRole} className="mt-2">
                 <input type="hidden" name="membershipId" value={m.id} />
-                <button type="submit" className="cible-tactile rounded-md border border-bordure px-3 py-1 text-sm hover:bg-surface-2">Revenir aux droits du rôle</button>
+                <button type="submit" className={BOUTON_SECONDAIRE}>Revenir aux droits du rôle</button>
               </form>
             )}
           </section>
@@ -160,7 +161,7 @@ export async function JourEpreuve({ contexte, peutModifier, raison }: { contexte
           <span>Proposer le mode terrain le jour d'une épreuve</span>
         </label>
         {peutModifier ? (
-          <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90">Enregistrer</button>
+          <button type="submit" className={`${BOUTON} w-fit`}>Enregistrer</button>
         ) : (
           <p className="text-sm text-texte-discret">{raison}</p>
         )}

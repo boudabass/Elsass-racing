@@ -28,7 +28,7 @@ function RangeeMenu({ nomApp, cleApp, entrees, chemin }: { nomApp: string; cleAp
   const fondu = useFonduDefilement(barre)
   const base = `/apps/${cleApp}`
   return (
-    <nav ref={barre} style={styleFondu(fondu)} aria-label={`Menu de ${nomApp}`} className="-mx-4 mb-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+    <nav ref={barre} style={styleFondu(fondu)} aria-label={`Menu de ${nomApp}`} className="-mx-4 mb-6 overflow-x-auto px-4 md:mx-0 md:px-0">
       <ul className="flex w-max gap-2 md:w-auto md:flex-wrap">
         {entrees.map((entree) => {
           const href = entree.chemin === "/" ? base : `${base}${entree.chemin}`

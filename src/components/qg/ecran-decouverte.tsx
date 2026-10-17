@@ -6,7 +6,7 @@ import { marquerAppDecouverte } from "@/apps/settings/actions-personnelles"
 // commencer. Le bouton mémorise l'écran pour ce membre.
 export function EcranDecouverte({ appCle, nom, lignes }: { appCle: string; nom: string; lignes: string[] }) {
   return (
-    <section className="mx-auto flex max-w-xl flex-col items-start gap-6 py-12">
+    <section className="flex max-w-xl flex-col items-start gap-6 py-12">
       <span className="flex h-14 w-14 items-center justify-center rounded-md bg-surface text-marque">
         <Sparkles className="h-7 w-7" aria-hidden />
       </span>

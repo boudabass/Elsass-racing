@@ -8,6 +8,7 @@ import { formatEuros, LIBELLE_ECART } from "@/apps/budget/libelles"
 import { lireKmChronometresValides } from "@/apps/saison/lectures-serveur"
 import { jourDeParis } from "@/core/dates"
 import { EcranVide } from "@/components/qg/ecran-vide"
+import { BOUTON_SECONDAIRE, LIEN } from "@/lib/classes-formulaire"
 
 // Coût réel de chaque épreuve de la saison : total, prévu quand il existe (avec l'écart en couleur),
 // détail par catégorie en barres horizontales, coût moyen d'un rallye et coût du km chronométré.
@@ -31,7 +32,7 @@ export default async function PageParEpreuve({ searchParams }: { searchParams: P
   const coutKm = donnees ? coutAuKm(donnees.totalSaisonCentimes, km) : null
 
   return (
-    <section className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-6">
+    <section className="flex max-w-4xl flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="titre-rallye text-3xl">Par épreuve</h1>
         <form className="flex items-center gap-2 text-sm">
@@ -45,7 +46,7 @@ export default async function PageParEpreuve({ searchParams }: { searchParams: P
               </option>
             ))}
           </select>
-          <button type="submit" className="cible-tactile rounded-md border border-bordure px-3">
+          <button type="submit" className={BOUTON_SECONDAIRE}>
             Voir
           </button>
         </form>
@@ -73,7 +74,7 @@ export default async function PageParEpreuve({ searchParams }: { searchParams: P
           return (
             <li key={epreuve.id} className="flex flex-col gap-3 rounded-lg border border-bordure bg-surface p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <Link href={`/apps/budget?epreuve=${epreuve.id}`} className="font-medium hover:underline">
+                <Link href={`/apps/budget?epreuve=${epreuve.id}`} className={`${LIEN} font-medium`}>
                   {epreuve.nom}
                 </Link>
                 <span className="chiffre">

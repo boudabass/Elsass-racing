@@ -17,7 +17,7 @@ export default async function PageHistorique() {
   const gestion = aAuMoins(historique.niveau, "gestion")
 
   return (
-    <section className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-6">
+    <section className="flex max-w-5xl flex-col gap-8">
       <h1 className="font-titre text-2xl uppercase">Historique</h1>
 
       <div className="flex flex-col gap-4">

@@ -113,3 +113,45 @@
   - `libelleRole` de `settings/composants/personnelles.tsx` supprimé au profit de `core/auth/libelles.ts` (tables identiques).
 - Points d'attention : `messageDe` accepte désormais toute `ErreurMetier` (une erreur métier d'une autre app s'afficherait telle quelle ; aucune action actuelle ne la propage). `registre.ts` et les `synchro-serveur.ts` des apps s'importent dans les deux sens (cycle sûr : fonctions déclarées, aucun autre importeur des `synchro-serveur`).
 - Vérifications : typecheck, vitest 397/397, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 70/70 sur build de production (port 3101). Captures régénérées par l'e2e puis restaurées (`docs/captures` inchangé). Erreur `P2003` sur `core_domain_event_team_id_fkey` relevée dans le journal de l'e2e pendant le recalcul de Saison au QG : déjà observée en 2.11, toujours non investiguée, sans effet sur les tests.
+
+## 17/10/2026 : brief 2.15, finitions visuelles
+
+- Une seule colonne de contenu, alignée sous le menu d'app : les racines des pages Saison et Budget, `EcranVide` et `EcranDecouverte` n'ont plus de `mx-auto` ni de padding qui décalent le titre. Le menu d'app a une marge basse de 6 (`mb-6`). Onglets Saison et navigation du Prévisionnel en `-mx-4 px-4 md:mx-0 md:px-0`, comme le menu.
+- Bouton « Engager la voiture » : pleine largeur sur téléphone, à sa taille sur ordinateur (`sm:col-span-3 sm:justify-self-start`).
+- Date technique du Prévisionnel en français : `jourEnFrancais` (Intl fr-FR, fuseau Europe/Paris), tests dans `src/core/dates.test.ts`.
+- Style unique des liens d'action : `LIEN` dans `src/lib/classes-formulaire.ts` (souligné en permanence, cible de 44 px). Six liens convertis : membres Budget, épreuves Saison, formulaires Budget, préparation Saison, boîte d'actions. Restent en place : le titre cliquable de liste `budget/epreuves/page.tsx` (seule classe proche de l'exception du brief, la barre haute n'en a aucune), et deux `<button>` stylés en lien (`saison/composants/resultats.tsx`, `components/qg/notes-ecran.tsx`).
+- Réglages : l'e2e attend le titre de rubrique (« Identité », « Affichage ») avant de capturer.
+- Icône QG à toutes les tailles dans la barre haute : sur ordinateur, les initiales étaient affichées à la place. `logo.tsx`, `core/theme/initiales.ts` et son test supprimés ; l'aperçu des couleurs montre la même icône. `docs/reglages.md` mis à jour.
+- Tests : `e2e/audit-technique.spec.ts` gagne « une seule colonne » (360 et 1280 px, écart de bord mesuré à 1 px près entre le menu et le titre, puis onglets à 1280 px). `e2e/connexion.spec.ts:11` vérifie l'icône au lieu des initiales, sur accord de l'orchestrateur, puisque le point 6 le rend obsolète.
+- Vérifications : typecheck, vitest 392/392, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 71/71 sur build de production (port 3101). Captures régénérées par l'e2e et commitées (`docs/captures`).
+- Points d'attention : pas de capture Réglages Identité à 1280 px ; `identite-1440x900.png` montre l'aperçu avec l'icône et sert de référence. Les journaux serveur de l'e2e contiennent des `P2025` sur `coreTeam.findUniqueOrThrow` : non investigués, sans effet sur les tests.
+
+## 17/10/2026 : brief 2.16, finitions boutons et liens
+
+
+
+- Boutons d'envoi : à partir de `sm`, un bouton d'envoi prend la largeur de son texte ; sous `sm`, il reste pleine largeur. Dans une grille : `sm:col-span-*` avec `sm:justify-self-start`. Dans une colonne `flex-col` : `sm:self-start` (et `w-full sm:w-auto` quand le bouton avait `w-full`, cas de « Ajouter la dépense »). Corrigés : Saison (ouverture de saison, épreuves, inscriptions, programme, spéciales, règles, sorties, résultats), Budget (dépense, recette, remboursement) et recherche (« Chercher »). Liste et parents dans le rapport du brief.
+
+- Classe `BOUTON_SECONDAIRE` dans `src/lib/classes-formulaire.ts` : même hauteur et même retrait que `BOUTON`, sans fond de couleur. Utilisée pour « Voir » (épreuves Budget), « Ignorer » (formulaires Budget) et « Revenir aux droits du rôle » (Réglages). La copie locale de `personnelles.tsx` est supprimée. Les boutons d'envoi écrits à la main passent à `BOUTON`.
+
+- Liens : `LIEN` pour « Plus de détails » (résultats Saison), « Modifier » (notes de la team, seule la classe change) et le nom d'épreuve (liste Budget, avec `font-medium`). Les autres boutons restent en place : leur parent ne les étire pas sur téléphone (`flex-row` à `sm` ou `flex-wrap`).
+
+- Tests : `e2e/audit-technique.spec.ts` gagne deux tests. À 1280 px, aucun bouton d'envoi visible ne dépasse 400 px sur les écrans parcourus. À 360 px, « Ajouter la dépense » fait toute la largeur du formulaire, à 2 px près.
+
+- Vérifications : typecheck, vitest 392/392, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 73/73 sur build de production (port 3101). Captures régénérées par l'e2e et commitées (`docs/captures`, 34 fichiers).
+
+- Points d'attention : le grep `underline` sur `src --include=*.tsx` ne renvoie plus que `src/components/ui/button.tsx` ; la classe `LIEN` est dans un fichier `.ts`, donc hors de ce grep. Les journaux serveur de l'e2e contiennent des `P2003` et `P2025` (déjà relevés, non investigués) et une `TypeError` « reading 'id' » sur la route `budget/export` quand l'équipe est absente ; elle était déjà présente au passage du brief 2.15, non investiguée, sans effet sur les tests.
+
+## 18/10/2026 : brief 2.17, erreurs serveur du journal e2e
+
+
+
+- Causes : (1) la fixture `equipe` était supprimée avant la fermeture de la page, donc des rendus en cours lisaient une team effacée ; (2) des pages du QG et de l'app (`qg`, `recherche`, `notes`, réglages, fiche d'épreuve, `[cle]`) appelaient `contexteQg()` sans redirection, et les préchargements de liens les rendaient en dehors du layout.
+
+- Corrections : `teamCourante` ne renvoie plus une team nulle (`adhesion?.team`) ; `contexteQg` redirige lui-même (`redirigerSiSansContexte` : connexion sans session, `/equipes` sans team valide) ; `ecran-serveur` et la page Réglages par rubrique suivent la même règle ; la fixture `page` dépend de `equipe` et attend la fin des requêtes en cours avant la suppression de la team.
+
+- Test ajouté : `e2e/erreurs.spec.ts`, une adhésion retirée pendant l'utilisation renvoie vers `/equipes` sans page d'erreur, et `/apps/budget/export` ne répond pas 500 (`retirerAdhesion` dans `e2e/aide/session.ts`, statut `parti`).
+
+- Comptes du journal e2e, avant (passage 2.16) puis après : P2003 et P2025 de 47 à 0 ; `reading 'id'` de 2 à 0 ; `ErreurAcces` de 23 à 0 (hors l'erreur volontaire de `/erreur-test`, qui n'apparaît pas dans ce décompte).
+
+- Vérifications : typecheck, vitest 392/392, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 74/74 sur build de production (port 3101). Captures restaurées, rien de visuel ne change.
