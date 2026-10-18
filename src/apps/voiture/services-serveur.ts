@@ -590,11 +590,7 @@ export async function retirerLogoDans(ctx: ContexteTeam, assignmentId: string): 
 
 // --- Fiches de réglage ----------------------------------------------------------------------
 
-export async function creerReglage(vehicleId: string, entree: EntreeReglage): Promise<string> {
-  const { ctx } = await accesVoiture("contribution")
-  return creerReglageDans(ctx, vehicleId, entree)
-}
-
+// Création côté serveur (vérifications). Depuis l'appareil, la création passe par la synchro (synchro-serveur.ts).
 export async function creerReglageDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeReglage): Promise<string> {
   const donnees = schemaReglage.parse(entree)
   const valeurs = valeursValides(donnees.valeurs)

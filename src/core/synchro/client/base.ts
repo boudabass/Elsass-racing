@@ -33,20 +33,24 @@ export interface SchemaLocal extends DBSchema {
   budget_expense: { key: string; value: LigneLocale }
   budget_category: { key: string; value: LigneLocale }
   budget_payer: { key: string; value: LigneLocale }
+  voiture_setup: { key: string; value: LigneLocale }
+  core_vehicle: { key: string; value: LigneLocale }
+  voiture_setup_template: { key: string; value: LigneLocale }
   operations_en_attente: { key: string; value: OperationEnAttente }
   curseurs: { key: string; value: CurseurLocal }
 }
 
-export const TABLES_LOCALES = ["core_note", "core_event", "saison_stage", "saison_schedule_item", "saison_recce", "saison_recce_session", "saison_debrief", "budget_expense", "budget_category", "budget_payer"] as const
+export const TABLES_LOCALES = ["core_note", "core_event", "saison_stage", "saison_schedule_item", "saison_recce", "saison_recce_session", "saison_debrief", "budget_expense", "budget_category", "budget_payer", "voiture_setup", "core_vehicle", "voiture_setup_template"] as const
 export type TableLocale = (typeof TABLES_LOCALES)[number]
 
 export function nomBase(userId: string, teamId: string): string {
   return `${PREFIXE_BASE}${userId}-${teamId}`
 }
 
-// Version 2 : magasins de Saison. Version 3 : magasins de Budget. Une base plus ancienne reçoit les
-// magasins manquants à l'ouverture.
-export const VERSION_BASE = 3
+// Version 2 : magasins de Saison. Version 3 : magasins de Budget. Version 4 : magasins de Voiture (fiches de
+// réglage, et véhicules et références en lecture seule). Une base plus ancienne reçoit les magasins manquants à
+// l'ouverture.
+export const VERSION_BASE = 4
 
 export function ouvrirBase(userId: string, teamId: string): Promise<IDBPDatabase<SchemaLocal>> {
   return openDB<SchemaLocal>(nomBase(userId, teamId), VERSION_BASE, {

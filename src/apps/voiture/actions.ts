@@ -6,10 +6,9 @@
 import { executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-serveur"
 
 import { refus } from "./erreurs"
-import { CHAMPS_REGLAGE } from "./regles"
+import { lireSaisieReglage } from "./saisie-reglage"
 import {
   creerPapier,
-  creerReglage,
   creerVehicule,
   enregistrerCommeReference,
   masquerChamps,
@@ -99,40 +98,12 @@ export async function supprimerPapierAction(_etat: Resultat | null, donnees: For
   return executerVoiture(() => supprimerPapier(texte(donnees, "papierId")))
 }
 
-// Fiche de réglage. Les valeurs arrivent en champs « v_<clé> » ; la virgule est acceptée. Un champ vide n'est
-// pas envoyé (il n'y a donc pas de valeur à enregistrer). Les champs masqués gardent leur valeur par un champ caché.
-const NOMBRE = /^-?\d+(?:[.,]\d+)?$/
-
-function valeursDuFormulaire(donnees: FormData): Record<string, number> {
-  const valeurs: Record<string, number> = {}
-  for (const champ of CHAMPS_REGLAGE) {
-    const brut = texteOuNull(donnees, `v_${champ.cle}`)
-    if (brut === null) continue
-    if (!NOMBRE.test(brut)) refus(`${champ.libelle} : un nombre est attendu.`)
-    valeurs[champ.cle] = Number(brut.replace(",", "."))
-  }
-  return valeurs
-}
-
-// Épreuve : la valeur du formulaire est « entryId|eventId » (ou vide).
+// Fiche de réglage : la lecture du formulaire est dans saisie-reglage.ts. La création n'a pas d'action serveur :
+// elle s'écrit dans la base locale (synchro, voiture_setup). Seule la modification passe ici.
 function entreeReglage(donnees: FormData): EntreeReglage {
-  const [entryId, eventId] = (texteOuNull(donnees, "epreuve") ?? "|").split("|")
-  const note = texteOuNull(donnees, "note")
-  return {
-    date: texte(donnees, "date"),
-    eventId: eventId || null,
-    entryId: entryId || null,
-    conditions: texteOuNull(donnees, "conditions") as EntreeReglage["conditions"],
-    revetement: texteOuNull(donnees, "revetement") as EntreeReglage["revetement"],
-    valeurs: valeursDuFormulaire(donnees),
-    remarques: texte(donnees, "remarques"),
-    note: note ? Number(note) : null,
-    setupTemplateId: texteOuNull(donnees, "modeleId"),
-  }
-}
-
-export async function creerReglageAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executerVoiture(() => creerReglage(texte(donnees, "vehicleId"), entreeReglage(donnees)))
+  const lecture = lireSaisieReglage(donnees)
+  if (!lecture.ok) refus(lecture.message)
+  return lecture.entree
 }
 
 export async function modifierReglageAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {

@@ -1,15 +1,18 @@
 "use client"
 
-import { useActionState, useEffect } from "react"
+import { useActionState, useEffect, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 
 import { Message } from "@/components/formulaire/message"
+import { newId } from "@/core/ids"
 import type { Resultat } from "@/core/sdk/actions-serveur"
+import { useMoteurSynchro } from "@/core/synchro/client/react"
 import { BOUTON, CHAMP } from "@/lib/classes-formulaire"
 
-import { creerReglageAction, modifierReglageAction } from "../actions"
+import { modifierReglageAction } from "../actions"
 import { CHAMPS_REGLAGE, type ChampReglage } from "../regles"
 import { LIBELLE_CONDITIONS, LIBELLE_REVETEMENT } from "../libelles"
+import { lireSaisieReglage } from "../saisie-reglage"
 
 export interface OptionEpreuveReglage {
   valeur: string
@@ -42,18 +45,39 @@ const ESSENTIELS = CHAMPS_REGLAGE.filter((c) => c.groupe === "essentiel")
 const AVANCES = CHAMPS_REGLAGE.filter((c) => c.groupe === "avance")
 const PNEUS = ["avg", "avd", "arg", "ard"] as const
 
-// Nouvelle fiche ou modification. Les champs masqués par la team ne s'affichent pas : en modification, leur
-// valeur part dans un champ caché, pour que la modification ne la perde pas (la fiche garde toutes ses valeurs).
+// Nouvelle fiche ou modification. La nouvelle fiche s'écrit dans la base locale et part au retour du réseau
+// (synchro, voiture_setup) ; la modification reste en ligne. Les champs masqués par la team ne s'affichent pas : en
+// modification, leur valeur part dans un champ caché, pour que la modification ne la perde pas.
 export function FormulaireReglage({ vehicleId, reglageId, initiales, masques, epreuves, modeleId }: Props) {
   const router = useRouter()
-  const action = reglageId ? modifierReglageAction : creerReglageAction
-  const [resultat, envoyer, enCours] = useActionState<Resultat | null, FormData>(action, null)
+  const moteur = useMoteurSynchro()
+  const [resultat, envoyer, enCours] = useActionState<Resultat | null, FormData>(modifierReglageAction, null)
+  const [local, setLocal] = useState<{ ok: boolean; texte: string } | null>(null)
+  const [enregistrementLocal, setEnregistrementLocal] = useState(false)
 
   useEffect(() => {
-    if (!resultat?.ok) return
-    const cible = resultat.id ?? reglageId
-    if (cible) router.push(`/apps/voiture/vehicules/${vehicleId}/reglages/${cible}`)
+    if (reglageId && resultat?.ok) router.push(`/apps/voiture/vehicules/${vehicleId}/reglages/${reglageId}`)
   }, [resultat, router, reglageId, vehicleId])
+
+  async function enregistrerLocal(evenement: FormEvent<HTMLFormElement>) {
+    evenement.preventDefault()
+    const formulaire = evenement.currentTarget
+    const lecture = lireSaisieReglage(new FormData(formulaire))
+    if (!lecture.ok) {
+      setLocal({ ok: false, texte: lecture.message })
+      return
+    }
+    setEnregistrementLocal(true)
+    try {
+      await moteur.ecrireLocal("voiture_setup", { type: "creer", id: newId(), champs: { ...lecture.entree, vehicleId } })
+      formulaire.reset()
+      setLocal({ ok: true, texte: "Fiche enregistrée. Elle part dès que l'appareil est connecté." })
+    } catch {
+      setLocal({ ok: false, texte: "La fiche n'a pas pu être enregistrée sur cet appareil." })
+    } finally {
+      setEnregistrementLocal(false)
+    }
+  }
 
   const champ = (c: ChampReglage) => (
     <label key={c.cle} className="flex flex-col gap-1 text-sm">
@@ -66,7 +90,7 @@ export function FormulaireReglage({ vehicleId, reglageId, initiales, masques, ep
   )
 
   return (
-    <form action={envoyer} className="flex flex-col gap-6">
+    <form action={reglageId ? envoyer : undefined} onSubmit={reglageId ? undefined : enregistrerLocal} className="flex flex-col gap-6">
       <input type="hidden" name="vehicleId" value={vehicleId} />
       {reglageId && <input type="hidden" name="reglageId" value={reglageId} />}
       {modeleId && <input type="hidden" name="modeleId" value={modeleId} />}
@@ -158,10 +182,18 @@ export function FormulaireReglage({ vehicleId, reglageId, initiales, masques, ep
       </fieldset>
 
       <div className="flex flex-col gap-3">
-        <button type="submit" disabled={enCours} className={`${BOUTON} w-full sm:w-auto`}>
+        <button type="submit" disabled={reglageId ? enCours : enregistrementLocal} className={`${BOUTON} w-full sm:w-auto`}>
           Enregistrer la fiche
         </button>
-        <Message resultat={resultat} />
+        {reglageId ? (
+          <Message resultat={resultat} />
+        ) : (
+          local && (
+            <p role="status" className={`text-sm ${local.ok ? "text-etat-ok" : "text-etat-rouge"}`}>
+              {local.texte}
+            </p>
+          )
+        )}
       </div>
     </form>
   )
