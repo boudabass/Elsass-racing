@@ -26,7 +26,6 @@ const ROLES = ["responsable", "equipage", "assistance", "invite"] as const
 const DISCIPLINES = ["rallye", "slalom", "course_de_cote", "circuit", "autre"] as const
 const FUSEAUX = ["Europe/Paris", "Europe/Berlin", "Europe/Brussels", "Europe/Madrid", "Europe/Rome", "Europe/London"] as const
 const HEX = /^#[0-9A-Fa-f]{6}$/
-const RNA = /^W\d{9}$/
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Toute action de Réglages passe par la garde. Une erreur revient à la rubrique, en clair.
@@ -97,17 +96,18 @@ export async function sauverAssociation(formData: FormData): Promise<void> {
   try {
     const { ctx } = await ctxGestion()
     const nom = texte(formData, "associationNom")
-    const rna = texte(formData, "associationRna").toUpperCase()
     const siege = texte(formData, "associationSiege")
 
-    if (rna && !RNA.test(rna)) throw new Error("Le numéro RNA doit être au format W suivi de 9 chiffres.")
-
+    // Pas de validation de format : une association de droit local n'a pas de numéro RNA.
     await prismaPourTeam(ctx.teamId, ctx.userId).coreTeam.update({
       where: { id: ctx.teamId },
       data: {
         associationNom: nom || null,
-        associationRna: rna || null,
+        formeJuridique: texteOuNull(formData, "formeJuridique"),
+        associationRna: texteOuNull(formData, "associationRna"),
         associationSiege: siege || null,
+        signataireNom: texteOuNull(formData, "signataireNom"),
+        signataireQualite: texteOuNull(formData, "signataireQualite"),
       },
     })
     await emettre(ctx, "settings.identite_modifiee", { rubrique: "association" })

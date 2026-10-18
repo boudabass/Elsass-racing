@@ -15,8 +15,11 @@ export async function lireEquipe(ctx: ContexteTeam) {
       fuseau: true,
       langue: true,
       associationNom: true,
+      formeJuridique: true,
       associationRna: true,
       associationSiege: true,
+      signataireNom: true,
+      signataireQualite: true,
     },
   })
 }

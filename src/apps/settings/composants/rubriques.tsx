@@ -115,13 +115,49 @@ async function Association({ contexte, peutModifier, raison }: { contexte: Conte
         <Input id="associationNom" name="associationNom" defaultValue={equipe.associationNom ?? ""} disabled={!peutModifier} />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="associationRna">Numéro RNA</Label>
-        <Input id="associationRna" name="associationRna" placeholder="W000000000" defaultValue={equipe.associationRna ?? ""} disabled={!peutModifier} />
+        <Label htmlFor="formeJuridique">Forme juridique</Label>
+        <Input
+          id="formeJuridique"
+          name="formeJuridique"
+          placeholder="Par exemple : association de droit local d'Alsace-Moselle"
+          defaultValue={equipe.formeJuridique ?? ""}
+          disabled={!peutModifier}
+        />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="associationRna">Numéro d'inscription</Label>
+        <Input
+          id="associationRna"
+          name="associationRna"
+          aria-describedby="associationRna-aide"
+          defaultValue={equipe.associationRna ?? ""}
+          disabled={!peutModifier}
+        />
+        <p id="associationRna-aide" className="text-sm text-texte-discret">
+          RNA, ou numéro du registre des associations du tribunal en Alsace-Moselle
+        </p>
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="associationSiege">Siège</Label>
         <Input id="associationSiege" name="associationSiege" defaultValue={equipe.associationSiege ?? ""} disabled={!peutModifier} />
       </div>
+      <fieldset className="flex flex-col gap-4 rounded-lg border border-bordure p-4">
+        <legend className="px-1 font-medium">Signataire des conventions</legend>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="signataireNom">Nom</Label>
+          <Input id="signataireNom" name="signataireNom" defaultValue={equipe.signataireNom ?? ""} disabled={!peutModifier} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="signataireQualite">Qualité</Label>
+          <Input
+            id="signataireQualite"
+            name="signataireQualite"
+            placeholder="Par exemple : président, représentant habilité"
+            defaultValue={equipe.signataireQualite ?? ""}
+            disabled={!peutModifier}
+          />
+        </div>
+      </fieldset>
       {peutModifier ? (
         <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90">Enregistrer</button>
       ) : (
