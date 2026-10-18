@@ -247,6 +247,15 @@ export async function expirerLien(equipe: Equipe, partenaireId: string): Promise
   )
 }
 
+// Logo du partenaire : il s'affiche à côté de « Espace partenaire de … » sur sa page (brief 3.10, §1).
+export async function poserLogoPartenaire(equipe: Equipe, partenaireId: string): Promise<void> {
+  const logoId = await fichierDeTest(equipe.teamId, PHOTO_DE_TEST, "logo-partenaire.png", "image/png")
+  await bd().query(
+    `UPDATE partenaires_partner SET logo_file_id = $3, updated_at = now() WHERE id = $1 AND team_id = $2`,
+    [partenaireId, equipe.teamId, logoId],
+  )
+}
+
 // Jeton de test noté dans le stockage de test : le contrôle du journal serveur le cherche ensuite.
 export function noterJetonDeTest(jeton: string): void {
   fs.mkdirSync(DOSSIER_STOCKAGE, { recursive: true })

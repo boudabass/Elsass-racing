@@ -9,7 +9,7 @@ import type { Browser, BrowserContext, Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
-import { expirerLien, noterJetonDeTest, preparerPageDePartenaire, type PageDePartenaire } from "./aide/partenaire-page"
+import { expirerLien, noterJetonDeTest, poserLogoPartenaire, preparerPageDePartenaire, type PageDePartenaire } from "./aide/partenaire-page"
 import { creerEquipe, supprimerEquipe, type Equipe } from "./aide/session"
 
 const DOSSIER = path.join(__dirname, "..", "docs", "captures")
@@ -444,6 +444,34 @@ test("12 · les jetons de test sont notés, pour le contrôle du journal serveur
     await visiteur.close()
     const notes = fs.readFileSync(path.join(__dirname, "..", ".e2e-stockage", "jetons-de-test.txt"), "utf8")
     expect(notes).toContain(jeton)
+  })
+})
+
+// 13. Un seul titre de niveau 1 et un <main> ; le logo du partenaire s'affiche à côté de son nom, à 40 px de haut,
+// sans déformation (brief 3.10, §1).
+test("13 · la page a un seul h1 dans un main, et affiche le logo du partenaire", async ({ page, equipe, browser }) => {
+  await avecAutreTeam(async (autre) => {
+    const donnees = await preparerPageDePartenaire(equipe, autre)
+    await poserLogoPartenaire(equipe, donnees.partenaireA)
+    await connecterParLien(page, equipe)
+    const jeton = await creerLien(page, donnees.partenaireA)
+    const visiteur = await visiteurSansSession(browser, "198.51.100.14")
+    const vue = await visiteur.newPage()
+    await vue.goto(`/p/${jeton}`)
+
+    await expect(vue.getByRole("main")).toHaveCount(1)
+    await expect(vue.getByRole("heading", { level: 1 })).toHaveCount(1)
+    const logo = vue.getByAltText("Logo de Garage Alpha")
+    await expect(logo).toBeVisible()
+    await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0)
+    const proportions = await logo.evaluate((image: HTMLImageElement) => ({
+      hauteur: image.clientHeight,
+      affichee: image.clientWidth / image.clientHeight,
+      naturelle: image.naturalWidth / image.naturalHeight,
+    }))
+    expect(proportions.hauteur).toBe(40)
+    expect(Math.abs(proportions.affichee - proportions.naturelle)).toBeLessThan(0.05)
+    await visiteur.close()
   })
 })
 

@@ -20,15 +20,21 @@ export function PagePartenaireVue({ jeton, page, sections }: { jeton: string; pa
   const affichee = (section: string) => sections.includes(section)
 
   return (
-    <div style={couleurs} className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-6 sm:py-10">
+    <main style={couleurs} className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-6 sm:py-10">
       <header className="flex items-center gap-4 border-b-2 border-marque pb-4">
         {page.team.logoFileId && (
           // eslint-disable-next-line @next/next/no-img-element -- fichier de la team servi par la page partenaire ; taille fixe
           <img src={fichier(page.team.logoFileId)} alt="" width={56} height={56} className="h-14 w-14 object-contain" />
         )}
         <div className="flex min-w-0 flex-col">
-          <p className="font-titre text-xl uppercase">{page.team.nom}</p>
-          <p className="text-texte-discret">Espace partenaire de {page.partenaire.entreprise}</p>
+          <h1 className="font-titre text-xl uppercase">{page.team.nom}</h1>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-2 text-texte-discret">
+            <span>Espace partenaire de {page.partenaire.entreprise}</span>
+            {page.partenaire.logoFileId && (
+              // eslint-disable-next-line @next/next/no-img-element -- logo du partenaire servi par la page partenaire ; hauteur fixe, largeur selon le fichier
+              <img src={fichier(page.partenaire.logoFileId)} alt={`Logo de ${page.partenaire.entreprise}`} height={40} className="h-10 w-auto object-contain" />
+            )}
+          </p>
         </div>
       </header>
 
@@ -218,6 +224,6 @@ export function PagePartenaireVue({ jeton, page, sections }: { jeton: string; pa
         <p className={VIDE}>Une question, une remarque ? Votre message arrive directement à la team.</p>
         <FormulaireMessagePartenaire jeton={jeton} />
       </section>
-    </div>
+    </main>
   )
 }
