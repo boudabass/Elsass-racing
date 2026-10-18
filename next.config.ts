@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
   // Pas d'en-tête `X-Powered-By` : il annoncerait Next à qui le lit.
   poweredByHeader: false,
+  // Le rendu PDF (tâche 3.1b) reste hors du traçage et du bundle serveur de Next.
+  serverExternalPackages: ["@react-pdf/renderer"],
   // Version de l'app, figée au build : le service worker s'en sert pour nommer son cache. Un
   // nouveau build crée un nouveau cache, l'ancien est supprimé à l'activation.
   env: {
