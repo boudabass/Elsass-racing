@@ -374,6 +374,36 @@ async function main() {
     const partenairesVus = await applicatif.$queryRaw<{ n: bigint }[]>`SELECT count(*)::bigint AS n FROM partenaires_partner`
     controle("sans contexte, la table des partenaires reste invisible à l'application", Number(partenairesVus[0].n) === 0, `vus : ${partenairesVus[0].n}`)
 
+    // Liaison entre apps (brief 3.8, §1) : un fichier ne se rattache à une autre fiche que s'il est déjà rattaché à la source.
+    const { rattacherDepuisSource } = await import("../src/core/fichiers/fichiers-serveur")
+    const ficheSource = randomUUID()
+    const ficheCible = randomUUID()
+    const fichierLiaison = randomUUID()
+    const source = { app: "voiture", ficheType: "occupation", ficheId: ficheSource }
+    const cible = { app: "partenaires", ficheType: "proof", ficheId: ficheCible, role: "photo" as const }
+    const ctxLiaison = { teamId: teamA.id, userId: utilisateur.id, membership: { id: adhesion, role: "responsable" as const } }
+    await proprietaire.coreFile.create({
+      data: { id: fichierLiaison, teamId: teamA.id, storageKey: `verif/${suffixe}/${fichierLiaison}`, nom: "logo.png", mimeType: "image/png", taille: 1, empreinte: `verif-${suffixe}` },
+    })
+
+    let liaisonRefusee = ""
+    try {
+      await rattacherDepuisSource(clientA as never, ctxLiaison, { fileId: fichierLiaison, source, cible })
+    } catch (erreur) {
+      liaisonRefusee = erreur instanceof Error ? erreur.message : String(erreur)
+    }
+    controle("un fichier non rattaché à la fiche source ne se lie pas à une autre fiche", liaisonRefusee.includes("n'est pas rattaché"), liaisonRefusee)
+    const liaisonsSansSource = await proprietaire.coreAttachment.count({ where: { fileId: fichierLiaison, app: cible.app } })
+    controle("le refus n'a créé aucun rattachement", liaisonsSansSource === 0, `créés : ${liaisonsSansSource}`)
+
+    await proprietaire.coreAttachment.create({
+      data: { id: randomUUID(), teamId: teamA.id, fileId: fichierLiaison, app: source.app, ficheType: source.ficheType, ficheId: ficheSource, role: "photo" },
+    })
+    await rattacherDepuisSource(clientA as never, ctxLiaison, { fileId: fichierLiaison, source, cible })
+    await rattacherDepuisSource(clientA as never, ctxLiaison, { fileId: fichierLiaison, source, cible })
+    const liaisonsAvecSource = await proprietaire.coreAttachment.count({ where: { fileId: fichierLiaison, app: cible.app, ficheId: ficheCible } })
+    controle("une fois rattaché à la source, le fichier se lie à la fiche cible, une seule fois", liaisonsAvecSource === 1, `liaisons : ${liaisonsAvecSource}`)
+
     console.log("\nCloisonnement vérifié : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
@@ -385,6 +415,8 @@ async function main() {
     await proprietaire.budgetPayer.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.budgetCategory.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.saisonChampionship.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.coreAttachment.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.coreFile.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.partenairesPortalLink.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.partenairesPartner.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.coreContact.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })

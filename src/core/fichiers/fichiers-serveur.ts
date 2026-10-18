@@ -100,7 +100,7 @@ export interface Rattachement {
 
 // Rattache un fichier à une fiche. Seul l'envoyeur, ou une fiche déjà liée à ce fichier, peut le faire.
 export async function rattacherFichier(client: ClientFichier, ctx: ContexteTeam, rattachement: Rattachement): Promise<void> {
-  const { fileId, app, ficheType, ficheId, role } = rattachement
+  const { fileId, app, ficheType, ficheId } = rattachement
   const fichier = await client.coreFile.findFirst({ where: { id: fileId, teamId: ctx.teamId, deletedAt: null }, select: { createdBy: true } })
   if (!fichier) refus("Fichier introuvable dans cette team.")
 
@@ -108,7 +108,40 @@ export async function rattacherFichier(client: ClientFichier, ctx: ContexteTeam,
   const dejaLie = await client.coreAttachment.findFirst({ where: surLaFiche, select: { id: true } })
   if (fichier.createdBy !== ctx.userId && !dejaLie) refus("Ce fichier a été envoyé par quelqu'un d'autre : envoie le tien.")
 
-  // Pas de doublon : même fichier, même fiche, même rôle.
+  await attacher(client, ctx, rattachement)
+}
+
+// Fiche d'où vient un fichier, pour une liaison entre apps (brief 3.8, §1).
+export interface FicheSource {
+  app: string
+  ficheType: string
+  ficheId: string
+}
+
+// Rattache à une autre fiche un fichier déjà rattaché à la fiche source, dans la même team. Une liaison réutilise
+// le fichier d'une autre app : c'est le rattachement à la source, validé par son app, qui l'autorise, pas l'envoyeur.
+// Sans ce rattachement : refus, comme pour un fichier d'une autre team.
+export async function rattacherDepuisSource(
+  client: ClientFichier,
+  ctx: ContexteTeam,
+  { fileId, source, cible }: { fileId: string; source: FicheSource; cible: Omit<Rattachement, "fileId"> },
+): Promise<void> {
+  const fichier = await client.coreFile.findFirst({ where: { id: fileId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!fichier) refus("Fichier introuvable dans cette team.")
+
+  const dansLaSource = await client.coreAttachment.findFirst({
+    where: { teamId: ctx.teamId, fileId, app: source.app, ficheType: source.ficheType, ficheId: source.ficheId, deletedAt: null },
+    select: { id: true },
+  })
+  if (!dansLaSource) refus("Ce fichier n'est pas rattaché à la fiche d'origine : la liaison est refusée.")
+
+  await attacher(client, ctx, { fileId, ...cible })
+}
+
+// Crée le rattachement, sans doublon : même fichier, même fiche, même rôle.
+async function attacher(client: ClientFichier, ctx: ContexteTeam, rattachement: Rattachement): Promise<void> {
+  const { fileId, app, ficheType, ficheId, role } = rattachement
+  const surLaFiche = { teamId: ctx.teamId, fileId, app, ficheType, ficheId, deletedAt: null }
   const memeRole = await client.coreAttachment.findFirst({ where: { ...surLaFiche, role }, select: { id: true } })
   if (memeRole) return
 
