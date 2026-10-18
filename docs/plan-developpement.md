@@ -214,10 +214,11 @@ Décisions de John (18/10) :
 - Mes véhicules, fiche en onglets (Identité, Papiers, Réglages, Historique), bouton + en 3 champs, fiches de réglage pré-remplies et comparaison côte à côte.
 
 ### 3.4 Voiture : plan de déco
-- Brief : `docs/briefs/3.4-voiture-plan-deco.md`. Plan SVG aux couleurs du thème, miroir pour le côté gauche, liste des emplacements comme commande principale sur téléphone, réservation, pose et retrait, déplacement au pointeur et au clavier.
+- Brief : `docs/briefs/3.4-voiture-plan-deco.md`. Plan SVG aux couleurs du thème, miroir pour le côté gauche, liste des emplacements comme commande principale sur téléphone, réservation, pose et retrait, déplacement au pointeur et au clavier. Fait le 18/10 (bd4eb00 à d989c20), relu et accepté.
 - Silhouette Saxo par vue, emplacements cliquables (libre, réservé, occupé, indisponible), édition des emplacements.
 
 ### 3.5 Partenaires : schéma et services
+- Brief : `docs/briefs/3.5-partenaires-schema-services.md`. Point 0 : trois retouches du plan de déco. Entreprise en `core_contact`, interlocuteur en `core_person`, jeton de la page partenaire stocké en empreinte, modèle de convention par défaut dans le code et copié par team, recalculs à l'ouverture du QG.
 - Tables `partenaires_` (partenaires, échanges, modèles, conventions, avenants, contreparties et liste de base, preuves, bilans, lien et messages de la page partenaire), modèle de convention par défaut, champs d'identité manquants dans Réglages (forme juridique, signataire).
 
 ### 3.6 Partenaires : écrans
