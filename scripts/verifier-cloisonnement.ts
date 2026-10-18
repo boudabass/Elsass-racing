@@ -290,6 +290,44 @@ async function main() {
       voitureSansRls.map((r) => r.table_name).join(", "),
     )
 
+    // Partenaires (tâche 3.5) : onze tables, même garantie que voiture_. Plus les trois colonnes d'identité
+    // juridique de core_team, qui doivent exister (la lecture passe par la team, comme les autres colonnes).
+    const tablesPartenaires = [
+      "partenaires_partner", "partenaires_interaction", "partenaires_template", "partenaires_agreement",
+      "partenaires_amendment", "partenaires_benefit_catalog", "partenaires_benefit", "partenaires_proof",
+      "partenaires_report", "partenaires_portal_link", "partenaires_portal_message",
+    ]
+    const partenairesSansRls = await proprietaire.$queryRaw<Array<{ table_name: string }>>`
+      SELECT c.relname AS table_name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = ANY(${tablesPartenaires}::text[])
+        AND (
+          NOT c.relrowsecurity
+          OR NOT c.relforcerowsecurity
+          OR NOT EXISTS (
+            SELECT 1 FROM pg_policies p
+            WHERE p.schemaname = 'public' AND p.tablename = c.relname AND p.policyname = 'cloisonnement_team'
+          )
+          OR NOT (
+            has_table_privilege('elsass_racing_app', c.oid, 'SELECT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'INSERT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'UPDATE')
+          )
+        )
+      ORDER BY c.relname`
+    controle(
+      "les onze tables partenaires_ ont le RLS forcé, la politique cloisonnement_team et les droits du rôle applicatif",
+      partenairesSansRls.length === 0 && tablesPartenaires.length === 11,
+      partenairesSansRls.map((r) => r.table_name).join(", "),
+    )
+    const colonnesJuridiques = await proprietaire.$queryRaw<Array<{ column_name: string }>>`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'core_team'
+        AND column_name IN ('forme_juridique', 'signataire_nom', 'signataire_qualite')`
+    controle("core_team porte les trois colonnes d'identité juridique", colonnesJuridiques.length === 3)
+
     const vehiculeB = randomUUID()
     await proprietaire.coreVehicle.create({ data: { id: vehiculeB, teamId: teamB.id, type: "course", nomCourt: "Véhicule B" } })
     const ficheB = randomUUID()

@@ -66,6 +66,12 @@ test("captures : QG, Identité et boîte d'actions", async ({ page, equipe }) =>
   await preparerCapture(page)
   await page.screenshot({ path: path.join(DOSSIER, "identite-1440x900.png"), fullPage: true })
 
+  // Brief 3.5, point 2 : la rubrique Association, telle que la team la voit (identité juridique non renseignée).
+  await page.goto("/apps/settings/association")
+  await expect(page.getByLabel("Numéro d'inscription")).toBeVisible()
+  await preparerCapture(page)
+  await page.screenshot({ path: path.join(DOSSIER, "reglages-association-1440x900.png"), fullPage: true })
+
   await page.setViewportSize({ width: 360, height: 740 })
   await page.goto("/qg")
   await expect(page.getByRole("navigation", { name: "Navigation rapide" })).toBeVisible()

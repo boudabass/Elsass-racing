@@ -587,6 +587,82 @@ async function main() {
     const attendusLibres = await proprietaire.voitureSlot.count({ where: { teamId: team.id, deletedAt: null, statut: "libre", vehicle: { actif: true, deletedAt: null } } })
     controle("le widget emplacements libres compte tous les véhicules actifs", widgetEmplacements.nombre === attendusLibres && attendusLibres > 0, `${widgetEmplacements.nombre}/${attendusLibres}`)
 
+    // 12. Partenaires (tâche 3.5) : signature, avancement, fin de convention, retard et relance, un seul
+    //     événement ou une seule tâche à chaque fois, même après deux ouvertures du QG.
+    const partenaires = await import("../src/apps/partenaires/services-serveur")
+    const { cleContrepartieEnRetard } = await import("../src/apps/partenaires/charges")
+    const { jourParis } = await import("../src/apps/partenaires/regles")
+    const saisonPartenaires = randomUUID()
+    await proprietaire.coreSeason.create({
+      data: { id: saisonPartenaires, teamId: team.id, annee: 2041, nom: "Saison 2041", dateDebut: new Date("2041-01-01"), dateFin: new Date("2041-12-31") },
+    })
+    const compterEvenements = async (nom: string, champ: string, valeur: string) =>
+      (await proprietaire.coreDomainEvent.findMany({ where: { teamId: team.id, nom } })).filter(
+        (e) => (e.donnees as Record<string, unknown>)[champ] === valeur,
+      ).length
+
+    const partenaireId = await partenaires.creerProspectDans(ctx, { entreprise: `Garage Verif ${suffixe}`, contact: { prenom: "Ana", nom: "Verif" } })
+    const [modele] = await partenaires.lireModelesDans(ctx)
+    const conventionId = await partenaires.creerConventionDans(ctx, {
+      partnerId: partenaireId,
+      templateId: modele.id,
+      seasonId: saisonPartenaires,
+      dateDebut: "2041-01-01",
+      dateFin: "2041-12-31",
+    })
+    const logoId = await partenaires.ajouterContrepartieDans(ctx, conventionId, { libelle: "Logo sur la voiture", type: "logo_voiture", quantitePromise: 1 })
+    await partenaires.modifierContrepartieDans(ctx, logoId, { slotId: randomUUID(), slotNom: "Portière droite" })
+    const publicationId = await partenaires.ajouterContrepartieDans(ctx, conventionId, { libelle: "Publication", type: "publication_reseaux", quantitePromise: 2 })
+    await partenaires.modifierContrepartieDans(ctx, publicationId, { echeance: "2026-01-15" })
+
+    await partenaires.marquerEnvoyeeDans(ctx, conventionId)
+    await partenaires.marquerSigneeDans(ctx, conventionId, { signeeLe: "2041-01-01", signataires: "Jo Koehling ; Ana Verif" })
+    const signees = await proprietaire.coreDomainEvent.findMany({ where: { teamId: team.id, nom: "partenaires.convention_signee" } })
+    const signee = signees.find((e) => (e.donnees as Record<string, unknown>).agreementId === conventionId)
+    const contrepartiesSignee = (signee?.donnees as { contreparties?: Array<{ slotNom: string | null }> } | undefined)?.contreparties ?? []
+    controle(
+      "marquer signée émet convention_signee avec la contrepartie logo et son emplacement",
+      contrepartiesSignee.length === 1 && contrepartiesSignee[0].slotNom === "Portière droite",
+      `contreparties : ${contrepartiesSignee.length}`,
+    )
+    const partenaireSigne = await proprietaire.partenairesPartner.findUnique({ where: { id: partenaireId } })
+    controle("la signature fait passer le partenaire au statut partenaire", partenaireSigne?.statut === "partenaire", partenaireSigne?.statut)
+
+    await partenaires.saisirAvancementDans(ctx, logoId, 1)
+    await partenaires.saisirAvancementDans(ctx, logoId, 1)
+    controle(
+      "saisir la quantité promise émet contrepartie_tenue une seule fois",
+      (await compterEvenements("partenaires.contrepartie_tenue", "benefitId", logoId)) === 1,
+    )
+
+    // Dates passées : signée → en cours → terminée au recalcul, en une fois ; l'événement part une seule fois.
+    await proprietaire.partenairesAgreement.update({ where: { id: conventionId }, data: { dateDebut: new Date("2026-01-01"), dateFin: new Date("2026-06-30") } })
+    await partenaires.recalculerPourQg(ctx, "gestion")
+    await partenaires.recalculerPourQg(ctx, "gestion")
+    const conventionTerminee = await proprietaire.partenairesAgreement.findUnique({ where: { id: conventionId } })
+    controle("le recalcul fait passer la convention à terminée", conventionTerminee?.statut === "terminee", conventionTerminee?.statut)
+    controle(
+      "convention_terminee est émis une seule fois, malgré deux ouvertures du QG",
+      (await compterEvenements("partenaires.convention_terminee", "agreementId", conventionId)) === 1,
+    )
+
+    // Contrepartie en retard (échéance passée, non tenue) : un événement et une action, une seule fois.
+    controle(
+      "contrepartie en retard : un seul événement après deux ouvertures du QG",
+      (await compterEvenements("partenaires.contrepartie_en_retard", "benefitId", publicationId)) === 1,
+    )
+    const actionsRetard = await proprietaire.coreAction.count({ where: { teamId: team.id, cleUnicite: cleContrepartieEnRetard(publicationId, "2026-01-15") } })
+    controle("contrepartie en retard : une seule action levée", actionsRetard === 1, String(actionsRetard))
+
+    // Relance due aujourd'hui : un événement et une seule tâche, même après deux ouvertures du QG.
+    const prospectRelance = await partenaires.creerProspectDans(ctx, { entreprise: `Relance Verif ${suffixe}` })
+    await partenaires.modifierPartenaireDans(ctx, prospectRelance, { prochaineRelance: jourParis(new Date()) })
+    await partenaires.recalculerPourQg(ctx, "gestion")
+    await partenaires.recalculerPourQg(ctx, "gestion")
+    controle("relance due : un seul événement relance_due", (await compterEvenements("partenaires.relance_due", "partnerId", prospectRelance)) === 1)
+    const taches = await proprietaire.coreTask.count({ where: { teamId: team.id, app: "partenaires", ficheId: prospectRelance } })
+    controle("relance due : une seule tâche core_task", taches === 1, String(taches))
+
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
@@ -614,6 +690,20 @@ async function main() {
     await proprietaire.voitureTeamPref.deleteMany({ where: { teamId: team.id } })
     await proprietaire.voitureVehicle.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreVehicle.deleteMany({ where: { teamId: team.id } })
+    // Partenaires : les enfants d'abord (RESTRICT), puis les contacts et les tâches.
+    await proprietaire.partenairesPortalMessage.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesPortalLink.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesProof.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesReport.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesBenefit.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesBenefitCatalog.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesAmendment.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesAgreement.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesTemplate.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesInteraction.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesPartner.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.coreTask.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.coreContact.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreSeason.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreAction.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreDomainEvent.deleteMany({ where: { teamId: team.id } })

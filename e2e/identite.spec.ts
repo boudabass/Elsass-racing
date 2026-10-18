@@ -1,11 +1,8 @@
-import path from "node:path"
-
 import { expect, test } from "./aide/fixtures"
 import { compterEvenements } from "./aide/session"
 import { connecterParLien } from "./aide/navigation"
 
 const NOUVELLE_COULEUR = "#2e7d32"
-const DOSSIER = path.join(__dirname, "..", "docs", "captures")
 
 test("d. identité : la couleur enregistrée est relue après rechargement, et l'événement est émis", async ({ page, equipe }) => {
   await connecterParLien(page, equipe)
@@ -49,7 +46,4 @@ test("g. association : forme juridique, numéro d'inscription et signataire sont
   await expect(page.getByText("RNA, ou numéro du registre des associations du tribunal en Alsace-Moselle")).toBeVisible()
 
   expect(await compterEvenements(equipe, "settings.identite_modifiee")).toBeGreaterThanOrEqual(1)
-
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await page.screenshot({ path: path.join(DOSSIER, "reglages-association-1440x900.png"), fullPage: true })
 })
