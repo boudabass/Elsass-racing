@@ -475,6 +475,35 @@ test("13 · la page a un seul h1 dans un main, et affiche le logo du partenaire"
   })
 })
 
+// 14. Compteur du message : lisible, relié au champ, et annoncé seulement à partir de 1 800 caractères, à chaque palier
+// de 50 caractères restants (brief 3.10, §4).
+test("14 · le compteur du message se lit et n'annonce la limite qu'à partir de 1 800 caractères", async ({ page, equipe, browser }) => {
+  await avecAutreTeam(async (autre) => {
+    const donnees = await preparerPageDePartenaire(equipe, autre)
+    await connecterParLien(page, equipe)
+    const jeton = await creerLien(page, donnees.partenaireA)
+    const visiteur = await visiteurSansSession(browser, "198.51.100.15")
+    const vue = await visiteur.newPage()
+    await vue.goto(`/p/${jeton}`)
+
+    const champ = vue.getByLabel("Votre message", { exact: true })
+    await expect(vue.getByText(/^0 \/ 2.000 caractères$/)).toBeVisible()
+    await expect(champ).toHaveAttribute("aria-describedby", "message-compteur")
+    const annonce = vue.locator("span[role='status']")
+
+    await champ.fill("a".repeat(120))
+    await expect(vue.getByText(/^120 \/ 2.000 caractères$/)).toBeVisible()
+    await expect(annonce).toHaveText("")
+
+    await champ.fill("a".repeat(1700))
+    await expect(annonce).toHaveText("")
+
+    await champ.fill("a".repeat(1810))
+    await expect(annonce).toHaveText("Il reste 200 caractères au plus.")
+    await visiteur.close()
+  })
+})
+
 // Captures demandées : la page de lien non valide, l'onglet Bilans, la confirmation du message, à 1440 px.
 test("captures · lien non valide, onglet Bilans et confirmation du message", async ({ page, equipe, browser }) => {
   await avecAutreTeam(async (autre) => {
