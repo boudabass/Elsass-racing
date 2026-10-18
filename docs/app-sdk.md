@@ -124,3 +124,11 @@ Chaque entrée peut porter ses droits, en plus du niveau d'accès à l'app :
 - `masquePour` : niveaux pour lesquels l'entrée est masquée (ex. « Prévisionnel » : `["contribution"]`, l'assistance ne voit pas le prévu).
 
 Le filtre est `entreeVisible` (`src/core/sdk/manifeste.ts`). Il ne remplace pas les contrôles de la page : la page garde sa propre garde (`accesEcran`, `exigerAcces`).
+
+## Lectures partagées entre apps (tâche 3.6)
+
+Une app lit les données d'une autre seulement par une fonction exposée dans `lectures-partagees.ts` de l'app propriétaire. Jamais par ses tables, et jamais par ses fiches d'écriture.
+
+Exemple : `listerEmplacementsPourPartenaires(ctx)` (`src/apps/voiture/lectures-partagees.ts`) renvoie les emplacements de tous les véhicules de la team, avec le statut `libre`, `reserve`, `occupe` ou `indisponible` (même règle que le plan de déco). Partenaires s'en sert pour le choix d'un emplacement de contrepartie « logo ».
+
+Ces fonctions n'ont pas de garde : l'app appelante contrôle son propre accès avant d'appeler la lecture (ici, `accesPartenaires`). Elles ne renvoient que des données de résultat.

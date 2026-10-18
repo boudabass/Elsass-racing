@@ -49,3 +49,19 @@ Les dates sans heure sont en `@db.Date` lorsque la spécification le demande (`p
 - Le CHECK de `partenaires_proof` interdit une preuve sans fichier ni lien. Si un `core_file` est supprimé en dur alors qu'il sert de preuve, la mise à null par `ON DELETE SET NULL` échoue. Les fichiers de l'app sont supprimés en douceur ; à surveiller si une suppression en dur est ajoutée.
 - L'échéancier (JSON) n'est pas contrôlé par la base : les montants qu'il contient sont vérifiés par les services.
 - Les tests de conventions (`src/core/schema-conventions.test.ts`) vérifient le bloc commun, le nom des onze tables et les trois colonnes de `core_team`. Les RLS sont vérifiées par `pnpm db:verifier-rls`.
+
+## Écrans (tâche 3.6)
+
+- Routes sous `src/app/(app)/apps/partenaires/` : Prospection (`/`), `nouveau`, fiche `[id]` (onglets Fiche, Échanges, Conventions, Page partenaire, Messages), `[id]/conventions/nouvelle`, `conventions/[id]` (onglets Contreparties, Document, Avenants, Historique), `contreparties`, `modeles` et `modeles/[id]`.
+- Accès : `accesEcran` (`src/apps/partenaires/ecran.ts`). Prospection, fiches et conventions au niveau écriture ; Page partenaire, Modèles et actions de signature, résiliation et avenant au niveau gestion.
+- Écritures : `src/apps/partenaires/actions.ts`, une enveloppe par fonction gardée des services. Aucune fonction `…Dans` n'est exportée. Le jeton de la page partenaire n'est renvoyé qu'à la création ou au renouvellement, et seule son empreinte est stockée.
+- Choix d'un emplacement : `listerEmplacementsPourPartenaires` (Voiture, lecture partagée) : statut libre, réservé, occupé ou indisponible, affiché à côté du choix.
+- Vue en colonnes de la Prospection : à partir de `lg` seulement, sans glisser-déposer ; le statut se change par le menu « Changer le statut » de chaque carte.
+- Champs connus vides : `remplirModele` renvoie aussi `vides`. Les champs `lieu` et `date` sont remplis à la main à la signature et ne comptent pas. L'encadré « champs à compléter » de la fiche convention liste les autres, avec leur lieu de saisie (Réglages, rubrique Association, ou la fiche du partenaire).
+
+## Génération du PDF de la convention
+
+- `genererDocumentPdf` (`src/apps/partenaires/document-serveur.ts`) : lit le texte du modèle rempli (`genererDocumentDans`), le découpe avec `blocsDuTexte` (`document.ts`, fonction pure), puis rend `ConventionPdf` (`pdf/convention-pdf.tsx`) avec `DocumentTeam` (3.1b).
+- Mise en page : titres d'articles en intertitres, paragraphes, puces pour les contreparties, zone de signature à deux colonnes (« Pour l'association », « Pour le partenaire ») avec « Lu et approuvé ».
+- Le PDF est enregistré comme fichier de la team (`enregistrerFichier`), rattaché à la convention avec le rôle `document` (`rattacherFichier`), et devient `document_genere_file_id`. Une nouvelle génération remplace l'ancien fichier (`remplacerFichier`). Téléchargement par `/api/fichiers/<id>`.
+- Le texte, pas le PDF, est testé en unitaire : `document.test.ts` vérifie la suite des blocs, le modèle par défaut (onze intertitres, signature en fin) et la lettre « mille cinq cents euros ».
