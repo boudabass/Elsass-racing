@@ -242,7 +242,7 @@ test("l. hors ligne : le champ photo est désactivé, et la dépense s'enregistr
 
   await context.setOffline(true)
   await expect(page.getByLabel("Photo du ticket (facultatif)")).toBeDisabled()
-  await expect(page.getByText("La photo s'ajoute quand le réseau revient.")).toBeVisible()
+  await expect(page.getByText("Pas de réseau : l'envoi de fichiers reprend quand tu es en ligne.")).toBeVisible()
 
   await page.getByLabel("Montant (€)").fill("7,00")
   await page.getByLabel("Catégorie", { exact: true }).selectOption({ label: "Pneus" })

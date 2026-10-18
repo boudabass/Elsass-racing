@@ -14,6 +14,9 @@ export function LogoTeam({ logoFileId, className = "h-8 w-8" }: { logoFileId: st
     <img
       src={`/api/fichiers/${logoFileId}`}
       alt=""
+      width={32}
+      height={32}
+      decoding="async"
       className={`${className} rounded object-contain`}
       onError={() => setEchecPour(logoFileId)}
     />

@@ -129,6 +129,7 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
       onDemarrerDeplacement={demarrerDeplacement}
       onChangerBrouillon={setBrouillon}
       onFinirDeplacement={finirDeplacement}
+      dansTiroir={!ordinateur}
     />
   )
 

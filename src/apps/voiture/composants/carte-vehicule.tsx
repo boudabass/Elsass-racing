@@ -20,7 +20,7 @@ export function CarteVehicule({ vehicule }: { vehicule: VehiculeListe }) {
         className="flex h-full flex-col overflow-hidden rounded-lg border border-bordure bg-surface hover:bg-surface-2"
       >
         {vehicule.photoFileId ? (
-          <img src={`/api/fichiers/${vehicule.photoFileId}`} alt="" className="aspect-video w-full object-cover" />
+          <img src={`/api/fichiers/${vehicule.photoFileId}`} alt="" width={640} height={360} loading="lazy" decoding="async" className="aspect-video w-full object-cover" />
         ) : (
           <div className="flex aspect-video w-full items-center justify-center bg-surface-2 text-texte-discret" aria-hidden="true">
             <Car className="h-12 w-12" />

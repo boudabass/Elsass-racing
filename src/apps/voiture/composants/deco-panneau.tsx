@@ -3,7 +3,7 @@
 // Panneau de l'emplacement choisi (brief 3.4, sections 2 et 3). Chaque action est un formulaire vers une Server Action
 // de actions.ts. Sous le niveau écriture, le panneau reste en lecture seule. Les confirmations se font sur la page.
 
-import { useActionState, useEffect, useState, type ReactNode } from "react"
+import { useActionState, useEffect, useRef, useState, type ReactNode } from "react"
 
 import { ChampFichier, type FichierEnvoye } from "@/components/formulaire/champ-fichier"
 import { Message } from "@/components/formulaire/message"
@@ -40,6 +40,8 @@ interface PanneauEmplacementProps {
   onDemarrerDeplacement: () => void
   onChangerBrouillon: (forme: FormeEmplacement) => void
   onFinirDeplacement: () => void
+  // Dans le tiroir (téléphone), le nom est déjà dans le titre du tiroir : le panneau ne le répète pas.
+  dansTiroir?: boolean
 }
 
 function dateLisible(jour: string | null): string | null {
@@ -47,8 +49,10 @@ function dateLisible(jour: string | null): string | null {
 }
 
 export function PanneauEmplacement(props: PanneauEmplacementProps) {
-  const { emplacement, vue, peutEcrire, enDeplacement } = props
+  const { emplacement, vue, peutEcrire, enDeplacement, dansTiroir = false } = props
   const [action, setAction] = useState<Action | null>(null)
+  const sectionRef = useRef<HTMLElement>(null)
+  const titreRef = useRef<HTMLHeadingElement>(null)
   const occupation = emplacement.occupation
   const dimensions = dimensionsDe(emplacement.largeurCm, emplacement.hauteurCm)
   const statut = emplacement.statut
@@ -59,12 +63,28 @@ export function PanneauEmplacement(props: PanneauEmplacementProps) {
     setAction(null)
   }, [emplacement.id])
 
+  // Sur ordinateur, le panneau apparaît sous la liste : on le fait voir, puis on donne le focus à son titre.
+  // Le panneau ne se monte qu'au choix d'un emplacement (il a une clé par emplacement), donc rien ne bouge au chargement.
+  useEffect(() => {
+    if (dansTiroir) return
+    const reduit = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    sectionRef.current?.scrollIntoView({ block: "nearest", behavior: reduit ? "auto" : "smooth" })
+    titreRef.current?.focus({ preventScroll: true })
+  }, [emplacement.id, dansTiroir])
+
   return (
-    <section aria-labelledby="panneau-emplacement-titre" className="flex flex-col gap-5 rounded-lg border border-bordure bg-surface p-4">
+    <section
+      ref={sectionRef}
+      aria-labelledby={dansTiroir ? undefined : "panneau-emplacement-titre"}
+      aria-label={dansTiroir ? emplacement.nom : undefined}
+      className="flex flex-col gap-5 rounded-lg border border-bordure bg-surface p-4"
+    >
       <header className="flex flex-col gap-1">
-        <h2 id="panneau-emplacement-titre" className="font-titre text-lg uppercase">
-          {emplacement.nom}
-        </h2>
+        {!dansTiroir && (
+          <h2 ref={titreRef} tabIndex={-1} id="panneau-emplacement-titre" className="font-titre text-lg uppercase focus:outline-none">
+            {emplacement.nom}
+          </h2>
+        )}
         <p className="text-sm text-texte-discret">{TITRE_VUE[emplacement.vue]}</p>
       </header>
 
@@ -105,13 +125,13 @@ export function PanneauEmplacement(props: PanneauEmplacementProps) {
         <div className="flex flex-wrap gap-4">
           {occupation.logoFileId && (
             <figure className="flex flex-col gap-1 text-xs text-texte-discret">
-              <img src={`/api/fichiers/${occupation.logoFileId}`} alt={`Logo de ${occupation.partenaireNom}`} className="h-16 w-auto max-w-40 rounded border border-bordure bg-fond object-contain p-1" />
+              <img src={`/api/fichiers/${occupation.logoFileId}`} alt={`Logo de ${occupation.partenaireNom}`} width={160} height={64} loading="lazy" decoding="async" className="h-16 w-auto max-w-40 rounded border border-bordure bg-fond object-contain p-1" />
               <figcaption>Logo</figcaption>
             </figure>
           )}
           {occupation.photoPoseFileId && (
             <figure className="flex flex-col gap-1 text-xs text-texte-discret">
-              <img src={`/api/fichiers/${occupation.photoPoseFileId}`} alt="Photo de la pose du logo" className="h-16 w-auto max-w-40 rounded border border-bordure bg-fond object-contain p-1" />
+              <img src={`/api/fichiers/${occupation.photoPoseFileId}`} alt="Photo de la pose du logo" width={160} height={64} loading="lazy" decoding="async" className="h-16 w-auto max-w-40 rounded border border-bordure bg-fond object-contain p-1" />
               <figcaption>Photo de pose</figcaption>
             </figure>
           )}
@@ -390,15 +410,22 @@ function FormulaireModifier({ emplacement }: { emplacement: EmplacementPlan }) {
 // même chose que le glissement au pointeur. Un polygone se déplace, il ne se redimensionne pas.
 function FormulaireDeplacement(props: PanneauEmplacementProps) {
   const { emplacement, bornes, brouillon, onChangerBrouillon, onFinirDeplacement } = props
+  // Texte tapé dans un champ, le temps qu'il a le focus : un champ vidé reste vide sans envoyer la forme à 0.
+  const [saisies, setSaisies] = useState<Partial<Record<"x" | "y" | "l" | "h", string>>>({})
   const forme = brouillon ?? emplacement.forme
   if (!forme) return null
   const etendue = etendueDe(forme)
   const polygone = forme.type === "polygone"
-  const champ = (nom: "x" | "y" | "l" | "h", valeur: number) => {
-    if (!Number.isFinite(valeur)) return
-    onChangerBrouillon(formeDuChamp(forme, nom, valeur, bornes))
+  const champ = (nom: "x" | "y" | "l" | "h", brut: string) => {
+    setSaisies((s) => ({ ...s, [nom]: brut }))
+    if (brut.trim() === "") return
+    const nombre = Number(brut)
+    if (!Number.isFinite(nombre)) return
+    onChangerBrouillon(formeDuChamp(forme, nom, nombre, bornes))
   }
+  const oublier = (nom: "x" | "y" | "l" | "h") => setSaisies((s) => ({ ...s, [nom]: undefined }))
   const valeur = (n: number) => n.toFixed(1).replace(/\.0$/, "")
+  const affiche = (nom: "x" | "y" | "l" | "h", n: number) => saisies[nom] ?? valeur(n)
 
   return (
     <div className="flex flex-col gap-4 rounded-md border border-bordure p-4">
@@ -407,16 +434,16 @@ function FormulaireDeplacement(props: PanneauEmplacementProps) {
       </p>
       <div className="grid grid-cols-2 gap-4">
         <Champ libelle="X">
-          <input type="number" step={1} value={valeur(etendue.x)} onChange={(e) => champ("x", Number(e.target.value))} className={`${CHAMP} tabular-nums`} />
+          <input type="number" step={1} value={affiche("x", etendue.x)} onChange={(e) => champ("x", e.target.value)} onBlur={() => oublier("x")} className={`${CHAMP} tabular-nums`} />
         </Champ>
         <Champ libelle="Y">
-          <input type="number" step={1} value={valeur(etendue.y)} onChange={(e) => champ("y", Number(e.target.value))} className={`${CHAMP} tabular-nums`} />
+          <input type="number" step={1} value={affiche("y", etendue.y)} onChange={(e) => champ("y", e.target.value)} onBlur={() => oublier("y")} className={`${CHAMP} tabular-nums`} />
         </Champ>
         <Champ libelle="Largeur">
-          <input type="number" step={1} min={COTE_MINIMAL} value={valeur(etendue.l)} disabled={polygone} onChange={(e) => champ("l", Number(e.target.value))} className={`${CHAMP} tabular-nums`} />
+          <input type="number" step={1} min={COTE_MINIMAL} value={affiche("l", etendue.l)} disabled={polygone} onChange={(e) => champ("l", e.target.value)} onBlur={() => oublier("l")} className={`${CHAMP} tabular-nums`} />
         </Champ>
         <Champ libelle="Hauteur">
-          <input type="number" step={1} min={COTE_MINIMAL} value={valeur(etendue.h)} disabled={polygone} onChange={(e) => champ("h", Number(e.target.value))} className={`${CHAMP} tabular-nums`} />
+          <input type="number" step={1} min={COTE_MINIMAL} value={affiche("h", etendue.h)} disabled={polygone} onChange={(e) => champ("h", e.target.value)} onBlur={() => oublier("h")} className={`${CHAMP} tabular-nums`} />
         </Champ>
       </div>
       <FormulaireAction action={enregistrerPositionAction} libelleBouton="Enregistrer la position" onSucces={onFinirDeplacement} desactive={brouillon === null}>

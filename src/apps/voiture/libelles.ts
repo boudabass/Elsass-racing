@@ -79,7 +79,7 @@ export const LIBELLE_STATUT_EMPLACEMENT: Record<StatutEmplacement, string> = {
 }
 
 export const COULEUR_STATUT_EMPLACEMENT: Record<StatutEmplacement, string> = {
-  libre: "text-etat-ok",
+  libre: "text-texte",
   reserve: "text-etat-orange",
   occupe: "text-texte",
   indisponible: "text-texte-discret",

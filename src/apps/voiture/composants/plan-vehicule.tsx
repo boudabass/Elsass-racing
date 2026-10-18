@@ -137,7 +137,7 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
     <svg
       ref={svg}
       viewBox={gabarit.viewBox}
-      role="img"
+      role="group"
       aria-label={`Plan de ${nomVehicule}, ${libelleVue}`}
       className="block h-auto w-full"
       style={{ touchAction: deplacement ? "none" : undefined }}

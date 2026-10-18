@@ -109,7 +109,7 @@ export function ChampFichier({
           {/* Vignette ou nom : ouvre le fichier dans un nouvel onglet. */}
           <a href={`/api/fichiers/${valeur}`} target="_blank" rel="noopener noreferrer" aria-label={`${libelle} : ouvrir dans un nouvel onglet`} className="cible-tactile inline-flex items-center">
             {estImage ? (
-              <img src={`/api/fichiers/${valeur}`} alt="" className="h-16 w-16 rounded border border-bordure object-contain" />
+              <img src={`/api/fichiers/${valeur}`} alt="" width={64} height={64} loading="lazy" decoding="async" className="h-16 w-16 rounded border border-bordure object-contain" />
             ) : (
               <span className="flex items-center gap-2 text-sm underline underline-offset-4 decoration-marque decoration-2">
                 <FileText className="h-5 w-5 shrink-0" aria-hidden />
@@ -155,7 +155,9 @@ export function ChampFichier({
           Envoi…
         </p>
       )}
-      {horsLigne && !disabled && <p className="text-sm text-etat-orange">La photo s&apos;ajoute quand le réseau revient.</p>}
+      {horsLigne && !disabled && (
+        <p className="text-sm text-etat-orange">Pas de réseau : l&apos;envoi {seulesImages ? "de la photo" : "de fichiers"} reprend quand tu es en ligne.</p>
+      )}
       <Message resultat={erreur ? { ok: false, message: erreur } : null} />
 
       {name && <input type="hidden" name={name} value={valeur ?? ""} />}

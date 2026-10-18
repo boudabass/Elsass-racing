@@ -53,11 +53,11 @@ async function creerSaxoDeux(page: Page): Promise<string> {
 
 async function ouvrirDeco(page: Page, vehiculeId: string): Promise<void> {
   await page.goto(`/apps/voiture/vehicules/${vehiculeId}?onglet=deco`)
-  await expect(page.getByRole("img", { name: /^Plan de Saxo 2/ })).toBeVisible()
+  await expect(page.getByRole("group", { name: /^Plan de Saxo 2/ })).toBeVisible()
 }
 
 // Le plan, la liste de la vue (les emplacements dessinés), la liste « Autres emplacements ».
-const plan = (page: Page) => page.getByRole("img", { name: /^Plan de Saxo 2/ })
+const plan = (page: Page) => page.getByRole("group", { name: /^Plan de Saxo 2/ })
 const listePlan = (page: Page) => page.locator('section[aria-labelledby="liste-emplacements"] > ul')
 const listeHorsPlan = (page: Page) => page.locator('section[aria-labelledby="autres-emplacements"] ul')
 const ligne = (page: Page, nom: string) => listePlan(page).locator("button", { hasText: nom })
@@ -97,7 +97,7 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   await page.getByRole("button", { name: "Côté gauche" }).click()
   await expect(page).toHaveURL(/vue=gauche/)
   await expect(formesDuPlan(page)).toHaveCount(5)
-  await expect(page.getByRole("img", { name: /côté gauche/ })).toBeVisible()
+  await expect(page.getByRole("group", { name: /côté gauche/ })).toBeVisible()
   await page.getByRole("button", { name: "Côté droit" }).click()
   await expect(page).toHaveURL(/vue=droite/)
   await expect(page.getByText("6 libres · 0 réservés · 0 occupés · 0 indisponibles")).toBeVisible()
@@ -176,6 +176,8 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   // Thème clair, 1440 px : le plan et le panneau de la réservation avec sa pose.
   await passerEnThemeClair(page)
   await ouvrirDeco(page, vehiculeId)
+  // Audit (brief 3.6, point 0.2) : le plan est un groupe, et ses formes sont des boutons trouvés par leur nom.
+  await expect(plan(page).getByRole("button", { name: /Portière/ })).toBeVisible()
   await ligne(page, "Portière").click()
   await capturer(page, "voiture-deco-clair-1440.png")
 })
