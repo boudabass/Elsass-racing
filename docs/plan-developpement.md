@@ -236,6 +236,7 @@ Décisions de John (18/10) :
 
 ### 3.9 Corrections du lot 3
 - Brief : `docs/briefs/3.9-corrections-lot-3.md`. Issu de la relecture de la 3.8 : contexte système limité à son propre événement (une livraison d'un membre pouvait être perdue), titres de groupe de la boîte d'actions, bouton Encaisser dans Budget, qualité de l'interlocuteur dans la convention, trois vérifications e2e manquantes, bloc Actions de la convention, source des ECONNRESET. Fin du lot 3, avant le test de John.
+- Fait le 18/10 (afa2f90 à ec7519b, migration interlocuteur_qualite), relu et accepté. Suites vertes chez l'orchestrateur, sauf un test instable (voiture.spec.ts:86, boîte vide au QG dans le run complet, vert seul) à reprendre au point 0 du lot 4, avec l'AbortController du tirage de synchro (source des ECONNRESET) et les actions serveur coupées. Jeton du mail de connexion dans la console : build de test seulement, accepté.
 
 ## 6. Méthode de travail
 
