@@ -14,6 +14,7 @@ import { EcranVide } from "@/components/qg/ecran-vide"
 import { contexteQg } from "@/core/qg/donnees"
 import { ECRANS_DECOUVERTE } from "@/core/sdk/decouverte"
 import { aAuMoins } from "@/core/droits/niveaux"
+import { LIEN } from "@/lib/classes-formulaire"
 
 // Mouvements de Budget : dépenses et recettes, plus récentes d'abord. Filtres dans l'URL ; la fiche d'un
 // mouvement s'ouvre à droite sur PC (paramètre m), en pleine page sur téléphone.
@@ -83,6 +84,11 @@ export default async function PageMouvements({
           <Link href="/apps/budget/nouvelle" className={BOUTON}>
             Ajouter une dépense
           </Link>
+          {aAuMoins(acces.niveau, "ecriture") && (
+            <Link href={`/apps/budget/bilan${parametres.saison ? `?saison=${parametres.saison}` : ""}`} className={LIEN}>
+              Bilan de saison (PDF)
+            </Link>
+          )}
           {/* Action secondaire : un lien discret, après le bouton principal. */}
           <Link href={`/apps/budget/export${query ? `?${query}` : ""}`} className="inline-flex min-h-11 items-center px-2 text-sm text-texte-discret hover:text-texte">
             Exporter (CSV)

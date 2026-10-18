@@ -6,7 +6,7 @@ import { listerMouvements } from "@/apps/budget/lectures-serveur"
 import { libelle } from "@/apps/budget/libelles"
 
 // Export tableur des mouvements filtrés : même filtres que l'écran (URL), CSV à point-virgule en UTF-8
-// avec BOM. Le PDF de bilan attend le lot 3. La contribution n'exporte que ses propres dépenses.
+// avec BOM. Le PDF de bilan de saison est sur /apps/budget/bilan. La contribution n'exporte que ses propres dépenses.
 
 export async function GET(requete: Request): Promise<Response> {
   const acces = await accesEcran("contribution")

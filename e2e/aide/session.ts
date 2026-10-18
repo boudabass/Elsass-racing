@@ -413,6 +413,30 @@ export async function preverEpreuveEnBase(equipe: Equipe, eventId: string, monta
   )
 }
 
+// Logo de la team, posé directement en base : le PDF du bilan le lit (le téléversement est testé à part).
+export async function definirLogoTeamEnBase(equipe: Equipe, fichierId: string | null): Promise<void> {
+  await bd().query("UPDATE core_team SET logo_file_id = $2 WHERE id = $1", [equipe.teamId, fichierId])
+}
+
+// Recette de Budget (catégorie Partenaire) dans une saison, encaissée ou prévue : données du bilan.
+export async function ajouterRecetteBudgetEnBase(equipe: Equipe, saisonId: string, libelle: string, montant: number, encaissee: boolean): Promise<void> {
+  await bd().query(
+    `INSERT INTO budget_income (id, team_id, date, montant, category_id, libelle, statut, encaissee_le, season_id, updated_at)
+     SELECT $1, $2, CURRENT_DATE, $3, c.id, $4, $5::budget_statut_recette, CASE WHEN $6::boolean THEN CURRENT_DATE END, $7, now()
+     FROM budget_category c WHERE c.team_id = $2 AND c.sens = 'recette' AND c.nom = 'Partenaire'`,
+    [newId(), equipe.teamId, montant, libelle, encaissee ? "encaissee" : "prevue", encaissee, saisonId],
+  )
+}
+
+// Prévisionnel de la saison, hors épreuve, pour une catégorie de dépense : données du bilan.
+export async function preverSaisonEnBase(equipe: Equipe, saisonId: string, nomCategorie: string, montant: number): Promise<void> {
+  await bd().query(
+    `INSERT INTO budget_forecast (id, team_id, season_id, category_id, event_id, montant, devise, updated_at)
+     SELECT $1, $2, $3, c.id, NULL, $4, 'EUR', now() FROM budget_category c WHERE c.team_id = $2 AND c.sens = 'depense' AND c.nom = $5`,
+    [newId(), equipe.teamId, saisonId, montant, nomCategorie],
+  )
+}
+
 // Véhicule de reconnaissance de la team (type reco) : la liste des règles de reco ne propose que ceux-là.
 export async function ajouterVehiculeDeReco(equipe: Equipe, nomCourt: string): Promise<string> {
   const id = newId()
