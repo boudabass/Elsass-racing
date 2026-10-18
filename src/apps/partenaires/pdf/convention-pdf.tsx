@@ -18,10 +18,11 @@ const BLANC = "________"
 
 const styles = StyleSheet.create({
   puces: { marginBottom: 6, marginLeft: 6 },
-  // Même interligne que les lignes d'un paragraphe, sans écart entre deux puces.
+  // Même interligne que les lignes d'un paragraphe, sans écart entre deux puces. Le signe doit avoir sa propre
+  // taille : sans elle, react-pdf le compose en 18 pt, et chaque puce prend une ligne vide de plus (25,2 pt au lieu de 14).
   puce: { flexDirection: "row" },
-  puceSigne: { width: 12, lineHeight: 1.4 },
-  puceTexte: { flexGrow: 1, lineHeight: 1.4 },
+  puceSigne: { width: 12, fontSize: 10, lineHeight: 1.4 },
+  puceTexte: { flexGrow: 1, fontSize: 10, lineHeight: 1.4 },
   signatures: { flexDirection: "row", gap: 24, marginTop: 16 },
   signature: { flexGrow: 1, flexBasis: 0 },
   signatureTitre: { fontFamily: "Barlow Condensed", fontWeight: 700, fontSize: 11, marginBottom: 6 },

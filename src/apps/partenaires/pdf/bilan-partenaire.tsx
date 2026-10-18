@@ -17,6 +17,8 @@ const styles = StyleSheet.create({
   legende: { fontSize: 8, color: "#555555", marginTop: 2 },
   preuve: { marginBottom: 6, lineHeight: 1.4 },
   lien: { color: "#333333" },
+  // Même espace que sous les chiffres clés (marginBottom 8) : le tableau n'a pas de marge basse.
+  merci: { marginTop: 8 },
 })
 
 // « 2026-06-10 » -> « 10/06/2026 »
@@ -119,7 +121,9 @@ export function BilanPartenairePdf({ bilan, entreprise, team, images }: BilanPar
         />
       )}
 
-      <Paragraphe>Merci pour votre soutien.</Paragraphe>
+      <View style={styles.merci}>
+        <Paragraphe>Merci pour votre soutien.</Paragraphe>
+      </View>
     </DocumentTeam>
   )
 }

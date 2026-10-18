@@ -8,16 +8,16 @@
 // processus. Pour ne jamais reprendre une livraison déjà en cours (boucle infinie sinon), on note
 // celles qui tournent, et on relit l'état de chaque livraison avant de la traiter.
 
-import { prismaPourTeam } from "@/lib/prisma"
 // Tous les gestionnaires, quel que soit le point d'entrée (cf. src/apps/gestionnaires-serveur.ts).
 import "@/apps/gestionnaires-serveur"
 
-import type { ContexteTeam } from "../contexte"
+import { estContexteTeam, type ContexteEvenement } from "../contexte"
+import { clientPourContexte } from "../client-contexte-serveur"
 
-import { trouverGestionnaire, type EvenementRecu } from "./gestionnaires"
+import { trouverEnregistrement, type EvenementRecu } from "./gestionnaires"
 
-export type { EvenementRecu, Gestionnaire } from "./gestionnaires"
-export { enregistrerGestionnaire } from "./gestionnaires"
+export type { EvenementRecu, Gestionnaire, GestionnaireTousContextes } from "./gestionnaires"
+export { enregistrerGestionnaire, enregistrerGestionnaireTousContextes } from "./gestionnaires"
 
 export const MAX_TENTATIVES = 5
 
@@ -25,8 +25,8 @@ export const MAX_TENTATIVES = 5
 const enCours = new Set<string>()
 
 // Traite les livraisons en attente de la team, dans l'ordre d'émission.
-export async function traiterEnAttente(ctx: ContexteTeam): Promise<void> {
-  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+export async function traiterEnAttente(ctx: ContexteEvenement): Promise<void> {
+  const client = clientPourContexte(ctx)
   const livraisons = await client.coreEventDelivery.findMany({
     where: {
       teamId: ctx.teamId,
@@ -53,15 +53,15 @@ export async function traiterEnAttente(ctx: ContexteTeam): Promise<void> {
 }
 
 async function traiterLivraison(
-  ctx: ContexteTeam,
+  ctx: ContexteEvenement,
   livraisonId: string,
   appDestinataire: string,
   evenement: { id: string; nom: string; version: number; appEmettrice: string; donnees: unknown },
 ): Promise<void> {
-  const client = prismaPourTeam(ctx.teamId, ctx.userId)
-  const fn = trouverGestionnaire(appDestinataire, evenement.nom)
+  const client = clientPourContexte(ctx)
+  const enregistrement = trouverEnregistrement(appDestinataire, evenement.nom)
 
-  if (!fn) {
+  if (!enregistrement) {
     await client.coreEventDelivery.update({
       where: { id: livraisonId },
       data: { statut: "traite", traiteAt: new Date(), derniereErreur: "aucun gestionnaire" },
@@ -69,14 +69,27 @@ async function traiterLivraison(
     return
   }
 
+  const recu = {
+    id: evenement.id,
+    nom: evenement.nom,
+    version: evenement.version,
+    appEmettrice: evenement.appEmettrice,
+    donnees: evenement.donnees,
+  } as EvenementRecu
+
   try {
-    await fn(ctx, {
-      id: evenement.id,
-      nom: evenement.nom,
-      version: evenement.version,
-      appEmettrice: evenement.appEmettrice,
-      donnees: evenement.donnees,
-    } as EvenementRecu)
+    if (enregistrement.tousContextes) {
+      await enregistrement.fn(ctx, recu)
+    } else if (estContexteTeam(ctx)) {
+      await enregistrement.fn(ctx, recu)
+    } else {
+      // Un gestionnaire d'app parle au nom d'un membre : il ne traite pas un événement sans utilisateur.
+      await client.coreEventDelivery.update({
+        where: { id: livraisonId },
+        data: { statut: "traite", traiteAt: new Date(), derniereErreur: "contexte système : gestionnaire réservé aux utilisateurs" },
+      })
+      return
+    }
     await client.coreEventDelivery.update({
       where: { id: livraisonId },
       data: { statut: "traite", traiteAt: new Date(), derniereErreur: null },

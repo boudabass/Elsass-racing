@@ -8,8 +8,8 @@ import { prisma } from "@/lib/prisma"
 import { empreinteJeton } from "./empreinte-jeton"
 
 // Les deux messages de refus : le même 404 pour tous les cas (jeton inventé, révoqué, expiré, partenaire supprimé).
-export const MESSAGE_LIEN_INVALIDE = "Ce lien n'est pas ou plus valide. Demande un nouveau lien à la team."
-export const MESSAGE_TROP_DE_TENTATIVES = "Trop de tentatives. Réessaie dans quelques minutes."
+export const MESSAGE_LIEN_INVALIDE = "Ce lien n'est pas ou plus valide. Demandez un nouveau lien à la team."
+export const MESSAGE_TROP_DE_TENTATIVES = "Trop de tentatives. Réessayez dans quelques minutes."
 
 // Jeton : 32 octets en base64url, soit 43 caractères. Tout autre format est refusé sans requête.
 const FORMAT_JETON = /^[A-Za-z0-9_-]{43}$/

@@ -224,6 +224,19 @@ export async function renseignerMentionsConvention(equipe: Equipe, partenaireId:
      WHERE id = (SELECT contact_id FROM partenaires_partner WHERE id = $1 AND team_id = $3)`,
     [partenaireId, "Adresse du partenaire de test, 00000 Ville de test", equipe.teamId],
   )
+  // Interlocuteur du partenaire : c'est lui qui signe pour l'entreprise (« Pour le partenaire : … »).
+  const interlocuteurId = newId()
+  await bd().query(
+    `INSERT INTO core_person (id, team_id, nom, prenom, updated_at) VALUES ($1, $2, $3, $4, now())`,
+    [interlocuteurId, equipe.teamId, "Dupont", "Marc"],
+  )
+  await bd().query(
+    `UPDATE partenaires_partner SET interlocuteur_person_id = $2, updated_at = now() WHERE id = $1 AND team_id = $3`,
+    [partenaireId, interlocuteurId, equipe.teamId],
+  )
+  // Logo de la team : il apparaît en tête de la convention, comme sur une vraie convention.
+  const logoId = await fichierDeTest(equipe.teamId, PHOTO_DE_TEST, "logo-team.png", "image/png")
+  await bd().query(`UPDATE core_team SET logo_file_id = $2, updated_at = now() WHERE id = $1`, [equipe.teamId, logoId])
 }
 
 // Le lien créé par l'interface : sa date d'expiration passe dans le passé (cas du lien expiré).

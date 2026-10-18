@@ -139,6 +139,27 @@ test("2 · décocher une section la retire de la page", async ({ page, equipe, b
   })
 })
 
+// 2 bis. Section « Conventions » décochée : le document signé de A ne sort plus, même par son identifiant.
+test("2 bis · la section Conventions décochée retire le document signé", async ({ page, equipe, browser }) => {
+  await avecAutreTeam(async (autre) => {
+    const donnees = await preparerPageDePartenaire(equipe, autre)
+    await connecterParLien(page, equipe)
+    const jeton = await creerLien(page, donnees.partenaireA)
+
+    await page.goto(`/apps/partenaires/${donnees.partenaireA}?onglet=page`)
+    await page.getByLabel("Conventions", { exact: true }).uncheck()
+    await page.getByRole("button", { name: "Enregistrer les sections", exact: true }).click()
+    await page.waitForLoadState("networkidle")
+    await page.reload()
+    await expect(page.getByLabel("Conventions", { exact: true })).not.toBeChecked()
+
+    const visiteur = await visiteurSansSession(browser, "198.51.100.8")
+    const document = await visiteur.request.get(`/p/${jeton}/fichiers/${donnees.fichierDocumentA}`)
+    expect(document.status(), "document signé sans la section Conventions : 404").toBe(404)
+    await visiteur.close()
+  })
+})
+
 // 3. Fichiers : le document signé de A se télécharge ; les autres identifiants renvoient 404.
 test("3 · les fichiers ne sortent que par le lien du partenaire", async ({ page, equipe, browser }) => {
   await avecAutreTeam(async (autre) => {
@@ -248,19 +269,26 @@ test("7 · le message du partenaire arrive en texte, et le champ piège ne crée
     const vue = await visiteur.newPage()
     await vue.goto(`/p/${jeton}`)
 
-    await vue.getByLabel("Ton nom", { exact: true }).fill("Aurélie")
-    await vue.getByLabel("Ton message", { exact: true }).fill('Bonjour <img src="x" onerror="window.__piege = 1"> test')
+    await vue.getByLabel("Votre nom", { exact: true }).fill("Aurélie")
+    await vue.getByLabel("Votre message", { exact: true }).fill('Bonjour <img src="x" onerror="window.__piege = 1"> test')
     await vue.getByRole("button", { name: "Envoyer le message", exact: true }).click()
     await expect(vue.getByRole("status").filter({ hasText: "Merci, votre message a bien été transmis à la team." })).toBeVisible()
 
     // Le champ piège rempli : succès apparent, rien n'est enregistré.
-    await vue.getByLabel("Ton nom", { exact: true }).fill("Robot")
-    await vue.getByLabel("Ton message", { exact: true }).fill("Message piège")
+    await vue.getByLabel("Votre nom", { exact: true }).fill("Robot")
+    await vue.getByLabel("Votre message", { exact: true }).fill("Message piège")
     await vue.locator('input[name="site"]').evaluate((champ: HTMLInputElement) => {
       champ.value = "rempli par un robot"
     })
     await vue.getByRole("button", { name: "Envoyer le message", exact: true }).click()
     await expect(vue.getByRole("status").filter({ hasText: "Merci, votre message a bien été transmis à la team." })).toBeVisible()
+
+    // L'alerte (brief 3.8, point 0.3) : émise sans utilisateur, elle arrive dans la boîte d'actions du responsable,
+    // faute de suivi pour ce partenaire. Une alerte par message (clé d'unicité : message:<identifiant>).
+    await page.goto("/qg")
+    await page.getByRole("button", { name: /Boîte d'actions/ }).click()
+    await expect(page.getByRole("dialog").getByText(`Nouveau message de ${donnees.nomA}`, { exact: false }).first()).toBeVisible()
+    await page.keyboard.press("Escape")
 
     await page.goto(`/apps/partenaires/${donnees.partenaireA}?onglet=messages`)
     // Le texte s'affiche tel quel ; le « onerror » n'est pas exécuté et aucune balise img n'est créée.
@@ -405,8 +433,8 @@ test("captures · lien non valide, onglet Bilans et confirmation du message", as
     await capturer(page, "partenaire-page-1440x900-clair.png")
 
     await vue.goto(`/p/${jeton}`)
-    await vue.getByLabel("Ton nom", { exact: true }).fill("Aurélie")
-    await vue.getByLabel("Ton message", { exact: true }).fill("Bonjour, une question sur le bilan.")
+    await vue.getByLabel("Votre nom", { exact: true }).fill("Aurélie")
+    await vue.getByLabel("Votre message", { exact: true }).fill("Bonjour, une question sur le bilan.")
     await vue.getByRole("button", { name: "Envoyer le message", exact: true }).click()
     await expect(vue.getByRole("status").filter({ hasText: "Merci, votre message a bien été transmis à la team." })).toBeVisible()
     await capturer(vue, "partenaire-message-confirmation-1440x900.png")

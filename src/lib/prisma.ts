@@ -66,6 +66,13 @@ export function prismaPourCompte(userId: string) {
     return clientAvecContexte([{ nom: "app.user_id", valeur: userId }])
 }
 
+// Contexte système d'une team (brief 3.8, point 0.3) : app.team_id seul, sans app.user_id. core_team_courante() lit
+// NULLIF(app.user_id, '') : il vaut NULL, et les politiques de team suffisent. Ne sert qu'au code serveur, via
+// src/core/contexte-systeme-serveur.ts.
+export function prismaPourTeamSysteme(teamId: string) {
+    return clientAvecContexte([{ nom: "app.team_id", valeur: teamId }])
+}
+
 // Requêtes brutes ($queryRaw, $executeRaw) dans le contexte de team : l'extension des
 // modèles ne les couvre pas. Toute la fonction s'exécute dans une seule transaction.
 export async function executerPourTeam<T>(

@@ -110,6 +110,7 @@ export async function listerCalendrierPourPartenaires(
 export type ResultatPublicPourPartenaire = {
   epreuve: string
   dateDebut: Date
+  dateFin: Date
   statutFinal: "arrivee" | "abandon" | "exclusion" | "forfait"
   classementGeneral: number | null
   nbClasses: number | null
@@ -132,13 +133,14 @@ export async function listerResultatsPublicsPourPartenaires(
       nbClasses: true,
       classementClasse: true,
       nbPartantsClasse: true,
-      entry: { select: { event: { select: { nom: true, dateDebut: true } } } },
+      entry: { select: { event: { select: { nom: true, dateDebut: true, dateFin: true } } } },
     },
     orderBy: { entry: { event: { dateDebut: "desc" } } },
   })
   return resultats.map((r) => ({
     epreuve: r.entry.event.nom,
     dateDebut: r.entry.event.dateDebut,
+    dateFin: r.entry.event.dateFin,
     statutFinal: r.statutFinal,
     classementGeneral: r.classementGeneral,
     nbClasses: r.nbClasses,

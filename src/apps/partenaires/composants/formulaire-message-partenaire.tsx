@@ -32,10 +32,10 @@ export function FormulaireMessagePartenaire({ jeton }: { jeton: string }) {
           <input name="site" tabIndex={-1} autoComplete="off" />
         </label>
       </div>
-      <Champ id="message-nom" libelle="Ton nom">
+      <Champ id="message-nom" libelle="Votre nom">
         <input id="message-nom" name="nom" required maxLength={100} autoComplete="name" className={CHAMP} />
       </Champ>
-      <Champ id="message-texte" libelle="Ton message">
+      <Champ id="message-texte" libelle="Votre message">
         <textarea id="message-texte" name="message" required maxLength={2000} rows={5} className={CHAMP} />
       </Champ>
       <Message resultat={resultat} ok={MESSAGE_MERCI} />

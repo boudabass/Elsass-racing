@@ -215,7 +215,7 @@ export function PagePartenaireVue({ jeton, page, sections }: { jeton: string; pa
         <h2 id="message" className="text-lg font-medium">
           Laisser un message
         </h2>
-        <p className={VIDE}>Une question, une remarque ? Ton message arrive directement à la team.</p>
+        <p className={VIDE}>Une question, une remarque ? Votre message arrive directement à la team.</p>
         <FormulaireMessagePartenaire jeton={jeton} />
       </section>
     </div>

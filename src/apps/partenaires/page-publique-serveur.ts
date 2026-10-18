@@ -292,10 +292,13 @@ export async function lireFichierDuLien(lien: LienPublic, fichierId: string): Pr
       where: { id: lien.partnerId, teamId: lien.teamId, logoFileId: fichierId, deletedAt: null },
       select: { id: true },
     })
-    const conventionSignee = await tx.partenairesAgreement.findFirst({
-      where: { teamId: lien.teamId, partnerId: lien.partnerId, deletedAt: null, statut: { in: [...STATUTS_CONVENTION_VISIBLES] }, documentSigneFileId: fichierId },
-      select: { id: true },
-    })
+    // Le document signé ne sort que si la section « conventions » est cochée, comme les preuves et les bilans.
+    const conventionSignee = estSection(lien, "conventions")
+      ? await tx.partenairesAgreement.findFirst({
+          where: { teamId: lien.teamId, partnerId: lien.partnerId, deletedAt: null, statut: { in: [...STATUTS_CONVENTION_VISIBLES] }, documentSigneFileId: fichierId },
+          select: { id: true },
+        })
+      : null
     const preuve = estSection(lien, "preuves")
       ? await tx.partenairesProof.findFirst({
           where: {
@@ -303,7 +306,7 @@ export async function lireFichierDuLien(lien: LienPublic, fichierId: string): Pr
             fileId: fichierId,
             visiblePartenaire: true,
             deletedAt: null,
-            benefit: { agreement: { partnerId: lien.partnerId, deletedAt: null, statut: { in: [...STATUTS_CONVENTION_VISIBLES] } } },
+            benefit: { deletedAt: null, agreement: { partnerId: lien.partnerId, deletedAt: null, statut: { in: [...STATUTS_CONVENTION_VISIBLES] } } },
           },
           select: { id: true },
         })

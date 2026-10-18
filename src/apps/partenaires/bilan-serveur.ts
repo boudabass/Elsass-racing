@@ -159,9 +159,10 @@ export async function genererBilanDans(ctx: ContexteTeam, entree: EntreeBilan): 
     }
   }
 
+  // Un résultat compte dans la période si l'épreuve s'y termine, comme pour « Épreuves courues ».
   const resultatsBilan: ResultatBilan[] = resultats.map((r) => ({
     epreuve: r.epreuve,
-    date: jourDe(r.dateDebut),
+    date: jourDe(r.dateFin),
     statut: LIBELLES_STATUT_RESULTAT[r.statutFinal] ?? r.statutFinal,
     classementGeneral: r.classementGeneral,
     nbClasses: r.nbClasses,
