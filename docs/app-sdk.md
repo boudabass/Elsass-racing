@@ -86,6 +86,8 @@ Une nouvelle app importe ces éléments au lieu de les recopier :
 - `src/core/synchro/registre.ts` : `socleSynchro(ligne)` (champs communs, au format de la synchro) et `refusLectureSeule()` pour les tables lues seulement hors ligne.
 - `src/components/formulaire/message.tsx` : `Message`, le message affiché sous un formulaire après une Server Action (prop `ok` pour le texte de succès).
 - `src/lib/euros.ts` : `formatEuros(centimes)` (« 1 234,50 € ») et `enEuros(centimes)` (« 12,50 » pour un champ de saisie).
+- `src/core/fichiers/fichiers-serveur.ts` : `enregistrerFichier` (écriture et ligne `core_file`), `rattacherFichier` (lien à une fiche, dans la transaction de l'app), `remplacerFichier` (l'ancien fichier part à la corbeille). Règles et routes dans `docs/fichiers.md`.
+- `src/components/formulaire/champ-fichier.tsx` : `ChampFichier`, le champ d'envoi de fichier (photo compressée, hors ligne géré, vignette ou nom).
 
 Les erreurs métier de Saison (`ErreurSaison`) et de Budget (`ErreurBudget`) héritent de `ErreurMetier`.
 

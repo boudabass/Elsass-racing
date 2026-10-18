@@ -286,6 +286,20 @@ async function main(): Promise<void> {
     const supprHL = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "supprimer", id: idDepenseHL, revLue: revAvantSuppr })])
     controle("la suppression hors ligne est appliquée", supprHL[0]?.statut === "appliquee" && (await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } }))?.deletedAt != null)
 
+    // Photo du ticket (tâche 3.1, brief 3.2) : rattachée à la création hors ligne, et refusée si le fichier
+    // a été envoyé par une autre personne.
+    const ticketEquipier = newId()
+    await bd.coreFile.create({ data: { id: ticketEquipier, teamId, storageKey: `verif/${ticketEquipier}`, nom: "ticket.jpg", mimeType: "image/jpeg", taille: 10, empreinte: "0".repeat(64), createdBy: eqUserId, updatedBy: eqUserId } })
+    const idDepenseTicket = newId()
+    const creationTicket = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "creer", id: idDepenseTicket, champs: { ...champsDepense, libelle: "Ticket synchro", justificatifFileId: ticketEquipier } })])
+    const rattachementTicket = await bd.coreAttachment.findFirst({ where: { teamId, fileId: ticketEquipier, ficheType: "expense", ficheId: idDepenseTicket, role: "ticket" } })
+    controle("un ticket envoyé par l'équipier est rattaché à sa dépense créée hors ligne", creationTicket[0]?.statut === "appliquee" && rattachementTicket !== null)
+
+    const ticketAssistance = newId()
+    await bd.coreFile.create({ data: { id: ticketAssistance, teamId, storageKey: `verif/${ticketAssistance}`, nom: "ticket-assistance.jpg", mimeType: "image/jpeg", taille: 10, empreinte: "0".repeat(64), createdBy: assUserId, updatedBy: assUserId } })
+    const refusTicket = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "creer", id: newId(), champs: { ...champsDepense, libelle: "Ticket d'un autre", justificatifFileId: ticketAssistance } })])
+    controle("un ticket envoyé par une autre personne est refusé à la création hors ligne", refusTicket[0]?.statut === "refusee")
+
     // Périmètre du payeur, comme en ligne (correction 2.8, point 3) : au niveau contribution, l'appareil suit la
     // personne qui paie, pas le créateur de la ligne.
     const personneAssistance = newId()

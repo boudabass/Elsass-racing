@@ -295,6 +295,31 @@ export async function donnerAccesSaison(equipe: Equipe, membre: Membre, niveau: 
   )
 }
 
+// Accès à Budget d'un membre, forcé à un niveau : « aucun » pour tester le cloisonnement des fichiers (tâche 3.1).
+export async function definirAccesBudget(equipe: Equipe, membre: Membre, niveau: "aucun" | "lecture" | "contribution"): Promise<void> {
+  await bd().query(`DELETE FROM core_app_access WHERE team_id = $1 AND membership_id = $2 AND app_cle = 'budget'`, [equipe.teamId, membre.membershipId])
+  await bd().query(
+    `INSERT INTO core_app_access (id, team_id, membership_id, app_cle, niveau, updated_at)
+     VALUES ($1, $2, $3, 'budget', $4::core_access_level, now())`,
+    [newId(), equipe.teamId, membre.membershipId, niveau],
+  )
+}
+
+// Photo du ticket d'une dépense, en base (tâche 3.2) : l'identifiant du fichier, ou null.
+export async function justificatifDepenseEnBase(equipe: Equipe, depenseId: string): Promise<string | null> {
+  const { rows } = await bd().query<{ justificatif: string | null }>(
+    `SELECT justificatif_file_id AS justificatif FROM budget_expense WHERE team_id = $1 AND id = $2`,
+    [equipe.teamId, depenseId],
+  )
+  return rows[0]?.justificatif ?? null
+}
+
+// Logo de la team, en base (tâche 3.1) : l'identifiant du fichier, ou null.
+export async function logoEquipeEnBase(equipe: Equipe): Promise<string | null> {
+  const { rows } = await bd().query<{ logo: string | null }>(`SELECT logo_file_id AS logo FROM core_team WHERE id = $1`, [equipe.teamId])
+  return rows[0]?.logo ?? null
+}
+
 // Sorties de reconnaissance de la team, à une date civile (tâche 2.4 : écrites hors ligne, puis synchronisées).
 export async function sortiesRecceEnBase(equipe: Equipe, date: string): Promise<number> {
   const { rows } = await bd().query<{ n: number }>(
