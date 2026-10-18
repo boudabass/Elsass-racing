@@ -173,12 +173,11 @@ function valeursValides(valeurs: ValeursReglage): ValeursReglage {
 // --- Véhicules ------------------------------------------------------------------------------
 
 export async function creerVehicule(entree: EntreeVehicule): Promise<string> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return creerVehiculeDans(ctx, entree, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return creerVehiculeDans(ctx, entree)
 }
 
-export async function creerVehiculeDans(ctx: ContexteTeam, entree: EntreeVehicule, niveau: Niveau = "ecriture"): Promise<string> {
-  void niveau
+export async function creerVehiculeDans(ctx: ContexteTeam, entree: EntreeVehicule): Promise<string> {
   const donnees = schemaVehicule.parse(entree)
   const modele = gabarit(donnees.gabaritCle)
   if (!modele) refus("Gabarit inconnu.")
@@ -240,12 +239,11 @@ export async function ficheVoitureDans(ctx: ContexteTeam, vehicleId: string) {
 }
 
 export async function modifierFiche(vehicleId: string, entree: EntreeFiche): Promise<void> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return modifierFicheDans(ctx, vehicleId, entree, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return modifierFicheDans(ctx, vehicleId, entree)
 }
 
-export async function modifierFicheDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeFiche, niveau: Niveau = "ecriture"): Promise<void> {
-  void niveau
+export async function modifierFicheDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeFiche): Promise<void> {
   const donnees = schemaFiche.parse(entree)
   const fiche = await ficheVoitureDans(ctx, vehicleId)
   const data = {
@@ -264,12 +262,11 @@ export async function modifierFicheDans(ctx: ContexteTeam, vehicleId: string, en
 // --- Papiers --------------------------------------------------------------------------------
 
 export async function creerPapier(vehicleId: string, entree: EntreePapier): Promise<string> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return creerPapierDans(ctx, vehicleId, entree, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return creerPapierDans(ctx, vehicleId, entree)
 }
 
-export async function creerPapierDans(ctx: ContexteTeam, vehicleId: string, entree: EntreePapier, niveau: Niveau = "ecriture"): Promise<string> {
-  void niveau
+export async function creerPapierDans(ctx: ContexteTeam, vehicleId: string, entree: EntreePapier): Promise<string> {
   const donnees = schemaPapier.parse(entree)
   await ficheVoitureDans(ctx, vehicleId)
   const id = newId()
@@ -296,12 +293,11 @@ export async function creerPapierDans(ctx: ContexteTeam, vehicleId: string, entr
 }
 
 export async function modifierPapier(id: string, entree: EntreePapier): Promise<void> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return modifierPapierDans(ctx, id, entree, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return modifierPapierDans(ctx, id, entree)
 }
 
-export async function modifierPapierDans(ctx: ContexteTeam, id: string, entree: EntreePapier, niveau: Niveau = "ecriture"): Promise<void> {
-  void niveau
+export async function modifierPapierDans(ctx: ContexteTeam, id: string, entree: EntreePapier): Promise<void> {
   const donnees = schemaPapier.parse(entree)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const avant = await papierActifDans(client, ctx, id)
@@ -330,12 +326,11 @@ export async function modifierPapierDans(ctx: ContexteTeam, id: string, entree: 
 }
 
 export async function supprimerPapier(id: string): Promise<void> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return supprimerPapierDans(ctx, id, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return supprimerPapierDans(ctx, id)
 }
 
-export async function supprimerPapierDans(ctx: ContexteTeam, id: string, niveau: Niveau = "ecriture"): Promise<void> {
-  void niveau
+export async function supprimerPapierDans(ctx: ContexteTeam, id: string): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const avant = await papierActifDans(client, ctx, id)
   await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
@@ -377,12 +372,11 @@ async function recalculerStatutEmplacement(tx: Tx, ctx: ContexteTeam, slotId: st
 }
 
 export async function ajouterEmplacement(vehicleId: string, entree: EntreeEmplacement): Promise<string> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return ajouterEmplacementDans(ctx, vehicleId, entree, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return ajouterEmplacementDans(ctx, vehicleId, entree)
 }
 
-export async function ajouterEmplacementDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeEmplacement, niveau: Niveau = "ecriture"): Promise<string> {
-  void niveau
+export async function ajouterEmplacementDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeEmplacement): Promise<string> {
   const donnees = schemaEmplacement.parse(entree)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const vehicule = await client.coreVehicle.findFirst({ where: { id: vehicleId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
@@ -418,17 +412,15 @@ export async function ajouterEmplacementDans(ctx: ContexteTeam, vehicleId: strin
 
 // Renommer, déplacer, changer les dimensions : une seule mise à jour, un seul événement.
 export async function modifierEmplacement(slotId: string, champs: { nom?: string; forme?: unknown; largeurCm?: number | null; hauteurCm?: number | null }): Promise<void> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return modifierEmplacementDans(ctx, slotId, champs, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return modifierEmplacementDans(ctx, slotId, champs)
 }
 
 export async function modifierEmplacementDans(
   ctx: ContexteTeam,
   slotId: string,
   champs: { nom?: string; forme?: unknown; largeurCm?: number | null; hauteurCm?: number | null },
-  niveau: Niveau = "ecriture",
 ): Promise<void> {
-  void niveau
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const slot = await emplacementActifDans(client, ctx, slotId)
   const data: Record<string, unknown> = {}
@@ -446,12 +438,11 @@ export async function modifierEmplacementDans(
 }
 
 export async function supprimerEmplacement(slotId: string): Promise<void> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return supprimerEmplacementDans(ctx, slotId, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return supprimerEmplacementDans(ctx, slotId)
 }
 
-export async function supprimerEmplacementDans(ctx: ContexteTeam, slotId: string, niveau: Niveau = "ecriture"): Promise<void> {
-  void niveau
+export async function supprimerEmplacementDans(ctx: ContexteTeam, slotId: string): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const slot = await emplacementActifDans(client, ctx, slotId)
   if (await occupationActiveDans(client, slotId)) refus("Retirez le logo de cet emplacement avant de le supprimer.")
@@ -462,12 +453,11 @@ export async function supprimerEmplacementDans(ctx: ContexteTeam, slotId: string
 }
 
 export async function marquerIndisponible(slotId: string, indisponible: boolean): Promise<void> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return marquerIndisponibleDans(ctx, slotId, indisponible, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return marquerIndisponibleDans(ctx, slotId, indisponible)
 }
 
-export async function marquerIndisponibleDans(ctx: ContexteTeam, slotId: string, indisponible: boolean, niveau: Niveau = "ecriture"): Promise<void> {
-  void niveau
+export async function marquerIndisponibleDans(ctx: ContexteTeam, slotId: string, indisponible: boolean): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const slot = await emplacementActifDans(client, ctx, slotId)
   if (indisponible && (await occupationActiveDans(client, slotId))) {
@@ -480,12 +470,11 @@ export async function marquerIndisponibleDans(ctx: ContexteTeam, slotId: string,
 // --- Occupations (réservation, pose, retrait) ----------------------------------------------
 
 export async function reserverEmplacement(slotId: string, entree: EntreeReservation): Promise<string> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return reserverEmplacementDans(ctx, slotId, entree, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return reserverEmplacementDans(ctx, slotId, entree)
 }
 
-export async function reserverEmplacementDans(ctx: ContexteTeam, slotId: string, entree: EntreeReservation, niveau: Niveau = "ecriture"): Promise<string> {
-  void niveau
+export async function reserverEmplacementDans(ctx: ContexteTeam, slotId: string, entree: EntreeReservation): Promise<string> {
   const donnees = schemaReservation.parse(entree)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const slot = await emplacementActifDans(client, ctx, slotId)
@@ -529,12 +518,11 @@ async function occupationActiveDeId(client: ReturnType<typeof prismaPourTeam>, c
 }
 
 export async function poserLogo(assignmentId: string, entree: EntreePose): Promise<void> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return poserLogoDans(ctx, assignmentId, entree, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return poserLogoDans(ctx, assignmentId, entree)
 }
 
-export async function poserLogoDans(ctx: ContexteTeam, assignmentId: string, entree: EntreePose, niveau: Niveau = "ecriture"): Promise<void> {
-  void niveau
+export async function poserLogoDans(ctx: ContexteTeam, assignmentId: string, entree: EntreePose): Promise<void> {
   const donnees = schemaPose.parse(entree)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const occupation = await occupationActiveDeId(client, ctx, assignmentId)
@@ -560,12 +548,11 @@ export async function poserLogoDans(ctx: ContexteTeam, assignmentId: string, ent
 }
 
 export async function retirerLogo(assignmentId: string): Promise<void> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return retirerLogoDans(ctx, assignmentId, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return retirerLogoDans(ctx, assignmentId)
 }
 
-export async function retirerLogoDans(ctx: ContexteTeam, assignmentId: string, niveau: Niveau = "ecriture"): Promise<void> {
-  void niveau
+export async function retirerLogoDans(ctx: ContexteTeam, assignmentId: string): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const occupation = await occupationActiveDeId(client, ctx, assignmentId)
   const verification = verifierTransitionOccupation(occupation.statut as StatutOccupation, "retire")
@@ -584,12 +571,11 @@ export async function retirerLogoDans(ctx: ContexteTeam, assignmentId: string, n
 // --- Fiches de réglage ----------------------------------------------------------------------
 
 export async function creerReglage(vehicleId: string, entree: EntreeReglage): Promise<string> {
-  const { ctx, niveau } = await accesVoiture("contribution")
-  return creerReglageDans(ctx, vehicleId, entree, niveau)
+  const { ctx } = await accesVoiture("contribution")
+  return creerReglageDans(ctx, vehicleId, entree)
 }
 
-export async function creerReglageDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeReglage, niveau: Niveau = "contribution"): Promise<string> {
-  void niveau
+export async function creerReglageDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeReglage): Promise<string> {
   const donnees = schemaReglage.parse(entree)
   const valeurs = valeursValides(donnees.valeurs)
   await ficheVoitureDans(ctx, vehicleId)
@@ -662,12 +648,11 @@ async function reglageActifDans(client: ReturnType<typeof prismaPourTeam>, ctx: 
 }
 
 export async function supprimerReglage(id: string): Promise<void> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return supprimerReglageDans(ctx, id, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return supprimerReglageDans(ctx, id)
 }
 
-export async function supprimerReglageDans(ctx: ContexteTeam, id: string, niveau: Niveau = "ecriture"): Promise<void> {
-  void niveau
+export async function supprimerReglageDans(ctx: ContexteTeam, id: string): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   await reglageActifDans(client, ctx, id)
   await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
@@ -676,12 +661,11 @@ export async function supprimerReglageDans(ctx: ContexteTeam, id: string, niveau
 }
 
 export async function enregistrerCommeReference(setupId: string, nom: string): Promise<string> {
-  const { ctx, niveau } = await accesVoiture("ecriture")
-  return enregistrerCommeReferenceDans(ctx, setupId, nom, niveau)
+  const { ctx } = await accesVoiture("ecriture")
+  return enregistrerCommeReferenceDans(ctx, setupId, nom)
 }
 
-export async function enregistrerCommeReferenceDans(ctx: ContexteTeam, setupId: string, nom: string, niveau: Niveau = "ecriture"): Promise<string> {
-  void niveau
+export async function enregistrerCommeReferenceDans(ctx: ContexteTeam, setupId: string, nom: string): Promise<string> {
   const libelle = z.string().trim().min(1, "Donnez un nom à la référence.").max(80).parse(nom)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const fiche = await reglageActifDans(client, ctx, setupId)
@@ -774,9 +758,9 @@ export async function recalculerPourQg(ctx: ContexteTeam, niveau: Niveau): Promi
   await recalculerPapiersDans(ctx)
 }
 
-// Un papier qui doit être renouvelé (30 jours ou moins) : un événement et une action pour les responsables,
-// une seule fois par papier et par échéance. Un papier sans échéance n'émet rien. Un papier déjà expiré
-// n'entre pas dans ce rappel.
+// Un papier à renouveler (30 jours ou moins) ou expiré : un événement et une action pour les responsables,
+// une seule fois par papier et par échéance (un papier qui passe de « à renouveler » à « expiré » n'émet donc
+// pas une deuxième fois). Un papier sans échéance n'émet rien. Le titre dit si l'échéance est à venir ou passée.
 export async function recalculerPapiersDans(ctx: ContexteTeam): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const maintenant = new Date()
@@ -784,15 +768,18 @@ export async function recalculerPapiersDans(ctx: ContexteTeam): Promise<void> {
     where: { teamId: ctx.teamId, deletedAt: null, valableJusquAu: { not: null }, vehicle: { actif: true, deletedAt: null } },
     select: { id: true, vehicleId: true, type: true, libelle: true, valableJusquAu: true, vehicle: { select: { nomCourt: true } } },
   })
-  const aRenouveler = papiers.filter((p) => statutPapier(p.valableJusquAu, maintenant) === "a_renouveler")
-  if (aRenouveler.length === 0) return
+  const aRappeler = papiers.flatMap((papier) => {
+    const statut = statutPapier(papier.valableJusquAu, maintenant)
+    return statut === "a_renouveler" || statut === "expire" ? [{ ...papier, statut }] : []
+  })
+  if (aRappeler.length === 0) return
 
   const responsables = await client.coreMembership.findMany({
     where: { teamId: ctx.teamId, statut: "actif", deletedAt: null, role: "responsable" },
     select: { id: true },
   })
 
-  for (const papier of aRenouveler) {
+  for (const papier of aRappeler) {
     const echeance = jourDe(papier.valableJusquAu)
     if (!echeance) continue
     const dejaEmis = await client.coreDomainEvent.findFirst({
@@ -806,11 +793,12 @@ export async function recalculerPapiersDans(ctx: ContexteTeam): Promise<void> {
     if (dejaEmis || responsables.length === 0) continue
 
     const type = libelleTypePapier(papier.type, papier.libelle)
+    const quand = papier.statut === "expire" ? `expiré depuis le ${dateCourte(echeance)}` : `expire le ${dateCourte(echeance)}`
     await emettre(ctx, "voiture.papier_expire_bientot", chargePapierExpireBientot.parse({ vehicleId: papier.vehicleId, paperId: papier.id, type: papier.type, echeance }))
     await emettre(ctx, "voiture.action_requise", {
       type: "papier_a_renouveler",
       cleUnicite: cleRappelPapier(papier.id, echeance),
-      titre: `Renouveler ${type} : ${papier.vehicle.nomCourt}, expire le ${dateCourte(echeance)}`,
+      titre: `Renouveler ${type} : ${papier.vehicle.nomCourt}, ${quand}`,
       contexte: papier.vehicle.nomCourt,
       ficheType: "paper",
       ficheId: papier.id,

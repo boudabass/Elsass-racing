@@ -540,6 +540,16 @@ async function main() {
     const rappelsSansEcheance = await compterRappel(papierSansEcheance)
     controle("un papier sans échéance n'émet rien", rappelsSansEcheance === 0, `${rappelsSansEcheance}`)
 
+    // Un papier créé déjà expiré lève aussi le rappel, une seule fois, avec un titre qui dit la date passée.
+    const echeancePassee = jourDeParis(new Date(Date.now() - 3 * 86_400_000))
+    const papierExpire = await voiture.creerPapierDans(ctx, vehiculeVoiture, { type: "controle_technique", valableJusquAu: echeancePassee })
+    await recalculerPapiersDans(ctx)
+    await recalculerPapiersDans(ctx)
+    const rappelsExpire = await compterRappel(papierExpire)
+    controle("un papier déjà expiré émet voiture.papier_expire_bientot une seule fois, même après deux ouvertures du QG", rappelsExpire === 1, `${rappelsExpire}`)
+    const actionsExpire = await proprietaire.coreAction.findMany({ where: { teamId: team.id, cleUnicite: `papier:${papierExpire}:${echeancePassee}` } })
+    controle("un papier déjà expiré lève une seule action, titrée « expiré depuis le »", actionsExpire.length === 1 && actionsExpire[0].titre.includes("expiré depuis le"), `${actionsExpire.length}`)
+
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
