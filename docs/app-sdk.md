@@ -132,3 +132,14 @@ Une app lit les données d'une autre seulement par une fonction exposée dans `l
 Exemple : `listerEmplacementsPourPartenaires(ctx)` (`src/apps/voiture/lectures-partagees.ts`) renvoie les emplacements de tous les véhicules de la team, avec le statut `libre`, `reserve`, `occupe` ou `indisponible` (même règle que le plan de déco). Partenaires s'en sert pour le choix d'un emplacement de contrepartie « logo ».
 
 Ces fonctions n'ont pas de garde : l'app appelante contrôle son propre accès avant d'appeler la lecture (ici, `accesPartenaires`). Elles ne renvoient que des données de résultat.
+
+## Contexte public, sans utilisateur (tâche 3.7)
+
+`avecContextePublic(teamId, tx => …)` (`src/lib/prisma.ts`) ouvre une transaction où seul `app.team_id` est posé. Il n'y a pas d'`app.user_id` : une page servie sans compte, comme `/p/<jeton>`, lit et écrit dans une seule team, et les politiques RLS ne laissent rien passer d'autre.
+
+Règles :
+- à n'utiliser que quand le filtre (par exemple un lien validé) est décidé avant la requête ;
+- une table ne s'ouvre sans contexte que par une fonction SQL `SECURITY DEFINER` dont le corps est fermé (précédents : `core_invitation_en_attente`, `partenaires_lien_par_empreinte`) ;
+- `scripts/verifier-cloisonnement.ts` vérifie qu'une lecture sans contexte ne renvoie rien, et que la fonction ne renvoie que la ligne demandée.
+
+Exemple : `lirePagePartenaire(lien)` (`src/apps/partenaires/page-publique-serveur.ts`).

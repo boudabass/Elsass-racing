@@ -8,6 +8,7 @@ import type { Browser, BrowserContext, Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien, tuilesDuQg } from "./aide/navigation"
+import { renseignerMentionsConvention } from "./aide/partenaire-page"
 import { ajouterMembreConnectable, compterEvenements, jetonEnClairEnBase, preparerSaison } from "./aide/session"
 
 const DOSSIER = path.join(__dirname, "..", "docs", "captures")
@@ -187,7 +188,9 @@ test("responsable : prospect, échange, convention, document, signature, avancem
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   await expect(page.getByText("Emplacement : Portière")).toBeVisible()
 
-  // 4. Document : un PDF de plus de 2 Ko, qui commence par %PDF-.
+  // 4. Document : un PDF de plus de 2 Ko, qui commence par %PDF-. Les mentions légales sont renseignées, pour que
+  // l'exemple publié (docs/captures/convention-exemple.pdf) n'ait pas de blanc.
+  await renseignerMentionsConvention(equipe, partenaireId)
   await page.goto(`/apps/partenaires/conventions/${conventionId}?onglet=document`)
   await page.locator("section[aria-labelledby=document-genere]").getByRole("button", { name: /Générer le document/ }).click()
   await expect(page.getByRole("status").filter({ hasText: "Document généré." })).toBeVisible()
@@ -209,6 +212,8 @@ test("responsable : prospect, échange, convention, document, signature, avancem
   // 6. Avancement : 4 sur 4 publications, la contrepartie est tenue.
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   const publications = ligneContrepartie(page, "Publications sur les réseaux")
+  // « Saisir l'avancement » est replié (details) dans la ligne : on l'ouvre avant de saisir.
+  await publications.getByText("Saisir l'avancement", { exact: true }).click()
   await publications.getByLabel("Réalisé sur 4", { exact: true }).fill("4")
   await publications.getByRole("button", { name: "Enregistrer l'avancement" }).click()
   await expect(publications.getByText("Tenue", { exact: true })).toBeVisible()
@@ -334,7 +339,7 @@ test("modèles : insertion au curseur, aperçu sans enregistrer, liste de base",
 
   await page.getByRole("button", { name: "Aperçu", exact: true }).click()
   await expect(page.getByText("Équipe Exemple").first()).toBeVisible()
-  await expect(page.getByText("Version 1")).toBeVisible()
+  await expect(page.getByText("Version 2")).toBeVisible()
   await capturer(page, "partenaires-modele-1440x900.png")
 })
 
