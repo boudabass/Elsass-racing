@@ -235,3 +235,16 @@
 - Vérifications : vitest 465/465, typecheck, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 84/84 (port 3101). Comptes du journal e2e : P2003 0, P2025 0, `reading 'id'` 0, `ErreurAcces` 0, `TypeError` 0.
 
 - Points interprétés : dates sans heure en `@db.Date` (sauf `achete_le`, en Timestamptz comme la spécification) ; unités de réglage choisies pour carrossage (°), parallélisme (mm), barres antiroulis (cran), répartition de freinage (%) et rapport de pont (sans unité), à valider ; le filet rouge du dessin est rangé dans le rôle `detail` ; dimensions des emplacements hors plan laissées vides, faute de valeurs dans le brief ; `ficheVoiture` est en écriture, car elle crée la ligne ; un emplacement ne se marque indisponible que sans logo posé ou réservé.
+
+## 18/10/2026 : brief 3.3, Voiture : écrans, fiches de réglage, hors ligne, widgets
+
+- Point 0 : un papier déjà expiré lève aussi le rappel, une seule fois, avec un titre « expiré depuis le ». Le paramètre `niveau` est retiré des fonctions `…Dans` où il ne servait à rien ; il reste sur `modifierReglageDans`, qui vérifie la propriété de la fiche.
+- Écrans : menu (Véhicules, Champs de réglage) ; Mes véhicules, avec l'état des papiers en mots ; nouveau véhicule (nom, type, gabarit) ; fiche en cinq onglets (Identité, Papiers, Déco, Réglages, Historique) ; fiches de réglage (pré-remplissage depuis la dernière fiche ou une référence, comparaison avec écarts signés, champs masqués) ; entrées Réglage et Véhicule du bouton +.
+- Hors ligne : `voiture_setup` est synchronisable en contribution propre (suppression en ligne seulement) ; `core_vehicle` et `voiture_setup_template` se lisent hors ligne seulement. Base locale en version 4. La nouvelle fiche part dans la base locale (`ecrireLocal`), comme la dépense.
+- Widgets : « Papiers à renouveler » (nombre et premier, expirés d'abord) et « Emplacements libres ». Lus, non affichés (lot 6).
+- Documentation : `docs/app-sdk.md` mentionne `ONGLETS_FICHE_VEHICULE`.
+- Vérifications : vitest 480/480 ; `db:verifier-rls`, `db:verifier-bus` (section Voiture étendue aux widgets), `db:verifier-synchro` (contrôles de fiches hors ligne) tous verts ; e2e complet 90/90 sur le build isolé (port 3101), dont `e2e/voiture.spec.ts` (cinq tests) et `e2e/voiture-hors-ligne.spec.ts` (projet hors-ligne).
+- Captures : seize images `docs/captures/voiture-*-1440.png` et `voiture-*-360.png` (Mes véhicules, cinq onglets de la fiche, nouvelle fiche, comparaison). Les autres captures modifiées par la suite complète sont remises à leur état committé.
+- Points interprétés : l'écart est la seconde fiche moins la première ; l'identité n'a pas de bouton « Modifier », le formulaire s'affiche à qui peut écrire et une lecture voit un tableau ; « invité » désigne un membre sans accès à Voiture (écran de refus) ; la suppression d'une fiche reste en ligne, au niveau écriture ; une pression de 2,0 s'affiche « 2 ».
+- Limite connue : hors ligne, l'affichage du véhicule et le pré-remplissage ne lisent pas encore `core_vehicle` et `voiture_setup_template`. Les pages serveur se servent du HTML en cache. À brancher.
+- Comptes du journal e2e (P2003, P2025, `reading 'id'`, ErreurAcces, TypeError) : non relevés dans cette passe, le journal serveur n'était pas capturé.

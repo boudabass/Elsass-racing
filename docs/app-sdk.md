@@ -108,7 +108,7 @@ Côté écran : `useTable("<table>")` lit la base locale, `useMoteurSynchro().ec
 
 Une app peut ajouter un onglet à la fiche d'une autre app. Le contrat est dans `src/core/sdk/onglets.ts` :
 
-1. Déclarer l'onglet dans la liste de la fiche : `{ cle, libelle, app, niveauMinimum, composant }`. `composant` est le composant serveur de l'app, qui reçoit `{ ficheId }` et appelle ses propres fonctions de lecture. La liste vit dans `src/apps/onglets-fiches.ts` (couche de composition : elle connaît les apps, le socle et la fiche non). Pour la fiche épreuve : `ONGLETS_FICHE_EPREUVE`.
+1. Déclarer l'onglet dans la liste de la fiche : `{ cle, libelle, app, niveauMinimum, composant }`. `composant` est le composant serveur de l'app, qui reçoit `{ ficheId }` et appelle ses propres fonctions de lecture. La liste vit dans `src/apps/onglets-fiches.ts` (couche de composition : elle connaît les apps, le socle et la fiche non). Pour la fiche épreuve : `ONGLETS_FICHE_EPREUVE`. Pour la fiche véhicule (Voiture, tâche 3.3) : `ONGLETS_FICHE_VEHICULE`, avec les cinq onglets de Voiture (Identité, Papiers, Déco, Réglages, Historique) ; Garage y ajoutera « État » au lot 4.
 2. Dans la page de la fiche, appeler `ongletsVisibles(contexte, liste)` : l'onglet n'est retenu que si son app est activée pour la team et que le membre a au moins `niveauMinimum`.
 3. Ajouter l'onglet à la barre (`Onglets`), et rendre `onglet.composant` avec `ficheId`. La fiche ne connaît pas l'app qui fournit l'onglet. L'app qui possède la fiche ne lit jamais les tables de l'autre.
 
