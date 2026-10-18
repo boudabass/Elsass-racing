@@ -3,7 +3,7 @@ import Link from "next/link"
 import { LIEN } from "@/lib/classes-formulaire"
 
 import { CHAMPS_REGLAGE } from "../regles"
-import { LIBELLE_CONDITIONS, LIBELLE_REVETEMENT, dateEnToutesLettres, noteSur5 } from "../libelles"
+import { LIBELLE_CONDITIONS, LIBELLE_REVETEMENT, dateEnToutesLettres, noteSur5, valeurDeReglageEnTexte } from "../libelles"
 import { EnregistrerReference, SupprimerReglage } from "./actions-reglage"
 
 export interface DetailReglage {
@@ -93,7 +93,7 @@ function Groupe({ titre, champs, valeurs }: { titre: string; champs: typeof CHAM
           <div key={champ.cle} className="flex justify-between gap-3 border-b border-bordure pb-2 sm:border-0 sm:pb-0">
             <dt className="text-sm text-texte-discret">{champ.libelle}</dt>
             <dd className="tabular-nums">
-              {String(valeurs[champ.cle]).replace(".", ",")}
+              {valeurDeReglageEnTexte(champ.cle, valeurs[champ.cle])}
               {champ.unite ? ` ${champ.unite}` : ""}
             </dd>
           </div>

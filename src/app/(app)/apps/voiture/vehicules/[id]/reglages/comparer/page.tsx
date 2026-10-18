@@ -5,7 +5,7 @@ import { Lock } from "lucide-react"
 import { accesEcran } from "@/apps/voiture/ecran"
 import { FiltreEcarts } from "@/apps/voiture/composants/filtre-ecarts"
 import { lireChampsMasques, lireReglage } from "@/apps/voiture/lectures-serveur"
-import { dateEnToutesLettres, ecartSigne, valeurEnTexte } from "@/apps/voiture/libelles"
+import { dateEnToutesLettres, ecartDeReglage, valeurDeReglageEnTexte } from "@/apps/voiture/libelles"
 import { comparer, type ValeursReglage } from "@/apps/voiture/regles"
 import { EcranVide } from "@/components/qg/ecran-vide"
 
@@ -78,9 +78,9 @@ export default async function PageComparaison({
                 <th scope="row" className={`break-words py-2 pr-2 text-left ${ligne.different ? "font-semibold" : "font-normal"}`}>
                   {ligne.libelle}
                 </th>
-                <td className="break-words py-2 pr-2 tabular-nums">{ligne.a === null ? "—" : `${valeurEnTexte(ligne.a)}${ligne.unite ? ` ${ligne.unite}` : ""}`}</td>
-                <td className="break-words py-2 pr-2 tabular-nums">{ligne.b === null ? "—" : `${valeurEnTexte(ligne.b)}${ligne.unite ? ` ${ligne.unite}` : ""}`}</td>
-                <td className={`py-2 tabular-nums ${ligne.different ? "font-semibold" : ""}`}>{ecartDe(ligne.a, ligne.b, ligne.unite, ligne.different)}</td>
+                <td className="break-words py-2 pr-2 tabular-nums">{ligne.a === null ? "—" : `${valeurDeReglageEnTexte(ligne.cle, ligne.a)}${ligne.unite ? ` ${ligne.unite}` : ""}`}</td>
+                <td className="break-words py-2 pr-2 tabular-nums">{ligne.b === null ? "—" : `${valeurDeReglageEnTexte(ligne.cle, ligne.b)}${ligne.unite ? ` ${ligne.unite}` : ""}`}</td>
+                <td className={`py-2 tabular-nums ${ligne.different ? "font-semibold" : ""}`}>{ecartDe(ligne.cle, ligne.a, ligne.b, ligne.unite, ligne.different)}</td>
               </tr>
             ))}
           </tbody>
@@ -91,9 +91,9 @@ export default async function PageComparaison({
 }
 
 // Écart B − A pour deux nombres ; « Différent » pour un texte ; « — » quand une valeur manque ou qu'il n'y a pas d'écart.
-function ecartDe(a: string | number | null, b: string | number | null, unite: string, different: boolean): string {
+function ecartDe(cle: string, a: string | number | null, b: string | number | null, unite: string, different: boolean): string {
   if (!different) return "—"
-  if (typeof a === "number" && typeof b === "number") return ecartSigne(Math.round((b - a) * 100) / 100, unite)
+  if (typeof a === "number" && typeof b === "number") return ecartDeReglage(cle, Math.round((b - a) * 100) / 100, unite)
   if (a === null || b === null) return "—"
   return "Différent"
 }

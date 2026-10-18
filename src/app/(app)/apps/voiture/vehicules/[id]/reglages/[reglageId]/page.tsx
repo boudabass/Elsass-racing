@@ -6,7 +6,7 @@ import { accesEcran } from "@/apps/voiture/ecran"
 import { FicheReglageLecture } from "@/apps/voiture/composants/fiche-reglage"
 import { FormulaireReglage, type OptionEpreuveReglage, type ValeursFormulaireReglage } from "@/apps/voiture/composants/formulaire-reglage"
 import { lireChampsMasques, lireEpreuvesDuVehicule, lireReglage } from "@/apps/voiture/lectures-serveur"
-import { valeurEnTexte } from "@/apps/voiture/libelles"
+import { valeurDeReglageEnTexte } from "@/apps/voiture/libelles"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { jourDeParis } from "@/core/dates"
 import { aAuMoins } from "@/core/droits/niveaux"
@@ -87,7 +87,7 @@ async function EditionReglage({
     revetement: detail.fiche.revetement ?? "",
     remarques: detail.fiche.remarques,
     note: detail.fiche.note ? String(detail.fiche.note) : "",
-    valeurs: Object.fromEntries(detail.champs.filter((c) => c.valeur !== null).map((c) => [c.cle, valeurEnTexte(c.valeur)])),
+    valeurs: Object.fromEntries(detail.champs.filter((c) => c.valeur !== null).map((c) => [c.cle, valeurDeReglageEnTexte(c.cle, c.valeur)])),
   }
   return <FormulaireReglage vehicleId={vehicleId} reglageId={reglageId} initiales={initiales} masques={masques} epreuves={options} modeleId={detail.fiche.setupTemplateId} />
 }

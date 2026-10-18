@@ -147,10 +147,30 @@ test("responsable : deux fiches, comparaison des écarts, référence et pré-re
 
   // Nouvelle fiche « Partir de » la référence : la pression avant gauche à froid est pré-remplie avec 2,0.
   await page.goto(`/apps/voiture/vehicules/${vehiculeId}/reglages/nouveau`)
-  await page.locator('select[name="partir"]').selectOption({ label: "Référence : Asphalte sec" })
-  await page.getByRole("button", { name: "Pré-remplir" }).click()
-  await expect(page.locator('input[name="v_pression_froid_avg"]')).toHaveValue("2")
+  await page.getByLabel("Partir de").selectOption({ label: "Référence : Asphalte sec" })
+  await page.waitForURL(/partir=/)
+  await expect(page.locator('input[name="v_pression_froid_avg"]')).toHaveValue("2,0")
   await capturer(page, "voiture-nouvelle-fiche-1440.png")
+
+  // Données des captures (brief 3.4, point 0.3) : identité remplie, un papier par statut. Les deux fiches et la
+  // référence sont déjà là.
+  await page.goto(`/apps/voiture/vehicules/${vehiculeId}?onglet=identite`)
+  await page.locator('input[name="marque"]').fill("Citroën")
+  await page.locator('input[name="modele"]').fill("Saxo")
+  await page.locator('input[name="groupe"]').fill("N2")
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click()
+  for (const [type, decalage] of [
+    ["assurance", 200],
+    ["controle_technique", 10],
+    ["carte_grise", -3],
+  ] as const) {
+    await page.goto(`/apps/voiture/vehicules/${vehiculeId}?onglet=papiers`)
+    await page.getByText("Ajouter un papier").click()
+    await formulaireAjoutPapier(page).locator('select[name="type"]').selectOption(type)
+    await formulaireAjoutPapier(page).locator('input[name="valableJusquAu"]').fill(jourCivil(decalage))
+    await page.getByRole("button", { name: "Ajouter le papier" }).click()
+    await page.waitForLoadState("networkidle")
+  }
 
   // Captures des cinq onglets de la fiche et de Mes véhicules, à 1440 px.
   await page.goto("/apps/voiture")

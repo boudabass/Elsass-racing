@@ -6,11 +6,10 @@ import { accesEcran } from "@/apps/voiture/ecran"
 import { FormulaireReglage, type OptionEpreuveReglage } from "@/apps/voiture/composants/formulaire-reglage"
 import { ErreurVoiture } from "@/apps/voiture/erreurs"
 import { lireChampsMasques, lireEpreuvesDuVehicule, lireReglages, lireVehicule } from "@/apps/voiture/lectures-serveur"
-import { valeurEnTexte } from "@/apps/voiture/libelles"
+import { valeurDeReglageEnTexte } from "@/apps/voiture/libelles"
 import { valeursDeDepart } from "@/apps/voiture/services-serveur"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { jourDeParis } from "@/core/dates"
-import { BOUTON_SECONDAIRE, CHAMP } from "@/lib/classes-formulaire"
 
 // Nouvelle fiche : la date du jour, l'épreuve en cours si le véhicule y est engagé, et « Partir de » : la dernière
 // fiche (par défaut) ou une référence. Les champs se pré-remplissent avec valeursDeDepart (préremplir).
@@ -49,26 +48,11 @@ export default async function PageNouvelleFiche({
       </Link>
       <h1 className="titre-rallye text-3xl">Nouvelle fiche de réglage</h1>
 
-      <form method="get" className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Partir de</span>
-          <select name="partir" defaultValue={referenceChoisie ?? "derniere"} className={CHAMP}>
-            <option value="derniere">La dernière fiche du véhicule</option>
-            {references.map((reference) => (
-              <option key={reference.id} value={reference.id}>
-                Référence : {reference.nom}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="submit" className={BOUTON_SECONDAIRE}>
-          Pré-remplir
-        </button>
-      </form>
-
       <FormulaireReglage
         key={referenceChoisie ?? "derniere"}
         vehicleId={id}
+        references={references.map((reference) => ({ id: reference.id, nom: reference.nom }))}
+        referenceChoisie={referenceChoisie}
         initiales={{
           date: aujourdhui,
           epreuve: enCours ? `${enCours.entryId}|${enCours.eventId}` : "",
@@ -76,7 +60,7 @@ export default async function PageNouvelleFiche({
           revetement: "",
           remarques: "",
           note: "",
-          valeurs: Object.fromEntries(Object.entries(valeurs).map(([cle, valeur]) => [cle, valeurEnTexte(valeur)])),
+          valeurs: Object.fromEntries(Object.entries(valeurs).map(([cle, valeur]) => [cle, valeurDeReglageEnTexte(cle, valeur)])),
         }}
         masques={masques}
         epreuves={options}

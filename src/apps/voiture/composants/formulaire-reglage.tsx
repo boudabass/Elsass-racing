@@ -1,13 +1,13 @@
 "use client"
 
-import { useActionState, useEffect, useState, type FormEvent } from "react"
+import { useActionState, useEffect, useRef, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 
 import { Message } from "@/components/formulaire/message"
 import { newId } from "@/core/ids"
 import type { Resultat } from "@/core/sdk/actions-serveur"
 import { useMoteurSynchro } from "@/core/synchro/client/react"
-import { BOUTON, CHAMP } from "@/lib/classes-formulaire"
+import { BOUTON, BOUTON_SECONDAIRE, CHAMP } from "@/lib/classes-formulaire"
 
 import { modifierReglageAction } from "../actions"
 import { CHAMPS_REGLAGE, type ChampReglage } from "../regles"
@@ -39,6 +39,9 @@ interface Props {
   epreuves: OptionEpreuveReglage[]
   // Référence utilisée pour partir de (sa clé de modèle), ou null.
   modeleId: string | null
+  // Création seulement : les références de la team et le choix « Partir de » en cours.
+  references?: Array<{ id: string; nom: string }>
+  referenceChoisie?: string | null
 }
 
 const ESSENTIELS = CHAMPS_REGLAGE.filter((c) => c.groupe === "essentiel")
@@ -48,12 +51,48 @@ const PNEUS = ["avg", "avd", "arg", "ard"] as const
 // Nouvelle fiche ou modification. La nouvelle fiche s'écrit dans la base locale et part au retour du réseau
 // (synchro, voiture_setup) ; la modification reste en ligne. Les champs masqués par la team ne s'affichent pas : en
 // modification, leur valeur part dans un champ caché, pour que la modification ne la perde pas.
-export function FormulaireReglage({ vehicleId, reglageId, initiales, masques, epreuves, modeleId }: Props) {
+export function FormulaireReglage({ vehicleId, reglageId, initiales, masques, epreuves, modeleId, references = [], referenceChoisie = null }: Props) {
   const router = useRouter()
   const moteur = useMoteurSynchro()
   const [resultat, envoyer, enCours] = useActionState<Resultat | null, FormData>(modifierReglageAction, null)
   const [local, setLocal] = useState<{ ok: boolean; texte: string } | null>(null)
   const [enregistrementLocal, setEnregistrementLocal] = useState(false)
+
+  // « Partir de » : le choix pré-remplit tout de suite. Si des valeurs ont été saisies à la main, on demande d'abord.
+  const formulaire = useRef<HTMLFormElement>(null)
+  const [choisie, setChoisie] = useState(referenceChoisie ?? "derniere")
+  const [demande, setDemande] = useState<string | null>(null)
+
+  // Vrai si un champ diffère de sa valeur de départ (saisie à la main).
+  function saisieModifiee(): boolean {
+    const element = formulaire.current
+    if (!element) return false
+    return Array.from(element.elements).some((champ) => {
+      if (champ instanceof HTMLInputElement) {
+        if (champ.type === "hidden") return false
+        if (champ.type === "checkbox" || champ.type === "radio") return champ.checked !== champ.defaultChecked
+        return champ.value !== champ.defaultValue
+      }
+      if (champ instanceof HTMLTextAreaElement) return champ.value !== champ.defaultValue
+      if (champ instanceof HTMLSelectElement) return Array.from(champ.options).some((option) => option.selected !== option.defaultSelected)
+      return false
+    })
+  }
+
+  function allerVers(valeur: string) {
+    setDemande(null)
+    setChoisie(valeur)
+    router.push(`/apps/voiture/vehicules/${vehicleId}/reglages/nouveau?partir=${valeur}`)
+  }
+
+  function choisirReference(valeur: string) {
+    if (valeur === choisie) return
+    if (saisieModifiee()) {
+      setDemande(valeur)
+      return
+    }
+    allerVers(valeur)
+  }
 
   useEffect(() => {
     if (reglageId && resultat?.ok) router.push(`/apps/voiture/vehicules/${vehicleId}/reglages/${reglageId}`)
@@ -90,7 +129,36 @@ export function FormulaireReglage({ vehicleId, reglageId, initiales, masques, ep
   )
 
   return (
-    <form action={reglageId ? envoyer : undefined} onSubmit={reglageId ? undefined : enregistrerLocal} className="flex flex-col gap-6">
+    <>
+      {!reglageId && (
+        <div className="flex flex-col gap-3">
+          <label className="flex max-w-xs flex-col gap-1 text-sm">
+            <span className="font-medium">Partir de</span>
+            <select value={choisie} onChange={(evenement) => choisirReference(evenement.target.value)} className={CHAMP}>
+              <option value="derniere">La dernière fiche du véhicule</option>
+              {references.map((reference) => (
+                <option key={reference.id} value={reference.id}>
+                  Référence : {reference.nom}
+                </option>
+              ))}
+            </select>
+          </label>
+          {demande !== null && (
+            <div role="group" aria-label="Remplacer les valeurs saisies" className="flex flex-col gap-3 rounded-lg border border-bordure p-4">
+              <p className="font-medium">Remplacer les valeurs saisies ?</p>
+              <div className="flex flex-wrap gap-3">
+                <button type="button" onClick={() => allerVers(demande)} className={BOUTON}>
+                  Remplacer
+                </button>
+                <button type="button" onClick={() => setDemande(null)} className={BOUTON_SECONDAIRE}>
+                  Garder
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    <form ref={formulaire} action={reglageId ? envoyer : undefined} onSubmit={reglageId ? undefined : enregistrerLocal} className="flex flex-col gap-6">
       <input type="hidden" name="vehicleId" value={vehicleId} />
       {reglageId && <input type="hidden" name="reglageId" value={reglageId} />}
       {modeleId && <input type="hidden" name="modeleId" value={modeleId} />}
@@ -196,5 +264,6 @@ export function FormulaireReglage({ vehicleId, reglageId, initiales, masques, ep
         )}
       </div>
     </form>
+    </>
   )
 }

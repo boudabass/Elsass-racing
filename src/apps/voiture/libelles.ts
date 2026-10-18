@@ -143,3 +143,21 @@ export function valeurEnTexte(valeur: string | number | null | undefined): strin
   if (valeur === null || valeur === undefined) return ""
   return String(valeur).replace(".", ",")
 }
+
+// Pressions : toujours une décimale (« 2,0 bar »), à l'affichage, dans la comparaison et dans l'écart (brief 3.4).
+// Les autres champs gardent leur affichage.
+export function estPression(cle: string): boolean {
+  return cle.startsWith("pression_")
+}
+
+export function valeurDeReglageEnTexte(cle: string, valeur: string | number | null | undefined): string {
+  if (typeof valeur === "number" && estPression(cle)) return valeur.toFixed(1).replace(".", ",")
+  return valeurEnTexte(valeur)
+}
+
+// Écart B − A d'un champ de réglage : une décimale pour les pressions.
+export function ecartDeReglage(cle: string, ecart: number, unite: string): string {
+  if (!estPression(cle)) return ecartSigne(ecart, unite)
+  const signe = ecart > 0 ? "+" : ecart < 0 ? "−" : ""
+  return `${signe}${Math.abs(ecart).toFixed(1).replace(".", ",")}${unite ? ` ${unite}` : ""}`
+}
