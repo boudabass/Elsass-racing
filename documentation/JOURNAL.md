@@ -155,3 +155,19 @@
 - Comptes du journal e2e, avant (passage 2.16) puis après : P2003 et P2025 de 47 à 0 ; `reading 'id'` de 2 à 0 ; `ErreurAcces` de 23 à 0 (hors l'erreur volontaire de `/erreur-test`, qui n'apparaît pas dans ce décompte).
 
 - Vérifications : typecheck, vitest 392/392, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 74/74 sur build de production (port 3101). Captures restaurées, rien de visuel ne change.
+
+## 18/10/2026 : brief 3.1, envoi et lecture des fichiers
+
+- Service commun dans `src/core/fichiers/` : règles pures (`regles.ts`, types acceptés par signature, 10 Mo, nom propre, lecture) et service serveur (`fichiers-serveur.ts`, écriture puis ligne `core_file`, rattachement à la fiche dans la transaction de l'app, remplacement par corbeille). Routes `POST /api/fichiers` et `GET /api/fichiers/[id]`. Règles et routes dans `docs/fichiers.md`.
+
+- Composant `ChampFichier` (`src/components/formulaire/champ-fichier.tsx`) : photos compressées dans le navigateur, hors ligne géré. Trois usages : logo de la team (Réglages, Identité, et barre haute), photo d'un ticket de dépense (Budget, création et modification), preuve d'un résultat (Saison).
+
+- Middleware et en-têtes : `/api/fichiers` est sorti du matcher du middleware (Next tronque à 10 Mo le corps cloné pour le middleware) ; `next.config.ts` n'applique pas la CSP globale aux fichiers, qui gardent leur CSP avec `sandbox`. Les pages gardent l'en-tête globale, testé dans le scénario ticket.
+
+- Tests : `e2e/fichiers.spec.ts` (six scénarios : logo, ticket, preuve, refus, cloisonnement, hors ligne), `src/core/fichiers/regles.test.ts` (12 tests). `scripts/verifier-synchro.ts` gagne deux contrôles : ticket d'un équipier rattaché à une dépense créée hors ligne, ticket d'un tiers refusé.
+
+- Comptes du journal e2e : P2003 et P2025 à 0 ; `reading 'id'` à 0 ; `ErreurAcces` à 0 ; `TypeError` à 0.
+
+- Vérifications : typecheck, vitest 404/404, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 80/80 sur build de production (port 3101). Captures commitées : les écrans touchés (Identité, nouvelle dépense, fiche de dépense, formulaire d'audit Budget, résultats Saison) et les deux nouvelles. Les autres captures ont varié avec les données des tests : elles sont restaurées.
+
+- Points d'attention : le log de l'e2e contient deux avertissements, non investigués et sans effet sur les tests : `next start` demande `node .next/standalone/server.js` avec `output: "standalone"`, et le client pg signale un `client.query()` concurrent (DeprecationWarning).
