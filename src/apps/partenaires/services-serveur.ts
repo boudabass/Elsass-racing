@@ -398,6 +398,45 @@ export async function poserLogoPartenaireDans(ctx: ContexteTeam, partnerId: stri
   })
 }
 
+// Coordonnées de l'entreprise : seulement les cinq champs du contact rattaché au partenaire (brief 3.6, §4).
+// Le socle n'a pas de service de contacts : celui-ci ne touche que ce partenaire-là, jamais un autre contact.
+const schemaCoordonnees = z
+  .object({
+    adresse: z.string().trim().max(300).optional(),
+    telephone: z.string().trim().max(30).optional(),
+    email: z.string().trim().max(200).email("Adresse mail invalide.").or(z.literal("")).optional(),
+    site: z.string().trim().max(200).optional(),
+    siret: z.string().trim().regex(/^(\d{14})?$/, "Le SIRET compte 14 chiffres.").optional(),
+  })
+  .strict()
+
+export type EntreeCoordonnees = z.input<typeof schemaCoordonnees>
+
+export async function modifierCoordonnees(partnerId: string, entree: EntreeCoordonnees): Promise<void> {
+  const { ctx } = await accesPartenaires("ecriture")
+  return modifierCoordonneesDans(ctx, partnerId, entree)
+}
+
+export async function modifierCoordonneesDans(ctx: ContexteTeam, partnerId: string, entree: EntreeCoordonnees): Promise<void> {
+  const donnees = schemaCoordonnees.parse(entree)
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const partenaire = await client.partenairesPartner.findFirst({
+    where: { id: partnerId, teamId: ctx.teamId, deletedAt: null },
+    select: { contactId: true },
+  })
+  if (!partenaire) refus("Partenaire introuvable.")
+  const champs: Record<string, string | null> = {}
+  for (const [cle, valeur] of Object.entries(donnees)) {
+    if (valeur !== undefined) champs[cle] = valeur === "" ? null : valeur
+  }
+  await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+    tx.coreContact.update({
+      where: { id: partenaire.contactId },
+      data: { ...champs, rev: { increment: 1 }, updatedBy: ctx.userId },
+    }),
+  )
+}
+
 export async function supprimerPartenaire(id: string): Promise<void> {
   const { ctx } = await accesPartenaires("ecriture")
   return supprimerPartenaireDans(ctx, id)
@@ -572,6 +611,52 @@ export async function lireCatalogueDans(ctx: ContexteTeam) {
     where: { teamId: ctx.teamId, deletedAt: null },
     orderBy: [{ ordre: "asc" }, { nom: "asc" }],
   })
+}
+
+// --- Liste de base : écriture (gestion) -----------------------------------------------------
+
+const schemaCatalogue = z
+  .object({
+    nom: z.string().trim().min(1, "Donnez un nom à la contrepartie.").max(120),
+    type: z.enum(TYPES_CONTREPARTIE),
+    unite: z.string().trim().min(1, "Donnez une unité, par exemple « publication ».").max(40),
+    quantiteDefaut: z.number().int().min(1).max(999),
+    ordre: z.number().int().min(0).max(999),
+    actif: z.boolean(),
+  })
+  .strict()
+
+export type EntreeCatalogue = z.input<typeof schemaCatalogue>
+
+export async function creerCatalogue(entree: EntreeCatalogue): Promise<string> {
+  const { ctx } = await accesPartenaires("gestion")
+  return creerCatalogueDans(ctx, entree)
+}
+
+export async function creerCatalogueDans(ctx: ContexteTeam, entree: EntreeCatalogue): Promise<string> {
+  const donnees = schemaCatalogue.parse(entree)
+  const id = newId()
+  await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+    tx.partenairesBenefitCatalog.create({
+      data: { id, teamId: ctx.teamId, ...donnees, sourceCle: null, createdBy: ctx.userId, updatedBy: ctx.userId },
+    }),
+  )
+  return id
+}
+
+export async function modifierCatalogue(id: string, entree: EntreeCatalogue): Promise<void> {
+  const { ctx } = await accesPartenaires("gestion")
+  return modifierCatalogueDans(ctx, id, entree)
+}
+
+export async function modifierCatalogueDans(ctx: ContexteTeam, id: string, entree: EntreeCatalogue): Promise<void> {
+  const donnees = schemaCatalogue.parse(entree)
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const existe = await client.partenairesBenefitCatalog.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!existe) refus("Contrepartie de la liste introuvable.")
+  await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+    tx.partenairesBenefitCatalog.update({ where: { id }, data: { ...donnees, rev: { increment: 1 }, updatedBy: ctx.userId } }),
+  )
 }
 
 export async function creerModele(entree: EntreeModele): Promise<string> {
