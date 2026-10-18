@@ -19,6 +19,8 @@ export type VehiculeListe = {
   groupe: string | null
   classe: string | null
   etatPapiers: EtatPapiersVehicule
+  // Emplacements libres du véhicule (statut stocké) : la carte n'en affiche le compte que s'il y en a.
+  emplacementsLibres: number
 }
 
 // Tous les véhicules actifs de la team (y compris ceux créés par Saison, sans fiche Voiture encore).
@@ -37,6 +39,10 @@ export async function listerVehicules(): Promise<VehiculeListe[]> {
     where: { teamId: ctx.teamId, deletedAt: null, vehicleId: { in: vehiculeIds } },
     select: { vehicleId: true, valableJusquAu: true },
   })
+  const emplacementsLibres = await client.voitureSlot.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null, vehicleId: { in: vehiculeIds }, statut: "libre" },
+    select: { vehicleId: true },
+  })
   const maintenant = new Date()
 
   return vehicules.map((v) => ({
@@ -50,6 +56,7 @@ export async function listerVehicules(): Promise<VehiculeListe[]> {
       papiers.filter((p) => p.vehicleId === v.id),
       maintenant,
     ),
+    emplacementsLibres: emplacementsLibres.filter((e) => e.vehicleId === v.id).length,
   }))
 }
 
