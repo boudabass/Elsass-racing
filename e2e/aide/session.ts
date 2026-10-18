@@ -490,3 +490,37 @@ export async function ajouterVehiculeDeReco(equipe: Equipe, nomCourt: string): P
   )
   return id
 }
+
+// Encaisse une recette prévue de Budget (service réel, dans un processus tsx), par son libellé.
+export function encaisserRecetteBudget(equipe: Equipe, libelle: string): void {
+  const charge = JSON.stringify({
+    teamId: equipe.teamId,
+    userId: equipe.responsable.userId,
+    membershipId: equipe.responsable.membershipId,
+    libelle,
+  })
+  const script = path.join(__dirname, "encaisser-recette.ts")
+  execFileSync(process.execPath, ["--import", "tsx", script, charge], {
+    cwd: path.join(__dirname, "..", ".."),
+    env: process.env,
+    stdio: ["ignore", "pipe", "pipe"],
+    encoding: "utf8",
+  })
+}
+
+// Épreuve déjà passée (dates dans le passé, statut envisagé) : Saison la passe à « terminée » à l'ouverture du QG.
+export async function ajouterEpreuvePasseeEnBase(equipe: Equipe, seasonId: string, nom: string, debut: string, fin: string): Promise<string> {
+  const id = newId()
+  await bd().query(
+    `INSERT INTO core_event (id, team_id, season_id, type, nom, date_debut, date_fin, updated_at)
+     VALUES ($1, $2, $3, 'rallye'::core_event_type, $4, $5, $6, now())`,
+    [id, equipe.teamId, seasonId, nom, debut, fin],
+  )
+  return id
+}
+
+// Statut d'une épreuve en base (envisagee, en_cours, terminee…).
+export async function statutEpreuveEnBase(equipe: Equipe, eventId: string): Promise<string | null> {
+  const { rows } = await bd().query(`SELECT statut FROM core_event WHERE team_id = $1 AND id = $2`, [equipe.teamId, eventId])
+  return rows[0]?.statut ?? null
+}

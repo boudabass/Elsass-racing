@@ -8,6 +8,7 @@ import { formaterMontant } from "../regles"
 import {
   dateFrancaise,
   instantFrancais,
+  LIBELLES_APPORT_RECU,
   LIBELLES_SOURCE,
   LIBELLES_STATUT_CONVENTION,
   LIBELLES_TYPE_INTERACTION,
@@ -311,7 +312,7 @@ export function OngletConventions({ partenaire }: { partenaire: PartenaireFiche 
                     Du {dateFrancaise(convention.dateDebut.toISOString().slice(0, 10))} au {dateFrancaise(convention.dateFin.toISOString().slice(0, 10))}
                   </span>
                   <span className="text-sm">
-                    {LIBELLES_STATUT_CONVENTION[convention.statut]} · Apport {formaterMontant(convention.apportFinancierCentimes)}
+                    {LIBELLES_STATUT_CONVENTION[convention.statut]} · Apport {formaterMontant(convention.apportFinancierCentimes)} · {LIBELLES_APPORT_RECU[convention.apportRecu]}
                   </span>
                   <span className="text-sm text-texte-discret">
                     Contreparties tenues : {tenues} sur {convention.benefits.length}

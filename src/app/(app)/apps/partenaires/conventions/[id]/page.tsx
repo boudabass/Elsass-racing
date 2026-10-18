@@ -12,6 +12,7 @@ import { SaisieAvancement } from "@/apps/partenaires/composants/saisie-avancemen
 import { BoutonEnvoi, FormulaireAction } from "@/apps/partenaires/composants/formulaire"
 import {
   dateFrancaise,
+  LIBELLES_APPORT_RECU,
   LIBELLES_STATUT_CONTREPARTIE,
   LIBELLES_STATUT_CONVENTION,
   LIBELLES_TYPE_CONTREPARTIE,
@@ -141,6 +142,9 @@ export default async function PageConvention({
         <p className="text-texte-discret">
           Du {dateFrancaise(jour(convention.dateDebut))} au {dateFrancaise(jour(convention.dateFin))} · {LIBELLES_STATUT_CONVENTION[statut]} · Apport{" "}
           {formaterMontant(convention.apportFinancierCentimes)}
+        </p>
+        <p className="font-medium" data-testid="apport-recu">
+          {LIBELLES_APPORT_RECU[convention.apportRecu]}
         </p>
         {convention.signataires && <p className="text-sm">Signée par {convention.signataires}{convention.signeeLe ? `, le ${dateFrancaise(jour(convention.signeeLe))}` : ""}.</p>}
       </header>

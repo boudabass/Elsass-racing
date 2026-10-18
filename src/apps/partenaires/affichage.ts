@@ -50,6 +50,13 @@ export const LIBELLES_STATUT_CONVENTION: Record<StatutConvention, string> = {
   resiliee: "Résiliée",
 }
 
+// Apport reçu (brief 3.8, §7) : calculé à chaque recette encaissée de la convention.
+export const LIBELLES_APPORT_RECU: Record<"non" | "partiel" | "oui", string> = {
+  non: "Apport non reçu",
+  partiel: "Apport partiel",
+  oui: "Apport reçu",
+}
+
 export const LIBELLES_STATUT_CONTREPARTIE: Record<StatutContrepartie | "en_retard", string> = {
   a_faire: "À faire",
   en_cours: "En cours",
