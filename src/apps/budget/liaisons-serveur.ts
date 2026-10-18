@@ -14,12 +14,13 @@ import type { ContexteTeam } from "@/core/contexte"
 import { ErreurAcces } from "@/core/droits/erreurs"
 import { newId } from "@/core/ids"
 import { prismaPourTeam } from "@/lib/prisma"
+import type { Tx } from "@/core/synchro/registre"
 
 import { ErreurBudget, refus } from "./erreurs"
 import { modePaiementSaison, voitTout } from "./regles"
 import { phraseSoldeMoi } from "./libelles"
 import { lireSoldeMoi, listerMouvements } from "./lectures-serveur"
-import { accesBudget, initialiserSiBesoin, payeurDePersonneDans, PRIORITE_MOUVEMENT_A_CONFIRMER } from "./services-serveur"
+import { accesBudget, initialiserSiBesoin, payeurDePersonneDans, PRIORITE_MOUVEMENT_A_CONFIRMER, proposerMouvementDans } from "./services-serveur"
 
 // --- Saison propose un paiement : dépense d'engagement proposée (section 1) ---------------------
 
@@ -124,6 +125,52 @@ enregistrerGestionnaire("budget", "saison.engagement_paye", async (ctx: Contexte
   })
   if (!analyse.success) return
   await proposerDepenseEngagementDans(ctx, analyse.data)
+})
+
+// --- Partenaires signe une convention : les recettes prévues (brief 3.8, §2.1) ----------------------
+
+const schemaConventionSignee = z.object({
+  agreementId: z.string().min(1),
+  partenaireNom: z.string().min(1),
+  dateDebut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  apportFinancierCentimes: z.number().int().min(0),
+  echeancier: z.array(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), montantCentimes: z.number().int().min(0) })),
+})
+
+// Une recette prévue par versement de l'échéancier ; sans échéancier, une seule, à la date de début, pour l'apport
+// financier. Chaque versement a sa référence partenaires:<agreementId>:<rang> : une convention signée deux fois, ou un
+// événement rejoué, ne propose rien de plus (proposerMouvementDans rend la proposition existante).
+export async function proposerRecettesConventionDans(ctx: ContexteTeam, entree: z.input<typeof schemaConventionSignee>): Promise<void> {
+  const donnees = schemaConventionSignee.parse(entree)
+  const liste = donnees.echeancier.length > 0 ? donnees.echeancier.map((v) => ({ date: v.date, montant: v.montantCentimes })) : [{ date: donnees.dateDebut, montant: donnees.apportFinancierCentimes }]
+  const versements = liste.map((v, index) => ({ ...v, rang: index + 1 })).filter((v) => v.montant > 0)
+  if (versements.length === 0) return
+  // Budget ouvert avant la proposition : la catégorie « Partenaire » vient de l'initialisation.
+  await initialiserSiBesoin(ctx)
+  const categorie = await prismaPourTeam(ctx.teamId, ctx.userId).budgetCategory.findFirst({
+    where: { teamId: ctx.teamId, sens: "recette", nom: "Partenaire", active: true, deletedAt: null },
+    select: { id: true },
+  })
+  if (!categorie) return
+
+  for (const versement of versements) {
+    await proposerMouvementDans(ctx, {
+      appOrigine: "partenaires",
+      evenementOrigine: "partenaires.convention_signee",
+      sens: "recette",
+      montant: versement.montant,
+      categoryId: categorie.id,
+      libelle: `${donnees.partenaireNom}, versement ${versement.rang} sur ${liste.length}`,
+      date: versement.date,
+      origineRef: `partenaires:${donnees.agreementId}:${versement.rang}`,
+    })
+  }
+}
+
+enregistrerGestionnaire("budget", "partenaires.convention_signee", async (ctx: ContexteTeam, evenement: EvenementRecu) => {
+  const analyse = schemaConventionSignee.safeParse(evenement.donnees)
+  if (!analyse.success) return
+  await proposerRecettesConventionDans(ctx, analyse.data)
 })
 
 // --- Saison marque un engagement payé : la dépense d'engagement de Budget (section 2) ----------
@@ -253,3 +300,27 @@ export async function budgetActivee(ctx: ContexteTeam): Promise<boolean> {
   return activation !== null
 }
 
+
+// --- Lecture pour Partenaires : l'état des recettes d'une convention (brief 3.8, §7) ------------------
+
+// Total prévu et encaissé des recettes dont la référence commence par le préfixe (partenaires:<agreementId>:). Lecture
+// seule : Partenaires n'ouvre pas les tables de Budget, il appelle cette fonction.
+export async function etatRecettesParOrigine(
+  tx: Pick<Tx, "budgetIncome">,
+  teamId: string,
+  prefixe: string,
+): Promise<{ totalCentimes: number; encaisseCentimes: number }> {
+  const groupes = await tx.budgetIncome.groupBy({
+    by: ["statut"],
+    where: { teamId, origineRef: { startsWith: prefixe }, deletedAt: null },
+    _sum: { montant: true },
+  })
+  let totalCentimes = 0
+  let encaisseCentimes = 0
+  for (const groupe of groupes) {
+    const montant = groupe._sum.montant ?? 0
+    totalCentimes += montant
+    if (groupe.statut === "encaissee") encaisseCentimes += montant
+  }
+  return { totalCentimes, encaisseCentimes }
+}

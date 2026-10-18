@@ -2071,6 +2071,9 @@ model BudgetSuggestion {
   mouvementId      String?                @map("mouvement_id") @db.Uuid
   actionCle        String?                @map("action_cle")
   payerId          String?                @map("payer_id") @db.Uuid
+  // Date du mouvement proposé (jour civil) et sa référence d'origine (partenaires:<agreementId>:<n>). Facultatives.
+  date             DateTime?              @db.Date
+  origineRef       String?                @map("origine_ref")
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2088,6 +2091,7 @@ model BudgetSuggestion {
   @@index([teamId])
   @@index([teamId, deletedAt])
   @@index([teamId, statut])
+  @@index([teamId, origineRef])
   @@map("budget_suggestion")
 }
 
