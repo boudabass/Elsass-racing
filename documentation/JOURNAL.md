@@ -191,3 +191,23 @@
 - Capture `fichiers-identite` : attente du titre Identité et du champ du logo avant la capture (elle était prise pendant le rechargement).
 
 - Vérifications : vitest 405/405, typecheck, build isolé, e2e complet 80/80 (port 3101). Comptes du journal e2e : P2003 0, P2025 0, `reading 'id'` 0, `ErreurAcces` 0, `TypeError` 0.
+
+## 18/10/2026 : brief 3.1b, outil PDF et bilan de saison de Budget
+
+- Bibliothèque : `@react-pdf/renderer` 4.9.0, en version exacte (dernière 4.x, peer React ^19). `serverExternalPackages` dans `next.config.ts`.
+
+- Polices : Barlow (400, 600) et Barlow Condensed (700), TTF du dépôt google/fonts, dans `public/polices-pdf/`, avec leur licence OFL. Enregistrées une fois au chargement du module.
+
+- Outil commun `src/core/pdf/` : `DocumentTeam` (A4, en-tête avec logo JPEG ou PNG, filet à la couleur de la team, pied « Elsass Racing · date » et « Page x sur y »), composants `Titre`, `Intertitre`, `Paragraphe`, `ChiffresCles`, `Tableau`, `rendrePdf`, `reponsePdf`, `lireLogoPourPdf`. Documentation : `docs/pdf.md`.
+
+- Espaces insécables : décision de remplacer U+00A0 et U+202F par une espace ordinaire, dans le PDF seulement (`textePdf`). Barlow n'a pas de glyphe pour U+202F ; U+00A0 en a un, mais elle est remplacée aussi, pour une largeur uniforme.
+
+- Bilan de saison : `bilanSaison` (`src/apps/budget/bilan.ts`) est une fonction pure et testée. Le coût par épreuve vient de `lireCoutsParEpreuve`, le même calcul que l'écran Par épreuve. Route `GET /apps/budget/bilan?saison=`, garde `accesEcran("ecriture")` (403 pour l'assistance), lien sur Mouvements à partir du niveau écriture.
+
+- Configuration : `vitest.config.ts` active le runtime JSX automatique, pour que les tests rendent les composants `.tsx`.
+
+- e2e : `e2e/budget-bilan.spec.ts`, quatre scénarios (téléchargement par le responsable, 403 pour l'assistance, saison vide, logo PNG et logo SVG). Le PDF du responsable est copié dans `docs/captures/bilan-saison-exemple.pdf`.
+
+- Non vérifié : la mise en page du PDF d'exemple, par manque de rasteriseur PDF dans l'environnement (`pdftoppm` absent). À regarder à l'œil.
+
+- Vérifications : vitest 421/421, typecheck, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 84/84 (port 3101). Comptes du journal e2e : P2003 0, P2025 0, `reading 'id'` 0, `ErreurAcces` 0, `TypeError` 0.
