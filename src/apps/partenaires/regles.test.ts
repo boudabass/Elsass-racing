@@ -119,12 +119,18 @@ describe("remplirModele", () => {
     expect(remplirModele("Équipe : {{team.nom}}", { "team.nom": "Koehling Racing Team" })).toEqual({
       texte: "Équipe : Koehling Racing Team",
       inconnus: [],
+      vides: [],
     })
   })
 
   it("remplace un champ connu mais vide par une ligne à compléter", () => {
     expect(remplirModele("Lieu : {{lieu}}.", { lieu: "" }).texte).toBe("Lieu : ________.")
     expect(remplirModele("Lieu : {{lieu}}.", {}).texte).toBe("Lieu : ________.")
+  })
+
+  it("signale les champs connus restés vides, sauf ceux qu'on remplit à la main", () => {
+    const resultat = remplirModele("{{team.rna}} {{partenaire.adresse}} {{lieu}} {{date}}", { "team.rna": "", "partenaire.adresse": "1 rue X" })
+    expect(resultat.vides).toEqual(["team.rna"])
   })
 
   it("laisse un champ inconnu visible et le signale", () => {

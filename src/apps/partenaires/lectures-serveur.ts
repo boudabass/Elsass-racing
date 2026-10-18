@@ -4,7 +4,7 @@
 import type { ContexteTeam } from "@/core/contexte"
 import { prismaPourTeam } from "@/lib/prisma"
 
-import { accesPartenaires } from "./services-serveur"
+import { accesPartenaires, normaliserNom } from "./services-serveur"
 import { enRetard, jourParis, type StatutPartenaire } from "./regles"
 
 const STATUTS_ACTIFS = ["signee", "en_cours"] as const
@@ -66,13 +66,14 @@ export async function lirePartenaireDans(ctx: ContexteTeam, id: string) {
   const partenaire = await client.partenairesPartner.findFirst({
     where: { id, teamId: ctx.teamId, deletedAt: null },
     include: {
-      contact: { select: { nom: true, adresse: true } },
+      contact: { select: { nom: true, adresse: true, telephone: true, email: true, site: true, siret: true } },
       interlocuteur: { select: { prenom: true, nom: true } },
-      interactions: { where: { deletedAt: null }, orderBy: { date: "desc" } },
+      interactions: { where: { deletedAt: null }, orderBy: { date: "desc" }, include: { auteur: { select: { prenom: true, nom: true } } } },
       agreements: {
         where: { deletedAt: null },
         orderBy: { dateDebut: "desc" },
         include: {
+          season: { select: { nom: true } },
           benefits: { where: { deletedAt: null }, include: { proofs: { where: { deletedAt: null } } } },
           amendments: { where: { deletedAt: null }, orderBy: { numero: "asc" } },
         },
@@ -89,12 +90,20 @@ export async function lirePartenaireDans(ctx: ContexteTeam, id: string) {
   return {
     id: partenaire.id,
     entreprise: partenaire.contact.nom,
-    adresse: partenaire.contact.adresse,
+    coordonnees: {
+      adresse: partenaire.contact.adresse ?? "",
+      telephone: partenaire.contact.telephone ?? "",
+      email: partenaire.contact.email ?? "",
+      site: partenaire.contact.site ?? "",
+      siret: partenaire.contact.siret ?? "",
+    },
     interlocuteur: partenaire.interlocuteur ? `${partenaire.interlocuteur.prenom} ${partenaire.interlocuteur.nom}` : null,
     statut: partenaire.statut,
     source: partenaire.source,
     secteur: partenaire.secteur,
     notes: partenaire.notes,
+    suiviParPersonId: partenaire.suiviParPersonId,
+    logoFileId: partenaire.logoFileId,
     prochaineRelance: jourDe(partenaire.prochaineRelance),
     interactions: partenaire.interactions,
     conventions: partenaire.agreements,
@@ -116,9 +125,45 @@ export async function lireConventionDans(ctx: ContexteTeam, id: string) {
     where: { id, teamId: ctx.teamId, deletedAt: null },
     include: {
       partner: { include: { contact: { select: { nom: true } } } },
-      benefits: { where: { deletedAt: null }, include: { proofs: { where: { deletedAt: null } } } },
+      season: { select: { id: true, nom: true } },
+      template: { select: { id: true, nom: true, version: true } },
+      benefits: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        include: { proofs: { where: { deletedAt: null }, orderBy: { date: "desc" }, include: { event: { select: { nom: true } } } } },
+      },
       amendments: { where: { deletedAt: null }, orderBy: { numero: "asc" } },
+      precedente: { select: { id: true, dateDebut: true, dateFin: true, statut: true } },
+      renouvellements: { where: { deletedAt: null }, select: { id: true, dateDebut: true, dateFin: true, statut: true } },
     },
+  })
+}
+
+// Saisons de la team, la plus récente d'abord (liste du formulaire de convention).
+export async function lireSaisons() {
+  const { ctx } = await accesPartenaires("ecriture")
+  return lireSaisonsDans(ctx)
+}
+
+export async function lireSaisonsDans(ctx: ContexteTeam) {
+  return prismaPourTeam(ctx.teamId, ctx.userId).coreSeason.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null },
+    select: { id: true, nom: true, enCours: true, dateDebut: true, dateFin: true },
+    orderBy: { annee: "desc" },
+  })
+}
+
+// Épreuves d'une saison, pour choisir celles qu'une contrepartie concerne.
+export async function lireEpreuvesDeSaison(seasonId: string) {
+  const { ctx } = await accesPartenaires("ecriture")
+  return lireEpreuvesDeSaisonDans(ctx, seasonId)
+}
+
+export async function lireEpreuvesDeSaisonDans(ctx: ContexteTeam, seasonId: string) {
+  return prismaPourTeam(ctx.teamId, ctx.userId).coreEvent.findMany({
+    where: { teamId: ctx.teamId, seasonId, deletedAt: null },
+    select: { id: true, nom: true, dateDebut: true },
+    orderBy: { dateDebut: "asc" },
   })
 }
 
@@ -145,6 +190,7 @@ export async function listerContrepartiesDans(ctx: ContexteTeam, filtre: { saiso
     const retard = echeance !== null && enRetard({ statut: c.statut, quantitePromise: c.quantitePromise, quantiteTenue: c.quantiteTenue, echeance }, aujourdhui)
     return {
       id: c.id,
+      conventionId: c.agreementId,
       libelle: c.libelle,
       type: c.type,
       entreprise: c.agreement.partner.contact.nom,
@@ -153,5 +199,38 @@ export async function listerContrepartiesDans(ctx: ContexteTeam, filtre: { saiso
       echeance,
       statut: retard ? ("en_retard" as const) : c.statut,
     }
+  })
+}
+
+// Indice du formulaire « nouveau prospect », avant l'envoi : un contact de même nom existe-t-il déjà, et est-il
+// déjà partenaire ? Même comparaison que creerProspect (normaliserNom), sans rien écrire.
+export async function verifierEntreprise(nom: string) {
+  const { ctx } = await accesPartenaires("ecriture")
+  return verifierEntrepriseDans(ctx, nom)
+}
+
+export async function verifierEntrepriseDans(ctx: ContexteTeam, nom: string) {
+  const cle = normaliserNom(nom)
+  if (cle === "") return { contactExiste: false, partenaireId: null as string | null }
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const contacts = await client.coreContact.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true, nom: true } })
+  const contact = contacts.find((c) => normaliserNom(c.nom) === cle) ?? null
+  const partenaire = contact
+    ? await client.partenairesPartner.findFirst({ where: { teamId: ctx.teamId, contactId: contact.id, deletedAt: null }, select: { id: true } })
+    : null
+  return { contactExiste: contact !== null, partenaireId: partenaire?.id ?? null }
+}
+
+// Personnes de la team, pour « suivi par » et « auteur » des échanges.
+export async function listerPersonnes() {
+  const { ctx } = await accesPartenaires("ecriture")
+  return listerPersonnesDans(ctx)
+}
+
+export async function listerPersonnesDans(ctx: ContexteTeam) {
+  return prismaPourTeam(ctx.teamId, ctx.userId).corePerson.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null },
+    select: { id: true, prenom: true, nom: true },
+    orderBy: { prenom: "asc" },
   })
 }

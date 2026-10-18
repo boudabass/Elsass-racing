@@ -8,11 +8,11 @@ import { revalidatePath } from "next/cache"
 
 import { messageDe, texte, texteOuNull, executer, type Resultat } from "@/core/sdk/actions-serveur"
 
+import { centimesDeSaisie } from "./affichage"
 import { refus } from "./erreurs"
 import { genererDocumentPdf } from "./document-serveur"
-import { listerPartenaires, lirePartenaire } from "./lectures-serveur"
+import { lirePartenaire, verifierEntreprise } from "./lectures-serveur"
 import {
-  normaliserNom,
   ajouterAvenant,
   ajouterContrepartie,
   ajouterInteraction,
@@ -71,11 +71,9 @@ const executerPartenaires = (action: () => Promise<string | void>) => executer(C
 
 // Un montant saisi en euros (« 1 500 », « 1500,50 ») devient des centimes. Vide : zéro.
 function centimesDe(saisie: string): number {
-  const propre = saisie.replace(/\s/g, "").replace(",", ".")
-  if (propre === "") return 0
-  const euros = Number(propre)
-  if (!Number.isFinite(euros) || euros < 0) refus("Le montant doit être un nombre positif, en euros.")
-  return Math.round(euros * 100)
+  const centimes = centimesDeSaisie(saisie)
+  if (centimes === null) refus("Le montant doit être un nombre positif, en euros.")
+  return centimes
 }
 
 // Nombre facultatif : vide devient null, un texte qui n'est pas un nombre entier est refusé.
@@ -163,13 +161,9 @@ export async function poserLogoAction(_etat: Resultat | null, donnees: FormData)
   })
 }
 
-// Indice affiché pendant la saisie du « + » : l'entreprise est-elle déjà un partenaire de la team ?
-export async function verifierEntrepriseAction(nom: string): Promise<{ partenaireId: string | null }> {
-  const cle = normaliserNom(nom)
-  if (cle === "") return { partenaireId: null }
-  const partenaires = await listerPartenaires()
-  const trouve = partenaires.find((partenaire) => normaliserNom(partenaire.entreprise) === cle) ?? null
-  return { partenaireId: trouve?.id ?? null }
+// Indice affiché pendant la saisie du « + » : contact déjà connu, et déjà partenaire ou non.
+export async function verifierEntrepriseAction(nom: string) {
+  return verifierEntreprise(nom)
 }
 
 // --- Échanges ------------------------------------------------------------------------------
@@ -253,6 +247,9 @@ function echeancierDe(donnees: FormData): { date: string; montantCentimes: numbe
 function champsConvention(donnees: FormData): EntreeModifierConvention {
   return {
     templateId: texte(donnees, "templateId") || undefined,
+    seasonId: texteOuNull(donnees, "seasonId"),
+    dateDebut: texte(donnees, "dateDebut") || undefined,
+    dateFin: texte(donnees, "dateFin") || undefined,
     apportFinancierCentimes: centimesDe(texte(donnees, "apportFinancier")),
     apportNatureDescription: texteOuNull(donnees, "apportNatureDescription") ?? undefined,
     apportNatureValeurCentimes: texte(donnees, "apportNatureValeur") ? centimesDe(texte(donnees, "apportNatureValeur")) : null,
@@ -262,6 +259,8 @@ function champsConvention(donnees: FormData): EntreeModifierConvention {
 
 export async function creerConventionAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerPartenaires(async () => {
+    // Les montants et l'échéancier sont lus avant la création : une saisie fausse ne laisse pas de brouillon vide.
+    const champs = champsConvention(donnees)
     const base: EntreeConvention = {
       partnerId: texte(donnees, "partnerId"),
       templateId: texte(donnees, "templateId"),
@@ -270,7 +269,7 @@ export async function creerConventionAction(_etat: Resultat | null, donnees: For
       dateFin: texte(donnees, "dateFin"),
     }
     const id = await creerConvention(base)
-    await modifierConvention(id, champsConvention(donnees))
+    await modifierConvention(id, champs)
     return id
   })
 }
@@ -345,9 +344,9 @@ export async function ajouterContrepartieAction(_etat: Resultat | null, donnees:
       quantitePromise: entierOuNull(donnees, "quantitePromise") ?? undefined,
       unite: texteOuNull(donnees, "unite"),
     }
-    const id = await ajouterContrepartie(texte(donnees, "agreementId"), entree)
-    // L'emplacement, les épreuves et l'échéance se règlent juste après la création.
+    // L'emplacement, les épreuves et l'échéance sont lus avant la création, pour qu'une erreur ne laisse rien à moitié fait.
     const complement = champsContrepartie(donnees)
+    const id = await ajouterContrepartie(texte(donnees, "agreementId"), entree)
     if (complement.slotId || complement.eventIds?.length || complement.echeance) await modifierContrepartie(id, complement)
     return id
   })

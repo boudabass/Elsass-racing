@@ -174,8 +174,14 @@ export type ValeurModele = string | null | undefined | ContrepartieModele[]
 
 export interface ResultatModele {
   texte: string
+  // Champs que le modèle ne connaît pas (à corriger dans le modèle).
   inconnus: string[]
+  // Champs connus restés vides (à compléter dans Réglages ou dans la fiche du partenaire).
+  vides: string[]
 }
+
+// Champs remplis à la main au moment de la signature : vides sans être une erreur.
+export const CHAMPS_MANUSCRITS = ["lieu", "date"] as const
 
 const BLANC = "________"
 const SEGMENT_RNA = "inscrite sous le numéro {{team.rna}}, "
@@ -204,7 +210,9 @@ export function remplirModele(texte: string, valeurs: Partial<Record<(typeof CHA
   // Sans numéro au registre, la mention entière disparaît (une association de droit local n'en a pas toujours un).
   const sansRna = valeurVide(valeurs["team.rna"]) ? texte.split(SEGMENT_RNA).join("") : texte
   const inconnus = new Set<string>()
+  const vides = new Set<string>()
   const connus = new Set<string>(CHAMPS_CONNUS)
+  const manuscrits = new Set<string>(CHAMPS_MANUSCRITS)
 
   const rempli = sansRna.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (complet: string, cle: string) => {
     if (!connus.has(cle)) {
@@ -213,12 +221,15 @@ export function remplirModele(texte: string, valeurs: Partial<Record<(typeof CHA
     }
     const champ = cle as (typeof CHAMPS_CONNUS)[number]
     const valeur = valeurs[champ]
-    if (valeurVide(valeur)) return BLANC
+    if (valeurVide(valeur)) {
+      if (!manuscrits.has(cle)) vides.add(cle)
+      return BLANC
+    }
     if (Array.isArray(valeur)) return valeur.map(ligneContrepartie).join("\n")
     return String(valeur)
   })
 
-  return { texte: rempli, inconnus: Array.from(inconnus) }
+  return { texte: rempli, inconnus: Array.from(inconnus), vides: Array.from(vides) }
 }
 
 // ---------------------------------------------------------------------------
