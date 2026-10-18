@@ -21,6 +21,7 @@ function lienProspection({ statut, vue }: { statut?: string | null; vue?: "colon
 }
 
 const PASTILLE = "cible-tactile inline-flex shrink-0 items-center gap-2 rounded-full border px-4 text-sm"
+const CLASSE_VUE = (choisie: boolean) => `cible-tactile px-4 text-sm ${choisie ? "bg-surface-2 font-medium text-texte" : "text-texte-discret"}`
 
 export default async function PageProspection({ searchParams }: { searchParams: Promise<{ statut?: string; vue?: string }> }) {
   const parametres = await searchParams
@@ -76,14 +77,18 @@ export default async function PageProspection({ searchParams }: { searchParams: 
         </nav>
 
         {/* La bascule n'apparaît qu'à partir de lg : en dessous, la liste reste la seule vue. */}
-        <nav aria-label="Affichage" className="hidden gap-2 lg:flex">
-          <Link href={lienProspection({ statut })} aria-current={enColonnes ? undefined : "page"} className={`${LIEN} px-2`}>
-            Liste
-          </Link>
-          <Link href={lienProspection({ statut, vue: "colonnes" })} aria-current={enColonnes ? "page" : undefined} className={`${LIEN} px-2`}>
-            Colonnes
-          </Link>
-        </nav>
+        {/* Sélecteur segmenté : un formulaire GET, donc il marche sans JavaScript, et chaque bouton dit s'il est choisi. */}
+        <form method="get" aria-label="Affichage" className="hidden lg:flex">
+          {statut && <input type="hidden" name="statut" value={statut} />}
+          <div role="group" aria-label="Affichage" className="inline-flex w-fit overflow-hidden rounded-md border border-bordure">
+            <button type="submit" name="vue" value="liste" aria-pressed={!enColonnes} className={CLASSE_VUE(!enColonnes)}>
+              Liste
+            </button>
+            <button type="submit" name="vue" value="colonnes" aria-pressed={enColonnes} className={CLASSE_VUE(enColonnes)}>
+              Colonnes
+            </button>
+          </div>
+        </form>
       </div>
 
       {visibles.length === 0 ? (

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { blocsDuTexte } from "./document"
-import { MODELE_DEFAUT_V1 } from "./modele-defaut"
+import { MODELE_DEFAUT_V2 } from "./modele-defaut"
 import { formaterMontant, remplirModele } from "./regles"
 
 describe("mise en blocs du texte d'une convention", () => {
@@ -23,7 +23,7 @@ describe("mise en blocs du texte d'une convention", () => {
   })
 
   it("un modèle par défaut rempli donne onze articles et une signature à la fin", () => {
-    const texte = remplirModele(MODELE_DEFAUT_V1.texte, {
+    const texte = remplirModele(MODELE_DEFAUT_V2.texte, {
       "team.nom": "Koehling Racing Team",
       "partenaire.entreprise": "Garage Muller",
       contreparties: [{ libelle: "Logo sur la voiture", quantite: 1, unite: "emplacement", emplacement: "Portière", epreuves: [], echeance: null }],
@@ -35,7 +35,7 @@ describe("mise en blocs du texte d'une convention", () => {
   })
 
   it("le montant en lettres d'un apport de 1 500 € figure dans le texte de la convention", () => {
-    const { texte } = remplirModele(MODELE_DEFAUT_V1.texte, { "convention.apport_financier": formaterMontant(150000) })
+    const { texte } = remplirModele(MODELE_DEFAUT_V2.texte, { "convention.apport_financier": formaterMontant(150000) })
     expect(texte).toContain("mille cinq cents euros")
   })
 })

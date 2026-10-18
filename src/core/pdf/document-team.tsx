@@ -33,6 +33,8 @@ const styles = StyleSheet.create({
     fontFamily: "Barlow",
     fontSize: 10,
     color: "#111111",
+    // Pas de ligatures (« fi », « fl ») : le texte extrait du PDF garde les lettres (« financier », pas « fnancier »).
+    fontFeatureSettings: { liga: false },
     paddingTop: 40,
     paddingBottom: 60,
     paddingHorizontal: 40,

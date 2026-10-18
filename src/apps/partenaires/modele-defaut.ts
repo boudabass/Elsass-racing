@@ -1,13 +1,14 @@
-// Modèle de convention fourni par défaut (version 1). Texte repris de docs/modele-convention.md, sans
+// Modèle de convention fourni par défaut (version 2). Texte repris de docs/modele-convention.md, sans
 // balisage : chaque team en reçoit une copie dans partenaires_template à sa première lecture, et peut la modifier.
-// Ce texte n'est pas un avis juridique ; une relecture par un juriste est conseillée avant la première signature.
+// La version 2 (brief 3.7, point 0) retire le « Saison » répété du titre : une team qui a déjà une copie de la
+// version 1 la garde telle quelle. Ce texte n'est pas un avis juridique ; une relecture par un juriste est conseillée
+// avant la première signature.
 
-export const MODELE_DEFAUT_V1 = {
+export const MODELE_DEFAUT_V2 = {
   nom: "Convention de partenariat",
-  sourceCle: "defaut_v1",
-  version: 1,
+  sourceCle: "defaut_v2",
+  version: 2,
   texte: `CONVENTION DE PARTENARIAT
-Saison {{convention.saison}}
 
 Entre les soussignés
 
@@ -21,7 +22,7 @@ ci-après « le partenaire ».
 
 Article 1 : Objet
 
-La présente convention fixe les conditions dans lesquelles le partenaire soutient les activités sportives automobiles de la team pendant la saison {{convention.saison}}, et les contreparties de visibilité que la team s'engage à lui offrir en retour.
+La présente convention fixe les conditions dans lesquelles le partenaire soutient les activités sportives automobiles de la team pendant la {{convention.saison}}, et les contreparties de visibilité que la team s'engage à lui offrir en retour.
 
 Article 2 : Apport du partenaire
 

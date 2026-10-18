@@ -1,6 +1,6 @@
 # Modèle de base : convention de partenariat
 
-Rédigé par l'orchestrateur le 18/10/2026, à relire par John. Ce texte sera le modèle fourni par défaut à chaque team dans l'app Partenaires (`partenaires_template`, version 1). La team peut le copier et le modifier.
+Rédigé par l'orchestrateur le 18/10/2026, à relire par John. Ce texte sera le modèle fourni par défaut à chaque team dans l'app Partenaires (`partenaires_template`, version 2 ; la version 1 reste chez les teams qui l'ont déjà). La team peut le copier et le modifier.
 
 Sources :
 - la convention d'origine du dossier Koehling (articles 1 à 7) ;
@@ -38,7 +38,6 @@ Si un champ est vide, l'app le remplace par une ligne à compléter à la main, 
 ## Texte du modèle
 
 **CONVENTION DE PARTENARIAT**
-**Saison {{convention.saison}}**
 
 **Entre les soussignés**
 
@@ -52,7 +51,7 @@ ci-après « le partenaire ».
 
 ### Article 1 : Objet
 
-La présente convention fixe les conditions dans lesquelles le partenaire soutient les activités sportives automobiles de la team pendant la saison {{convention.saison}}, et les contreparties de visibilité que la team s'engage à lui offrir en retour.
+La présente convention fixe les conditions dans lesquelles le partenaire soutient les activités sportives automobiles de la team pendant la {{convention.saison}}, et les contreparties de visibilité que la team s'engage à lui offrir en retour.
 
 ### Article 2 : Apport du partenaire
 

@@ -198,12 +198,22 @@ function dateFrancaise(jour: string): string {
   return `${date}/${mois}/${annee}`
 }
 
+// Unité au pluriel quand la quantité dépasse 1 : un « s », sauf si l'unité finit déjà par s, x ou z.
+// « publication » → « publications », « prix » reste « prix ».
+export function uniteAuPluriel(unite: string, quantite: number): string {
+  if (quantite <= 1 || /[sxz]$/.test(unite)) return unite
+  return `${unite}s`
+}
+
 function ligneContrepartie(c: ContrepartieModele): string {
-  const morceaux = [`${c.libelle} : ${c.quantite}${c.unite ? ` ${c.unite}` : ""}`]
+  // Logo sur la voiture : « emplacement Portière », sans « 1 emplacement » devant.
+  const logo = c.unite === "emplacement" && c.quantite === 1
+  const morceaux: string[] = []
+  if (!logo) morceaux.push(`${c.quantite}${c.unite ? ` ${uniteAuPluriel(c.unite, c.quantite)}` : ""}`)
   if (c.emplacement) morceaux.push(`emplacement ${c.emplacement}`)
   if (c.epreuves && c.epreuves.length > 0) morceaux.push(`épreuves ${c.epreuves.join(", ")}`)
   if (c.echeance) morceaux.push(`échéance ${dateFrancaise(c.echeance)}`)
-  return `- ${morceaux.join(" ; ")}`
+  return `- ${c.libelle}${morceaux.length > 0 ? ` : ${morceaux.join(" ; ")}` : ""}`
 }
 
 export function remplirModele(texte: string, valeurs: Partial<Record<(typeof CHAMPS_CONNUS)[number], ValeurModele>>): ResultatModele {

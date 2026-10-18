@@ -8,7 +8,7 @@ import { useMemo, useRef, useState } from "react"
 import { CHAMP, BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
 
 import { dupliquerModeleAction, changerActifModeleAction, modifierModeleAction } from "../actions"
-import { CHAMPS_CONNUS, remplirModele, type ValeurModele } from "../regles"
+import { CHAMPS_CONNUS, formaterMontant, remplirModele, type ValeurModele } from "../regles"
 
 import { BoutonEnvoi, FormulaireAction } from "./formulaire"
 
@@ -22,9 +22,10 @@ const EXEMPLE: Partial<Record<(typeof CHAMPS_CONNUS)[number], ValeurModele>> = {
   "partenaire.entreprise": "Garage Exemple",
   "partenaire.adresse": "2 rue de l'Exemple, 67500 Haguenau",
   "partenaire.representant": "Prénom Nom",
-  "convention.apport_financier": "1 500,00 €",
+  // Même mise en forme que le PDF : montants en chiffres et en lettres.
+  "convention.apport_financier": formaterMontant(150000),
   "convention.apport_nature": "aucun",
-  "convention.echeancier": "15/03/2027 : 750,00 € ; 15/09/2027 : 750,00 €",
+  "convention.echeancier": `15/03/2027 : ${formaterMontant(75000)} ; 15/09/2027 : ${formaterMontant(75000)}`,
   "convention.date_debut": "01/03/2027",
   "convention.date_fin": "31/12/2027",
   "convention.saison": "Saison 2027",

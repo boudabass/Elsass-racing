@@ -53,7 +53,7 @@ export default async function PageContreparties({ searchParams }: { searchParams
     <section className="flex w-full max-w-4xl flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="titre-rallye text-3xl">Contreparties</h1>
-        <p className="text-texte-discret">{saisonEnCours ? `Saison ${saisonEnCours.nom}` : "Aucune saison en cours"}</p>
+        <p className="text-texte-discret">{saisonEnCours ? saisonEnCours.nom : "Aucune saison en cours"}</p>
       </div>
 
       <nav aria-label="Filtrer les contreparties" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">

@@ -10,9 +10,10 @@ import {
   remplirModele,
   statutAutomatique,
   statutContrepartie,
+  uniteAuPluriel,
   transitionConvention,
 } from "./regles"
-import { MODELE_DEFAUT_V1 } from "./modele-defaut"
+import { MODELE_DEFAUT_V2 } from "./modele-defaut"
 
 describe("transitionConvention", () => {
   it("envoie un brouillon, puis le signe", () => {
@@ -200,22 +201,46 @@ describe("modèle de convention par défaut (version 1)", () => {
   }
 
   it("ne laisse aucune accolade quand toutes les valeurs sont fournies", () => {
-    const { texte, inconnus } = remplirModele(MODELE_DEFAUT_V1.texte, valeurs)
+    const { texte, inconnus } = remplirModele(MODELE_DEFAUT_V2.texte, valeurs)
     expect(inconnus).toEqual([])
     expect(texte).not.toMatch(/[{}]/)
     expect(texte).toContain("inscrite sous le numéro W671000001, ")
   })
 
   it("retire la mention du numéro quand l'association n'en a pas", () => {
-    const { texte } = remplirModele(MODELE_DEFAUT_V1.texte, { ...valeurs, "team.rna": "" })
+    const { texte } = remplirModele(MODELE_DEFAUT_V2.texte, { ...valeurs, "team.rna": "" })
     expect(texte).not.toContain("inscrite sous le numéro")
     expect(texte).not.toMatch(/[{}]/)
     expect(texte).toContain("Koehling Racing Team, association de droit local d'Alsace-Moselle, dont le siège est situé Haguenau")
   })
 
   it("connaît tous les champs qu'il utilise", () => {
-    const champsDuTexte = Array.from(MODELE_DEFAUT_V1.texte.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g), ([, cle]) => cle)
+    const champsDuTexte = Array.from(MODELE_DEFAUT_V2.texte.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g), ([, cle]) => cle)
     for (const cle of champsDuTexte) expect(CHAMPS_CONNUS).toContain(cle)
+  })
+})
+
+describe("pluriel des unités et contreparties dans le texte", () => {
+  it("ajoute un s dès que la quantité dépasse 1, sauf après s, x ou z", () => {
+    expect(uniteAuPluriel("publication", 4)).toBe("publications")
+    expect(uniteAuPluriel("publication", 1)).toBe("publication")
+    expect(uniteAuPluriel("prix", 3)).toBe("prix")
+    expect(uniteAuPluriel("nez", 2)).toBe("nez")
+    expect(uniteAuPluriel("emplacement", 2)).toBe("emplacements")
+  })
+
+  it("écrit le logo sur la voiture sans « 1 emplacement »", () => {
+    const { texte } = remplirModele("{{contreparties}}", {
+      contreparties: [{ libelle: "Logo sur la voiture", quantite: 1, unite: "emplacement", emplacement: "Portière", epreuves: [], echeance: null }],
+    })
+    expect(texte).toBe("- Logo sur la voiture : emplacement Portière")
+  })
+
+  it("met l'unité au pluriel dans la liste des contreparties", () => {
+    const { texte } = remplirModele("{{contreparties}}", {
+      contreparties: [{ libelle: "Publications sur les réseaux", quantite: 4, unite: "publication", epreuves: [], echeance: "2027-12-31" }],
+    })
+    expect(texte).toBe("- Publications sur les réseaux : 4 publications ; échéance 31/12/2027")
   })
 })
 

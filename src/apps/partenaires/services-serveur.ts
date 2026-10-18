@@ -26,7 +26,7 @@ import {
 import { CATALOGUE_DEFAUT_V1, PREFIXE_SOURCE_CATALOGUE } from "./catalogue-defaut"
 import { ErreurPartenaires, refus } from "./erreurs"
 import { empreinteJeton, genererJeton } from "./jeton-serveur"
-import { MODELE_DEFAUT_V1 } from "./modele-defaut"
+import { MODELE_DEFAUT_V2 } from "./modele-defaut"
 import {
   enRetard,
   formaterMontant,
@@ -388,6 +388,13 @@ export async function poserLogoPartenaire(partnerId: string, fileId: string): Pr
 export async function poserLogoPartenaireDans(ctx: ContexteTeam, partnerId: string, fileId: string): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   await partenaireActifDans(client, ctx, partnerId)
+  // Identifiant vide : « Retirer le logo » de la fiche.
+  if (fileId === "") {
+    await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+      tx.partenairesPartner.update({ where: { id: partnerId }, data: { logoFileId: null, rev: { increment: 1 }, updatedBy: ctx.userId } }),
+    )
+    return
+  }
   await fichierDeLEquipeDans(client, ctx, fileId)
   await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
     await tx.partenairesPartner.update({
@@ -560,11 +567,11 @@ export async function lireModelesDans(ctx: ContexteTeam) {
         {
           id: newId(),
           teamId: ctx.teamId,
-          nom: MODELE_DEFAUT_V1.nom,
-          texte: MODELE_DEFAUT_V1.texte,
-          version: MODELE_DEFAUT_V1.version,
+          nom: MODELE_DEFAUT_V2.nom,
+          texte: MODELE_DEFAUT_V2.texte,
+          version: MODELE_DEFAUT_V2.version,
           actif: true,
-          sourceCle: MODELE_DEFAUT_V1.sourceCle,
+          sourceCle: MODELE_DEFAUT_V2.sourceCle,
           createdBy: ctx.userId,
           updatedBy: ctx.userId,
         },

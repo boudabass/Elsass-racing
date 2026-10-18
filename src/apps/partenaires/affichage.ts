@@ -112,7 +112,7 @@ export function ecartRelance(relance: string | null, aujourdhui: string): { libe
 }
 
 export const CLASSE_TON_RELANCE: Record<"retard" | "aujourdhui" | "avenir", string> = {
-  retard: "font-medium text-etat-rouge-texte",
+  retard: "font-medium text-etat-rouge",
   aujourdhui: "font-medium text-etat-orange",
   avenir: "text-texte-discret",
 }
@@ -175,9 +175,19 @@ export const LIBELLE_EMPLACEMENT: Record<string, string> = {
 // Une contrepartie à faire, dont l'échéance tombe dans les 14 jours, passe en orange ; en retard, en rouge.
 export const ECHEANCE_PROCHE_JOURS = 14
 
+// Le mot de statut : rouge en retard (texte rouge sur fond clair ; etat-rouge-texte est blanc, pour un fond rouge).
 export function couleurContrepartie(statut: "a_faire" | "en_cours" | "tenue" | "reportee" | "en_retard", echeance: string | null, aujourdhui: string): string {
-  if (statut === "en_retard") return "font-medium text-etat-rouge-texte"
+  if (statut === "en_retard") return "font-medium text-etat-rouge"
   if (statut === "tenue") return "text-etat-ok"
   if ((statut === "a_faire" || statut === "en_cours") && echeance && ecartJours(aujourdhui, echeance) <= ECHEANCE_PROCHE_JOURS) return "text-etat-orange"
   return "text-texte"
+}
+
+// La barre d'avancement : verte quand c'est tenu, orange quand l'échéance approche, rouge en retard, grise sinon.
+// Jamais la couleur de marque (brief 3.7, point 0).
+export function couleurBarreContrepartie(statut: "a_faire" | "en_cours" | "tenue" | "reportee" | "en_retard", echeance: string | null, aujourdhui: string): string {
+  if (statut === "en_retard") return "bg-etat-rouge"
+  if (statut === "tenue") return "bg-etat-ok"
+  if ((statut === "a_faire" || statut === "en_cours") && echeance && ecartJours(aujourdhui, echeance) <= ECHEANCE_PROCHE_JOURS) return "bg-etat-orange"
+  return "bg-texte-discret"
 }

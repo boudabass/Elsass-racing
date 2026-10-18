@@ -5,7 +5,7 @@
 
 import { useActionState, useState } from "react"
 
-import { BOUTON, LIEN } from "@/lib/classes-formulaire"
+import { BOUTON, BOUTON_SECONDAIRE, LIEN } from "@/lib/classes-formulaire"
 
 import { creerLienAction, renouvelerLienAction, revoquerLienAction, modifierSectionsAction, type ResultatLien } from "../actions"
 import { BoutonEnvoi, FormulaireAction } from "./formulaire"
@@ -84,7 +84,7 @@ export function LienPartenaire({
         <div className="flex flex-col gap-4">
           <form action={renouveler} className="flex flex-col gap-2">
             <input type="hidden" name="partnerId" value={partnerId} />
-            <BoutonEnvoi libelle="Renouveler le lien" secondaire />
+            <BoutonEnvoi libelle="Renouveler le lien" secondaire className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`} />
             <p className="text-sm text-texte-discret">Renouveler rend l&apos;ancien lien inutilisable et en crée un nouveau.</p>
           </form>
 

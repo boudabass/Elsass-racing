@@ -75,7 +75,7 @@ export function WidgetsProspection({
       </div>
       <div className={carte}>
         <h2 className="text-sm text-texte-discret">Contreparties en retard</h2>
-        <p className={`text-2xl font-medium ${retards.nombre > 0 ? "text-etat-rouge-texte" : ""}`}>{retards.nombre}</p>
+        <p className={`text-2xl font-medium ${retards.nombre > 0 ? "text-etat-rouge" : ""}`}>{retards.nombre}</p>
       </div>
       <div className={carte}>
         <h2 className="text-sm text-texte-discret">Partenaires actifs</h2>

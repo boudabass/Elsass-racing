@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { centimesDeSaisie, compterParStatut, couleurContrepartie, dateFrancaise, ecartRelance, filtreStatut, trierProspection } from "./affichage"
+import { centimesDeSaisie, compterParStatut, couleurBarreContrepartie, couleurContrepartie, dateFrancaise, ecartRelance, filtreStatut, trierProspection } from "./affichage"
 
 describe("ecartRelance", () => {
   const aujourdhui = "2026-10-18"
@@ -77,8 +77,16 @@ describe("couleurContrepartie et dateFrancaise", () => {
     expect(couleurContrepartie("a_faire", "2026-12-30", "2026-10-18")).toBe("text-texte")
   })
 
+  it("colore la barre en vert, orange, rouge ou gris, jamais en couleur de marque", () => {
+    expect(couleurBarreContrepartie("tenue", null, "2026-10-18")).toBe("bg-etat-ok")
+    expect(couleurBarreContrepartie("a_faire", "2026-10-30", "2026-10-18")).toBe("bg-etat-orange")
+    expect(couleurBarreContrepartie("en_retard", "2026-10-01", "2026-10-18")).toBe("bg-etat-rouge")
+    expect(couleurBarreContrepartie("en_cours", "2026-12-30", "2026-10-18")).toBe("bg-texte-discret")
+    expect(couleurBarreContrepartie("reportee", null, "2026-10-18")).not.toContain("marque")
+  })
+
   it("met en rouge le retard et en vert la tenue", () => {
-    expect(couleurContrepartie("en_retard", "2026-10-01", "2026-10-18")).toContain("text-etat-rouge-texte")
+    expect(couleurContrepartie("en_retard", "2026-10-01", "2026-10-18")).toContain("text-etat-rouge")
     expect(couleurContrepartie("tenue", null, "2026-10-18")).toBe("text-etat-ok")
   })
 

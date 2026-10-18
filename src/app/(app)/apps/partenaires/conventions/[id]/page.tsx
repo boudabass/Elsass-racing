@@ -7,6 +7,7 @@ import { FormulaireConvention, type ValeursConvention } from "@/apps/partenaires
 import { FormulaireContrepartie } from "@/apps/partenaires/composants/formulaire-contrepartie"
 import { FormulaireAvenant, FormulaireSignature } from "@/apps/partenaires/composants/formulaire-documents"
 import { FormulairePreuve } from "@/apps/partenaires/composants/formulaire-preuve"
+import { ActionsPreuve } from "@/apps/partenaires/composants/actions-preuve"
 import { SaisieAvancement } from "@/apps/partenaires/composants/saisie-avancement"
 import { BoutonEnvoi, FormulaireAction } from "@/apps/partenaires/composants/formulaire"
 import {
@@ -15,6 +16,7 @@ import {
   LIBELLES_STATUT_CONVENTION,
   LIBELLES_TYPE_CONTREPARTIE,
   LIBELLES_TYPE_PREUVE,
+  couleurBarreContrepartie,
   couleurContrepartie,
 } from "@/apps/partenaires/affichage"
 import {
@@ -52,7 +54,7 @@ const LIBELLES_CHAMP: Record<string, string> = {
   "convention.echeancier": "l'échéancier",
   "convention.date_debut": "la date de début",
   "convention.date_fin": "la date de fin",
-  "convention.saison": "la saison",
+  "convention.saison": "saison",
   contreparties: "les contreparties",
 }
 
@@ -222,9 +224,9 @@ export default async function PageConvention({
 
       {actif === "contreparties" && (
         <div className="flex flex-col gap-6">
-          <details className={CLASSE_BLOC}>
-            <summary className="cible-tactile cursor-pointer list-none font-medium">Ajouter une contrepartie</summary>
-            <div className="mt-4">
+          <details>
+            <summary className={`${BOUTON_SECONDAIRE} cursor-pointer list-none self-start`}>Ajouter une contrepartie</summary>
+            <div className={`${CLASSE_BLOC} mt-4`}>
               <FormulaireContrepartie
                 mode="creation"
                 agreementId={convention.id}
@@ -246,15 +248,20 @@ export default async function PageConvention({
                 const statutAffiche = retard ? "en_retard" : statutContrepartie({ statut: benefice.statut, quantitePromise: benefice.quantitePromise, quantiteTenue: benefice.quantiteTenue, echeance })
                 const pourcentage = benefice.quantitePromise > 0 ? Math.min(100, Math.round((benefice.quantiteTenue / benefice.quantitePromise) * 100)) : 0
                 const epreuvesDuBenefice = benefice.eventIds.map((identifiant) => nomEpreuve.get(identifiant)).filter((nom): nom is string => Boolean(nom))
+                const typeAffiche = LIBELLES_TYPE_CONTREPARTIE[benefice.type] ?? benefice.type
+                // Le type ne répète pas le libellé : « Logo sur la voiture » n'est pas écrit deux fois.
+                const sousTitre = [
+                  typeAffiche && !benefice.libelle.toLowerCase().includes(typeAffiche.toLowerCase()) ? typeAffiche : null,
+                  benefice.slotNom ? `Emplacement : ${benefice.slotNom}` : null,
+                  epreuvesDuBenefice.length > 0 ? `Épreuves : ${epreuvesDuBenefice.join(", ")}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
                 return (
                   <li key={benefice.id} id={`contrepartie-${benefice.id}`} className={`${CLASSE_BLOC} scroll-mt-24`}>
                     <div className="flex flex-col gap-1">
                       <h3 className="break-words font-medium">{benefice.libelle}</h3>
-                      <p className="text-sm text-texte-discret">
-                        {LIBELLES_TYPE_CONTREPARTIE[benefice.type] ?? benefice.type}
-                        {benefice.slotNom ? ` · Emplacement : ${benefice.slotNom}` : ""}
-                        {epreuvesDuBenefice.length > 0 ? ` · Épreuves : ${epreuvesDuBenefice.join(", ")}` : ""}
-                      </p>
+                      {sousTitre && <p className="text-sm text-texte-discret">{sousTitre}</p>}
                     </div>
                     <div className="flex flex-col gap-2">
                       <div
@@ -265,7 +272,7 @@ export default async function PageConvention({
                         aria-valuenow={benefice.quantiteTenue}
                         className="h-2 w-full overflow-hidden rounded bg-surface-2"
                       >
-                        <div className="h-2 rounded bg-marque" style={{ width: `${pourcentage}%` }} />
+                        <div className={`h-2 rounded ${couleurBarreContrepartie(statutAffiche, echeance, aujourdhui)}`} style={{ width: `${pourcentage}%` }} />
                       </div>
                       <p className="text-sm">
                         {benefice.quantiteTenue} sur {benefice.quantitePromise} ·{" "}
@@ -276,15 +283,25 @@ export default async function PageConvention({
 
                     <div className="flex flex-col gap-3">
                       {/* Avancement et report, sans glisser-déposer : un champ nombre et des boutons de 44 px. */}
-                      <SaisieAvancement benefitId={benefice.id} quantiteTenue={benefice.quantiteTenue} quantitePromise={benefice.quantitePromise} />
-                      <FormulaireAction action={reporterContrepartieAction} nom="Reporter la contrepartie" className="flex flex-wrap items-end gap-3">
-                        <input type="hidden" name="benefitId" value={benefice.id} />
-                        <label className="flex flex-col gap-1 text-sm font-medium">
-                          Reporter à
-                          <input name="echeance" type="date" defaultValue={echeance ?? ""} className={CHAMP} />
-                        </label>
-                        <BoutonEnvoi libelle="Reporter" secondaire />
-                      </FormulaireAction>
+                      <details>
+                        <summary className={`${LIEN} cursor-pointer list-none text-sm`}>Saisir l&apos;avancement</summary>
+                        <div className="mt-3">
+                          <SaisieAvancement benefitId={benefice.id} quantiteTenue={benefice.quantiteTenue} quantitePromise={benefice.quantitePromise} />
+                        </div>
+                      </details>
+                      <details>
+                        <summary className={`${LIEN} cursor-pointer list-none text-sm`}>Reporter</summary>
+                        <div className="mt-3">
+                          <FormulaireAction action={reporterContrepartieAction} nom="Reporter la contrepartie" className="flex flex-wrap items-end gap-3">
+                            <input type="hidden" name="benefitId" value={benefice.id} />
+                            <label className="flex flex-col gap-1 text-sm font-medium">
+                              Reporter à
+                              <input name="echeance" type="date" defaultValue={echeance ?? ""} className={CHAMP} />
+                            </label>
+                            <BoutonEnvoi libelle="Reporter" secondaire />
+                          </FormulaireAction>
+                        </div>
+                      </details>
                     </div>
 
                     <details>
@@ -318,7 +335,8 @@ export default async function PageConvention({
                       ) : (
                         <ul className="flex flex-col gap-3">
                           {benefice.proofs.map((preuve) => (
-                            <li key={preuve.id} className="flex flex-wrap items-start gap-3">
+                            <li key={preuve.id} className="flex flex-col gap-2">
+                              <div className="flex flex-wrap items-start gap-3">
                               {preuve.fileId && (
                                 // eslint-disable-next-line @next/next/no-img-element -- fichier de la team servi par /api/fichiers ; taille fixe et chargement paresseux
                                 <img src={`/api/fichiers/${preuve.fileId}`} width={64} height={64} alt="Photo de la preuve" loading="lazy" decoding="async" className="h-16 w-16 rounded-md object-cover" />
@@ -336,17 +354,8 @@ export default async function PageConvention({
                                 )}
                                 <p className="text-texte-discret">{preuve.visiblePartenaire ? "Visible par le partenaire" : "Masquée pour le partenaire"}</p>
                               </div>
-                              <div className="flex flex-wrap gap-2">
-                                <FormulaireAction action={masquerPreuveAction} nom="Visibilité de la preuve" className="flex">
-                                  <input type="hidden" name="proofId" value={preuve.id} />
-                                  <input type="hidden" name="visible" value={preuve.visiblePartenaire ? "non" : "oui"} />
-                                  <BoutonEnvoi libelle={preuve.visiblePartenaire ? "Masquer" : "Afficher"} secondaire />
-                                </FormulaireAction>
-                                <FormulaireAction action={supprimerPreuveAction} nom="Supprimer la preuve" className="flex">
-                                  <input type="hidden" name="proofId" value={preuve.id} />
-                                  <BoutonEnvoi libelle="Supprimer" secondaire />
-                                </FormulaireAction>
                               </div>
+                              <ActionsPreuve preuveId={preuve.id} visiblePartenaire={preuve.visiblePartenaire} masquer={masquerPreuveAction} supprimer={supprimerPreuveAction} />
                             </li>
                           ))}
                         </ul>
