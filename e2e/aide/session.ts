@@ -529,3 +529,47 @@ export async function livraisonsEnBase(equipe: Equipe): Promise<string[]> {
   )
   return rows.map((r: { nom: string; app_destinataire: string; statut: string; derniere_erreur: string | null }) => `${r.nom} → ${r.app_destinataire} [${r.statut}] ${r.derniere_erreur ?? ""}`)
 }
+
+// --- Brief 3.9, §5 : données des vérifications du lot 3 (historique Voiture, papiers, résultat annulé) -----------
+
+// Engagement d'un véhicule à une épreuve, inscrit. Renvoie l'identifiant de l'engagement.
+export async function engagerVehiculeEnBase(equipe: Equipe, eventId: string, vehicleId: string): Promise<string> {
+  const id = newId()
+  await bd().query(
+    `INSERT INTO core_event_entry (id, team_id, event_id, vehicle_id, statut, updated_at) VALUES ($1, $2, $3, $4, 'inscrit', now())`,
+    [id, equipe.teamId, eventId, vehicleId],
+  )
+  return id
+}
+
+// Résultat validé d'un engagement : une arrivée, classée au général.
+export async function ajouterResultatValideEnBase(equipe: Equipe, entryId: string, classementGeneral: number): Promise<void> {
+  await bd().query(
+    `INSERT INTO saison_result (id, team_id, entry_id, statut_final, validation, classement_general, nb_classes, updated_at)
+     VALUES ($1, $2, $3, 'arrivee', 'valide', $4, 40, now())`,
+    [newId(), equipe.teamId, entryId, classementGeneral],
+  )
+}
+
+// Spéciale d'une épreuve : longueur et nombre de passages (son km de spéciale est longueur × passages).
+export async function ajouterSpecialeEnBase(equipe: Equipe, eventId: string, numero: number, nom: string, longueurKm: number, passages: number): Promise<void> {
+  await bd().query(
+    `INSERT INTO saison_stage (id, team_id, event_id, numero, nom, longueur_km, nb_passages, type, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'speciale', now())`,
+    [newId(), equipe.teamId, eventId, numero, nom, longueurKm, passages],
+  )
+}
+
+// Papier d'un véhicule (assurance, carte grise…) valable jusqu'à une date (AAAA-MM-JJ).
+export async function ajouterPapierEnBase(equipe: Equipe, vehicleId: string, type: string, valableJusquAu: string): Promise<void> {
+  await bd().query(
+    `INSERT INTO voiture_paper (id, team_id, vehicle_id, type, valable_jusqu_au, updated_at) VALUES ($1, $2, $3, $4::voiture_paper_type, $5, now())`,
+    [newId(), equipe.teamId, vehicleId, type, valableJusquAu],
+  )
+}
+
+// Identifiant d'une épreuve de la team, par son nom (les noms des épreuves de test sont uniques).
+export async function idEpreuveParNomEnBase(equipe: Equipe, nom: string): Promise<string | null> {
+  const { rows } = await bd().query<{ id: string }>(`SELECT id FROM core_event WHERE team_id = $1 AND nom = $2 LIMIT 1`, [equipe.teamId, nom])
+  return rows[0]?.id ?? null
+}
