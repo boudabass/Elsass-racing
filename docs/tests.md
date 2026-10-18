@@ -115,3 +115,32 @@ soit au repos avant de naviguer. Les autres lignes restent non expliquées.
 
 **Consigne** : un simple affichage de page ne produit aucune de ces lignes (expérience des 3 chargements complets, 0 ligne).
 Ne pas chercher à les supprimer dans l'app tant qu'elles ne viennent pas d'un défaut prouvé.
+
+## Connexions coupées : qui les coupe (brief 3.9, §7)
+
+Mesure sur `e2e/lot3-parcours.spec.ts` (1 test), serveur de test (`next start`, port 3101), avec un hook Node
+temporaire chargé par `NODE_OPTIONS` (fichier hors dépôt, rien de committé, aucun code de l'app modifié). Le hook note
+chaque requête à sa fermeture : méthode, chemin (jetons masqués), genre (page, RSC, prefetch, server action, API, fichier,
+statique), réponse entièrement écrite ou non, et chaque `uncaughtException`.
+
+| Run | Requêtes observées | Coupées | dont POST `/api/synchro/tirer` | dont préchargements RSC | `uncaughtException` |
+|---|---|---|---|---|---|
+| 1 | 1 059 | 26 | 23 | 3 | 23 |
+| 2 | 1 068 | 25 | 22 | 3 | 22 |
+
+Dans le run 2, chaque `uncaughtException` tombe à ±1 ms de la fermeture d'un POST `/api/synchro/tirer` coupé : 22 sur 22.
+Aucune exception n'est liée à un préchargement coupé. Aucune server action et aucun envoi ou téléchargement de fichier
+n'a été coupé (0 dans les deux runs). Les 3 préchargements coupés sont des GET RSC (`/apps/partenaires`, `/apps/saison`,
+`/apps/checklist`) quittés par la navigation suivante. Aucun POST `/api/synchro/pousser` coupé dans ce spec.
+
+**Cause côté client** : le moteur de synchro (`src/core/synchro/client/moteur.ts`) interroge `/api/synchro/tirer` avec un
+`setInterval` et tire page après page. `appeler()` n'a pas de `AbortController`. Quand le test navigue pendant un tirage,
+le navigateur annule la requête en vol ; le serveur écrit quand même sa réponse, qui n'arrive jamais. Node émet alors
+`aborted`, et Next journalise `ECONNRESET` puis `uncaughtException`.
+
+**Effet sur les données : aucun aujourd'hui.** `memoriserSynchro` écrit le curseur de l'appareil avant d'envoyer la
+réponse, mais `coreSyncCursor` n'est lu nulle part dans `src` (écriture seule). Le client renvoie toujours son propre
+curseur : un tirage coupé est refait au tirage suivant, sans perte. À revoir si l'on lit un jour ce curseur côté serveur.
+
+Pas de correction dans l'app pour ce lot (consigne : ne pas supprimer les lignes sans défaut prouvé). Le run complet de
+§8 est repris avec le même hook pour classer ses propres coupures.
