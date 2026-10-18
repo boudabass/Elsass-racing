@@ -211,3 +211,27 @@
 - Non vérifié : la mise en page du PDF d'exemple, par manque de rasteriseur PDF dans l'environnement (`pdftoppm` absent). À regarder à l'œil.
 
 - Vérifications : vitest 421/421, typecheck, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 84/84 (port 3101). Comptes du journal e2e : P2003 0, P2025 0, `reading 'id'` 0, `ErreurAcces` 0, `TypeError` 0.
+
+## 18/10/2026 : brief 3.2, Voiture : schéma, gabarit, règles et services
+
+- Point 0 : libellés du bilan PDF, « Écart au prévu » et « Ce que la team doit à ses membres, à ce jour ». Le solde des membres court sur toutes les saisons, voulu. PDF d'exemple régénéré.
+
+- Gabarit de la Saxo (`src/apps/voiture/gabarits/saxo.ts`) : vue droite du plan, vue gauche en miroir (même forme, symétrie à l'affichage), quatre emplacements hors plan. Les couleurs du SVG deviennent des rôles (`caisse`, `vitre`, `roue`, `jante`, `detail`, `sol`). Les gabarits vivent dans le code, pas en base.
+
+- Migration `20261018123759_voiture_schema` : sept tables `voiture_`, additives, avec RLS forcée et cloisonnement par team. Contraintes à la main : note de 1 à 5, libellé des papiers « autre », une seule occupation active par emplacement (index unique partiel). Pas de clé étrangère vers Partenaires. Appliquée sur la base dev.
+
+- Règles pures (`src/apps/voiture/regles.ts`) : statut des papiers à 30 jours, décompté à Paris ; statut des emplacements déduit des occupations ; transitions d'occupation ; champs de réglage ; validation des pressions (0,5 à 4 bar) ; préremplissage ; comparaison.
+
+- Services (`src/apps/voiture/services-serveur.ts`) : véhicules, papiers, emplacements, occupations, fiches de réglage, masquage des champs. Charges utiles validées par zod (`charges.ts`).
+
+- Lecture partagée de Saison (`src/apps/saison/lectures-partagees.ts`) : résultats validés d'un véhicule et kilomètres de spéciale. Voiture ne lit aucune table `saison_`.
+
+- QG : la page appelle désormais `recalculerQg` (`src/apps/recalculs-qg.ts`), qui lance le recalcul de Saison puis celui de Voiture. Un papier à renouveler dans 30 jours émet `voiture.papier_expire_bientot` et une action pour les responsables, une seule fois par papier et par échéance.
+
+- Vérifications : `db:verifier-rls` étendu aux sept tables ; `db:verifier-bus` avec quatre contrôles Voiture (un seul événement à la création du véhicule, pose de logo, rappel unique après deux ouvertures du QG, rien pour un papier sans échéance).
+
+- Documentation : `docs/schema-voiture.md`.
+
+- Vérifications : vitest 465/465, typecheck, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 84/84 (port 3101). Comptes du journal e2e : P2003 0, P2025 0, `reading 'id'` 0, `ErreurAcces` 0, `TypeError` 0.
+
+- Points interprétés : dates sans heure en `@db.Date` (sauf `achete_le`, en Timestamptz comme la spécification) ; unités de réglage choisies pour carrossage (°), parallélisme (mm), barres antiroulis (cran), répartition de freinage (%) et rapport de pont (sans unité), à valider ; le filet rouge du dessin est rangé dans le rôle `detail` ; dimensions des emplacements hors plan laissées vides, faute de valeurs dans le brief ; `ficheVoiture` est en écriture, car elle crée la ligne ; un emplacement ne se marque indisponible que sans logo posé ou réservé.

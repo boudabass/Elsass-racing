@@ -39,12 +39,50 @@ Les dates sans heure (`delivre_le`, `valable_jusqu_au`, `du`, `au`, `pose_le`, `
 - `index.ts` : `GABARITS` et `gabarit(cle)`.
 - `gabarits.test.ts` : clés uniques, formes présentes pour les vues dessinées, aucune forme hors plan, ordres de la légende.
 
-## Règles pures
+## Règles pures (`src/apps/voiture/regles.ts`, testées dans `regles.test.ts`)
 
-Voir la section « Règles » ci-dessous, complétée à la suite de l'étape 4 du brief.
+- **Papiers** : `statutPapier(valableJusquAu, maintenant)` renvoie `valide` (sans échéance, ou à plus de 30 jours), `a_renouveler` (30 jours ou moins, jour de l'échéance compris) ou `expire` (échéance passée). Les jours se comptent à Paris. `etatPapiers` donne le pire statut d'un véhicule.
+- **Emplacements** : `emplacementsDepuisGabarit` crée les emplacements d'un véhicule ; un emplacement symétrique est recopié dans la vue miroir. `statutEmplacement` déduit `libre`, `reserve` ou `occupe` de l'occupation active ; `indisponible` est posé à la main. `verifierTransitionOccupation` n'autorise que réservé vers posé ou retiré, et posé vers retiré.
+- **Fiches de réglage** : `CHAMPS_REGLAGE` (vingt-deux champs, dix essentiels et douze avancés), `validerValeurs` (clé inconnue refusée, pression de 0,5 à 4 bar), `preremplir` (référence, sinon dernière fiche, sinon vide), `comparer` (deux fiches, champ par champ).
+
+## Services (`src/apps/voiture/services-serveur.ts`)
+
+Même forme que Budget : chaque fonction publique passe par `accesVoiture(niveau)`, et les fonctions `…Dans(ctx, …)` font le travail sans garde (vérifications de bus, scripts). Erreurs : `ErreurVoiture`, héritée de `ErreurMetier`.
+
+| Fonction | Niveau | Événement émis |
+|---|---|---|
+| `creerVehicule` | écriture | `voiture.emplacement_modifie`, une fois |
+| `modifierFiche` | écriture | `voiture.fiche_modifiee` |
+| `ficheVoiture` | écriture | aucun (crée la ligne `voiture_vehicle` à la volée) |
+| `creerPapier`, `modifierPapier`, `supprimerPapier` | écriture | `voiture.action_levee` à la modification ou à la suppression |
+| `ajouterEmplacement`, `modifierEmplacement`, `supprimerEmplacement`, `marquerIndisponible` | écriture | `voiture.emplacement_modifie` |
+| `reserverEmplacement` | écriture | `voiture.emplacement_modifie` |
+| `poserLogo` | écriture | `voiture.logo_pose` et `voiture.emplacement_modifie` |
+| `retirerLogo` | écriture | `voiture.emplacement_modifie` |
+| `creerReglage`, `modifierReglage` | contribution (ses propres fiches seulement) | aucun |
+| `supprimerReglage`, `enregistrerCommeReference` | écriture | aucun |
+| `masquerChamps` | gestion | aucun |
+| `valeursDeDepart` | contribution | aucun |
+| `recalculerPourQg` | selon le niveau sur Voiture | `voiture.papier_expire_bientot` et `voiture.action_requise` |
+
+Charges utiles validées par zod dans `src/apps/voiture/charges.ts`. Les noms viennent du catalogue (`src/core/evenements/catalogue.ts`), jamais écrits ailleurs.
+
+## Échéances des papiers (recalcul au QG)
+
+`src/apps/recalculs-qg.ts` est la couche de composition : la page du QG n'appelle plus que `recalculerQg`, qui lance le recalcul de Saison puis celui de Voiture. Chaque app isole ses erreurs.
+
+Pour un papier `a_renouveler`, Voiture émet `voiture.papier_expire_bientot` puis `voiture.action_requise` (titre « Renouveler <type> : <véhicule>, expire le JJ/MM/AAAA », destinataires : les responsables). Une seule fois par papier et par échéance : le recalcul vérifie d'abord l'événement déjà émis, en base. Un papier déjà expiré n'entre pas dans ce rappel. Un papier sans échéance n'émet rien. Le bouton « Vu » ferme la notification ; Voiture n'écoute encore aucun événement, donc il ne modifie rien d'autre.
+
+## Lectures (`src/apps/voiture/lectures-serveur.ts`)
+
+- `listerVehicules` : nom, type, photo (rattachement `photo` de l'app `voiture`), groupe, classe, état des papiers.
+- `lireVehicule` : la fiche, les papiers avec leur statut, les emplacements avec leur occupation active.
+- `historiqueVehicule` : les résultats validés et les kilomètres de spéciale, lus par la fonction partagée de Saison `lireResultatsValidesParVehicule` (`src/apps/saison/lectures-partagees.ts`). Voiture ne lit jamais une table `saison_`.
+- `lireReglages`, `lireReglage` : fiches et références, avec les champs et leurs valeurs.
 
 ## Vérifications
 
 - `src/core/schema-conventions.test.ts` : les sept tables respectent le bloc commun et `@@index([teamId])`.
 - Dérive : `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` renvoie une migration vide.
-- Les vérifications de RLS (`db:verifier-rls`) et de bus (`db:verifier-bus`) sont étendues à ces tables (voir la fin de ce document).
+- `pnpm db:verifier-rls` : RLS forcée, politique et droits sur les sept tables ; cloisonnement en lecture, modification et création.
+- `pnpm db:verifier-bus` : création d'un véhicule (un événement), pose d'un logo, rappel de papier une seule fois après deux ouvertures du QG, rien pour un papier sans échéance.
