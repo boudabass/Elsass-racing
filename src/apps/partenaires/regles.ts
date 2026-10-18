@@ -166,7 +166,7 @@ export const CHAMPS_CONNUS = [
 export interface ContrepartieModele {
   libelle: string
   quantite: number
-  unite: string
+  unite?: string | null
   emplacement?: string | null
   epreuves?: string[]
   echeance?: string | null
@@ -195,7 +195,7 @@ function dateFrancaise(jour: string): string {
 }
 
 function ligneContrepartie(c: ContrepartieModele): string {
-  const morceaux = [`${c.libelle} : ${c.quantite} ${c.unite}`]
+  const morceaux = [`${c.libelle} : ${c.quantite}${c.unite ? ` ${c.unite}` : ""}`]
   if (c.emplacement) morceaux.push(`emplacement ${c.emplacement}`)
   if (c.epreuves && c.epreuves.length > 0) morceaux.push(`épreuves ${c.epreuves.join(", ")}`)
   if (c.echeance) morceaux.push(`échéance ${dateFrancaise(c.echeance)}`)
@@ -234,10 +234,10 @@ export interface ContrepartiePourRegles {
   echeance: string | null
 }
 
-// Tenue dès que la quantité promise est atteinte. Une quantité qui redescend la remet en cours.
+// Tenue dès que la quantité promise est atteinte, même reportée. Une quantité qui redescend la remet en cours.
 export function statutContrepartie(contrepartie: ContrepartiePourRegles): StatutContrepartie {
-  if (contrepartie.statut === "reportee") return "reportee"
   if (contrepartie.quantiteTenue >= contrepartie.quantitePromise) return "tenue"
+  if (contrepartie.statut === "reportee") return "reportee"
   if (contrepartie.statut === "tenue") return "en_cours"
   return contrepartie.statut
 }

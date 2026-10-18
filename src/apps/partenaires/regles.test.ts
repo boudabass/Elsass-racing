@@ -226,8 +226,12 @@ describe("statutContrepartie", () => {
     expect(statutContrepartie({ ...base, statut: "tenue", quantiteTenue: 1 })).toBe("en_cours")
   })
 
-  it("garde une contrepartie reportée", () => {
-    expect(statutContrepartie({ ...base, statut: "reportee", quantiteTenue: 2 })).toBe("reportee")
+  it("garde une contrepartie reportée tant que la quantité n'est pas atteinte", () => {
+    expect(statutContrepartie({ ...base, statut: "reportee", quantiteTenue: 1 })).toBe("reportee")
+  })
+
+  it("passe une contrepartie reportée à tenue quand la quantité est atteinte", () => {
+    expect(statutContrepartie({ ...base, statut: "reportee", quantiteTenue: 2 })).toBe("tenue")
   })
 })
 

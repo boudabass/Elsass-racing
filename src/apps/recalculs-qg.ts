@@ -8,10 +8,12 @@ import type { ContexteTeam } from "@/core/contexte"
 import { niveauDe } from "@/core/actions/actions-serveur"
 import { recalculerPourQg as recalculerSaison } from "@/apps/saison/services-serveur"
 import { recalculerPourQg as recalculerVoiture } from "@/apps/voiture/services-serveur"
+import { recalculerPourQg as recalculerPartenaires } from "@/apps/partenaires/services-serveur"
 
 export async function recalculerQg(contexte: ContexteTeam): Promise<void> {
   await lancer("saison", async () => recalculerSaison(contexte, await niveauDe(contexte, "saison")))
   await lancer("voiture", async () => recalculerVoiture(contexte, await niveauDe(contexte, "voiture")))
+  await lancer("partenaires", async () => recalculerPartenaires(contexte, await niveauDe(contexte, "partenaires")))
 }
 
 async function lancer(app: string, recalcul: () => Promise<void>): Promise<void> {
