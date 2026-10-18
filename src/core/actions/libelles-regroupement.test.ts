@@ -28,7 +28,7 @@ const CHAMP_TYPE = /\btype: ("[a-z_]+"|[a-zA-Z_.]+)/
 
 function jetonsDeTypes(source: string): string[] {
   const jetons: string[] = []
-  for (const emission of source.matchAll(EMISSION)) {
+  for (const emission of Array.from(source.matchAll(EMISSION))) {
     const suite = source.slice(emission.index ?? 0, (emission.index ?? 0) + 400)
     const champ = CHAMP_TYPE.exec(suite)
     if (champ) jetons.push(champ[1])
@@ -59,7 +59,7 @@ describe("titres de groupe de la boîte d'actions", () => {
     }
     // Garde-fou : si l'analyse ne trouve plus les émissions, le test ne doit pas passer à vide.
     expect(levés.size).toBeGreaterThan(10)
-    expect([...levés].filter((type) => !LIBELLES_TYPES[type])).toEqual([])
+    expect(Array.from(levés).filter((type) => !LIBELLES_TYPES[type])).toEqual([])
   })
 
   it("chaque libellé a un singulier et un pluriel, et ils diffèrent", () => {
