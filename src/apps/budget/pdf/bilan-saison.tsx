@@ -50,7 +50,7 @@ export function BilanSaisonPdf({ bilan, saisonNom, team, date }: BilanSaisonPdfP
                 { titre: "Montant", largeur: 1, alignDroite: true },
                 { titre: "Part", largeur: 1, alignDroite: true },
                 { titre: "Prévu", largeur: 1, alignDroite: true },
-                { titre: "Écart", largeur: 1, alignDroite: true },
+                { titre: "Écart au prévu", largeur: 1, alignDroite: true },
               ]}
               lignes={bilan.depensesParCategorie.map((ligne) => [
                 ligne.nom,
@@ -90,7 +90,7 @@ export function BilanSaisonPdf({ bilan, saisonNom, team, date }: BilanSaisonPdfP
             total={["Total encaissé", formatEuros(bilan.chiffres.recettesEncaissees)]}
           />
 
-          <Intertitre>Avances des membres</Intertitre>
+          <Intertitre>Ce que la team doit à ses membres, à ce jour</Intertitre>
           {bilan.avancesMembres.length === 0 ? (
             <Paragraphe>Aucune avance enregistrée.</Paragraphe>
           ) : (
