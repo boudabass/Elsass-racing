@@ -300,6 +300,39 @@ test("7 · le message du partenaire arrive en texte, et le champ piège ne crée
   })
 })
 
+// 7 bis. Limite : au plus 5 messages par lien et par heure. Le 6e est refusé, et rien n'est enregistré pour lui.
+test("7 bis · le 6e message d'un même lien est refusé, sans rien enregistrer", async ({ page, equipe, browser }) => {
+  await avecAutreTeam(async (autre) => {
+    const donnees = await preparerPageDePartenaire(equipe, autre)
+    await connecterParLien(page, equipe)
+    const jeton = await creerLien(page, donnees.partenaireA)
+    const visiteur = await visiteurSansSession(browser, "198.51.100.9")
+    const vue = await visiteur.newPage()
+    await vue.goto(`/p/${jeton}`)
+
+    // Le formulaire se vide quand l'envoi est accepté : on attend ce vidage avant le message suivant.
+    for (let numero = 1; numero <= 5; numero++) {
+      await vue.getByLabel("Votre nom", { exact: true }).fill("Aurélie")
+      await vue.getByLabel("Votre message", { exact: true }).fill(`Message limite ${numero}`)
+      await vue.getByRole("button", { name: "Envoyer le message", exact: true }).click()
+      await expect(vue.getByLabel("Votre message", { exact: true })).toHaveValue("")
+    }
+
+    // Le sixième est refusé, avec le message de la limite.
+    await vue.getByLabel("Votre nom", { exact: true }).fill("Aurélie")
+    await vue.getByLabel("Votre message", { exact: true }).fill("Message limite 6")
+    await vue.getByRole("button", { name: "Envoyer le message", exact: true }).click()
+    await expect(vue.getByText("Trop de messages pour l'instant. Réessayez dans quelques minutes.", { exact: true })).toBeVisible()
+    await visiteur.close()
+
+    // La team voit les cinq premiers messages, et pas le sixième.
+    await page.goto(`/apps/partenaires/${donnees.partenaireA}?onglet=messages`)
+    await expect(page.getByText("Message limite 1", { exact: true })).toBeVisible()
+    await expect(page.getByText("Message limite 5", { exact: true })).toBeVisible()
+    await expect(page.getByText("Message limite 6", { exact: true })).toHaveCount(0)
+  })
+})
+
 // 8. Limite : 31 jetons inventés depuis une même IP donnent un 429 au 31e.
 test("8 · trop de jetons inventés donnent un 429", async ({ browser }) => {
   const visiteur = await visiteurSansSession(browser, "198.51.100.8")

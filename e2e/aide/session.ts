@@ -508,8 +508,8 @@ export function encaisserRecetteBudget(equipe: Equipe, libelle: string): void {
   })
 }
 
-// Épreuve déjà passée (dates dans le passé, statut envisagé) : Saison la passe à « terminée » à l'ouverture du QG.
-export async function ajouterEpreuvePasseeEnBase(equipe: Equipe, seasonId: string, nom: string, debut: string, fin: string): Promise<string> {
+// Épreuve à venir (dates données, statut envisagé) : Saison la passe à « terminée » quand ses dates sont passées.
+export async function ajouterEpreuveEnBase(equipe: Equipe, seasonId: string, nom: string, debut: string, fin: string): Promise<string> {
   const id = newId()
   await bd().query(
     `INSERT INTO core_event (id, team_id, season_id, type, nom, date_debut, date_fin, updated_at)
@@ -523,4 +523,26 @@ export async function ajouterEpreuvePasseeEnBase(equipe: Equipe, seasonId: strin
 export async function statutEpreuveEnBase(equipe: Equipe, eventId: string): Promise<string | null> {
   const { rows } = await bd().query(`SELECT statut FROM core_event WHERE team_id = $1 AND id = $2`, [equipe.teamId, eventId])
   return rows[0]?.statut ?? null
+}
+
+// Déplace une épreuve à des dates passées : Saison la passe à « terminée » au prochain chargement du QG.
+export async function passerEpreuveDansLePasseEnBase(equipe: Equipe, eventId: string, debut: string, fin: string): Promise<void> {
+  await bd().query(`UPDATE core_event SET date_debut = $3, date_fin = $4, updated_at = now() WHERE team_id = $1 AND id = $2`, [
+    equipe.teamId,
+    eventId,
+    debut,
+    fin,
+  ])
+}
+
+
+// Livraisons du bus de la team, avec leur statut et le dernier message d'erreur (« aucun gestionnaire » compris).
+export async function livraisonsEnBase(equipe: Equipe): Promise<string[]> {
+  const { rows } = await bd().query(
+    `SELECT e.nom, d.app_destinataire, d.statut, d.derniere_erreur FROM core_event_delivery d
+     JOIN core_domain_event e ON e.id = d.domain_event_id
+     WHERE d.team_id = $1 ORDER BY d.created_at`,
+    [equipe.teamId],
+  )
+  return rows.map((r: { nom: string; app_destinataire: string; statut: string; derniere_erreur: string | null }) => `${r.nom} → ${r.app_destinataire} [${r.statut}] ${r.derniere_erreur ?? ""}`)
 }
