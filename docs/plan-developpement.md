@@ -200,10 +200,10 @@ Décisions de John (18/10) :
 - modèle de convention de base rédigé par l'orchestrateur : `docs/modele-convention.md`, à relire par John avant la tâche 3.5.
 
 ### 3.1 Socle : envoi et lecture des fichiers
-- Brief : `docs/briefs/3.1-envoi-fichiers.md`. Envoi, stockage (volume `STOCKAGE_DIR`), lecture protégée par team et par droits, compression des photos. Premiers usages : logo de la team (remplace l'icône QG), photo du ticket d'une dépense, fichier de preuve d'un résultat.
+- Brief : `docs/briefs/3.1-envoi-fichiers.md`. Envoi, stockage (volume `STOCKAGE_DIR`), lecture protégée par team et par droits, compression des photos. Premiers usages : logo de la team (remplace l'icône QG), photo du ticket d'une dépense, fichier de preuve d'un résultat. Fait le 18/10 (15fb8e5 à 36ac8e3), relu et accepté.
 
 ### 3.1b Socle : outil PDF
-- Outil PDF commun, qui servira aux bilans partenaires et au bilan de saison de Budget.
+- Brief : `docs/briefs/3.1b-outil-pdf.md`. Outil PDF commun (@react-pdf/renderer, polices Barlow), premier usage : le bilan de saison de Budget.
 
 ### 3.2 Voiture : schéma et services
 - Tables `voiture_` (fiche, papiers et statut calculé, emplacements et occupations, fiches et réglages de référence), gabarit Saxo dans le catalogue plateforme, événements émis.
@@ -221,7 +221,7 @@ Décisions de John (18/10) :
 - Prospection par statut avec relances, fiche partenaire, fiche convention et document généré, vue globale des contreparties, bouton + en 2 champs.
 
 ### 3.7 Page partenaire et bilans
-- Page sans compte par lien secret révocable (relecture de sécurité dédiée), message du partenaire, bilans PDF, bilan de saison de Budget.
+- Page sans compte par lien secret révocable (relecture de sécurité dédiée), message du partenaire, bilans PDF.
 
 ### 3.8 Liaisons et vérification du lot
 - Convention signée vers Budget (recette prévue) et Voiture (réservation d'emplacement), logo posé vers preuve, papier qui expire vers l'indice de Saison, épreuve terminée vers l'historique du véhicule et les publications promises. Puis vérification complète du lot 3.
