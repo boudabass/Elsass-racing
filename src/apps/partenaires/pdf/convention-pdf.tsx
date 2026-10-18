@@ -17,7 +17,7 @@ const styles = StyleSheet.create({
   signature: { flexGrow: 1, flexBasis: 0, borderTopWidth: 1, borderTopColor: "#888888", paddingTop: 6, minHeight: 90 },
   signatureLabel: { fontWeight: 600, marginBottom: 4 },
   signatureLigne: { marginBottom: 3 },
-  mention: { fontStyle: "italic", marginTop: 8, color: "#555555" },
+  mention: { marginTop: 8, color: "#555555" },
 })
 
 function Bloc({ bloc }: { bloc: BlocDocument }) {
