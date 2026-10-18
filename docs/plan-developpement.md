@@ -206,10 +206,11 @@ Décisions de John (18/10) :
 - Brief : `docs/briefs/3.1b-outil-pdf.md`. Outil PDF commun (@react-pdf/renderer, polices Barlow), premier usage : le bilan de saison de Budget. Fait le 18/10 (e7773fa à dbc0410), relu et accepté.
 
 ### 3.2 Voiture : schéma et services
-- Brief : `docs/briefs/3.2-voiture-schema-services.md`. Gabarits dans le code (Saxo seule, vues droite et gauche en miroir, autres emplacements hors plan), pas de clé étrangère vers Partenaires, historique calculé via une lecture partagée de Saison.
+- Brief : `docs/briefs/3.2-voiture-schema-services.md`. Gabarits dans le code (Saxo seule, vues droite et gauche en miroir, autres emplacements hors plan), pas de clé étrangère vers Partenaires, historique calculé via une lecture partagée de Saison. Fait le 18/10 (cfd4f8e à 9dc78d6, migration voiture_schema), relu et accepté.
 - Tables `voiture_` (fiche, papiers et statut calculé, emplacements et occupations, fiches et réglages de référence), gabarit Saxo dans le catalogue plateforme, événements émis.
 
 ### 3.3 Voiture : écrans
+- Brief : `docs/briefs/3.3-voiture-ecrans.md`. Déco en liste en attendant le plan (3.4), fiches de réglage hors ligne pour l'assistance au parc, entrées Réglage et Véhicule du bouton +.
 - Mes véhicules, fiche en onglets (Identité, Papiers, Réglages, Historique), bouton + en 3 champs, fiches de réglage pré-remplies et comparaison côte à côte.
 
 ### 3.4 Voiture : plan de déco
