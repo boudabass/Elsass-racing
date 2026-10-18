@@ -717,6 +717,10 @@ export async function masquerChampsDans(ctx: ContexteTeam, cles: string[]): Prom
   const connus = new Set(CHAMPS_REGLAGE.map((c) => c.cle))
   const inconnu = cles.find((cle) => !connus.has(cle))
   if (inconnu) refus(`Champ inconnu : ${inconnu}.`)
+  // Les essentiels restent toujours visibles : seuls les champs avancés se masquent.
+  const essentiels = new Set(CHAMPS_REGLAGE.filter((c) => c.groupe === "essentiel").map((c) => c.cle))
+  const essentiel = cles.find((cle) => essentiels.has(cle))
+  if (essentiel) refus("Les réglages essentiels ne peuvent pas être masqués.")
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const existante = await client.voitureTeamPref.findFirst({ where: { teamId: ctx.teamId }, select: { id: true } })
   await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>

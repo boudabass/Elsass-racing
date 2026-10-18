@@ -556,6 +556,20 @@ async function main() {
     const actionsExpire = await proprietaire.coreAction.findMany({ where: { teamId: team.id, cleUnicite: `papier:${papierExpire}:${echeancePassee}` } })
     controle("un papier déjà expiré lève une seule action, titrée « expiré depuis le »", actionsExpire.length === 1 && actionsExpire[0].titre.includes("expiré depuis le"), `${actionsExpire.length}`)
 
+    // Fiches de réglage (brief 3.3) : un champ essentiel ne se masque pas ; une fiche se crée, et sert de départ.
+    const essentielRefuse = await voiture.masquerChampsDans(ctx, ["pression_froid_avg"]).then(
+      () => false,
+      () => true,
+    )
+    controle("un champ essentiel ne peut pas être masqué", essentielRefuse)
+    await voiture.masquerChampsDans(ctx, ["rapport_pont"])
+    const fichePont = await voiture.creerReglageDans(ctx, vehiculeVoiture, { date: jourDeParis(new Date()), valeurs: { pression_froid_avg: 2.1, rapport_pont: 4.3 }, note: 4 })
+    const relueFiche = await proprietaire.voitureSetup.findFirst({ where: { id: fichePont } })
+    controle("la fiche de réglage garde sa note et ses valeurs", relueFiche?.note === 4 && (relueFiche?.valeurs as Record<string, unknown>)?.pression_froid_avg === 2.1)
+    const depart = await voiture.valeursDeDepartDans(ctx, vehiculeVoiture, null)
+    controle("la dernière fiche sert de départ à la suivante", depart.pression_froid_avg === 2.1)
+    await voiture.masquerChampsDans(ctx, [])
+
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.

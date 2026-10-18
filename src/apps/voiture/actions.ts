@@ -6,15 +6,22 @@
 import { executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-serveur"
 
 import { refus } from "./erreurs"
+import { CHAMPS_REGLAGE } from "./regles"
 import {
   creerPapier,
+  creerReglage,
   creerVehicule,
+  enregistrerCommeReference,
+  masquerChamps,
   modifierFiche,
   modifierPapier,
+  modifierReglage,
   poserPhotoPrincipale,
   supprimerPapier,
+  supprimerReglage,
   type EntreeFiche,
   type EntreePapier,
+  type EntreeReglage,
   type EntreeVehicule,
 } from "./services-serveur"
 
@@ -90,4 +97,57 @@ export async function modifierPapierAction(_etat: Resultat | null, donnees: Form
 
 export async function supprimerPapierAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerVoiture(() => supprimerPapier(texte(donnees, "papierId")))
+}
+
+// Fiche de réglage. Les valeurs arrivent en champs « v_<clé> » ; la virgule est acceptée. Un champ vide n'est
+// pas envoyé (il n'y a donc pas de valeur à enregistrer). Les champs masqués gardent leur valeur par un champ caché.
+const NOMBRE = /^-?\d+(?:[.,]\d+)?$/
+
+function valeursDuFormulaire(donnees: FormData): Record<string, number> {
+  const valeurs: Record<string, number> = {}
+  for (const champ of CHAMPS_REGLAGE) {
+    const brut = texteOuNull(donnees, `v_${champ.cle}`)
+    if (brut === null) continue
+    if (!NOMBRE.test(brut)) refus(`${champ.libelle} : un nombre est attendu.`)
+    valeurs[champ.cle] = Number(brut.replace(",", "."))
+  }
+  return valeurs
+}
+
+// Épreuve : la valeur du formulaire est « entryId|eventId » (ou vide).
+function entreeReglage(donnees: FormData): EntreeReglage {
+  const [entryId, eventId] = (texteOuNull(donnees, "epreuve") ?? "|").split("|")
+  const note = texteOuNull(donnees, "note")
+  return {
+    date: texte(donnees, "date"),
+    eventId: eventId || null,
+    entryId: entryId || null,
+    conditions: texteOuNull(donnees, "conditions") as EntreeReglage["conditions"],
+    revetement: texteOuNull(donnees, "revetement") as EntreeReglage["revetement"],
+    valeurs: valeursDuFormulaire(donnees),
+    remarques: texte(donnees, "remarques"),
+    note: note ? Number(note) : null,
+    setupTemplateId: texteOuNull(donnees, "modeleId"),
+  }
+}
+
+export async function creerReglageAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => creerReglage(texte(donnees, "vehicleId"), entreeReglage(donnees)))
+}
+
+export async function modifierReglageAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => modifierReglage(texte(donnees, "reglageId"), entreeReglage(donnees)))
+}
+
+export async function supprimerReglageAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => supprimerReglage(texte(donnees, "reglageId")))
+}
+
+export async function enregistrerCommeReferenceAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => enregistrerCommeReference(texte(donnees, "reglageId"), texte(donnees, "nom")))
+}
+
+// Champs masqués : la liste des cases cochées remplace la préférence de la team. Les essentiels sont refusés par le service.
+export async function masquerChampsAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => masquerChamps(donnees.getAll("masque").map((cle) => String(cle))))
 }

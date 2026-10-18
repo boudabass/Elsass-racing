@@ -126,3 +126,9 @@ export function ecartSigne(ecart: number, unite: string): string {
   const valeur = Math.abs(ecart).toFixed(Number.isInteger(ecart) ? 0 : 1).replace(".", ",")
   return `${signe}${valeur}${unite ? ` ${unite}` : ""}`
 }
+
+// Valeur d'un champ de réglage en texte de formulaire : virgule décimale, comme à la saisie.
+export function valeurEnTexte(valeur: string | number | null | undefined): string {
+  if (valeur === null || valeur === undefined) return ""
+  return String(valeur).replace(".", ",")
+}

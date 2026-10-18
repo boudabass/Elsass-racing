@@ -161,3 +161,29 @@ export async function lireReglage(id: string) {
     champs: CHAMPS_REGLAGE.map((c) => ({ ...c, valeur: valeurs[c.cle] ?? null })),
   }
 }
+
+// Champs masqués par la team (préférences de Voiture). Sans préférence : aucun champ masqué.
+export async function lireChampsMasques(): Promise<string[]> {
+  const { ctx } = await accesVoiture("lecture")
+  const pref = await prismaPourTeam(ctx.teamId, ctx.userId).voitureTeamPref.findFirst({ where: { teamId: ctx.teamId }, select: { champsReglageMasques: true } })
+  return pref?.champsReglageMasques ?? []
+}
+
+// Épreuves où ce véhicule est engagé, la plus récente d'abord. « enCours » : l'épreuve dont les dates
+// contiennent aujourd'hui (la règle de la fiche de réglage : elle est proposée par défaut).
+export async function lireEpreuvesDuVehicule(vehicleId: string, aujourdhui: Date) {
+  const { ctx } = await accesVoiture("lecture")
+  const entrees = await prismaPourTeam(ctx.teamId, ctx.userId).coreEventEntry.findMany({
+    where: { teamId: ctx.teamId, vehicleId, deletedAt: null, event: { deletedAt: null } },
+    select: { id: true, eventId: true, event: { select: { nom: true, dateDebut: true, dateFin: true } } },
+  })
+  return entrees
+    .map((entree) => ({
+      entryId: entree.id,
+      eventId: entree.eventId,
+      nom: entree.event.nom,
+      dateDebut: entree.event.dateDebut,
+      enCours: entree.event.dateDebut <= aujourdhui && entree.event.dateFin >= aujourdhui,
+    }))
+    .sort((a, b) => b.dateDebut.getTime() - a.dateDebut.getTime())
+}
