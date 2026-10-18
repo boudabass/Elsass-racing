@@ -79,7 +79,8 @@ describe("regroupement", () => {
       action({ id: "1", type: "inconnu", cleRegroupement: "x" }),
       action({ id: "2", type: "inconnu", cleRegroupement: "x" }),
     ]
-    expect(grouperActions(actions)[0].titreGroupe).toBe("2 actions : inconnu")
+    // Sans libellé, le titre est générique : le type interne ne s'affiche jamais (brief 3.9, §2).
+    expect(grouperActions(actions)[0].titreGroupe).toBe("2 actions")
   })
 
   it("garde une action sans cleRegroupement seule, avec son titre", () => {
