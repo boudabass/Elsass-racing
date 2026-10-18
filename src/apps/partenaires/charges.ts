@@ -13,15 +13,28 @@ export const chargeConventionSignee = z
     agreementId: identifiant,
     partnerId: identifiant,
     partenaireNom: z.string().min(1),
+    // Période de la convention (jours civils) : Budget date les recettes, Voiture date les réservations.
+    dateDebut: jourCivil,
+    dateFin: jourCivil,
     apportFinancierCentimes: z.number().int().min(0),
     echeancier: z.array(z.object({ date: jourCivil, montantCentimes: z.number().int().min(0) })),
+    // Logo du partenaire (nullable) : Voiture le réutilise sur l'emplacement réservé.
+    logoFileId: identifiant.nullable(),
     // Contreparties logo, avec l'emplacement : Voiture les lira à l'écoute de cet événement.
     contreparties: z.array(z.object({ benefitId: identifiant, slotId: identifiant, slotNom: z.string().nullable() })),
   })
   .strict()
 
+// Résiliation : « terminee » (fin de la période) ou « resiliee ». slotIds : les emplacements à libérer, c'est-à-dire
+// ceux que les autres conventions signées ou en cours du partenaire ne couvrent pas.
 export const chargeConventionTerminee = z
-  .object({ agreementId: identifiant, partnerId: identifiant, partenaireNom: z.string().min(1) })
+  .object({
+    agreementId: identifiant,
+    partnerId: identifiant,
+    partenaireNom: z.string().min(1),
+    motif: z.enum(["terminee", "resiliee"]),
+    slotIds: z.array(identifiant),
+  })
   .strict()
 
 export const chargeContrepartieTenue = z

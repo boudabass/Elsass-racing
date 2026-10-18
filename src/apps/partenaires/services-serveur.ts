@@ -8,7 +8,7 @@
 import { z } from "zod"
 
 import type { ContexteTeam } from "@/core/contexte"
-import { rattacherFichier } from "@/core/fichiers/fichiers-serveur"
+import { type FicheSource, rattacherDepuisSource, rattacherFichier } from "@/core/fichiers/fichiers-serveur"
 import { exigerAcces } from "@/core/droits/garde-serveur"
 import { type Niveau } from "@/core/droits/niveaux"
 import { emettre } from "@/core/evenements/bus-serveur"
@@ -941,8 +941,11 @@ export async function marquerSigneeDans(ctx: ContexteTeam, agreementId: string, 
       agreementId,
       partnerId: convention.partnerId,
       partenaireNom: convention.partner.contact.nom,
+      dateDebut: jourDe(convention.dateDebut) ?? "",
+      dateFin: jourDe(convention.dateFin) ?? "",
       apportFinancierCentimes: convention.apportFinancierCentimes,
       echeancier: echeancierDe(convention.echeancier),
+      logoFileId: convention.partner.logoFileId,
       contreparties: logos.map((l) => ({ benefitId: l.id, slotId: l.slotId as string, slotNom: l.slotNom })),
     }),
   )
@@ -959,12 +962,47 @@ export async function resilierDans(ctx: ContexteTeam, agreementId: string, entre
   const convention = await conventionActiveDans(client, ctx, agreementId)
   const transition = transitionConvention(convention.statut, "resilier")
   if (!transition.ok) refus(transition.message)
+  // Les emplacements se calculent avant la mise à jour : la convention ne doit pas se compter elle-même.
+  const slotIds = await emplacementsALiberer(client, ctx, convention)
   await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
     tx.partenairesAgreement.update({
       where: { id: agreementId },
       data: { statut: transition.statut, motifResiliation: donnees.motif, rev: { increment: 1 }, updatedBy: ctx.userId },
     }),
   )
+  await emettre(
+    ctx,
+    "partenaires.convention_terminee",
+    chargeConventionTerminee.parse({
+      agreementId,
+      partnerId: convention.partnerId,
+      partenaireNom: convention.partner.contact.nom,
+      motif: "resiliee",
+      slotIds,
+    }),
+  )
+}
+
+// Emplacements à libérer quand une convention s'arrête : ceux de ses contreparties logo qu'aucune autre convention
+// signée ou en cours du même partenaire ne couvre. Un renouvellement ne libère donc rien.
+async function emplacementsALiberer(client: Client, ctx: ContexteTeam, convention: { id: string; partnerId: string }): Promise<string[]> {
+  const logos = await client.partenairesBenefit.findMany({
+    where: { agreementId: convention.id, teamId: ctx.teamId, deletedAt: null, type: "logo_voiture", slotId: { not: null } },
+    select: { slotId: true },
+  })
+  const couverts = await client.partenairesBenefit.findMany({
+    where: {
+      teamId: ctx.teamId,
+      deletedAt: null,
+      type: "logo_voiture",
+      slotId: { not: null },
+      agreementId: { not: convention.id },
+      agreement: { partnerId: convention.partnerId, statut: { in: ["signee", "en_cours"] }, deletedAt: null },
+    },
+    select: { slotId: true },
+  })
+  const dejaCouverts = new Set(couverts.map((c) => c.slotId))
+  return Array.from(new Set(logos.map((l) => l.slotId as string))).filter((slotId) => !dejaCouverts.has(slotId))
 }
 
 // Renouvellement : un brouillon pour la saison suivante, avec les mêmes contreparties (sans preuve ni avancement).
@@ -1249,6 +1287,35 @@ export async function ajouterPreuveDans(ctx: ContexteTeam, benefitId: string, en
   return id
 }
 
+// Preuve de pose (brief 3.8, §4) : une photo visible, datée du jour de la pose. La photo vient de Voiture : elle se
+// rattache depuis l'occupation (source), et non par son envoyeur. Ne touche pas à la quantité tenue (voir saisirAvancement).
+export async function ajouterPreuvePoseDans(
+  ctx: ContexteTeam,
+  benefitId: string,
+  pose: { poseLe: string; fileId: string; source: FicheSource },
+): Promise<string> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  await contrepartieActiveDans(client, ctx, benefitId)
+  const id = newId()
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    await tx.partenairesProof.create({
+      data: {
+        id,
+        teamId: ctx.teamId,
+        benefitId,
+        date: versJour(pose.poseLe),
+        type: "photo",
+        fileId: pose.fileId,
+        visiblePartenaire: true,
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
+      },
+    })
+    await rattacherDepuisSource(tx, ctx, { fileId: pose.fileId, source: pose.source, cible: { app: "partenaires", ficheType: "proof", ficheId: id, role: "photo" } })
+  })
+  return id
+}
+
 export async function masquerPreuve(id: string, visible: boolean): Promise<void> {
   const { ctx } = await accesPartenaires("ecriture")
   return masquerPreuveDans(ctx, id, visible)
@@ -1419,6 +1486,8 @@ export async function recalculerStatutsDans(ctx: ContexteTeam): Promise<void> {
           agreementId: convention.id,
           partnerId: convention.partnerId,
           partenaireNom: convention.partner.contact.nom,
+          motif: "terminee",
+          slotIds: await emplacementsALiberer(client, ctx, convention),
         }),
       )
     }
@@ -1549,7 +1618,7 @@ export async function signalerRelancesDans(ctx: ContexteTeam): Promise<void> {
 }
 
 // Destinataires d'une action : l'adhésion du suivi si elle existe, sinon les responsables actifs.
-async function destinatairesDeSuiviDans(client: Client, ctx: ContexteTeam, suiviParPersonId: string | null): Promise<string[]> {
+export async function destinatairesDeSuiviDans(client: Client, ctx: ContexteTeam, suiviParPersonId: string | null): Promise<string[]> {
   if (suiviParPersonId) {
     const adhesion = await client.coreMembership.findFirst({
       where: { teamId: ctx.teamId, personId: suiviParPersonId, statut: "actif", deletedAt: null },

@@ -40,3 +40,30 @@ export async function listerEmplacementsPourPartenaires(ctx: ContexteTeam): Prom
     statut: statutEmplacement(e.occupations[0] ?? null, e.statut === "indisponible"),
   }))
 }
+
+// Occupation d'un emplacement, pour Partenaires (brief 3.8, §4) : la pose d'un logo et sa photo. Pas de garde : l'app
+// appelante contrôle son propre accès. Rien d'autre que ces champs n'est rendu.
+export type OccupationPourPartenaire = {
+  id: string
+  slotId: string
+  partenaireId: string | null
+  statut: string
+  poseLe: string | null
+  photoPoseFileId: string | null
+}
+
+export async function lireOccupationPourPartenaires(ctx: ContexteTeam, assignmentId: string): Promise<OccupationPourPartenaire | null> {
+  const occupation = await prismaPourTeam(ctx.teamId, ctx.userId).voitureSlotAssignment.findFirst({
+    where: { id: assignmentId, teamId: ctx.teamId, deletedAt: null },
+    select: { id: true, slotId: true, partenaireId: true, statut: true, poseLe: true, photoPoseFileId: true },
+  })
+  if (!occupation) return null
+  return {
+    id: occupation.id,
+    slotId: occupation.slotId,
+    partenaireId: occupation.partenaireId,
+    statut: occupation.statut,
+    poseLe: occupation.poseLe ? occupation.poseLe.toISOString().slice(0, 10) : null,
+    photoPoseFileId: occupation.photoPoseFileId,
+  }
+}

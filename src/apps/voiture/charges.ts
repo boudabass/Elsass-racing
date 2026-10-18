@@ -14,8 +14,17 @@ export const chargeEmplacementModifie = z
   .object({ vehicleId: identifiant, slotId: identifiant.optional() })
   .strict()
 
+// Pose d'un logo : partenaireId (nullable : une occupation saisie à la main n'a pas de partenaire), jour de pose et
+// photo de pose (nullable). Partenaires s'en sert pour proposer la preuve.
 export const chargeLogoPose = z
-  .object({ vehicleId: identifiant, slotId: identifiant, assignmentId: identifiant })
+  .object({
+    vehicleId: identifiant,
+    slotId: identifiant,
+    assignmentId: identifiant,
+    partenaireId: identifiant.nullable(),
+    poseLe: jourCivil,
+    photoFileId: identifiant.nullable(),
+  })
   .strict()
 
 export const chargePapierExpireBientot = z

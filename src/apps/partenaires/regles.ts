@@ -283,3 +283,12 @@ export function relanceDue(partenaire: PartenairePourRelance, aujourdhui: string
   if (STATUTS_SANS_RELANCE.includes(partenaire.statut)) return false
   return partenaire.prochaineRelance <= aujourdhui
 }
+
+// Apport reçu d'une convention (brief 3.8, §7) : « oui » si l'apport financier attendu est encaissé en entier,
+// « partiel » si une partie l'est, « non » sinon. L'attendu est l'apport de la convention, pas le total des recettes
+// déjà proposées : un versement non encore proposé ne doit pas faire passer l'apport à « oui ».
+export function apportRecuDe({ attenduCentimes, encaisseCentimes }: { attenduCentimes: number; encaisseCentimes: number }): "oui" | "partiel" | "non" {
+  if (attenduCentimes > 0 && encaisseCentimes >= attenduCentimes) return "oui"
+  if (encaisseCentimes > 0) return "partiel"
+  return "non"
+}

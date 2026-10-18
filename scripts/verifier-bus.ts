@@ -682,6 +682,127 @@ async function main() {
     const taches = await proprietaire.coreTask.count({ where: { teamId: team.id, app: "partenaires", ficheId: prospectRelance } })
     controle("relance due : une seule tâche core_task", taches === 1, String(taches))
 
+    // 13. Liaisons du lot 3 (brief 3.8, §2 à §7). Chaque liaison : une seule proposition ou action par clé, et un
+    //     événement rejoué deux fois ne crée rien de plus. L'ordre suit la vie d'une convention : signée, pose, épreuve,
+    //     encaissement, puis résiliation.
+    const budgetLiaison = await import("../src/apps/budget/services-serveur")
+    const voitureLiaison = await import("../src/apps/voiture/services-serveur")
+    const compterActions = (cle: string) => proprietaire.coreAction.count({ where: { teamId: team.id, cleUnicite: cle } })
+    const evenementsDe = async (nom: string, champ: string, valeur: string) =>
+      (await proprietaire.coreDomainEvent.findMany({ where: { teamId: team.id, nom } })).filter((e) => (e.donnees as Record<string, unknown>)[champ] === valeur)
+
+    const vehiculeLiaison = await voitureLiaison.creerVehiculeDans(ctx, { nom: `Liaison ${suffixe}`, type: "course" })
+    const emplacementLiaison = await voitureLiaison.ajouterEmplacementDans(ctx, vehiculeLiaison, { nom: "Portière", vue: "droite", largeurCm: 20, hauteurCm: 10 })
+    const prospectLiaison = await partenaires.creerProspectDans(ctx, { entreprise: `Liaison Verif ${suffixe}`, contact: { prenom: "Lia", nom: "Verif" } })
+    const conventionLiaison = await partenaires.creerConventionDans(ctx, {
+      partnerId: prospectLiaison,
+      templateId: (await partenaires.lireModelesDans(ctx))[0].id,
+      seasonId: saisonPartenaires,
+      dateDebut: "2041-01-01",
+      dateFin: "2041-12-31",
+    })
+    await partenaires.modifierConventionDans(ctx, conventionLiaison, {
+      apportFinancierCentimes: 150000,
+      echeancier: [
+        { date: "2041-02-01", montantCentimes: 75000 },
+        { date: "2041-06-01", montantCentimes: 75000 },
+      ],
+    })
+    const logoLiaison = await partenaires.ajouterContrepartieDans(ctx, conventionLiaison, { libelle: "Logo sur la Portière", type: "logo_voiture", quantitePromise: 1 })
+    await partenaires.modifierContrepartieDans(ctx, logoLiaison, { slotId: emplacementLiaison, slotNom: "Portière" })
+    const publicationLiaison = await partenaires.ajouterContrepartieDans(ctx, conventionLiaison, { libelle: "Publications", type: "publication_reseaux", quantitePromise: 2 })
+    await partenaires.marquerEnvoyeeDans(ctx, conventionLiaison)
+    await partenaires.marquerSigneeDans(ctx, conventionLiaison, { signeeLe: "2041-01-02", signataires: "Jo ; Lia" })
+
+    // §2.1 : une proposition de recette par versement, datée du versement, référencée par versement.
+    const propositionsLiaison = await proprietaire.budgetSuggestion.findMany({
+      where: { teamId: team.id, origineRef: { startsWith: `partenaires:${conventionLiaison}:` } },
+      orderBy: { origineRef: "asc" },
+    })
+    controle("convention signée : une proposition de recette par versement", propositionsLiaison.length === 2, String(propositionsLiaison.length))
+    controle(
+      "chaque proposition porte la date de son versement et sa référence",
+      propositionsLiaison[0]?.date?.toISOString().slice(0, 10) === "2041-02-01" &&
+        propositionsLiaison[1]?.date?.toISOString().slice(0, 10) === "2041-06-01" &&
+        propositionsLiaison[0]?.origineRef === `partenaires:${conventionLiaison}:1`,
+    )
+
+    // §2.2 : une seule action « Réserver » pour la contrepartie logo, même clé.
+    controle("convention signée : une seule action « Réserver » pour la contrepartie logo", (await compterActions(`reserver:${logoLiaison}`)) === 1)
+
+    // Rejeu : la même convention signée, deux fois de plus : ni proposition ni action en plus.
+    const evenementSignee = (await evenementsDe("partenaires.convention_signee", "agreementId", conventionLiaison)).at(-1)
+    if (!evenementSignee) throw new EcartBus("convention_signee introuvable pour le rejeu")
+    await emettre(ctx, "partenaires.convention_signee", evenementSignee.donnees as Record<string, unknown>)
+    await emettre(ctx, "partenaires.convention_signee", evenementSignee.donnees as Record<string, unknown>)
+    controle(
+      "convention rejouée deux fois : toujours deux propositions",
+      (await proprietaire.budgetSuggestion.count({ where: { teamId: team.id, origineRef: { startsWith: `partenaires:${conventionLiaison}:` } } })) === 2,
+    )
+    controle("convention rejouée deux fois : toujours une action « Réserver »", (await compterActions(`reserver:${logoLiaison}`)) === 1)
+
+    // §4 : pose du logo sans photo : une seule action « Marquer le logo comme posé » pour l'occupation.
+    await voitureLiaison.reserverEmplacementDans(ctx, emplacementLiaison, { partenaireId: prospectLiaison, partenaireNom: `Liaison Verif ${suffixe}`, du: "2041-01-01", au: "2041-12-31" })
+    const occupationLiaison = await proprietaire.voitureSlotAssignment.findFirst({ where: { teamId: team.id, slotId: emplacementLiaison, deletedAt: null } })
+    if (!occupationLiaison) throw new EcartBus("occupation de la Portière introuvable après réservation")
+    await voitureLiaison.poserLogoDans(ctx, occupationLiaison.id, { poseLe: "2041-01-03", photoPoseFileId: null })
+    controle("logo posé : une seule action de preuve pour l'occupation", (await compterActions(`preuve_pose:${occupationLiaison.id}`)) === 1)
+    const evenementPose = (await evenementsDe("voiture.logo_pose", "assignmentId", occupationLiaison.id)).at(-1)
+    if (!evenementPose) throw new EcartBus("voiture.logo_pose introuvable")
+    await emettre(ctx, "voiture.logo_pose", evenementPose.donnees as Record<string, unknown>)
+    controle("logo posé rejoué : toujours une seule action de preuve", (await compterActions(`preuve_pose:${occupationLiaison.id}`)) === 1)
+
+    // §6 : épreuve terminée : une action par personne qui suit le partenaire, même après un rejeu.
+    const personneLiaison = await proprietaire.corePerson.create({ data: { id: randomUUID(), teamId: team.id, prenom: "Lia", nom: "Suiveuse" } })
+    await proprietaire.coreMembership.update({ where: { id: adhesion }, data: { personId: personneLiaison.id } })
+    await proprietaire.partenairesPartner.update({ where: { id: prospectLiaison }, data: { suiviParPersonId: personneLiaison.id } })
+    const epreuveLiaison = await proprietaire.coreEvent.create({
+      data: {
+        id: randomUUID(),
+        teamId: team.id,
+        seasonId: saisonPartenaires,
+        type: "rallye",
+        nom: "Rallye de liaison",
+        dateDebut: new Date("2041-03-01"),
+        dateFin: new Date("2041-03-02"),
+      },
+    })
+    await proprietaire.partenairesBenefit.update({ where: { id: publicationLiaison }, data: { eventIds: [epreuveLiaison.id] } })
+    await emettre(ctx, "saison.epreuve_terminee", { eventId: epreuveLiaison.id, seasonId: saisonPartenaires })
+    await emettre(ctx, "saison.epreuve_terminee", { eventId: epreuveLiaison.id, seasonId: saisonPartenaires })
+    controle(
+      "épreuve terminée rejouée : une seule action « Publications promises » par personne",
+      (await compterActions(`publications:${epreuveLiaison.id}:${personneLiaison.id}`)) === 1,
+    )
+
+    // §7 : encaissement du premier versement, puis du second : l'apport passe de « partiel » à « oui ».
+    const caisseLiaison = await proprietaire.budgetPayer.findFirst({ where: { teamId: team.id, type: "caisse_team", deletedAt: null } })
+    if (!caisseLiaison) throw new EcartBus("caisse de la team introuvable")
+    for (let index = 0; index < propositionsLiaison.length; index++) {
+      const proposition = propositionsLiaison[index]
+      const mouvementId = await budgetLiaison.confirmerSuggestionDans(ctx, proposition.id)
+      await budgetLiaison.encaisserRecetteDans(ctx, { recetteId: mouvementId, payerId: caisseLiaison.id, date: index === 0 ? "2041-02-01" : "2041-06-01" })
+      const apport = await proprietaire.partenairesAgreement.findUnique({ where: { id: conventionLiaison }, select: { apportRecu: true } })
+      controle(
+        index === 0 ? "premier versement encaissé : apport partiel" : "second versement encaissé : apport reçu",
+        apport?.apportRecu === (index === 0 ? "partiel" : "oui"),
+        apport?.apportRecu,
+      )
+    }
+
+    // §3 : résiliation : une seule action « Libérer » pour l'occupation du partenaire, avec le motif et l'emplacement.
+    await partenaires.resilierDans(ctx, conventionLiaison, { motif: "Test de résiliation" })
+    const evenementTerminee = (await evenementsDe("partenaires.convention_terminee", "agreementId", conventionLiaison)).at(-1)
+    const donneesTerminee = evenementTerminee?.donnees as { motif?: string; slotIds?: string[] } | undefined
+    controle(
+      "résiliation : convention_terminee porte le motif et l'emplacement libéré",
+      donneesTerminee?.motif === "resiliee" && (donneesTerminee?.slotIds ?? []).includes(emplacementLiaison),
+      JSON.stringify(donneesTerminee),
+    )
+    controle("résiliation : une seule action « Libérer » pour l'occupation", (await compterActions(`liberer:${occupationLiaison.id}`)) === 1)
+
+    console.log("\nLiaisons du lot 3 vérifiées : tous les contrôles passent.")
+
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.

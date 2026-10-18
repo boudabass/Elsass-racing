@@ -8,7 +8,7 @@
 import { z } from "zod"
 
 import type { ContexteTeam } from "@/core/contexte"
-import { rattacherFichier } from "@/core/fichiers/fichiers-serveur"
+import { type FicheSource, rattacherDepuisSource, rattacherFichier } from "@/core/fichiers/fichiers-serveur"
 import { exigerAcces } from "@/core/droits/garde-serveur"
 import { type Niveau } from "@/core/droits/niveaux"
 import { emettre } from "@/core/evenements/bus-serveur"
@@ -499,7 +499,14 @@ export async function reserverEmplacement(slotId: string, entree: EntreeReservat
   return reserverEmplacementDans(ctx, slotId, entree)
 }
 
-export async function reserverEmplacementDans(ctx: ContexteTeam, slotId: string, entree: EntreeReservation): Promise<string> {
+// Le logo d'une réservation venue d'une convention reste celui du partenaire : il se rattache depuis la fiche
+// partenaire (logoSource), même envoyé par un autre membre. Sans logoSource, la règle de saisie s'applique.
+export async function reserverEmplacementDans(
+  ctx: ContexteTeam,
+  slotId: string,
+  entree: EntreeReservation,
+  options: { logoSource?: FicheSource } = {},
+): Promise<string> {
   const donnees = schemaReservation.parse(entree)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const slot = await emplacementActifDans(client, ctx, slotId)
@@ -528,7 +535,9 @@ export async function reserverEmplacementDans(ctx: ContexteTeam, slotId: string,
       },
     })
     if (donnees.logoFileId) {
-      await rattacherFichier(tx, ctx, { fileId: donnees.logoFileId, app: "voiture", ficheType: "slot_assignment", ficheId: id, role: "photo" })
+      const cible = { app: "voiture", ficheType: "slot_assignment", ficheId: id, role: "photo" as const }
+      if (options.logoSource) await rattacherDepuisSource(tx, ctx, { fileId: donnees.logoFileId, source: options.logoSource, cible })
+      else await rattacherFichier(tx, ctx, { fileId: donnees.logoFileId, ...cible })
     }
     await recalculerStatutEmplacement(tx, ctx, slotId, false)
   })
@@ -574,7 +583,18 @@ export async function poserLogoDans(ctx: ContexteTeam, assignmentId: string, ent
     await recalculerStatutEmplacement(tx, ctx, occupation.slotId, false)
   })
 
-  await emettre(ctx, "voiture.logo_pose", chargeLogoPose.parse({ vehicleId: occupation.slot.vehicleId, slotId: occupation.slotId, assignmentId }))
+  await emettre(
+    ctx,
+    "voiture.logo_pose",
+    chargeLogoPose.parse({
+      vehicleId: occupation.slot.vehicleId,
+      slotId: occupation.slotId,
+      assignmentId,
+      partenaireId: occupation.partenaireId,
+      poseLe: donnees.poseLe,
+      photoFileId: donnees.photoPoseFileId ?? null,
+    }),
+  )
   await emettre(ctx, "voiture.emplacement_modifie", chargeEmplacementModifie.parse({ vehicleId: occupation.slot.vehicleId, slotId: occupation.slotId }))
 }
 
