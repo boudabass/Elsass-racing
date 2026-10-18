@@ -8,6 +8,8 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  // Runtime JSX automatique, comme Next : les tests peuvent rendre les composants .tsx (documents PDF).
+  esbuild: { jsx: "automatic" },
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
