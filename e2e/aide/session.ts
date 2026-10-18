@@ -160,6 +160,16 @@ export async function engagementsEnBase(equipe: Equipe): Promise<Array<{ id: str
   return rows
 }
 
+// Liens de la page partenaire en base, dont l'empreinte est égale à ce jeton en clair : doit être zéro (le jeton
+// n'est jamais stocké, seulement son empreinte).
+export async function jetonEnClairEnBase(equipe: Equipe, jeton: string): Promise<number> {
+  const { rows } = await bd().query<{ n: number }>(
+    "SELECT count(*)::int AS n FROM partenaires_portal_link WHERE team_id = $1 AND jeton_empreinte = $2",
+    [equipe.teamId, jeton],
+  )
+  return rows[0].n
+}
+
 export async function compterEvenements(equipe: Equipe, nom: string): Promise<number> {
   const { rows } = await bd().query<{ n: number }>(
     "SELECT count(*)::int AS n FROM core_domain_event WHERE team_id = $1 AND nom = $2",
