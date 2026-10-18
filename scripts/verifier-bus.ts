@@ -34,6 +34,7 @@ async function main() {
   // Import dynamique : .env.local doit être chargé avant la création du client applicatif.
   const { emettre, ErreurEvenement } = await import("../src/core/evenements/bus-serveur")
   const { prisma: applicatif } = await import("../src/lib/prisma")
+  const { contexteSysteme } = await import("../src/core/contexte-systeme-serveur")
 
   const suffixe = randomUUID().slice(0, 8)
   const team = { id: randomUUID(), nom: `Verif bus ${suffixe}`, slug: `verif-bus-${suffixe}` }
@@ -802,6 +803,62 @@ async function main() {
     controle("résiliation : une seule action « Libérer » pour l'occupation", (await compterActions(`liberer:${occupationLiaison.id}`)) === 1)
 
     console.log("\nLiaisons du lot 3 vérifiées : tous les contrôles passent.")
+
+    // 14. Contexte système (brief 3.9, §1) : un événement émis par un contexte système ne traite que lui-même. Une livraison
+    // de Budget laissée en attente par un membre reste en attente quand un message arrive depuis la page partenaire, puis
+    // part au prochain événement émis par un membre. Pour la laisser en attente, on émet normalement, puis on remet la
+    // livraison en attente avec le rôle propriétaire (simulation d'un traitement interrompu).
+    const idMembre = await emettre(ctx, "saison.engagement_paye", { demo: true })
+    const livraisonMembre = await proprietaire.coreEventDelivery.findFirstOrThrow({
+      where: { teamId: team.id, domainEventId: idMembre, appDestinataire: "budget" },
+    })
+    await proprietaire.coreEventDelivery.update({
+      where: { id: livraisonMembre.id },
+      data: { statut: "en_attente", traiteAt: null, derniereErreur: null, tentatives: 0 },
+    })
+
+    // Le message de la page partenaire, émis comme le fait l'action publique (actions-public.ts).
+    const contexteMessage = contexteSysteme(team.id, "page_partenaire")
+    await emettre(contexteMessage, "partenaires.action_requise", {
+      type: "message_partenaire",
+      cleUnicite: `message-bus:${suffixe}`,
+      titre: "Nouveau message de test",
+      contexte: "Message laissé depuis la page partenaire.",
+      ficheType: "partner",
+      ficheId: randomUUID(),
+      destinataires: { roles: ["responsable"] },
+      boutons: [{ cle: "vu", libelle: "Vu" }],
+      priorite: 3,
+    })
+    const apresMessage = await proprietaire.coreEventDelivery.findUnique({ where: { id: livraisonMembre.id } })
+    controle(
+      "contexte système : la livraison de Budget laissée par un membre reste en attente",
+      apresMessage?.statut === "en_attente",
+      JSON.stringify(apresMessage),
+    )
+
+    // Un événement émis par le contexte système vers un gestionnaire réservé aux utilisateurs reste en attente, avec son motif.
+    const idSysteme = await emettre(contexteMessage, "saison.engagement_paye", { demo: true })
+    const livraisonSysteme = await proprietaire.coreEventDelivery.findFirstOrThrow({
+      where: { teamId: team.id, domainEventId: idSysteme, appDestinataire: "budget" },
+    })
+    controle(
+      "contexte système : gestionnaire réservé aux utilisateurs, livraison en attente avec son motif",
+      livraisonSysteme.statut === "en_attente" && (livraisonSysteme.derniereErreur ?? "").includes("réservé aux utilisateurs"),
+      JSON.stringify(livraisonSysteme),
+    )
+
+    // Au prochain événement émis par un membre, les deux livraisons en attente sont traitées.
+    await emettre(ctx, "saison.engagement_paye", { demo: true })
+    const finale = await proprietaire.coreEventDelivery.findUnique({ where: { id: livraisonMembre.id } })
+    const finaleSysteme = await proprietaire.coreEventDelivery.findUnique({ where: { id: livraisonSysteme.id } })
+    controle(
+      "au prochain événement d'un membre, les livraisons de Budget laissées en attente sont traitées",
+      finale?.statut === "traite" && finaleSysteme?.statut === "traite",
+      `${finale?.statut} / ${finaleSysteme?.statut}`,
+    )
+
+    console.log("\nContexte système vérifié : tous les contrôles passent.")
 
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {

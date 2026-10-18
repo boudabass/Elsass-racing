@@ -82,7 +82,8 @@ export async function emettre(
     })
   }
 
-  // Choix provisoire du lot 1 : traitement immédiat, dans la même requête.
-  await traiterEnAttente(ctx)
+  // Choix provisoire du lot 1 : traitement immédiat, dans la même requête. Avec un contexte système, seul cet événement
+  // est traité (brief 3.9, §1).
+  await traiterEnAttente(ctx, id)
   return id
 }

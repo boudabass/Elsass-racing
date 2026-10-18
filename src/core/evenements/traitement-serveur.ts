@@ -24,12 +24,17 @@ export const MAX_TENTATIVES = 5
 // Livraisons en cours de traitement dans ce processus.
 const enCours = new Set<string>()
 
-// Traite les livraisons en attente de la team, dans l'ordre d'émission.
-export async function traiterEnAttente(ctx: ContexteEvenement): Promise<void> {
+// Traite les livraisons en attente, dans l'ordre d'émission.
+// Avec un utilisateur : toutes les livraisons en attente de la team. Avec un contexte système (brief 3.9, §1) : seulement
+// celles de l'événement qu'il vient d'émettre (evenementId). Les autres restent en attente pour le prochain traitement
+// avec un utilisateur : un contexte système ne doit pas les marquer traitées.
+export async function traiterEnAttente(ctx: ContexteEvenement, evenementId?: string): Promise<void> {
+  if (!estContexteTeam(ctx) && !evenementId) return
   const client = clientPourContexte(ctx)
   const livraisons = await client.coreEventDelivery.findMany({
     where: {
       teamId: ctx.teamId,
+      ...(estContexteTeam(ctx) ? {} : { domainEventId: evenementId }),
       OR: [{ statut: "en_attente" }, { statut: "erreur", tentatives: { lt: MAX_TENTATIVES } }],
     },
     include: { domainEvent: true },
@@ -83,11 +88,14 @@ async function traiterLivraison(
     } else if (estContexteTeam(ctx)) {
       await enregistrement.fn(ctx, recu)
     } else {
-      // Un gestionnaire d'app parle au nom d'un membre : il ne traite pas un événement sans utilisateur.
+      // Un gestionnaire d'app parle au nom d'un membre : il ne traite pas un événement sans utilisateur. La livraison
+      // reste en attente (rien n'est perdu) : elle sera reprise au prochain événement émis avec un utilisateur.
+      const message = `contexte système : gestionnaire réservé aux utilisateurs, livraison laissée en attente (${evenement.nom} vers ${appDestinataire})`
       await client.coreEventDelivery.update({
         where: { id: livraisonId },
-        data: { statut: "traite", traiteAt: new Date(), derniereErreur: "contexte système : gestionnaire réservé aux utilisateurs" },
+        data: { statut: "en_attente", derniereErreur: message },
       })
+      console.warn(`[evenements] ${message}`)
       return
     }
     await client.coreEventDelivery.update({
