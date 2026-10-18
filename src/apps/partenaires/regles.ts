@@ -1,8 +1,6 @@
 // Règles pures de Partenaires (brief 3.5, point 4) : aucune lecture de base, aucune date du jour
 // cachée. Les dates sont des jours civils « AAAA-MM-JJ » (Europe/Paris), passés par l'appelant.
 
-import { createHash, randomBytes } from "node:crypto"
-
 export type StatutConvention = "brouillon" | "envoyee" | "signee" | "en_cours" | "terminee" | "resiliee"
 export type ActionConvention = "envoyer" | "signer" | "resilier"
 export type StatutPartenaire =
@@ -259,14 +257,4 @@ export function relanceDue(partenaire: PartenairePourRelance, aujourdhui: string
   if (partenaire.prochaineRelance === null) return false
   if (STATUTS_SANS_RELANCE.includes(partenaire.statut)) return false
   return partenaire.prochaineRelance <= aujourdhui
-}
-
-// Jeton de la page partenaire : 32 octets aléatoires, en base64url (43 caractères).
-export function genererJeton(): string {
-  return randomBytes(32).toString("base64url")
-}
-
-// Empreinte stockée à la place du jeton : sha256 en hexadécimal.
-export function empreinteJeton(jeton: string): string {
-  return createHash("sha256").update(jeton).digest("hex")
 }

@@ -2601,11 +2601,11 @@ model PartenairesAmendment {
   teamId         String    @map("team_id") @db.Uuid
   agreementId    String    @map("agreement_id") @db.Uuid
   numero         Int
-  date           DateTime  @db.Timestamptz(3)
+  date           DateTime  @db.Date
   motif          String
   changements    String    @db.Text
   documentFileId String?   @map("document_file_id") @db.Uuid
-  signeLe        DateTime? @map("signe_le") @db.Timestamptz(3)
+  signeLe        DateTime? @map("signe_le") @db.Date
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2691,7 +2691,7 @@ model PartenairesProof {
   id                String                 @id @db.Uuid
   teamId            String                 @map("team_id") @db.Uuid
   benefitId         String                 @map("benefit_id") @db.Uuid
-  date              DateTime               @db.Timestamptz(3)
+  date              DateTime               @db.Date
   eventId           String?                @map("event_id") @db.Uuid
   type              PartenairesProofType
   fileId            String?                @map("file_id") @db.Uuid
@@ -2723,11 +2723,11 @@ model PartenairesReport {
   teamId       String    @map("team_id") @db.Uuid
   partnerId    String    @map("partner_id") @db.Uuid
   agreementId  String?   @map("agreement_id") @db.Uuid
-  periodeDebut DateTime  @map("periode_debut") @db.Timestamptz(3)
-  periodeFin   DateTime  @map("periode_fin") @db.Timestamptz(3)
+  periodeDebut DateTime  @map("periode_debut") @db.Date
+  periodeFin   DateTime  @map("periode_fin") @db.Date
   fileId       String?   @map("file_id") @db.Uuid
   genereLe     DateTime  @default(now()) @map("genere_le") @db.Timestamptz(3)
-  envoyeLe     DateTime? @map("envoye_le") @db.Timestamptz(3)
+  envoyeLe     DateTime? @map("envoye_le") @db.Date
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)

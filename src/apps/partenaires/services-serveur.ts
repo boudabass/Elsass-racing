@@ -23,13 +23,13 @@ import {
   chargeRelanceDue,
   cleContrepartieEnRetard,
 } from "./charges"
+import { CATALOGUE_DEFAUT_V1, PREFIXE_SOURCE_CATALOGUE } from "./catalogue-defaut"
 import { ErreurPartenaires, refus } from "./erreurs"
+import { empreinteJeton, genererJeton } from "./jeton-serveur"
 import { MODELE_DEFAUT_V1 } from "./modele-defaut"
 import {
-  empreinteJeton,
   enRetard,
   formaterMontant,
-  genererJeton,
   jourParis,
   relanceDue,
   remplirModele,
@@ -511,17 +511,14 @@ export async function lireModeles() {
   return lireModelesDans(ctx)
 }
 
-// Crée à la volée la copie du modèle par défaut à la première lecture, puis renvoie les modèles de la team.
+// Copie le modèle par défaut à la première lecture, puis renvoie les modèles de la team. Sûr en concurrence :
+// l'index unique partiel (team_id, source_cle) refuse le doublon, skipDuplicates le laisse passer sans erreur.
 export async function lireModelesDans(ctx: ContexteTeam) {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
-  const copie = await client.partenairesTemplate.findFirst({
-    where: { teamId: ctx.teamId, sourceCle: MODELE_DEFAUT_V1.sourceCle, deletedAt: null },
-    select: { id: true },
-  })
-  if (!copie) {
-    await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
-      tx.partenairesTemplate.create({
-        data: {
+  await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+    tx.partenairesTemplate.createMany({
+      data: [
+        {
           id: newId(),
           teamId: ctx.teamId,
           nom: MODELE_DEFAUT_V1.nom,
@@ -532,12 +529,48 @@ export async function lireModelesDans(ctx: ContexteTeam) {
           createdBy: ctx.userId,
           updatedBy: ctx.userId,
         },
-      }),
-    )
-  }
+      ],
+      skipDuplicates: true,
+    }),
+  )
   return client.partenairesTemplate.findMany({
     where: { teamId: ctx.teamId, deletedAt: null },
     orderBy: { createdAt: "asc" },
+  })
+}
+
+// --- Liste de base des contreparties --------------------------------------------------------
+
+export async function lireCatalogue() {
+  const { ctx } = await accesPartenaires("ecriture")
+  return lireCatalogueDans(ctx)
+}
+
+// Copie la liste de base à la première lecture, puis la renvoie. Même garantie que le modèle : une seule ligne
+// par team et par clé, même si deux lectures arrivent ensemble.
+export async function lireCatalogueDans(ctx: ContexteTeam) {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+    tx.partenairesBenefitCatalog.createMany({
+      data: CATALOGUE_DEFAUT_V1.map((ligne) => ({
+        id: newId(),
+        teamId: ctx.teamId,
+        nom: ligne.nom,
+        type: ligne.type,
+        unite: ligne.unite,
+        quantiteDefaut: ligne.quantiteDefaut,
+        ordre: ligne.ordre,
+        actif: true,
+        sourceCle: `${PREFIXE_SOURCE_CATALOGUE}${ligne.cle}`,
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
+      })),
+      skipDuplicates: true,
+    }),
+  )
+  return client.partenairesBenefitCatalog.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null },
+    orderBy: [{ ordre: "asc" }, { nom: "asc" }],
   })
 }
 

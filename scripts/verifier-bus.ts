@@ -601,6 +601,15 @@ async function main() {
         (e) => (e.donnees as Record<string, unknown>)[champ] === valeur,
       ).length
 
+    // Deux lectures simultanées sur une team neuve (brief 3.6, point 0.1.1) : une seule copie du modèle,
+    // une seule ligne par clé dans la liste de base.
+    const { CATALOGUE_DEFAUT_V1 } = await import("../src/apps/partenaires/catalogue-defaut")
+    await Promise.all([partenaires.lireModelesDans(ctx), partenaires.lireModelesDans(ctx), partenaires.lireCatalogueDans(ctx), partenaires.lireCatalogueDans(ctx)])
+    const copiesModele = await proprietaire.partenairesTemplate.count({ where: { teamId: team.id, sourceCle: "defaut_v1" } })
+    const copiesCatalogue = await proprietaire.partenairesBenefitCatalog.count({ where: { teamId: team.id, sourceCle: { startsWith: "defaut_v1:" } } })
+    controle("copie à la volée : un seul modèle après deux lectures simultanées", copiesModele === 1, `${copiesModele}`)
+    controle("copie à la volée : une seule liste de base après deux lectures simultanées", copiesCatalogue === CATALOGUE_DEFAUT_V1.length, `${copiesCatalogue}`)
+
     const partenaireId = await partenaires.creerProspectDans(ctx, { entreprise: `Garage Verif ${suffixe}`, contact: { prenom: "Ana", nom: "Verif" } })
     const [modele] = await partenaires.lireModelesDans(ctx)
     const conventionId = await partenaires.creerConventionDans(ctx, {
@@ -627,6 +636,14 @@ async function main() {
     )
     const partenaireSigne = await proprietaire.partenairesPartner.findUnique({ where: { id: partenaireId } })
     controle("la signature fait passer le partenaire au statut partenaire", partenaireSigne?.statut === "partenaire", partenaireSigne?.statut)
+
+    // Dates en jours (brief 3.6, point 0.1.2) : l'avenant et la preuve relisent le jour saisi, à minuit UTC.
+    await partenaires.ajouterAvenantDans(ctx, conventionId, { date: "2041-03-01", motif: "Test de date", changements: "Aucun" })
+    const avenant = await proprietaire.partenairesAmendment.findFirst({ where: { agreementId: conventionId, deletedAt: null } })
+    controle("avenant : la date est un jour, lue sans heure", avenant?.date.toISOString().slice(0, 10) === "2041-03-01", avenant?.date.toISOString())
+    await partenaires.ajouterPreuveDans(ctx, logoId, { date: "2041-03-02", type: "lien", lien: "https://exemple.invalid/preuve", commentaire: "Test", visiblePartenaire: true })
+    const preuve = await proprietaire.partenairesProof.findFirst({ where: { benefitId: logoId, deletedAt: null } })
+    controle("preuve : la date est un jour, lue sans heure", preuve?.date.toISOString().slice(0, 10) === "2041-03-02", preuve?.date.toISOString())
 
     await partenaires.saisirAvancementDans(ctx, logoId, 1)
     await partenaires.saisirAvancementDans(ctx, logoId, 1)
