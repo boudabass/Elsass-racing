@@ -165,4 +165,12 @@ Migration `20261018180000_budget_suggestion_date_origine` (additive, seule migra
 - `origine_ref` vaut `partenaires:<agreementId>:<rang>` pour une recette proposée par Partenaires. `proposerMouvementDans` ne crée rien de plus si une proposition porte déjà cette référence : elle renvoie celle qui existe.
 - Une proposition confirmée crée une recette `prevue` (`budget_income`, statut `prevue`), datée du versement. Encaisser cette recette passe son statut à `encaissee` et émet `budget.recette_encaissee` avec `origineRef` : Partenaires s'en sert pour l'apport reçu.
 - `etatRecettesParOrigine(tx, teamId, prefixe)` renvoie le total et l'encaissé des recettes d'une origine (`src/apps/budget/liaisons-serveur.ts`).
-- Pas encore de bouton « Encaisser » sur une recette prévue dans l'interface : l'encaissement passe par le service (`encaisserRecetteDans`). Le parcours e2e s'appuie sur le service.
+- Le bouton « Encaisser » sur une recette prévue existe depuis le brief 3.9 (section suivante). Le service (`encaisserRecetteDans`) reste le point d'entrée pour les scripts et le bus.
+
+## Encaissement depuis la liste et la fiche (brief 3.9, §3)
+
+- Bouton « Encaisser » sur chaque recette prévue, dans la liste des mouvements (niveau gestion) et dans la fiche du mouvement. Composant `src/apps/budget/composants/encaisser.tsx` (`EncaisserRecette`) : date (aujourd'hui par défaut) et compte d'encaissement, puis « Confirmer l'encaissement ».
+- Compte proposé par défaut : la caisse de la team. `comptesEncaissement(payeurs)` (`src/apps/budget/regles.ts`) ne propose que les payeurs qui ne sont pas des membres, et marque `parDefaut` le type `caisse_team`.
+- `encaisserRecetteAction` (`src/apps/budget/actions.ts`) passe la date saisie à `encaisserRecette`.
+- La liste et la fiche affichent « Encaissée le … » (`encaisseeLe` de `MouvementLu`, `src/apps/budget/lectures-serveur.ts`).
+- Le parcours e2e (`e2e/lot3-parcours.spec.ts`, étape 8) passe par ce bouton, à 1440 px puis à 360 px. Le helper `e2e/aide/encaisser-recette.ts` (et sa copie dans `e2e/aide/session.ts`) a été retiré : plus aucun appelant.

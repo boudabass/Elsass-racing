@@ -17,7 +17,7 @@ Onze tables, préfixe `partenaires_`, bloc commun (`team_id`, `created_at`, `upd
 
 | Table | Rôle |
 |---|---|
-| `partenaires_partner` | Fiche d'un partenaire : `contact_id` (entreprise), interlocuteur, `statut` (`PartenairesStatut`), `source`, suivi, prochaine relance, logo, secteur, notes. Un seul partenaire par entreprise parmi les lignes non supprimées (index partiel). |
+| `partenaires_partner` | Fiche d'un partenaire : `contact_id` (entreprise), interlocuteur, fonction de l'interlocuteur (`interlocuteur_qualite`, facultatif), `statut` (`PartenairesStatut`), `source`, suivi, prochaine relance, logo, secteur, notes. Un seul partenaire par entreprise parmi les lignes non supprimées (index partiel). |
 | `partenaires_interaction` | Échange (appel, mail, rencontre, courrier, autre), avec une prochaine action datée. |
 | `partenaires_template` | Modèle de convention : nom, texte (avec champs `{{…}}`), `version`, `actif`, `source_cle`. |
 | `partenaires_agreement` | Convention : partenaire, modèle, saison, dates de début et de fin (jours), statut, `precedente_id` (renouvellement), apport financier et apport en nature (centimes), échéancier (JSON), apport reçu, documents, signature, motif de résiliation. |
@@ -83,3 +83,11 @@ Les dates sans heure sont en `@db.Date` lorsque la spécification le demande (`p
 - **Publications** : une contrepartie `publication_reseaux` porte la liste des épreuves (`eventIds`). Quand une de ces épreuves se termine, les personnes qui suivent le partenaire reçoivent l'action « Publications promises » (une par personne et par épreuve).
 - **Emplacement modifié ou supprimé** : le nom de l'emplacement de la contrepartie suit le nom de l'emplacement de Voiture. Un emplacement supprimé vide le lien (`slotId` nul), met « (supprimé) » au nom et propose une action « Compris ».
 - Le détail des charges et des clés d'unicité est dans `docs/evenements.md`, section « Liaisons du lot 3 ».
+
+## Fonction de l'interlocuteur et convention (brief 3.9, §4)
+
+- Migration `20261018190000_partenaires_interlocuteur_qualite` (additive) : `partenaires_partner` gagne `interlocuteur_qualite` (TEXT, facultatif, jusqu'à 80 caractères). Par exemple « Gérant ».
+- Écrite par `modifierInterlocuteurQualite` (`src/apps/partenaires/services-serveur.ts`, action `modifierInterlocuteurQualiteAction`). Elle exige un interlocuteur : sans nom, le service refuse.
+- Fiche du partenaire : champ « Fonction de l'interlocuteur » sous la ligne « Interlocuteur ».
+- Convention : le champ `partenaire.representant` affiche « Prénom Nom, Fonction » quand la fonction existe. Sans fonction, `partenaire.qualite` rejoint les champs vides : la page de la convention affiche « 1 champ à compléter » avec « la fonction de l'interlocuteur du partenaire », avant la génération du document.
+- `e2e/lot3-parcours.spec.ts`, étape 3 : le champ manquant est signalé, la fonction « Gérant » est saisie sur la fiche, puis le document est généré sans champ à compléter. Capture `lot3-fiche-qualite-1440x900.png`. `convention-exemple.pdf` est régénéré. Le texte du PDF n'a pas été relu à l'image (pas d'outil de rendu PDF sur le poste) : la présence de la fonction est vérifiée par le contrôle de champs de l'e2e et par le code de la convention.

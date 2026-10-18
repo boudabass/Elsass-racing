@@ -144,3 +144,15 @@ curseur : un tirage coupé est refait au tirage suivant, sans perte. À revoir s
 
 Pas de correction dans l'app pour ce lot (consigne : ne pas supprimer les lignes sans défaut prouvé). Le run complet de
 §8 est repris avec le même hook pour classer ses propres coupures.
+
+## Suite complète du brief 3.9 (§8)
+
+- `pnpm typecheck` : sans erreur. `pnpm test` (vitest) : 594/594, 69 fichiers. `db:verifier-rls`, `db:verifier-bus` et `db:verifier-synchro` : tous les contrôles passent. Build isolé (`NEXT_DIST_DIR=.next-build`) : vert.
+- `pnpm test:e2e` complet (`DEBUG=pw:webserver`, journal serveur dans un fichier) : **119 passed** (12,6 min). Les 3 tests de `e2e/lot3-verifications.spec.ts` (historique Voiture, papiers, résultat annulé) sont inclus ; `e2e/lot3-parcours.spec.ts` couvre la fonction de l'interlocuteur (étape 3) et le bouton « Encaisser » (étape 8).
+- Journal serveur de ce run : P2003 0, P2025 0, `reading 'id'` 0, ErreurAcces 0, TypeError 0. ECONNRESET 686, `uncaughtException` 343 (3.8 : 654 et 327). Jetons de 43 caractères : **1**. C'est l'URL `/connexion/lien?t=…` d'un mail de connexion de test, que le build de test écrit dans la console (`envoyerMail`, `src/core/auth/jetons-serveur.ts`). Le compteur attendu est 0 : à traiter, pas masqué.
+- Coupures côté serveur pendant ce run (hook Node temporaire hors dépôt, même méthode qu'au §7) : 16 996 requêtes observées, 457 coupées.
+  - 343 POST `/api/synchro/tirer` coupés, pour 343 `uncaughtException` : même nombre. Le rapprochement à la milliseconde n'a été vérifié que sur `lot3-parcours` (§7) ; il n'est pas refait ici.
+  - **10 server actions coupées** (POST multipart, réponse non écrite) : `/apps/budget` (4), `/qg` (2), `/apps/voiture/vehicules/<id>` (4). **Escaladé à l'orchestrateur, non corrigé** : on ne sait pas, à partir du journal, si l'action a été exécutée côté base avant la coupure.
+  - 0 envoi ou téléchargement de fichier coupé.
+  - 114 autres coupures : 65 préchargements RSC, 5 requêtes RSC, 34 GET de navigation, 10 server actions (ci-dessus).
+- Captures : `lot3-budget-encaisser-1440x900.png`, `lot3-budget-recette-encaissee-1440x900.png` (1440) et `…-360x740.png` (360), `lot3-fiche-qualite-1440x900.png`, `lot3-convention-apport-partiel-1440x900.png` (1440), `lot3-convention-actions-360x740.png` (360). Captures régénérées par le run et non liées au lot : restaurées à leur version commitée. **Non fait** : la capture de la boîte d'actions avec un groupe de deux éléments (brief §8).
