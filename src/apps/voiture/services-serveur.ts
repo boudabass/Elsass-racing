@@ -115,7 +115,7 @@ const schemaPapier = z
 export type EntreePapier = z.input<typeof schemaPapier>
 
 const schemaForme = z.union([
-  z.object({ type: z.literal("rect"), x: z.number(), y: z.number(), l: z.number().positive(), h: z.number().positive() }).strict(),
+  z.object({ type: z.literal("rect"), x: z.number(), y: z.number(), l: z.number().min(8), h: z.number().min(8) }).strict(),
   z.object({ type: z.literal("polygone"), points: z.array(z.tuple([z.number(), z.number()])).min(3) }).strict(),
 ])
 
@@ -431,7 +431,10 @@ export async function ajouterEmplacementDans(ctx: ContexteTeam, vehicleId: strin
 }
 
 // Renommer, déplacer, changer les dimensions : une seule mise à jour, un seul événement.
-export async function modifierEmplacement(slotId: string, champs: { nom?: string; forme?: unknown; largeurCm?: number | null; hauteurCm?: number | null }): Promise<void> {
+export async function modifierEmplacement(
+  slotId: string,
+  champs: { nom?: string; forme?: unknown; largeurCm?: number | null; hauteurCm?: number | null; symetrique?: boolean },
+): Promise<void> {
   const { ctx } = await accesVoiture("ecriture")
   return modifierEmplacementDans(ctx, slotId, champs)
 }
@@ -439,11 +442,13 @@ export async function modifierEmplacement(slotId: string, champs: { nom?: string
 export async function modifierEmplacementDans(
   ctx: ContexteTeam,
   slotId: string,
-  champs: { nom?: string; forme?: unknown; largeurCm?: number | null; hauteurCm?: number | null },
+  champs: { nom?: string; forme?: unknown; largeurCm?: number | null; hauteurCm?: number | null; symetrique?: boolean },
 ): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const slot = await emplacementActifDans(client, ctx, slotId)
+  if (champs.symetrique === true && slot.vue !== "droite") refus("Seul un emplacement du côté droit peut être symétrique à gauche.")
   const data: Record<string, unknown> = {}
+  if (champs.symetrique !== undefined) data.symetrique = champs.symetrique
   if (champs.nom !== undefined) {
     const nom = z.string().trim().min(1, "Donnez un nom à l'emplacement.").max(80).parse(champs.nom)
     data.nom = nom
@@ -522,6 +527,9 @@ export async function reserverEmplacementDans(ctx: ContexteTeam, slotId: string,
         updatedBy: ctx.userId,
       },
     })
+    if (donnees.logoFileId) {
+      await rattacherFichier(tx, ctx, { fileId: donnees.logoFileId, app: "voiture", ficheType: "slot_assignment", ficheId: id, role: "photo" })
+    }
     await recalculerStatutEmplacement(tx, ctx, slotId, false)
   })
   await emettre(ctx, "voiture.emplacement_modifie", chargeEmplacementModifie.parse({ vehicleId: slot.vehicleId, slotId }))
@@ -560,6 +568,9 @@ export async function poserLogoDans(ctx: ContexteTeam, assignmentId: string, ent
         updatedBy: ctx.userId,
       },
     })
+    if (donnees.photoPoseFileId) {
+      await rattacherFichier(tx, ctx, { fileId: donnees.photoPoseFileId, app: "voiture", ficheType: "slot_assignment", ficheId: assignmentId, role: "photo" })
+    }
     await recalculerStatutEmplacement(tx, ctx, occupation.slotId, false)
   })
 

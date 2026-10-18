@@ -8,16 +8,24 @@ import { executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-
 import { refus } from "./erreurs"
 import { lireSaisieReglage } from "./saisie-reglage"
 import {
+  ajouterEmplacement,
   creerPapier,
   creerVehicule,
   enregistrerCommeReference,
+  marquerIndisponible,
   masquerChamps,
+  modifierEmplacement,
   modifierFiche,
   modifierPapier,
   modifierReglage,
+  poserLogo,
   poserPhotoPrincipale,
+  reserverEmplacement,
+  retirerLogo,
+  supprimerEmplacement,
   supprimerPapier,
   supprimerReglage,
+  type EntreeEmplacement,
   type EntreeFiche,
   type EntreePapier,
   type EntreeReglage,
@@ -121,4 +129,81 @@ export async function enregistrerCommeReferenceAction(_etat: Resultat | null, do
 // Champs masqués : la liste des cases cochées remplace la préférence de la team. Les essentiels sont refusés par le service.
 export async function masquerChampsAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerVoiture(() => masquerChamps(donnees.getAll("masque").map((cle) => String(cle))))
+}
+
+// Plan de déco (brief 3.4). Une forme arrive en JSON depuis le plan ; le service la valide, comme les autres champs.
+function formeDuFormulaire(donnees: FormData): unknown {
+  const brut = texteOuNull(donnees, "forme")
+  if (brut === null) return null
+  try {
+    return JSON.parse(brut)
+  } catch {
+    refus("La forme de l'emplacement n'est pas lisible.")
+  }
+}
+
+// Ajout : un rectangle au centre de la vue, ou sans forme pour « Autres emplacements ». Le nom vient du plan.
+export async function ajouterEmplacementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => {
+    const entree: EntreeEmplacement = {
+      nom: texte(donnees, "nom"),
+      vue: texte(donnees, "vue") as EntreeEmplacement["vue"],
+      forme: formeDuFormulaire(donnees) as EntreeEmplacement["forme"],
+      symetrique: false,
+      largeurCm: null,
+      hauteurCm: null,
+    }
+    return ajouterEmplacement(texte(donnees, "vehicleId"), entree)
+  })
+}
+
+// Modification : nom, dimensions en cm et, côté droit seulement, la symétrie à gauche.
+export async function modifierEmplacementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() =>
+    modifierEmplacement(texte(donnees, "slotId"), {
+      nom: texte(donnees, "nom"),
+      largeurCm: entierOuNull(donnees, "largeurCm"),
+      hauteurCm: entierOuNull(donnees, "hauteurCm"),
+      symetrique: texteOuNull(donnees, "symetrique") === "oui",
+    }),
+  )
+}
+
+// Déplacement ou redimensionnement : seule la forme change.
+export async function enregistrerPositionAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => modifierEmplacement(texte(donnees, "slotId"), { forme: formeDuFormulaire(donnees) }))
+}
+
+export async function supprimerEmplacementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => supprimerEmplacement(texte(donnees, "slotId")))
+}
+
+export async function marquerIndisponibleAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => marquerIndisponible(texte(donnees, "slotId"), texte(donnees, "indisponible") === "oui"))
+}
+
+// Réservation : le partenaire est saisi en texte libre (Partenaires arrive à la 3.6). Le logo est rattaché par le service.
+export async function reserverEmplacementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() =>
+    reserverEmplacement(texte(donnees, "slotId"), {
+      partenaireNom: texte(donnees, "partenaireNom"),
+      du: texteOuNull(donnees, "du"),
+      au: texteOuNull(donnees, "au"),
+      logoFileId: texteOuNull(donnees, "logoFileId"),
+    }),
+  )
+}
+
+export async function poserLogoAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() =>
+    poserLogo(texte(donnees, "assignmentId"), {
+      poseLe: texte(donnees, "poseLe"),
+      photoPoseFileId: texteOuNull(donnees, "photoPoseFileId"),
+    }),
+  )
+}
+
+// Retrait du logo, et annulation d'une réservation : le même retrait.
+export async function retirerLogoAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => retirerLogo(texte(donnees, "assignmentId")))
 }
