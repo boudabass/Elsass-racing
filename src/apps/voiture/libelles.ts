@@ -1,6 +1,7 @@
 // Libellés français et couleurs des écrans de Voiture. Chaque état se lit en toutes lettres : la couleur
 // n'est qu'un renfort (brief 3.3, section 2).
 
+import type { VueGabarit } from "./gabarits/types"
 import type { EtatPapiersVehicule, StatutEmplacement, StatutPapier } from "./regles"
 
 export type TypeVehicule = "course" | "reco" | "assistance" | "remorque"
@@ -101,8 +102,9 @@ export function groupeEtClasse(groupe: string | null, classe: string | null): st
 
 // Vue d'un emplacement : titre du groupe dans l'onglet Déco. La vue gauche n'a pas de groupe : ses emplacements
 // sont les copies symétriques de la vue droite, indiquées par « (symétrique à gauche) ».
-export const TITRE_VUE: Record<"droite" | "avant" | "arriere" | "dessus" | "hors_plan", string> = {
+export const TITRE_VUE: Record<VueGabarit, string> = {
   droite: "Côté droit",
+  gauche: "Côté gauche",
   avant: "Avant",
   arriere: "Arrière",
   dessus: "Dessus",

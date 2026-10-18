@@ -1,51 +1,57 @@
 import { notFound } from "next/navigation"
 
+import { aAuMoins } from "@/core/droits/niveaux"
+
 import { lireVehicule } from "../lectures-serveur"
-import { COULEUR_STATUT_EMPLACEMENT, LIBELLE_STATUT_EMPLACEMENT, TITRE_VUE, dimensionsDe } from "../libelles"
+import { formeDeJson, type EmplacementPlan } from "../plan"
+import { accesVoiture } from "../services-serveur"
+import { DecoPlan } from "./deco-plan"
 
-// Ordre des groupes. La vue gauche n'a pas de groupe : ses emplacements sont les copies symétriques de la vue droite.
-const GROUPES = ["droite", "avant", "arriere", "dessus", "hors_plan"] as const
+// Date civile (@db.Date) en AAAA-MM-JJ, pour le client.
+function versJour(date: Date | null): string | null {
+  return date ? date.toISOString().slice(0, 10) : null
+}
 
-// Onglet Déco, en liste en attendant le plan (lot 3.4) : pas d'édition ici.
+// Onglet Déco : le plan de la voiture, la liste de ses emplacements et le panneau de celui qui est choisi (brief 3.4).
+// Le serveur donne les données ; le client gère la vue, le choix et le déplacement. Lecture seule sous le niveau écriture.
 export async function PanneauDeco({ ficheId }: { ficheId: string }) {
   const fiche = await lireVehicule(ficheId)
   if (!fiche) notFound()
-  const emplacements = fiche.emplacements
+  const { niveau } = await accesVoiture("lecture")
 
-  if (emplacements.length === 0) {
-    return <p className="text-texte-discret">Aucun emplacement défini pour ce véhicule.</p>
-  }
+  const emplacements: EmplacementPlan[] = fiche.emplacements.map((emplacement) => {
+    const occupation = emplacement.occupations[0]
+    return {
+      id: emplacement.id,
+      nom: emplacement.nom,
+      vue: emplacement.vue,
+      forme: formeDeJson(emplacement.forme),
+      symetrique: emplacement.symetrique,
+      largeurCm: emplacement.largeurCm,
+      hauteurCm: emplacement.hauteurCm,
+      statut: emplacement.statut,
+      occupation: occupation
+        ? {
+            id: occupation.id,
+            statut: occupation.statut as "reserve" | "pose",
+            partenaireNom: occupation.partenaireNom,
+            logoFileId: occupation.logoFileId,
+            du: versJour(occupation.du),
+            au: versJour(occupation.au),
+            photoPoseFileId: occupation.photoPoseFileId,
+            poseLe: versJour(occupation.poseLe),
+          }
+        : null,
+    }
+  })
 
   return (
-    <div className="flex flex-col gap-6">
-      <p className="text-texte-discret">Le plan de la voiture arrive bientôt. Voici la liste de ses emplacements.</p>
-      {GROUPES.map((vue) => {
-        const dansLeGroupe = emplacements.filter((e) => e.vue === vue)
-        if (dansLeGroupe.length === 0) return null
-        const toutSymetrique = vue === "droite" && dansLeGroupe.every((e) => e.symetrique)
-        const titre = `${TITRE_VUE[vue]}${toutSymetrique ? " (symétrique à gauche)" : ""}`
-        return (
-          <section key={vue} className="flex flex-col gap-2">
-            <h2 className="font-titre text-lg uppercase">{titre}</h2>
-            <ul className="flex flex-col divide-y divide-bordure">
-              {dansLeGroupe.map((emplacement) => {
-                const occupation = emplacement.occupations[0]
-                const dimensions = dimensionsDe(emplacement.largeurCm, emplacement.hauteurCm)
-                return (
-                  <li key={emplacement.id} className="flex flex-wrap items-baseline justify-between gap-2 py-3">
-                    <div className="flex flex-col">
-                      <p className="font-medium">{emplacement.nom}</p>
-                      {dimensions && <p className="text-sm text-texte-discret">{dimensions}</p>}
-                      {occupation && <p className="text-sm">{occupation.partenaireNom}</p>}
-                    </div>
-                    <p className={`text-sm font-medium ${COULEUR_STATUT_EMPLACEMENT[emplacement.statut]}`}>{LIBELLE_STATUT_EMPLACEMENT[emplacement.statut]}</p>
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-        )
-      })}
-    </div>
+    <DecoPlan
+      ficheId={ficheId}
+      nomVehicule={fiche.vehicule?.nomCourt ?? "Véhicule"}
+      gabarit={fiche.gabarit}
+      emplacements={emplacements}
+      peutEcrire={aAuMoins(niveau, "ecriture")}
+    />
   )
 }
