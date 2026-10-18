@@ -8,7 +8,7 @@ import { useFormStatus } from "react-dom"
 
 import { Message } from "@/components/formulaire/message"
 import type { Resultat } from "@/core/sdk/actions-serveur"
-import { BOUTON, BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
+import { BOUTON, BOUTON_DANGER, BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
 
 export type ActionFormulaire = (etat: Resultat | null, donnees: FormData) => Promise<Resultat>
 
@@ -44,10 +44,12 @@ export function FormulaireAction({
 }
 
 // Bouton d'envoi : désactivé pendant l'envoi du formulaire parent.
-export function BoutonEnvoi({ libelle, secondaire = false, className }: { libelle: string; secondaire?: boolean; className?: string }) {
+// Trois rôles (brief 3.10, §3) : principal (défaut), secondaire (une action sur la fiche), danger (supprimer, résilier).
+export function BoutonEnvoi({ libelle, secondaire = false, danger = false, className }: { libelle: string; secondaire?: boolean; danger?: boolean; className?: string }) {
   const { pending } = useFormStatus()
+  const style = danger ? BOUTON_DANGER : secondaire ? BOUTON_SECONDAIRE : BOUTON
   return (
-    <button type="submit" disabled={pending} className={className ?? (secondaire ? BOUTON_SECONDAIRE : BOUTON)}>
+    <button type="submit" disabled={pending} className={className ?? style}>
       {pending ? "Envoi…" : libelle}
     </button>
   )

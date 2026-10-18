@@ -9,5 +9,9 @@ export const BOUTON =
 export const BOUTON_SECONDAIRE =
   "cible-tactile rounded-md border border-bordure px-5 py-3 text-sm hover:bg-surface-2 disabled:opacity-50"
 
+// Bouton de danger, en contour : supprimer, résilier. Ce n'est pas une action comme les autres (brief 3.10, §3).
+export const BOUTON_DANGER =
+  "cible-tactile rounded-md border border-etat-rouge px-5 py-3 text-sm text-etat-rouge hover:bg-surface-2 disabled:opacity-50"
+
 // Lien d'action dans le texte : souligné en permanence (le soulignement dit que c'est un lien), cible de 44 px.
 export const LIEN = "cible-tactile inline-flex items-center underline underline-offset-4 decoration-marque decoration-2 hover:text-marque"

@@ -3,7 +3,7 @@
 
 import Link from "next/link"
 
-import { CHAMP, BOUTON_SECONDAIRE, LIEN } from "@/lib/classes-formulaire"
+import { CHAMP, BOUTON_DANGER, BOUTON_SECONDAIRE, LIEN } from "@/lib/classes-formulaire"
 import { formaterMontant } from "../regles"
 import {
   dateFrancaise,
@@ -153,12 +153,12 @@ export function OngletFiche({ partenaire, personnes }: { partenaire: PartenaireF
             Supprimer ce partenaire
           </h2>
           <details>
-            <summary className={`${LIEN} cursor-pointer list-none text-sm`}>Supprimer ce partenaire…</summary>
+            <summary className={`${BOUTON_DANGER} inline-flex cursor-pointer list-none`}>Supprimer ce partenaire…</summary>
             <div className="mt-2 flex flex-col gap-2 rounded-md border border-bordure p-3">
               <p className="text-sm">Le partenaire et ses échanges disparaissent de Partenaires. Cette action ne se défait pas depuis l&apos;application.</p>
               <FormulaireAction action={supprimerPartenaireAction} nom="Supprimer le partenaire" className="flex flex-col gap-2">
                 <input type="hidden" name="partnerId" value={partenaire.id} />
-                <BoutonEnvoi libelle="Supprimer définitivement" secondaire />
+                <BoutonEnvoi libelle="Supprimer définitivement" danger />
               </FormulaireAction>
             </div>
           </details>
@@ -173,7 +173,7 @@ export function OngletEchanges({ partenaire, personnes, aujourdhui }: { partenai
   return (
     <div className="flex flex-col gap-6">
       <details className="rounded-md border border-bordure p-4">
-        <summary className="cible-tactile cursor-pointer list-none font-medium">Ajouter un échange</summary>
+        <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Ajouter un échange</summary>
         <div className="mt-4 flex flex-col gap-4">
           <p className="text-sm text-texte-discret">La date de la prochaine action devient la prochaine relance de ce partenaire.</p>
           <FormulaireAction action={ajouterInteractionAction} nom="Ajouter un échange" className="grid gap-4 sm:grid-cols-2">
@@ -238,9 +238,7 @@ export function OngletEchanges({ partenaire, personnes, aujourdhui }: { partenai
                   </p>
                 )}
                 <details>
-                  <summary className="cible-tactile inline-flex cursor-pointer list-none items-center text-sm underline underline-offset-4 decoration-marque decoration-2">
-                    Modifier
-                  </summary>
+                  <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Modifier</summary>
                   <div className="mt-3">
                     <FormulaireAction action={modifierInteractionAction} nom="Modifier l'échange" className="grid gap-3 sm:grid-cols-2">
                       <input type="hidden" name="interactionId" value={echange.id} />
@@ -292,7 +290,7 @@ export function OngletEchanges({ partenaire, personnes, aujourdhui }: { partenai
                 </details>
                 <FormulaireAction action={supprimerInteractionAction} nom="Supprimer l'échange" className="flex">
                   <input type="hidden" name="interactionId" value={echange.id} />
-                  <BoutonEnvoi libelle="Supprimer l'échange" secondaire />
+                  <BoutonEnvoi libelle="Supprimer l'échange" danger />
                 </FormulaireAction>
               </li>
             )
@@ -308,7 +306,7 @@ export function OngletConventions({ partenaire }: { partenaire: PartenaireFiche 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Link href={`/apps/partenaires/${partenaire.id}/conventions/nouvelle`} className={BOUTON_SECONDAIRE}>
+        <Link href={`/apps/partenaires/${partenaire.id}/conventions/nouvelle`} className={LIEN}>
           Nouvelle convention
         </Link>
       </div>

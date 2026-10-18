@@ -33,7 +33,7 @@ export function ActionsPreuve({
         </form>
         <form action={envoyerSupprimer} aria-label="Supprimer la preuve">
           <input type="hidden" name="proofId" value={preuveId} />
-          <BoutonEnvoi libelle="Supprimer" secondaire />
+          <BoutonEnvoi libelle="Supprimer" danger />
         </form>
       </div>
       <Message resultat={etatMasquer ?? etatSupprimer} />

@@ -37,7 +37,7 @@ import { enRetard, formaterMontant, jourParis, statutContrepartie } from "@/apps
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { Onglets } from "@/components/qg/onglets-fiche"
 import { aAuMoins } from "@/core/droits/niveaux"
-import { BOUTON_SECONDAIRE, CHAMP, LIEN } from "@/lib/classes-formulaire"
+import { BOUTON_DANGER, BOUTON_SECONDAIRE, CHAMP, LIEN } from "@/lib/classes-formulaire"
 
 const jour = (date: Date) => date.toISOString().slice(0, 10)
 
@@ -69,9 +69,6 @@ function destinationChamp(cle: string, partnerId: string): { href: string; texte
 }
 
 const CLASSE_BLOC = "flex flex-col gap-4 rounded-md border border-bordure bg-surface p-4"
-
-// Bouton de danger, en contour : la résiliation n'est pas une action comme les autres (brief 3.9, §6).
-const BOUTON_DANGER = "cible-tactile rounded-md border border-etat-rouge px-5 py-3 text-sm text-etat-rouge hover:bg-surface-2 disabled:opacity-50"
 
 export default async function PageConvention({
   params,
@@ -222,7 +219,7 @@ export default async function PageConvention({
                     </label>
                     <textarea id="motif-resiliation" name="motif" required rows={2} maxLength={1000} className={CHAMP} />
                     <div>
-                      <BoutonEnvoi libelle="Résilier la convention" secondaire />
+                      <BoutonEnvoi libelle="Résilier la convention" danger />
                     </div>
                   </FormulaireAction>
                 </div>
@@ -237,8 +234,9 @@ export default async function PageConvention({
 
       {actif === "contreparties" && (
         <div className="flex flex-col gap-6">
-          <details>
-            <summary className={`${BOUTON_SECONDAIRE} cursor-pointer list-none self-start`}>Ajouter une contrepartie</summary>
+          {/* Un bouton à sa taille ; le formulaire ouvert prend toute la largeur (brief 3.10, §3). */}
+          <details className="self-start [&[open]]:w-full">
+            <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Ajouter une contrepartie</summary>
             <div className={`${CLASSE_BLOC} mt-4`}>
               <FormulaireContrepartie
                 mode="creation"
@@ -427,12 +425,12 @@ export default async function PageConvention({
             {!apercu && <p className="text-sm text-texte-discret">Le modèle de cette convention ne peut pas être lu. Vérifie le modèle dans Modèles.</p>}
             <div className="flex flex-wrap gap-3">
               {convention.documentGenereFileId && (
-                <a href={`/api/fichiers/${convention.documentGenereFileId}`} className={`${BOUTON_SECONDAIRE} inline-flex`}>
+                <a href={`/api/fichiers/${convention.documentGenereFileId}`} className={LIEN}>
                   Télécharger le document
                 </a>
               )}
               {convention.documentSigneFileId && (
-                <a href={`/api/fichiers/${convention.documentSigneFileId}`} className={`${BOUTON_SECONDAIRE} inline-flex`}>
+                <a href={`/api/fichiers/${convention.documentSigneFileId}`} className={LIEN}>
                   Télécharger le document signé
                 </a>
               )}
