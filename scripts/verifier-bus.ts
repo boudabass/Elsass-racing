@@ -570,6 +570,23 @@ async function main() {
     controle("la dernière fiche sert de départ à la suivante", depart.pression_froid_avg === 2.1)
     await voiture.masquerChampsDans(ctx, [])
 
+    // Widgets de Voiture (brief 3.3, section 8) : lus en base. Le premier papier à traiter est expiré (il passe
+    // avant les papiers à renouveler) ; les emplacements libres se comptent sur les véhicules actifs.
+    const widgetsVoiture = await import("../src/apps/voiture/widgets-serveur")
+    const { SEUIL_RENOUVELLEMENT_JOURS } = await import("../src/apps/voiture/regles")
+    const maintenantWidget = new Date()
+    const seuilPapiers = new Date(`${jourDeParis(maintenantWidget)}T00:00:00Z`)
+    seuilPapiers.setUTCDate(seuilPapiers.getUTCDate() + SEUIL_RENOUVELLEMENT_JOURS)
+    const attendusPapiers = await proprietaire.voiturePaper.count({
+      where: { teamId: team.id, deletedAt: null, vehicle: { actif: true, deletedAt: null }, valableJusquAu: { not: null, lte: seuilPapiers } },
+    })
+    const widgetPapiers = await widgetsVoiture.widgetPapiersARenouvelerDans(ctx, maintenantWidget)
+    controle("le widget papiers compte les papiers à renouveler ou expirés en base", widgetPapiers.nombre === attendusPapiers && attendusPapiers >= 1, `${widgetPapiers.nombre}/${attendusPapiers}`)
+    controle("le widget papiers désigne d'abord un papier expiré", widgetPapiers.premier?.statut === "expire")
+    const widgetEmplacements = await widgetsVoiture.widgetEmplacementsLibresDans(ctx)
+    const attendusLibres = await proprietaire.voitureSlot.count({ where: { teamId: team.id, deletedAt: null, statut: "libre", vehicle: { actif: true, deletedAt: null } } })
+    controle("le widget emplacements libres compte tous les véhicules actifs", widgetEmplacements.nombre === attendusLibres && attendusLibres > 0, `${widgetEmplacements.nombre}/${attendusLibres}`)
+
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.

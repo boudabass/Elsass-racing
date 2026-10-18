@@ -66,6 +66,13 @@ export function etatPapiersVehicule(papiers: Array<{ valableJusquAu: Date | null
   return papiers.length === 0 ? "aucun" : etatPapiers(papiers, maintenant)
 }
 
+// Papiers à renouveler ou expirés (les valides sont exclus), dans l'ordre d'affichage : expirés d'abord.
+// Sert au widget « Papiers à renouveler » : le nombre, et le premier à traiter.
+export function papiersARenouveler<T extends { valableJusquAu: Date | null }>(papiers: T[], maintenant: Date): Array<T & { statut: StatutPapier }> {
+  const avecStatut = papiers.map((papier) => ({ ...papier, statut: statutPapier(papier.valableJusquAu, maintenant) }))
+  return trierPapiers(avecStatut.filter((papier) => papier.statut !== "valide"))
+}
+
 // ─── 4.2 Emplacements ─────────────────────────────────────────────────────────
 
 export type EmplacementInitial = {

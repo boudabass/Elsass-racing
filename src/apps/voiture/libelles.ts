@@ -27,6 +27,17 @@ export function libelleDuPapier(type: TypePapier, libelle: string | null): strin
   return type === "autre" && libelle ? libelle : LIBELLE_TYPE_PAPIER[type]
 }
 
+// Libellés des widgets de Voiture (brief 3.3, section 8). Affichés au lot 6.
+export function libellePapiersARenouveler(nombre: number): string {
+  if (nombre === 0) return "Aucun papier à renouveler"
+  return nombre === 1 ? "1 papier à renouveler" : `${nombre} papiers à renouveler`
+}
+
+export function libelleEmplacementsLibres(nombre: number): string {
+  if (nombre === 0) return "Aucun emplacement libre"
+  return nombre === 1 ? "1 emplacement libre" : `${nombre} emplacements libres`
+}
+
 export const LIBELLE_CONDITIONS = { sec: "Sec", humide: "Humide", mixte: "Mixte", neige: "Neige" } as const
 export const LIBELLE_REVETEMENT = { asphalte: "Asphalte", terre: "Terre", mixte: "Mixte" } as const
 
