@@ -295,6 +295,7 @@ export async function lireResultatsEpreuve(eventId: string) {
                 stageAbandonId: resultat.stageAbandonId,
                 public: resultat.public,
                 preuveLien: resultat.preuveLien,
+                preuveFileId: resultat.preuveFileId,
                 commentaireContestation: resultat.commentaireContestation,
               }
             : null,
@@ -318,6 +319,7 @@ export async function listerResultatsAValider() {
       statutFinal: true,
       saisiParMembershipId: true,
       preuveLien: true,
+      preuveFileId: true,
       createdAt: true,
       entry: { select: { id: true, event: { select: { id: true, nom: true } }, vehicle: { select: { nomCourt: true } } } },
     },
@@ -331,7 +333,9 @@ export async function listerResultatsAValider() {
       voiture: resultat.entry.vehicle.nomCourt,
       validation: resultat.validation,
       statutFinal: resultat.statutFinal,
-      sansPreuve: !resultat.preuveLien,
+      // Une preuve peut être un lien ou un fichier (brief 3.3).
+      sansPreuve: !resultat.preuveLien && !resultat.preuveFileId,
+      preuveFileId: resultat.preuveFileId,
       droits: droitsResultat(resultat, acteur, niveau),
     })),
   }
@@ -380,7 +384,8 @@ export async function lireFinDEpreuve(entryId: string) {
     kmChronometres: resultat.kmChronometres?.toString() ?? null,
     kmSaison: Math.round(kmSaison.reduce((total, ligne) => total + Number(ligne.kmChronometres ?? 0), 0) * 10) / 10,
     aDebrief: debrief !== null,
-    sansPreuve: !resultat.preuveLien,
+    sansPreuve: !resultat.preuveLien && !resultat.preuveFileId,
+    preuveFileId: resultat.preuveFileId,
   }
 }
 

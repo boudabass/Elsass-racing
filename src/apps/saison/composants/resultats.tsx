@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react"
 
+import { ChampFichier, type FichierEnvoye } from "@/components/formulaire/champ-fichier"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -144,20 +145,32 @@ export function FormulaireResultat({
   )
 }
 
-// Preuve facultative : un lien. La capture attend l'envoi de fichiers (lot 5).
+// Preuve facultative : un lien, ou un fichier (brief 3.3). L'un des deux suffit ; joindrePreuve le vérifie.
 export function FormulairePreuve({ entryId, lienActuel }: { entryId: string; lienActuel: string | null }) {
   const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(joindrePreuveAction, null)
+  const [fichier, setFichier] = useState<FichierEnvoye | null>(null)
   return (
-    <form action={action} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+    <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="entryId" value={entryId} />
-      <div className="flex flex-1 flex-col gap-1">
-        <Label htmlFor={`preuve-${entryId}`}>Preuve (lien)</Label>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor={`preuve-${entryId}`}>Preuve : lien ou fichier</Label>
         <Input id={`preuve-${entryId}`} name="preuveLien" type="url" defaultValue={lienActuel ?? ""} className={CHAMP} />
       </div>
-      <Button type="submit" disabled={enCours} className="min-h-11">
-        Joindre la preuve
-      </Button>
-      <Message resultat={resultat} />
+      <ChampFichier
+        app="saison"
+        libelle="Fichier de preuve (facultatif)"
+        valeur={fichier?.id ?? null}
+        typeValeur={fichier?.mimeType ?? null}
+        nomValeur={fichier?.nom ?? null}
+        onChange={setFichier}
+        name="preuveFileId"
+      />
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" disabled={enCours} className="min-h-11">
+          Joindre la preuve
+        </Button>
+        <Message resultat={resultat} />
+      </div>
     </form>
   )
 }

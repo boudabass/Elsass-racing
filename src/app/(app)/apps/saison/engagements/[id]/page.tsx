@@ -75,6 +75,7 @@ export default async function PageEngagement({ params }: { params: Promise<{ id:
           aDebrief={fin.aDebrief}
           peutDebriefer={peutEcrire}
           sansPreuve={fin.sansPreuve}
+          preuveFileId={fin.preuveFileId}
           coutEpreuve={coutEpreuve}
         />
       )}

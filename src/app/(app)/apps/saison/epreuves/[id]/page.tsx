@@ -274,6 +274,7 @@ export default async function PageEpreuve({
                     aDebrief={fin.aDebrief}
                     peutDebriefer={modifiable}
                     sansPreuve={fin.sansPreuve}
+                    preuveFileId={fin.preuveFileId}
                     coutEpreuve={null}
                   />
                 )}
@@ -293,10 +294,19 @@ export default async function PageEpreuve({
                     <dd className="tabular-nums">{resultat.tempsTotalMs !== null ? formaterDuree(resultat.tempsTotalMs) : "—"}</dd>
                     <dt className="text-texte-discret">Preuve</dt>
                     <dd className="break-all">
-                      {resultat.preuveLien ? (
-                        <a href={resultat.preuveLien} className={LIEN}>
-                          {resultat.preuveLien}
-                        </a>
+                      {resultat.preuveLien || resultat.preuveFileId ? (
+                        <span className="flex flex-col gap-1">
+                          {resultat.preuveLien && (
+                            <a href={resultat.preuveLien} className={LIEN}>
+                              {resultat.preuveLien}
+                            </a>
+                          )}
+                          {resultat.preuveFileId && (
+                            <a href={`/api/fichiers/${resultat.preuveFileId}`} target="_blank" rel="noopener noreferrer" className={LIEN}>
+                              Voir la preuve
+                            </a>
+                          )}
+                        </span>
                       ) : (
                         "Aucune"
                       )}

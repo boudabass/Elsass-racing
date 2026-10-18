@@ -1,4 +1,5 @@
 import { LIBELLE_STATUT_RESULTAT } from "@/apps/saison/libelles"
+import { LIEN } from "@/lib/classes-formulaire"
 import { formatEuros } from "@/lib/euros"
 
 // Écran de fin d'épreuve : construit uniquement avec des données validées et existantes.
@@ -16,6 +17,7 @@ export function FinEpreuve({
   aDebrief,
   peutDebriefer,
   sansPreuve,
+  preuveFileId,
   coutEpreuve,
 }: {
   epreuve: string
@@ -28,6 +30,8 @@ export function FinEpreuve({
   aDebrief: boolean
   peutDebriefer: boolean
   sansPreuve: boolean
+  // Preuve sous forme de fichier (brief 3.3) : ouverte dans un nouvel onglet.
+  preuveFileId: string | null
   // Coût de l'épreuve (centimes), fourni par Budget ; null tant qu'aucune dépense ne la concerne.
   coutEpreuve: number | null
 }) {
@@ -43,6 +47,16 @@ export function FinEpreuve({
           {LIBELLE_STATUT_RESULTAT[statutFinal as keyof typeof LIBELLE_STATUT_RESULTAT] ?? statutFinal}
           {sansPreuve ? " · sans preuve" : ""}
         </dd>
+        {preuveFileId && (
+          <>
+            <dt className="text-texte-discret">Preuve</dt>
+            <dd>
+              <a href={`/api/fichiers/${preuveFileId}`} target="_blank" rel="noopener noreferrer" className={LIEN}>
+                Voir la preuve
+              </a>
+            </dd>
+          </>
+        )}
         <dt className="text-texte-discret">Classement général</dt>
         <dd className="tabular-nums">{classementGeneral ?? "—"}</dd>
         <dt className="text-texte-discret">Classement de classe</dt>
