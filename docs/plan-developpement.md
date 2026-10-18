@@ -232,6 +232,10 @@ Décisions de John (18/10) :
 ### 3.8 Liaisons et vérification du lot
 - Brief : `docs/briefs/3.8-liaisons-verification-lot-3.md`. Point 0 : retouches de la 3.7 (vouvoiement, bilan par période, alerte du message par un contexte système, document signé et section, PDF, ECONNRESET). Rattachement de fichier entre apps, réservation et libération d'emplacement, recettes prévues et apport reçu, preuve de pose, publications promises, parcours e2e complet du lot.
 - Convention signée vers Budget (recette prévue) et Voiture (réservation d'emplacement), logo posé vers preuve, papier qui expire vers l'indice de Saison, épreuve terminée vers l'historique du véhicule et les publications promises. Puis vérification complète du lot 3.
+- Fait le 18/10 (5c0e6af à 9786a20, migration budget_suggestion_date_origine), relu et accepté sous réserve de la 3.9.
+
+### 3.9 Corrections du lot 3
+- Brief : `docs/briefs/3.9-corrections-lot-3.md`. Issu de la relecture de la 3.8 : contexte système limité à son propre événement (une livraison d'un membre pouvait être perdue), titres de groupe de la boîte d'actions, bouton Encaisser dans Budget, qualité de l'interlocuteur dans la convention, trois vérifications e2e manquantes, bloc Actions de la convention, source des ECONNRESET. Fin du lot 3, avant le test de John.
 
 ## 6. Méthode de travail
 
