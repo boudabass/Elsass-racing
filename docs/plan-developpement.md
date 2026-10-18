@@ -226,7 +226,7 @@ Décisions de John (18/10) :
 - Prospection par statut avec relances, fiche partenaire, fiche convention et document généré, vue globale des contreparties, bouton + en 2 champs.
 
 ### 3.7 Page partenaire et bilans
-- Brief : `docs/briefs/3.7-page-partenaire-bilans.md`. Point 0 : retouches de la 3.6 (saison en double, PDF, fiche convention), erreurs journalisées dans executer. Page /p/<jeton> hors session (fonction SQL SECURITY DEFINER, contexte public, 404 identique, en-têtes no-referrer/noindex/no-store, exclue du service worker), fichiers revalidés par jeton, bilans PDF, message du partenaire, ipClient() fiable, document de sécurité.
+- Brief : `docs/briefs/3.7-page-partenaire-bilans.md`. Point 0 : retouches de la 3.6 (saison en double, PDF, fiche convention), erreurs journalisées dans executer. Page /p/<jeton> hors session (fonction SQL SECURITY DEFINER, contexte public, 404 identique, en-têtes no-referrer/noindex/no-store, exclue du service worker), fichiers revalidés par jeton, bilans PDF, message du partenaire, ipClient() fiable, document de sécurité. Fait le 18/10 (bf59407 à da88d7c), relu et accepté : sécurité relue, limite par IP vérifiée sur dev (en-têtes falsifiés sans effet, 429 au 31e jeton). Reste pour le point 0 de la 3.8 : vouvoiement de la page, résultats du bilan limités à la période, alerte QG du message, puces du PDF, ECONNRESET du journal e2e à expliquer.
 - Page sans compte par lien secret révocable (relecture de sécurité dédiée), message du partenaire, bilans PDF.
 
 ### 3.8 Liaisons et vérification du lot
