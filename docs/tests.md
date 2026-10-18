@@ -107,5 +107,11 @@ ensuite normalement (`/api/sante` : 200 après chaque série).
 par ces expériences. Elles restent comptées à part. Pas de preuve qu'elles viennent d'un défaut de l'app ; leur source
 exacte n'est pas identifiée.
 
+**Mise à jour (run complet du 18/10/2026, 116 tests, tous verts)** : 654 lignes `ECONNRESET` et 327 `uncaughtException`.
+Une cause est maintenant prouvée pour une partie d'entre elles : dans `e2e/lot3-parcours.spec.ts`, un clic « Ajouter » dans
+la boîte d'actions suivi d'une navigation immédiate a coupé la requête de décision. Côté serveur, la requête est
+`aborted` ; la décision n'a jamais été enregistrée (aucun `core.action_decidee`). Le test attend désormais que le réseau
+soit au repos avant de naviguer. Les autres lignes restent non expliquées.
+
 **Consigne** : un simple affichage de page ne produit aucune de ces lignes (expérience des 3 chargements complets, 0 ligne).
 Ne pas chercher à les supprimer dans l'app tant qu'elles ne viennent pas d'un défaut prouvé.

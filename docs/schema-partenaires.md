@@ -75,3 +75,11 @@ Les dates sans heure sont en `@db.Date` lorsque la spécification le demande (`p
 - Messages : `partenaires_portal_message` (nom au plus 100, texte au plus 2 000, date, lu, traité). Écrit par `envoyerMessagePartenaireAction` (`src/apps/partenaires/actions-public.ts`), dans le contexte public du lien. Lu et traité par la team, comme les autres messages. L'alerte `partenaires.action_requise` n'est pas émise (voir `docs/securite-page-partenaire.md`).
 - Lectures partagées ajoutées à Saison : `listerCalendrierPourPartenaires` et `listerResultatsPublicsPourPartenaires` (`src/apps/saison/lectures-partagees.ts`). Les résultats ne sont lus que publics et validés.
 - Accès : onglet Bilans au niveau écriture ; page partenaire au niveau gestion (inchangé).
+
+## Liaisons du lot 3 (brief 3.8, §2 à §7)
+
+- **Apport reçu** : `partenaires_agreement.apport_recu` (`non`, `partiel`, `oui`) est recalculé à chaque recette encaissée (`apportRecuDe`, `src/apps/partenaires/regles.ts`) : `oui` si l'encaissé atteint l'apport attendu, `partiel` s'il y a un encaissement, `non` sinon. Affiché sur la convention et la fiche (« Apport non reçu », « Apport partiel », « Apport reçu »).
+- **Preuve de pose** : une photo de pose devient une preuve de type `photo`, visible par le partenaire. Le fichier est rattaché à l'occupation de Voiture par `rattacherDepuisSource` : le rattachement n'est accepté que si le fichier est déjà rattaché à la fiche d'origine, dans la même team. Le rôle utilisé est `photo` ; `CoreAttachmentRole` n'a pas de rôle `logo`.
+- **Publications** : une contrepartie `publication_reseaux` porte la liste des épreuves (`eventIds`). Quand une de ces épreuves se termine, les personnes qui suivent le partenaire reçoivent l'action « Publications promises » (une par personne et par épreuve).
+- **Emplacement modifié ou supprimé** : le nom de l'emplacement de la contrepartie suit le nom de l'emplacement de Voiture. Un emplacement supprimé vide le lien (`slotId` nul), met « (supprimé) » au nom et propose une action « Compris ».
+- Le détail des charges et des clés d'unicité est dans `docs/evenements.md`, section « Liaisons du lot 3 ».

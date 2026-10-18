@@ -157,3 +157,12 @@ Règle : une app propose, elle n'écrit jamais chez l'autre. Budget n'écrit auc
 ## Prévisionnel par épreuve (tâche 2.9, point 5.2)
 
 Le prévu d'une épreuve est une ligne de `budget_forecast` avec `event_id` renseigné (le schéma existait déjà, aucune migration). Le prévisionnel de la saison garde `event_id` vide. Le réel d'une épreuve ne compte que ses dépenses confirmées. Saisie : gestion, comme pour la saison.
+
+## Recettes prévues depuis une convention signée (brief 3.8, §2.1)
+
+Migration `20261018180000_budget_suggestion_date_origine` (additive, seule migration du lot 3) : `budget_suggestion` gagne `date` (DATE, jour civil du mouvement proposé) et `origine_ref` (TEXT, indexé avec `team_id`).
+
+- `origine_ref` vaut `partenaires:<agreementId>:<rang>` pour une recette proposée par Partenaires. `proposerMouvementDans` ne crée rien de plus si une proposition porte déjà cette référence : elle renvoie celle qui existe.
+- Une proposition confirmée crée une recette `prevue` (`budget_income`, statut `prevue`), datée du versement. Encaisser cette recette passe son statut à `encaissee` et émet `budget.recette_encaissee` avec `origineRef` : Partenaires s'en sert pour l'apport reçu.
+- `etatRecettesParOrigine(tx, teamId, prefixe)` renvoie le total et l'encaissé des recettes d'une origine (`src/apps/budget/liaisons-serveur.ts`).
+- Pas encore de bouton « Encaisser » sur une recette prévue dans l'interface : l'encaissement passe par le service (`encaisserRecetteDans`). Le parcours e2e s'appuie sur le service.

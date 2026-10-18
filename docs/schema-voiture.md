@@ -100,3 +100,11 @@ Le plan remplace la liste de l'onglet Déco. Il est lu par `lireVehicule` et des
 - **Édition.** Le mode « Déplacer ou redimensionner » ne fonctionne que côté droit : la forme stockée est celle du gabarit. Glisser au pointeur (`setPointerCapture`), poignée carrée de 12 unités au coin bas-droit, polygone déplacé d'un bloc. Clavier : flèches sur la forme choisie (1 unité, 10 avec Maj), champs X, Y, Largeur, Hauteur dans le panneau. Limites : le viewBox, et 8 unités de côté minimum (contrôlé aussi par le schéma serveur, `schemaForme`).
 - **Services.** `modifierEmplacementDans` accepte `symetrique` (seulement pour la vue droite). `reserverEmplacementDans` rattache le logo, et `poserLogoDans` la photo de pose, à l'occupation : app `voiture`, fiche `slot_assignment`, rôle `photo`.
 - **Lecture seule.** Sous le niveau écriture, la liste et le plan restent, sans aucun bouton d'action ni champ d'édition.
+
+## Liaisons avec Partenaires (brief 3.8, §2 à §5)
+
+- **Réservation** : une convention signée avec une contrepartie logo propose « Réserver <emplacement> pour <partenaire> ? » (`cleUnicite` `reserver:<benefitId>`). Décider « Réserver » appelle `reserverEmplacementDans` avec la source du logo : le fichier éventuel est rattaché comme dans le reste de Partenaires.
+- **Libération** : une convention terminée ou résiliée propose « Libérer <emplacement> ? » (`cleUnicite` `liberer:<assignmentId>`). Décider « Libérer » appelle `retirerLogoDans`.
+- **Pose** : `voiture.logo_pose` porte `partenaireId`, `poseLe` et `photoFileId`. Avec une photo, Partenaires propose de l'ajouter comme preuve.
+- **Emplacement modifié** : `voiture.emplacement_modifie` porte `vehicleId` et `slotId`. Partenaires relit le nom de l'emplacement, ou signale sa suppression.
+- Partenaires lit Voiture par les lectures partagées `listerEmplacementsPourPartenaires` et `lireOccupationPourPartenaires` (`src/apps/voiture/lectures-partagees.ts`), et n'écrit jamais dans ses tables. Le test `src/apps/cloisonnement-ecritures.test.ts` le vérifie.

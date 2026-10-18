@@ -44,7 +44,7 @@ Première page de l'application servie **sans compte**. Ce document liste les ri
 ### 6. Message abusif (spam, texte long, injection HTML)
 
 - **Protection** : nom au plus 100 caractères, message au plus 2 000, vides refusés (`src/apps/partenaires/actions-public.ts`). Au plus 5 messages par lien et par heure (`LimiteTentatives`, en mémoire par instance). Champ piège `site` : rempli, succès apparent et rien n'est enregistré. Texte enregistré tel quel, affiché par React (échappé), jamais en HTML ; aucun lien rendu cliquable côté team (`OngletMessages`).
-- **Test** : e2e test 7 (texte avec balise `img onerror` affiché comme texte, pas exécuté ; champ piège sans effet). **Non couvert automatiquement** : la limite de 5 messages par heure. Voir les écarts.
+- **Test** : e2e test 7 (texte avec balise `img onerror` affiché comme texte, pas exécuté ; champ piège sans effet) et test 7 bis (limite de 5 messages par heure et par lien : le 6e est refusé, et rien n'est enregistré pour lui).
 
 ### 7. Différence de réponse entre « inconnu » et « révoqué »
 
@@ -74,8 +74,8 @@ Première page de l'application servie **sans compte**. Ce document liste les ri
 
 ## Écarts au brief, dits explicitement
 
-1. **Alerte QG non levée** (brief §6) : le message est enregistré et apparaît dans l'onglet Messages de la fiche, mais l'action `partenaires.action_requise` « Nouveau message de … » n'est pas émise. Émettre demande un utilisateur (contexte `emettre`, destinataires du suivi) ; la page publique n'en a pas. Cette alerte reste à faire, avec un contexte de service ou une autre voie.
-2. **Limite de 5 messages par heure** : implémentée, mais sans test automatique. Ajouter un test e2e ou unitaire.
+1. **Alerte QG (fermé au lot 3, brief 3.8, point 0.3)** : le message lève `partenaires.action_requise` « Nouveau message de … » par le contexte système de la team (`contexteSysteme(teamId, "page_partenaire")`, voir plus bas). Destinataire : le membre qui suit le partenaire, ou les responsables s'il n'y a pas de suivi. Test : e2e test 7 (la boîte d'actions du suivi affiche l'alerte).
+2. **Limite de 5 messages par heure (fermé au lot 3)** : test e2e 7 bis. Le compteur reste en mémoire et par instance (point 9).
 3. **Confiance dans `x-real-ip`** : voir le risque 9. À vérifier sur Coolify.
 4. **CSP `script-src 'unsafe-inline'`** : voir le risque 11.
 5. **Corps de la 404 de fichier différent de la page 404** : `Fichier introuvable.` en texte pour la route de fichier, page HTML « Lien non valide » pour la page. Le statut est le même (404) dans tous les cas refusés.
@@ -84,3 +84,16 @@ Première page de l'application servie **sans compte**. Ce document liste les ri
 8. **Compteur de consultations** : la fiche affiche « Consultations : N. » et la date de la dernière, au lieu de « 1 consultation ». Un affichage recompte au plus une fois toutes les 30 minutes.
 9. **Limites en mémoire** : `LimiteTentatives` (jetons invalides et messages) est par instance et repart à zéro au redémarrage. Suffisant pour une instance, pas une garantie multi-instances.
 10. **En-tête `x-middleware-rewrite`** : visible dans la réponse (`/p/introuvable`). Il est identique pour tous les cas refusés, et ne révèle rien de plus.
+
+## Contexte système (brief 3.8, point 0.3)
+
+Solution retenue : **un contexte système sans fonction SQL**, `contexteSysteme(teamId, origine)` (`src/core/contexte-systeme-serveur.ts`). Le brief laissait le choix entre ce contexte et une fonction SQL étroite ; le choix est celui-ci, et voici pourquoi.
+
+- **Pourquoi pas de fonction SQL** : les trois tables que le socle écrit pour un événement (`core_domain_event`, `core_event_delivery`, `core_action`) ont une politique RLS qui ne dépend que de `app.team_id` (migration `20261016144714`). Le contexte système ne pose que `app.team_id` : il n'ouvre aucun droit de membre, et il ne crée aucun utilisateur. Une fonction SQL n'aurait rien ajouté à cette garantie.
+- **Garde-fous** :
+  - seul le code serveur peut le fabriquer (`import "server-only"`) ;
+  - l'origine doit figurer dans `ORIGINES_SYSTEME`, qui ne contient aujourd'hui que `page_partenaire` ; ajouter une origine est une décision de sécurité ;
+  - l'événement n'a pas d'auteur (aucun `userId`) ; son origine est rangée dans ses données, à la clé `origine` (`src/core/evenements/bus-serveur.ts`) ;
+  - le client Prisma est `prismaPourTeamSysteme(teamId)` (`src/lib/prisma.ts`), qui ne pose que `app.team_id`.
+- **Limite connue** : le contexte ne limite pas ce que fait un gestionnaire. Un gestionnaire lancé par un événement de ce contexte agit avec les droits de la team, sans utilisateur. Seule l'origine `page_partenaire` existe aujourd'hui.
+- **Test** : e2e test 7 (l'alerte arrive dans la boîte d'actions du suivi, sans utilisateur).
