@@ -80,3 +80,32 @@ pnpm db:verifier-rls
 pnpm db:verifier-bus
 pnpm test:e2e
 ```
+
+## Journal serveur pendant l'e2e : connexions coupées par le client (brief 3.8, point 0.6)
+
+Pendant `pnpm test:e2e`, le journal du serveur (`[WebServer]`) reçoit deux sortes de lignes pour une requête que le client
+a coupée : `[Error: aborted] { code: 'ECONNRESET' }`, puis `uncaughtException: [Error: aborted]`. Elles viennent de Node et
+de Next, pas du code de l'app : Next installe un `process.on('uncaughtException')` qui les journalise et laisse le serveur
+tourner (`node_modules/next/dist/server/next-server.js`).
+
+**Ce qui est vérifié** (serveur de production local, port distinct, `.next-e2e-prod`) :
+
+| Expérience | Résultat |
+|---|---|
+| 5 GET complets (`/api/sante`, `/connexion`) | 0 ligne |
+| 40 GET coupés, avant ou après les en-têtes (`/api/sante`, `/connexion`) | 0 ligne |
+| 3 chargements Chromium complets puis fermés, et 6 navigations coupées (page fermée pendant le chargement, navigation suivante) | 0 ligne |
+| 5 réponses en flux coupées (un gros fragment JavaScript statique) | 0 ligne |
+| 5 POST à corps incomplet vers `/api/synchro/pousser` | 10 lignes `ECONNRESET` (deux par requête), 0 `uncaughtException` |
+| 5 POST à corps incomplet vers `/connexion` | 0 ligne |
+
+Dans la route `/api/synchro/pousser`, la lecture du corps échoue déjà proprement (`requete.json().catch(() => null)`, réponse
+400) : l'erreur `aborted` est donc émise par Node avant que l'app ne réponde, et Next la journalise. Le serveur répond
+ensuite normalement (`/api/sante` : 200 après chaque série).
+
+**Ce qui n'est pas expliqué** : les lignes `uncaughtException` du run complet (environ 300) n'ont pas été reproduites
+par ces expériences. Elles restent comptées à part. Pas de preuve qu'elles viennent d'un défaut de l'app ; leur source
+exacte n'est pas identifiée.
+
+**Consigne** : un simple affichage de page ne produit aucune de ces lignes (expérience des 3 chargements complets, 0 ligne).
+Ne pas chercher à les supprimer dans l'app tant qu'elles ne viennent pas d'un défaut prouvé.
