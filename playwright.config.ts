@@ -6,6 +6,8 @@ import { defineConfig, devices } from "@playwright/test"
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.spec.ts",
+  // Vide le dossier des fichiers de test (STOCKAGE_DIR) avant la suite.
+  globalSetup: "./e2e/aide/stockage-vide.ts",
   // Un seul worker : les scénarios se succèdent proprement sur la même base.
   workers: 1,
   fullyParallel: false,
@@ -46,6 +48,8 @@ export default defineConfig({
         NEXT_DIST_DIR: ".next-e2e-prod",
         SMTP_HOST: "",
         APP_URL: "http://localhost:3101",
+        // Fichiers des tests hors de C:\app\stockage (dossier ignoré par Git, voir .gitignore).
+        STOCKAGE_DIR: ".e2e-stockage",
         // Build de test : mails en console et page /erreur-test ouverte (voir mail-serveur.ts).
         E2E: "1",
       },
