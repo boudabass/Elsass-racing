@@ -238,6 +238,9 @@ Décisions de John (18/10) :
 - Brief : `docs/briefs/3.9-corrections-lot-3.md`. Issu de la relecture de la 3.8 : contexte système limité à son propre événement (une livraison d'un membre pouvait être perdue), titres de groupe de la boîte d'actions, bouton Encaisser dans Budget, qualité de l'interlocuteur dans la convention, trois vérifications e2e manquantes, bloc Actions de la convention, source des ECONNRESET. Fin du lot 3, avant le test de John.
 - Fait le 18/10 (afa2f90 à ec7519b, migration interlocuteur_qualite), relu et accepté. Suites vertes chez l'orchestrateur, sauf un test instable (voiture.spec.ts:86, boîte vide au QG dans le run complet, vert seul) à reprendre au point 0 du lot 4, avec l'AbortController du tirage de synchro (source des ECONNRESET) et les actions serveur coupées. Jeton du mail de connexion dans la console : build de test seulement, accepté.
 
+### 3.10 Finitions de l'audit du lot 3
+- Brief : `docs/briefs/3.10-finitions-audit-lot-3.md`. Audit Impeccable des écrans 3.6 à 3.9 (16/20), corrigé à la demande de John avant son test : structure et logo du partenaire sur la page partenaire, actions des contreparties sur une ligne, une seule règle pour boutons et liens, compteur du message.
+
 ## 6. Méthode de travail
 
 - L'orchestrateur rédige un brief par tâche, l'opérateur exécute, l'orchestrateur relit et teste avant de passer à la suivante.
