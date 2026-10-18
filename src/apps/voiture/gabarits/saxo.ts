@@ -1,0 +1,81 @@
+import type { Gabarit } from "./types"
+
+// Citadine 3 portes, Citroën Saxo VTS. Source : plan d'emplacements du dossier Koehling
+// (saxo_plan_emplacements.svg), profil droit à plat. Les métadonnées, les pastilles numérotées,
+// les zones pointillées et la légende du SVG ne sont pas reprises. Les couleurs deviennent des rôles.
+// Vue gauche : le même dessin, en miroir à l'affichage (pas de dessin séparé).
+export const gabaritSaxo: Gabarit = {
+  cle: "citadine_3p_saxo",
+  nom: "Citadine 3 portes (Saxo)",
+  categorie: "citadine_3p",
+  version: 1,
+  viewBox: "0 -14 370 173",
+  vuesDessinees: [{ vue: "droite" }, { vue: "gauche", miroirDe: "droite" }],
+  dessin: [
+    { type: "circle", role: "roue", attributs: { cx: 66.4, cy: 114.0, r: 28.0 } },
+    { type: "circle", role: "roue", attributs: { cx: 282.7, cy: 114.0, r: 28.0 } },
+    {
+      type: "path",
+      role: "caisse",
+      attributs: {
+        d: "M22.8 109.5 L20.0 81.9 Q20.6 67.8 26.2 62.1 L34.0 45.0 Q42.5 33.6 56.5 24.9 L74.8 14.6 Q79.0 12.0 90.2 11.8 L199.8 10.5 Q208.3 10.8 213.9 15.2 L258.9 47.9 Q264.5 51.2 275.7 53.7 L337.5 67.8 Q354.4 71.7 357.8 82.8 L360.0 103.3 L357.2 119.1 L310.0 117.9 A 27.5 27.5 0 1 0 255.5 117.9 L93.6 117.9 A 27.5 27.5 0 1 0 39.1 117.9 L26.2 116.3 Z",
+      },
+    },
+    {
+      type: "path",
+      role: "vitre",
+      attributs: { d: "M72.0 51.2 Q73.4 35.7 87.4 24.2 Q95.9 18.9 109.9 18.1 L140.3 16.8 L138.6 54.5 Z" },
+    },
+    {
+      type: "path",
+      role: "vitre",
+      attributs: { d: "M147.0 17.2 L202.7 16.6 L239.2 56.0 L145.9 56.0 Z" },
+    },
+    {
+      type: "path",
+      role: "detail",
+      attributs: { d: "M143.6 14.5 L141.7 116.8", "stroke-width": 2.2 },
+    },
+    {
+      type: "path",
+      role: "detail",
+      attributs: { d: "M242.0 51.7 L247.6 116.8", "stroke-width": 2.2 },
+    },
+    { type: "path", role: "detail", attributs: { d: "M25.1 64.3 L40.8 64.0 L40.8 78.0 L23.4 79.0 Z" } },
+    { type: "path", role: "detail", attributs: { d: "M329.7 73.3 L348.8 74.0 L351.6 84.7 L332.5 83.4 Z" } },
+    { type: "line", role: "detail", attributs: { x1: 90.2, y1: 84.2, x2: 256.0, y2: 84.2, "stroke-width": 4 } },
+    { type: "circle", role: "roue", attributs: { cx: 66.4, cy: 114.0, r: 24.7 } },
+    { type: "circle", role: "roue", attributs: { cx: 282.7, cy: 114.0, r: 24.7 } },
+    { type: "circle", role: "jante", attributs: { cx: 66.4, cy: 114.0, r: 16.3 } },
+    { type: "circle", role: "jante", attributs: { cx: 282.7, cy: 114.0, r: 16.3 } },
+    { type: "circle", role: "detail", attributs: { cx: 66.4, cy: 114.0, r: 5.4 } },
+    { type: "circle", role: "detail", attributs: { cx: 282.7, cy: 114.0, r: 5.4 } },
+    { type: "line", role: "sol", attributs: { x1: 0, y1: 142.5, x2: 370, y2: 142.5, "stroke-width": 1.5 } },
+  ],
+  emplacementsTypes: [
+    { ordre: 1, nom: "Portière", vue: "droite", symetrique: true, forme: { type: "rect", x: 150.7, y: 61.2, l: 87.1, h: 17.4 } },
+    { ordre: 2, nom: "Custode arrière", vue: "droite", symetrique: true, forme: { type: "rect", x: 75.6, y: 61.2, l: 60.1, h: 17.4 } },
+    { ordre: 3, nom: "Aile avant", vue: "droite", symetrique: true, forme: { type: "rect", x: 254.6, y: 69.0, l: 61.8, h: 12.4 } },
+    { ordre: 4, nom: "Aile arrière", vue: "droite", symetrique: true, forme: { type: "rect", x: 29.6, y: 78.0, l: 23.0, h: 13.5 } },
+    {
+      ordre: 5,
+      nom: "Bandeau de pare-brise",
+      vue: "droite",
+      symetrique: false,
+      forme: {
+        type: "polygone",
+        points: [
+          [204.3, 17.7],
+          [215.6, 16.3],
+          [230.8, 27.2],
+          [215.6, 29.2],
+        ],
+      },
+    },
+    { ordre: 6, nom: "Bas de caisse", vue: "droite", symetrique: true, forme: { type: "rect", x: 101.5, y: 91.5, l: 143.3, h: 18.0 } },
+    { ordre: 7, nom: "Capot", vue: "hors_plan", symetrique: false, forme: null },
+    { ordre: 8, nom: "Hayon", vue: "hors_plan", symetrique: false, forme: null },
+    { ordre: 9, nom: "Lunette arrière", vue: "hors_plan", symetrique: false, forme: null },
+    { ordre: 10, nom: "Toit", vue: "hors_plan", symetrique: false, forme: null },
+  ],
+}
