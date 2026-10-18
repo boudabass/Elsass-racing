@@ -203,9 +203,19 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   await expect(page.getByText("Emplacement : Portière")).toBeVisible()
 
-  // 3. Document : mentions renseignées, pour que l'exemple publié n'ait pas de blanc.
+  // 3. Document : mentions renseignées, sauf la fonction de l'interlocuteur. La convention le signale avant le
+  // téléchargement ; la fonction se saisit dans la fiche du partenaire, puis le document est généré sans blanc (brief 3.9, §4).
   await renseignerMentionsConvention(equipe, partenaireId)
   await page.goto(`/apps/partenaires/conventions/${conventionId}?onglet=document`)
+  await expect(page.getByRole("status").filter({ hasText: "1 champ à compléter" })).toContainText("la fonction de l'interlocuteur du partenaire")
+  await page.goto(`/apps/partenaires/${partenaireId}`)
+  await page.locator("#interlocuteur-qualite").fill("Gérant")
+  await page.getByRole("button", { name: "Enregistrer la fonction", exact: true }).click()
+  await page.waitForLoadState("networkidle")
+  await expect(page.locator("#interlocuteur-qualite")).toHaveValue("Gérant")
+  await capturer(page, "lot3-fiche-qualite-1440x900.png")
+  await page.goto(`/apps/partenaires/conventions/${conventionId}?onglet=document`)
+  await expect(page.getByRole("status").filter({ hasText: "champ à compléter" })).toHaveCount(0)
   await page.locator("section[aria-labelledby=document-genere]").getByRole("button", { name: /Générer le document/ }).click()
   await expect(page.getByRole("status").filter({ hasText: "Document généré." })).toBeVisible()
   await page.reload()

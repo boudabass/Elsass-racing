@@ -98,6 +98,7 @@ export async function lirePartenaireDans(ctx: ContexteTeam, id: string) {
       siret: partenaire.contact.siret ?? "",
     },
     interlocuteur: partenaire.interlocuteur ? `${partenaire.interlocuteur.prenom} ${partenaire.interlocuteur.nom}` : null,
+    interlocuteurQualite: partenaire.interlocuteurQualite,
     statut: partenaire.statut,
     source: partenaire.source,
     secteur: partenaire.secteur,

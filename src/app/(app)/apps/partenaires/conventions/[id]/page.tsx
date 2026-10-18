@@ -50,6 +50,7 @@ const LIBELLES_CHAMP: Record<string, string> = {
   "partenaire.entreprise": "le nom de l'entreprise",
   "partenaire.adresse": "l'adresse du partenaire",
   "partenaire.representant": "le représentant du partenaire",
+  "partenaire.qualite": "la fonction de l'interlocuteur du partenaire",
   "convention.apport_financier": "l'apport financier",
   "convention.apport_nature": "l'apport en nature",
   "convention.echeancier": "l'échéancier",

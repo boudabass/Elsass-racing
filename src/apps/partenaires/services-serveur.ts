@@ -444,6 +444,27 @@ export async function modifierCoordonneesDans(ctx: ContexteTeam, partnerId: stri
   )
 }
 
+// Fonction de l'interlocuteur (par exemple « Gérant ») : elle s'écrit après son nom dans la convention (brief 3.9, §4).
+const schemaInterlocuteurQualite = z.object({ qualite: z.string().trim().max(80).nullable() }).strict()
+
+export async function modifierInterlocuteurQualite(partnerId: string, qualite: string | null): Promise<void> {
+  const { ctx } = await accesPartenaires("ecriture")
+  return modifierInterlocuteurQualiteDans(ctx, partnerId, qualite)
+}
+
+export async function modifierInterlocuteurQualiteDans(ctx: ContexteTeam, partnerId: string, qualite: string | null): Promise<void> {
+  const donnees = schemaInterlocuteurQualite.parse({ qualite })
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const partenaire = await partenaireActifDans(client, ctx, partnerId)
+  if (!partenaire.interlocuteurPersonId) refus("Ce partenaire n'a pas encore d'interlocuteur : donnez-lui un nom d'abord.")
+  await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+    tx.partenairesPartner.update({
+      where: { id: partnerId },
+      data: { interlocuteurQualite: donnees.qualite || null, rev: { increment: 1 }, updatedBy: ctx.userId },
+    }),
+  )
+}
+
 export async function supprimerPartenaire(id: string): Promise<void> {
   const { ctx } = await accesPartenaires("ecriture")
   return supprimerPartenaireDans(ctx, id)
@@ -855,7 +876,10 @@ export async function genererDocumentDans(ctx: ContexteTeam, agreementId: string
     "team.representant": [equipe.signataireNom, equipe.signataireQualite].filter(Boolean).join(", ") || null,
     "partenaire.entreprise": convention.partner.contact.nom,
     "partenaire.adresse": convention.partner.contact.adresse,
-    "partenaire.representant": interlocuteur ? `${interlocuteur.prenom} ${interlocuteur.nom}` : null,
+    // Fonction après le nom : « Marc Dupont, Gérant » (brief 3.9, §4).
+    "partenaire.representant": interlocuteur
+      ? [`${interlocuteur.prenom} ${interlocuteur.nom}`, convention.partner.interlocuteurQualite].filter(Boolean).join(", ")
+      : null,
     "convention.apport_financier": formaterMontant(convention.apportFinancierCentimes),
     "convention.apport_nature": convention.apportNatureDescription
       ? `${convention.apportNatureDescription}${convention.apportNatureValeurCentimes ? `, valeur estimée ${formaterMontant(convention.apportNatureValeurCentimes)}` : ""}`
@@ -868,7 +892,10 @@ export async function genererDocumentDans(ctx: ContexteTeam, agreementId: string
     "convention.saison": saison?.nom ?? null,
     contreparties,
   }
-  return remplirModele(modele.texte, valeurs)
+  const rendu = remplirModele(modele.texte, valeurs)
+  // Sans fonction, la ligne « Qualité » de la signature reste à remplir à la main : la fiche convention le signale.
+  if (interlocuteur && !convention.partner.interlocuteurQualite) return { ...rendu, vides: [...rendu.vides, "partenaire.qualite"] }
+  return rendu
 }
 
 // « 2027-06-30 » → « 30/06/2027 ».

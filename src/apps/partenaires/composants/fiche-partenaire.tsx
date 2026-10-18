@@ -19,6 +19,7 @@ import {
   marquerTraiteAction,
   modifierCoordonneesAction,
   modifierInteractionAction,
+  modifierInterlocuteurQualiteAction,
   modifierPartenaireAction,
   reporterRelanceAction,
   supprimerInteractionAction,
@@ -82,6 +83,19 @@ export function OngletFiche({ partenaire, personnes }: { partenaire: PartenaireF
         <p className="text-sm text-texte-discret">
           Interlocuteur : {partenaire.interlocuteur ?? "aucun pour l'instant"}
         </p>
+        {partenaire.interlocuteur && (
+          <FormulaireAction action={modifierInterlocuteurQualiteAction} nom="Fonction de l'interlocuteur" className="grid gap-4 sm:grid-cols-2">
+            <input type="hidden" name="partnerId" value={partenaire.id} />
+            <div className="sm:col-span-2">
+              <Champ id="interlocuteur-qualite" libelle="Fonction de l'interlocuteur" aide="Par exemple Gérant. Elle apparaît dans la convention, après son nom.">
+                <input id="interlocuteur-qualite" name="qualite" defaultValue={partenaire.interlocuteurQualite ?? ""} maxLength={80} className={CHAMP} />
+              </Champ>
+            </div>
+            <div className="sm:col-span-2">
+              <BoutonEnvoi libelle="Enregistrer la fonction" />
+            </div>
+          </FormulaireAction>
+        )}
       </section>
 
       <section aria-labelledby="suivi" className="flex flex-col gap-4">

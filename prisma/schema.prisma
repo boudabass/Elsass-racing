@@ -2463,6 +2463,7 @@ model PartenairesPartner {
   teamId                String            @map("team_id") @db.Uuid
   contactId             String            @map("contact_id") @db.Uuid
   interlocuteurPersonId String?           @map("interlocuteur_person_id") @db.Uuid
+  interlocuteurQualite  String?           @map("interlocuteur_qualite")
   statut                PartenairesStatut @default(a_contacter)
   source                PartenairesSource?
   suiviParPersonId      String?           @map("suivi_par_person_id") @db.Uuid
