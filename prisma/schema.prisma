@@ -223,6 +223,9 @@ model CoreTeam {
   associationNom       String?        @map("association_nom")
   associationRna       String?        @map("association_rna")
   associationSiege     String?        @map("association_siege")
+  formeJuridique       String?        @map("forme_juridique")
+  signataireNom        String?        @map("signataire_nom")
+  signataireQualite    String?        @map("signataire_qualite")
   fuseau               String         @default("Europe/Paris")
   langue               String         @default("fr")
   statut               CoreTeamStatut @default(active)
@@ -292,6 +295,18 @@ model CoreTeam {
   voitureSetups          VoitureSetup[]
   voitureSetupTemplates  VoitureSetupTemplate[]
   voitureTeamPrefs       VoitureTeamPref[]
+
+  partenairesPartners         PartenairesPartner[]
+  partenairesInteractions     PartenairesInteraction[]
+  partenairesTemplates        PartenairesTemplate[]
+  partenairesAgreements       PartenairesAgreement[]
+  partenairesAmendments       PartenairesAmendment[]
+  partenairesBenefitCatalogs  PartenairesBenefitCatalog[]
+  partenairesBenefits         PartenairesBenefit[]
+  partenairesProofs           PartenairesProof[]
+  partenairesReports          PartenairesReport[]
+  partenairesPortalLinks      PartenairesPortalLink[]
+  partenairesPortalMessages   PartenairesPortalMessage[]
 
   @@index([logoFileId])
   @@map("core_team")
@@ -558,6 +573,11 @@ model CorePerson {
   budgetRecettesProvenance BudgetIncome[]
   budgetRemboursements     BudgetReimbursement[]
 
+  partenairesInterlocuteur   PartenairesPartner[]          @relation("PartenaireInterlocuteur")
+  partenairesSuivis          PartenairesPartner[]          @relation("PartenaireSuivi")
+  partenairesInteractions    PartenairesInteraction[]
+  partenairesMessagesTraites PartenairesPortalMessage[] @relation("PartenaireMessageTraitePar")
+
   @@index([teamId])
   @@index([userId])
   @@index([contactId])
@@ -585,6 +605,7 @@ model CoreSeason {
 
   team                CoreTeam             @relation(fields: [teamId], references: [id], onDelete: Restrict)
   events              CoreEvent[]
+  partenairesAgreements PartenairesAgreement[]
   saisonChampionships SaisonChampionship[]
 
   budgetDepenses      BudgetExpense[]
@@ -635,6 +656,7 @@ model CoreEvent {
   budgetPrevisionnels BudgetForecast[]
   budgetSuggestions   BudgetSuggestion[]
   voitureSetups       VoitureSetup[]
+  partenairesProofs   PartenairesProof[]
 
   @@index([teamId])
   @@index([seasonId])
@@ -733,6 +755,7 @@ model CoreContact {
   site       String?
   siret      String?
   categories CoreContactCategorie[] @default([])
+  partenairesPartners PartenairesPartner[]
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -815,6 +838,13 @@ model CoreFile {
   voiturePapers               VoiturePaper[]
   voitureAssignmentsLogo      VoitureSlotAssignment[] @relation("VoitureAssignmentLogo")
   voitureAssignmentsPhotoPose VoitureSlotAssignment[] @relation("VoitureAssignmentPhotoPose")
+
+  partenairesLogos              PartenairesPartner[]
+  partenairesConventionsGenerees PartenairesAgreement[] @relation("PartenairesAgreementGenere")
+  partenairesConventionsSignees PartenairesAgreement[] @relation("PartenairesAgreementSigne")
+  partenairesAmendements        PartenairesAmendment[]
+  partenairesPreuves            PartenairesProof[]
+  partenairesRapports           PartenairesReport[]
 
   @@index([teamId])
   @@map("core_file")
@@ -2333,4 +2363,443 @@ model VoitureTeamPref {
   @@index([teamId])
   @@index([teamId, deletedAt])
   @@map("voiture_team_pref")
+}
+
+// ---------------------------------------------------------------------------
+// Partenaires (tâche 3.5) : onze tables. Pas de clé étrangère vers Voiture ni
+// vers Budget : partenaires_benefit.slot_id est un uuid simple, avec slot_nom.
+// Les CHECK et les index partiels sont écrits à la main dans la migration.
+// ---------------------------------------------------------------------------
+
+enum PartenairesStatut {
+  a_contacter
+  contacte
+  relance
+  interesse
+  partenaire
+  ancien_partenaire
+  refus
+
+  @@map("partenaires_statut")
+}
+
+enum PartenairesSource {
+  reseau
+  demarchage
+  recommandation
+  autre
+
+  @@map("partenaires_source")
+}
+
+enum PartenairesInteractionType {
+  appel
+  mail
+  rencontre
+  courrier
+  autre
+
+  @@map("partenaires_interaction_type")
+}
+
+enum PartenairesAgreementStatut {
+  brouillon
+  envoyee
+  signee
+  en_cours
+  terminee
+  resiliee
+
+  @@map("partenaires_agreement_statut")
+}
+
+enum PartenairesApportRecu {
+  non
+  partiel
+  oui
+
+  @@map("partenaires_apport_recu")
+}
+
+enum PartenairesBenefitType {
+  logo_voiture
+  publication_reseaux
+  story
+  presence_exposition
+  logo_tenues
+  mention_dossier
+  photo_dediee
+  invitation_epreuve
+  autre
+
+  @@map("partenaires_benefit_type")
+}
+
+enum PartenairesBenefitStatut {
+  a_faire
+  en_cours
+  tenue
+  reportee
+
+  @@map("partenaires_benefit_statut")
+}
+
+enum PartenairesProofType {
+  photo
+  lien
+  capture
+
+  @@map("partenaires_proof_type")
+}
+
+// Fiche d'un partenaire (prospect ou partenaire). L'entreprise est un core_contact ;
+// l'interlocuteur est une core_person rattachée à ce contact.
+model PartenairesPartner {
+  id                    String            @id @db.Uuid
+  teamId                String            @map("team_id") @db.Uuid
+  contactId             String            @map("contact_id") @db.Uuid
+  interlocuteurPersonId String?           @map("interlocuteur_person_id") @db.Uuid
+  statut                PartenairesStatut @default(a_contacter)
+  source                PartenairesSource?
+  suiviParPersonId      String?           @map("suivi_par_person_id") @db.Uuid
+  prochaineRelance      DateTime?         @map("prochaine_relance") @db.Date
+  logoFileId            String?           @map("logo_file_id") @db.Uuid
+  secteur               String?
+  notes                 String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team          CoreTeam                   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  contact       CoreContact                @relation(fields: [contactId], references: [id], onDelete: Restrict)
+  interlocuteur CorePerson?                @relation("PartenaireInterlocuteur", fields: [interlocuteurPersonId], references: [id], onDelete: SetNull)
+  suiviPar      CorePerson?                @relation("PartenaireSuivi", fields: [suiviParPersonId], references: [id], onDelete: SetNull)
+  logoFile      CoreFile?                  @relation(fields: [logoFileId], references: [id], onDelete: SetNull)
+  interactions  PartenairesInteraction[]
+  agreements    PartenairesAgreement[]
+  reports       PartenairesReport[]
+  portalLinks   PartenairesPortalLink[]
+  messages      PartenairesPortalMessage[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([contactId])
+  @@map("partenaires_partner")
+}
+
+// Échange avec un partenaire (appel, mail, rencontre…), avec une prochaine action datée.
+model PartenairesInteraction {
+  id                String                     @id @db.Uuid
+  teamId            String                     @map("team_id") @db.Uuid
+  partnerId         String                     @map("partner_id") @db.Uuid
+  date              DateTime                   @db.Date
+  type              PartenairesInteractionType
+  resume            String
+  auteurPersonId    String?                    @map("auteur_person_id") @db.Uuid
+  prochaineAction   String?                    @map("prochaine_action")
+  prochaineActionLe DateTime?                  @map("prochaine_action_le") @db.Date
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team    CoreTeam           @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  partner PartenairesPartner @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  auteur  CorePerson?        @relation(fields: [auteurPersonId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([partnerId])
+  @@map("partenaires_interaction")
+}
+
+// Modèle de convention. La copie du modèle par défaut est créée à la première lecture.
+model PartenairesTemplate {
+  id        String  @id @db.Uuid
+  teamId    String  @map("team_id") @db.Uuid
+  nom       String
+  texte     String  @db.Text
+  version   Int     @default(1)
+  actif     Boolean @default(true)
+  sourceCle String? @map("source_cle")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team       CoreTeam               @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  agreements PartenairesAgreement[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("partenaires_template")
+}
+
+// Convention avec un partenaire. Les dates de début et de fin sont des jours (Europe/Paris).
+// `precedente` renseigné = renouvellement. Les montants sont en centimes.
+model PartenairesAgreement {
+  id                         String                     @id @db.Uuid
+  teamId                     String                     @map("team_id") @db.Uuid
+  partnerId                  String                     @map("partner_id") @db.Uuid
+  templateId                 String?                    @map("template_id") @db.Uuid
+  seasonId                   String?                    @map("season_id") @db.Uuid
+  dateDebut                  DateTime                   @map("date_debut") @db.Date
+  dateFin                    DateTime                   @map("date_fin") @db.Date
+  statut                     PartenairesAgreementStatut @default(brouillon)
+  precedenteId               String?                    @map("precedente_id") @db.Uuid
+  apportFinancierCentimes    Int                        @default(0) @map("apport_financier_centimes")
+  devise                     String                     @default("EUR")
+  apportNatureDescription    String?                    @map("apport_nature_description")
+  apportNatureValeurCentimes Int?                       @map("apport_nature_valeur_centimes")
+  echeancier                 Json                       @default("[]")
+  apportRecu                 PartenairesApportRecu      @default(non) @map("apport_recu")
+  documentGenereFileId       String?                    @map("document_genere_file_id") @db.Uuid
+  documentSigneFileId        String?                    @map("document_signe_file_id") @db.Uuid
+  signeeLe                   DateTime?                  @map("signee_le") @db.Date
+  signataires                String?
+  motifResiliation           String?                    @map("motif_resiliation")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team            CoreTeam               @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  partner         PartenairesPartner     @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  template        PartenairesTemplate?   @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  season          CoreSeason?            @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  precedente      PartenairesAgreement?  @relation("PartenairesAgreementPrecedente", fields: [precedenteId], references: [id], onDelete: SetNull)
+  renouvellements PartenairesAgreement[] @relation("PartenairesAgreementPrecedente")
+  documentGenere  CoreFile?              @relation("PartenairesAgreementGenere", fields: [documentGenereFileId], references: [id], onDelete: SetNull)
+  documentSigne   CoreFile?              @relation("PartenairesAgreementSigne", fields: [documentSigneFileId], references: [id], onDelete: SetNull)
+  amendments      PartenairesAmendment[]
+  benefits        PartenairesBenefit[]
+  reports         PartenairesReport[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([partnerId])
+  @@index([seasonId])
+  @@map("partenaires_agreement")
+}
+
+// Avenant à une convention. Le numéro est unique par convention.
+model PartenairesAmendment {
+  id             String    @id @db.Uuid
+  teamId         String    @map("team_id") @db.Uuid
+  agreementId    String    @map("agreement_id") @db.Uuid
+  numero         Int
+  date           DateTime  @db.Timestamptz(3)
+  motif          String
+  changements    String    @db.Text
+  documentFileId String?   @map("document_file_id") @db.Uuid
+  signeLe        DateTime? @map("signe_le") @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team         CoreTeam             @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  agreement    PartenairesAgreement @relation(fields: [agreementId], references: [id], onDelete: Restrict)
+  documentFile CoreFile?            @relation(fields: [documentFileId], references: [id], onDelete: SetNull)
+
+  @@unique([agreementId, numero])
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("partenaires_amendment")
+}
+
+// Liste de base des contreparties, copiée à la volée dans chaque team.
+model PartenairesBenefitCatalog {
+  id             String                 @id @db.Uuid
+  teamId         String                 @map("team_id") @db.Uuid
+  nom            String
+  type           PartenairesBenefitType
+  unite          String
+  quantiteDefaut Int                    @default(1) @map("quantite_defaut")
+  description    String?
+  actif          Boolean                @default(true)
+  ordre          Int                    @default(0)
+  sourceCle      String?                @map("source_cle")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team     CoreTeam            @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  benefits PartenairesBenefit[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("partenaires_benefit_catalog")
+}
+
+// Contrepartie promise dans une convention. slot_id est un uuid sans clé étrangère (Voiture).
+model PartenairesBenefit {
+  id              String                   @id @db.Uuid
+  teamId          String                   @map("team_id") @db.Uuid
+  agreementId     String                   @map("agreement_id") @db.Uuid
+  catalogId       String?                  @map("catalog_id") @db.Uuid
+  libelle         String
+  type            PartenairesBenefitType
+  quantitePromise Int                      @default(1) @map("quantite_promise")
+  quantiteTenue   Int                      @default(0) @map("quantite_tenue")
+  slotId          String?                  @map("slot_id") @db.Uuid
+  slotNom         String?                  @map("slot_nom")
+  eventIds        String[]                 @default([]) @map("event_ids") @db.Uuid
+  echeance        DateTime?                @db.Date
+  statut          PartenairesBenefitStatut @default(a_faire)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team      CoreTeam                   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  agreement PartenairesAgreement       @relation(fields: [agreementId], references: [id], onDelete: Restrict)
+  catalog   PartenairesBenefitCatalog? @relation(fields: [catalogId], references: [id], onDelete: SetNull)
+  proofs    PartenairesProof[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([agreementId])
+  @@map("partenaires_benefit")
+}
+
+// Preuve d'une contrepartie. Une preuve n'augmente pas quantite_tenue à elle seule.
+model PartenairesProof {
+  id                String                 @id @db.Uuid
+  teamId            String                 @map("team_id") @db.Uuid
+  benefitId         String                 @map("benefit_id") @db.Uuid
+  date              DateTime               @db.Timestamptz(3)
+  eventId           String?                @map("event_id") @db.Uuid
+  type              PartenairesProofType
+  fileId            String?                @map("file_id") @db.Uuid
+  lien              String?
+  commentaire       String?
+  visiblePartenaire Boolean                @default(true) @map("visible_partenaire")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team    CoreTeam           @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  benefit PartenairesBenefit @relation(fields: [benefitId], references: [id], onDelete: Restrict)
+  event   CoreEvent?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  file    CoreFile?          @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([benefitId])
+  @@map("partenaires_proof")
+}
+
+// Bilan généré ou envoyé à un partenaire, sur une période.
+model PartenairesReport {
+  id           String    @id @db.Uuid
+  teamId       String    @map("team_id") @db.Uuid
+  partnerId    String    @map("partner_id") @db.Uuid
+  agreementId  String?   @map("agreement_id") @db.Uuid
+  periodeDebut DateTime  @map("periode_debut") @db.Timestamptz(3)
+  periodeFin   DateTime  @map("periode_fin") @db.Timestamptz(3)
+  fileId       String?   @map("file_id") @db.Uuid
+  genereLe     DateTime  @default(now()) @map("genere_le") @db.Timestamptz(3)
+  envoyeLe     DateTime? @map("envoye_le") @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team      CoreTeam             @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  partner   PartenairesPartner   @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  agreement PartenairesAgreement? @relation(fields: [agreementId], references: [id], onDelete: SetNull)
+  file      CoreFile?            @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([partnerId])
+  @@map("partenaires_report")
+}
+
+// Lien de la page partenaire. Seule l'empreinte du jeton est stockée (sha256), unique sur toute la base.
+// Un seul lien actif par partenaire : index unique partiel dans la migration.
+model PartenairesPortalLink {
+  id                   String    @id @db.Uuid
+  teamId               String    @map("team_id") @db.Uuid
+  partnerId            String    @map("partner_id") @db.Uuid
+  jetonEmpreinte       String    @unique @map("jeton_empreinte")
+  actif                Boolean   @default(true)
+  expireLe             DateTime? @map("expire_le") @db.Timestamptz(3)
+  derniereConsultation DateTime? @map("derniere_consultation") @db.Timestamptz(3)
+  nbConsultations      Int       @default(0) @map("nb_consultations")
+  sections             String[]  @default(["conventions", "contreparties", "preuves", "calendrier", "resultats", "bilans"])
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team    CoreTeam           @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  partner PartenairesPartner @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([partnerId])
+  @@map("partenaires_portal_link")
+}
+
+// Message écrit depuis la page partenaire (création à la 3.7). 2 000 caractères au plus (CHECK).
+model PartenairesPortalMessage {
+  id                String    @id @db.Uuid
+  teamId            String    @map("team_id") @db.Uuid
+  partnerId         String    @map("partner_id") @db.Uuid
+  date              DateTime  @default(now()) @db.Timestamptz(3)
+  auteurNom         String    @map("auteur_nom")
+  texte             String
+  lueLe             DateTime? @map("lue_le") @db.Timestamptz(3)
+  traiteParPersonId String?   @map("traite_par_person_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team      CoreTeam           @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  partner   PartenairesPartner @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  traitePar CorePerson?        @relation("PartenaireMessageTraitePar", fields: [traiteParPersonId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([partnerId])
+  @@map("partenaires_portal_message")
 }
