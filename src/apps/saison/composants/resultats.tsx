@@ -152,13 +152,14 @@ export function FormulairePreuve({ entryId, lienActuel }: { entryId: string; lie
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="entryId" value={entryId} />
+      <p className="font-medium">Preuve : un lien ou un fichier</p>
       <div className="flex flex-col gap-1">
-        <Label htmlFor={`preuve-${entryId}`}>Preuve : lien ou fichier</Label>
+        <Label htmlFor={`preuve-${entryId}`}>Lien de la preuve</Label>
         <Input id={`preuve-${entryId}`} name="preuveLien" type="url" defaultValue={lienActuel ?? ""} className={CHAMP} />
       </div>
       <ChampFichier
         app="saison"
-        libelle="Fichier de preuve (facultatif)"
+        libelle="ou un fichier"
         valeur={fichier?.id ?? null}
         typeValeur={fichier?.mimeType ?? null}
         nomValeur={fichier?.nom ?? null}

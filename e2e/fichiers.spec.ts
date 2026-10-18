@@ -65,6 +65,9 @@ test("l. logo : envoyé dans Identité, affiché dans la barre haute, puis retir
 
   await expect(page.locator('header img[src^="/api/fichiers/"]')).toBeVisible()
   await expect.poll(() => logoEquipeEnBase(equipe)).not.toBeNull()
+  // La rubrique se rend après le rechargement : on attend son titre et le champ du logo avant la capture.
+  await expect(page.getByRole("heading", { name: "Identité" })).toBeVisible()
+  await expect(page.getByText("Logo de la team")).toBeVisible()
   await page.screenshot({ path: path.join(DOSSIER, "fichiers-identite-1440x900.png"), fullPage: true })
 
   // Un membre assistance n'a aucun accès à Réglages : il voit quand même le logo courant de sa team.
@@ -145,8 +148,9 @@ test("l. preuve : un PDF joint à un résultat s'ouvre par « Voir la preuve »"
   await page.getByRole("button", { name: "Enregistrer le résultat" }).click()
   await expect(page.getByText("Enregistré.").first()).toBeVisible()
 
-  const formulaire = page.locator("form", { has: page.getByLabel("Fichier de preuve (facultatif)") })
-  await formulaire.getByLabel("Fichier de preuve (facultatif)").setInputFiles(PREUVE)
+  // Le champ fichier est l'input caché relié à « ou un fichier » : setInputFiles marche même caché.
+  const formulaire = page.locator("form", { has: page.getByLabel("ou un fichier") })
+  await formulaire.getByLabel("ou un fichier").setInputFiles(PREUVE)
   await expect(formulaire.getByText("preuve.pdf")).toBeVisible()
   await page.screenshot({ path: path.join(DOSSIER, "fichiers-preuve-1440x900.png"), fullPage: true })
   await formulaire.getByRole("button", { name: "Joindre la preuve" }).click()

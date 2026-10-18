@@ -181,3 +181,13 @@
 - Vérifications : vitest 405/405, typecheck, `db:verifier-synchro`, build isolé, e2e complet 80/80 (port 3101). Comptes du journal e2e : P2003 0, P2025 0, `reading 'id'` 0, `ErreurAcces` 0, `TypeError` 0.
 
 - Points d'attention : le log de l'e2e contient deux avertissements, non investigués et sans effet sur les tests : `next start` demande `node .next/standalone/server.js` avec `output: "standalone"`, et le client pg signale un `client.query()` concurrent (DeprecationWarning).
+
+## 18/10/2026 : brief 3.1, finitions visuelles du champ fichier
+
+- Champ fichier en français : l'`<input type="file">` natif est caché (`sr-only`) et reste au clavier. Le bouton visible est un `<label htmlFor>` en `BOUTON_SECONDAIRE` (« Choisir une photo » ou « Choisir un fichier »), avec l'anneau de focus (`peer-focus-visible`). Avec un fichier : vignette ou nom, puis « Remplacer » et « Retirer ». Plus de « Choose File » ni de « No file chosen ».
+
+- Formulaire de preuve : « Preuve : un lien ou un fichier », « Lien de la preuve », puis « ou un fichier ».
+
+- Capture `fichiers-identite` : attente du titre Identité et du champ du logo avant la capture (elle était prise pendant le rechargement).
+
+- Vérifications : vitest 405/405, typecheck, build isolé, e2e complet 80/80 (port 3101). Comptes du journal e2e : P2003 0, P2025 0, `reading 'id'` 0, `ErreurAcces` 0, `TypeError` 0.

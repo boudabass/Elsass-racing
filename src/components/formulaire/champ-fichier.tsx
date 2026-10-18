@@ -4,7 +4,7 @@ import { useId, useRef, useState, type ChangeEvent } from "react"
 import { FileText } from "lucide-react"
 
 import { useEtatSynchro } from "@/core/synchro/client/react"
-import { LIEN } from "@/lib/classes-formulaire"
+import { BOUTON_SECONDAIRE, LIEN } from "@/lib/classes-formulaire"
 
 import { Message } from "./message"
 import { preparerFichier } from "./preparer-fichier"
@@ -49,6 +49,8 @@ export function ChampFichier({
   disabled = false,
 }: ChampFichierProps) {
   const identifiant = useId()
+  const idLibelle = `${identifiant}-libelle`
+  const idChoix = `${identifiant}-choix`
   const etat = useEtatSynchro()
   const entree = useRef<HTMLInputElement>(null)
   const [envoi, setEnvoi] = useState(false)
@@ -58,6 +60,9 @@ export function ChampFichier({
   const horsLigne = !etat.enLigne
   const bloque = disabled || envoi || horsLigne
   const estImage = (typeValeur ?? "image/*").startsWith("image/")
+  // Le bouton dit « photo » seulement quand le champ n'accepte que des images.
+  const seulesImages = accept.split(",").every((type) => type.trim().startsWith("image/"))
+  const libelleChoix = seulesImages ? "Choisir une photo" : "Choisir un fichier"
 
   async function envoyer(fichier: File) {
     setErreur(null)
@@ -95,12 +100,12 @@ export function ChampFichier({
 
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={identifiant} className="font-medium">
+      <span id={idLibelle} className="font-medium">
         {libelle}
-      </label>
+      </span>
 
       {valeur && (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Vignette ou nom : ouvre le fichier dans un nouvel onglet. */}
           <a href={`/api/fichiers/${valeur}`} target="_blank" rel="noopener noreferrer" aria-label={`${libelle} : ouvrir dans un nouvel onglet`} className="cible-tactile inline-flex items-center">
             {estImage ? (
@@ -112,12 +117,17 @@ export function ChampFichier({
               </span>
             )}
           </a>
+          <button type="button" onClick={() => entree.current?.click()} disabled={bloque} className={LIEN}>
+            Remplacer
+          </button>
           <button type="button" onClick={retirer} disabled={envoi || disabled} className={LIEN}>
             {libelleRetirer}
           </button>
         </div>
       )}
 
+      {/* L'input natif est caché : le bouton visible est le <label> qui le désigne. L'input reste au clavier,
+          et son focus s'affiche sur le bouton (peer-focus-visible). Quand un fichier est là, « Remplacer » le remplace. */}
       <input
         ref={entree}
         id={identifiant}
@@ -125,8 +135,20 @@ export function ChampFichier({
         accept={accept}
         onChange={quandChoisi}
         disabled={bloque}
-        className="cible-tactile text-sm file:mr-3 file:rounded-md file:border-0 file:bg-surface-2 file:px-3 file:py-2"
+        tabIndex={valeur ? -1 : undefined}
+        aria-labelledby={valeur ? idLibelle : `${idLibelle} ${idChoix}`}
+        className="peer sr-only"
       />
+      {!valeur && (
+        <label
+          id={idChoix}
+          htmlFor={identifiant}
+          aria-disabled={bloque || undefined}
+          className={`${BOUTON_SECONDAIRE} inline-flex w-fit items-center peer-focus-visible:ring-2 peer-focus-visible:ring-ring ${bloque ? "pointer-events-none opacity-50" : "cursor-pointer"}`}
+        >
+          {libelleChoix}
+        </label>
+      )}
 
       {envoi && (
         <p role="status" className="text-sm text-texte-discret">

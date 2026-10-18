@@ -48,6 +48,7 @@ Le middleware ne redirige pas `/api/fichiers` vers la connexion (comme `/api/syn
 
 `<ChampFichier app="budget" libelle="Photo du ticket" valeur={id ou null} typeValeur={mime} nomValeur={nom} onChange={(fichier) => …} name="justificatifFileId" />`
 
+- Affichage : l'`<input type="file">` natif est caché (`sr-only`) et reste au clavier. Le bouton visible est un `<label htmlFor>` en `BOUTON_SECONDAIRE` : « Choisir une photo » si `accept` ne contient que des images, « Choisir un fichier » sinon. Le focus clavier s'affiche sur ce bouton (`peer-focus-visible`). Avec un fichier : vignette ou nom, puis « Remplacer » et « Retirer » (liens `LIEN`), sans bouton de choix.
 - L'envoi part dès le choix (`fetch("/api/fichiers")`). Pendant l'envoi : « Envoi… », et le champ ne se contrôle pas.
 - Photos (JPEG, PNG, WebP) de plus de 1,5 Mo ou de plus de 2 000 px : redessinées à 2 000 px au plus, JPEG à 0,85 (`preparer-fichier.ts`). PDF et SVG partent tels quels.
 - Après l'envoi : vignette de 64 px pour une image, nom du fichier pour un PDF. Les deux ouvrent le fichier dans un nouvel onglet. « Retirer » vide la valeur (`libelleRetirer` pour le libellé).
@@ -59,7 +60,7 @@ Le middleware ne redirige pas `/api/fichiers` vers la connexion (comme `/api/syn
 
 - **Logo** (Réglages, Identité) : écrit avec la team dans une transaction (`sauverIdentite`). Affiché dans la barre haute et l'aperçu des couleurs (`src/components/qg/logo-team.tsx`). Si l'image ne charge pas, l'icône QG revient.
 - **Ticket** (Budget) : facultatif dans « Nouvelle dépense » (son id part avec l'écriture locale, dans `justificatifFileId`) et dans la fiche de dépense (ajout ou remplacement, par le formulaire de modification existant). Création, modification et synchro rattachent le ticket dans leur transaction (`poserJustificatif`).
-- **Preuve** (Saison) : « Preuve : lien ou fichier ». Un lien ou un fichier suffit. Le fichier s'ouvre par « Voir la preuve » dans la fiche d'épreuve et la fiche d'engagement. Un résultat avec seulement un fichier n'est pas « sans preuve ».
+- **Preuve** (Saison) : « Preuve : un lien ou un fichier », avec le champ « Lien de la preuve » et le champ fichier « ou un fichier ». Un lien ou un fichier suffit. Le fichier s'ouvre par « Voir la preuve » dans la fiche d'épreuve et la fiche d'engagement. Un résultat avec seulement un fichier n'est pas « sans preuve ».
 
 ## Pour plus tard
 
