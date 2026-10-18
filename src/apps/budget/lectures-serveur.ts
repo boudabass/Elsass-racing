@@ -27,6 +27,8 @@ export interface MouvementLu {
   moyen: string | null
   remboursement: string | null
   origine: string
+  // Dépense : photo du ticket, si elle existe (brief 3.2). Recette : toujours null.
+  justificatif: { id: string; nom: string; mimeType: string } | null
 }
 
 export interface FiltresMouvements {
@@ -59,7 +61,12 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
       ...(filtres.categorieId ? { categoryId: filtres.categorieId } : {}),
       ...(personneFiltre ? { payer: { personId: personneFiltre } } : {}),
     },
-    include: { category: { select: { nom: true } }, payer: { select: { nom: true, personId: true } }, event: { select: { nom: true } } },
+    include: {
+      category: { select: { nom: true } },
+      payer: { select: { nom: true, personId: true } },
+      event: { select: { nom: true } },
+      justificatif: { select: { id: true, nom: true, mimeType: true } },
+    },
     orderBy: [{ date: "desc" }, { id: "asc" }],
   })
 
@@ -81,6 +88,7 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
     moyen: ligne.moyen,
     remboursement: ligne.remboursement,
     origine: ligne.origine,
+    justificatif: ligne.justificatif,
   }))
 
   let recettes: MouvementLu[] = []
@@ -114,6 +122,7 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
       moyen: null,
       remboursement: null,
       origine: ligne.origine,
+      justificatif: null,
     }))
   }
 

@@ -145,6 +145,8 @@ export async function modifierMouvementAction(_etat: Resultat | null, donnees: F
       date,
       eventId,
       moyen: (texteOuNull(donnees, "moyen") as "carte" | "especes" | "cheque" | "virement" | null) ?? null,
+      // Champ présent dans le formulaire de dépense : vide = photo retirée.
+      justificatifFileId: donnees.has("justificatifFileId") ? texteOuNull(donnees, "justificatifFileId") : undefined,
     })
   })
 }

@@ -82,6 +82,8 @@ const schemaDepense = z
     fournisseurContactId: identifiant.nullable().optional(),
     vehicleId: identifiant.nullable().optional(),
     entryId: identifiant.nullable().optional(),
+    // Photo du ticket (brief 3.2) : absent = inchangé à la modification.
+    justificatifFileId: identifiant.nullable().optional(),
   })
   .strict()
 
@@ -864,6 +866,7 @@ export async function modifierDepenseDans(ctx: ContexteTeam, id: string, entree:
         entryId: donnees.entryId ?? null,
         seasonId: saisonId,
         moyen: donnees.moyen ?? null,
+        justificatifFileId: donnees.justificatifFileId,
       },
       niveau,
     )

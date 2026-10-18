@@ -7,6 +7,7 @@
 
 import type { ContexteTeam } from "@/core/contexte"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
+import { rattacherFichier, remplacerFichier } from "@/core/fichiers/fichiers-serveur"
 import type { Tx } from "@/core/synchro/registre"
 
 import { refus, eurosPourMessage } from "./erreurs"
@@ -22,12 +23,21 @@ export interface DonneesDepenseModifiee {
   entryId: string | null
   seasonId: string | null
   moyen: "carte" | "especes" | "cheque" | "virement" | null
+  // Photo du ticket (brief 3.2) : absent = inchangé, null = retiré.
+  justificatifFileId?: string | null
 }
 
 // Personne de l'appelant (son membership), ou null.
 async function personneDe(tx: Tx, ctx: ContexteTeam): Promise<string | null> {
   const membre = await tx.coreMembership.findFirst({ where: { id: ctx.membership.id, teamId: ctx.teamId }, select: { personId: true } })
   return membre?.personId ?? null
+}
+
+// Pose la photo du ticket d'une dépense (brief 3.2) : rattachement de la nouvelle, et l'ancienne part à la
+// corbeille. Même transaction que l'écriture de la dépense (appelant).
+export async function poserJustificatif(tx: Tx, ctx: ContexteTeam, depenseId: string, ancien: string | null, nouveau: string | null): Promise<void> {
+  if (nouveau) await rattacherFichier(tx, ctx, { fileId: nouveau, app: "budget", ficheType: "expense", ficheId: depenseId, role: "ticket" })
+  await remplacerFichier(tx, ctx, { ancienId: ancien, nouveauId: nouveau })
 }
 
 // Renvoie les personnes à prévenir (solde) : celle de l'ancien payeur et celle du nouveau, si ce sont des membres.
@@ -46,6 +56,7 @@ export async function modifierDepenseTx(
       payerId: true,
       payer: { select: { personId: true } },
       lignes: { where: { deletedAt: null }, select: { montant: true } },
+      justificatifFileId: true,
     },
   })
   if (!existante) refus("Dépense introuvable dans cette team.")
@@ -95,10 +106,15 @@ export async function modifierDepenseTx(
       moyen: donnees.moyen,
       aRembourser: estRembourse,
       remboursement: statutRemboursement({ montant: donnees.montant, aRembourser: estRembourse }, lignes),
+      ...(donnees.justificatifFileId !== undefined ? { justificatifFileId: donnees.justificatifFileId } : {}),
       rev: { increment: 1 },
       updatedBy: ctx.userId,
     },
   })
+
+  if (donnees.justificatifFileId !== undefined && donnees.justificatifFileId !== existante.justificatifFileId) {
+    await poserJustificatif(tx, ctx, id, existante.justificatifFileId, donnees.justificatifFileId)
+  }
 
   const personnes = [existante.payer.personId, payeur.personId].filter((personne): personne is string => personne !== null)
   return { personnes: Array.from(new Set(personnes)) }

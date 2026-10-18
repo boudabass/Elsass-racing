@@ -43,6 +43,7 @@ export default async function PageMouvement({ params }: { params: Promise<{ id: 
           eventId: mouvement.eventId,
           payerId: mouvement.payeurId,
           moyen: mouvement.moyen,
+          justificatif: mouvement.justificatif,
         }}
         categories={mouvement.type === "depense" ? choix.categoriesDepense : choix.categoriesRecette}
         payeurs={payeurs.map(({ id: payeurId, nom }) => ({ id: payeurId, nom }))}

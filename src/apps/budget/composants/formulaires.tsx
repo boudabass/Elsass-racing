@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useMemo, useState, type FormEvent } from "react"
 import { useActionState } from "react"
 
+import { ChampFichier, type FichierEnvoye } from "@/components/formulaire/champ-fichier"
 import { Message } from "@/components/formulaire/message"
 import { newId } from "@/core/ids"
 import { useMoteurSynchro } from "@/core/synchro/client/react"
@@ -43,6 +44,8 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
   const [categorieChoisie, setCategorieChoisie] = useState("")
   const [epreuveChoisie, setEpreuveChoisie] = useState(options.epreuveEnCoursId ?? "")
   const [engagementChoisi, setEngagementChoisi] = useState("")
+  // Photo du ticket (facultative) : envoyée au choix, son id part avec la dépense.
+  const [ticket, setTicket] = useState<FichierEnvoye | null>(null)
 
   // Catégorie Engagement et épreuve choisies : l'engagement de cette épreuve est prérempli s'il n'y en a qu'un ;
   // s'il y en a plusieurs, ils sont proposés en tête, sans rien choisir à la place de la personne.
@@ -94,12 +97,14 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
           libelle: libelle || null,
           eventId: eventId || null,
           entryId: entryId || null,
+          justificatifFileId: ticket?.id ?? null,
         },
       })
       formulaire.reset()
       setCategorieChoisie("")
       setEpreuveChoisie(options.epreuveEnCoursId ?? "")
       setEngagementChoisi("")
+      setTicket(null)
       setMessage({ ok: true, texte: "Enregistré. La dépense part dès que l'appareil est connecté.", boite: entryId !== "" })
     } catch {
       setMessage({ ok: false, texte: "La dépense n'a pas pu être enregistrée sur cet appareil." })
@@ -143,6 +148,14 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
           ))}
         </select>
       </div>
+      <ChampFichier
+        app="budget"
+        libelle="Photo du ticket (facultatif)"
+        valeur={ticket?.id ?? null}
+        typeValeur={ticket?.mimeType ?? null}
+        nomValeur={ticket?.nom ?? null}
+        onChange={setTicket}
+      />
       <details className="flex flex-col gap-4 rounded-md border border-bordure p-4">
         <summary className="cursor-pointer font-medium">Plus de détails</summary>
         <div className="mt-4 flex flex-col gap-4">

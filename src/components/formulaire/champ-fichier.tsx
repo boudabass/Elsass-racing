@@ -101,14 +101,17 @@ export function ChampFichier({
 
       {valeur && (
         <div className="flex items-center gap-3">
-          {estImage ? (
-            <img src={`/api/fichiers/${valeur}`} alt="" className="h-16 w-16 rounded border border-bordure object-contain" />
-          ) : (
-            <span className="flex items-center gap-2 text-sm">
-              <FileText className="h-5 w-5 shrink-0" aria-hidden />
-              {nomValeur ?? "Fichier joint"}
-            </span>
-          )}
+          {/* Vignette ou nom : ouvre le fichier dans un nouvel onglet. */}
+          <a href={`/api/fichiers/${valeur}`} target="_blank" rel="noopener noreferrer" aria-label={`${libelle} : ouvrir dans un nouvel onglet`} className="cible-tactile inline-flex items-center">
+            {estImage ? (
+              <img src={`/api/fichiers/${valeur}`} alt="" className="h-16 w-16 rounded border border-bordure object-contain" />
+            ) : (
+              <span className="flex items-center gap-2 text-sm underline underline-offset-4 decoration-marque decoration-2">
+                <FileText className="h-5 w-5 shrink-0" aria-hidden />
+                {nomValeur ?? "Fichier joint"}
+              </span>
+            )}
+          </a>
           <button type="button" onClick={retirer} disabled={envoi || disabled} className={LIEN}>
             {libelleRetirer}
           </button>

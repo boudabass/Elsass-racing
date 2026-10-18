@@ -1,6 +1,8 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
+
+import { ChampFichier, type FichierEnvoye } from "@/components/formulaire/champ-fichier"
 
 import { modifierMouvementAction, supprimerMouvementAction, type Resultat } from "../actions"
 import { enEuros } from "./formulaires"
@@ -16,6 +18,7 @@ export interface ValeursMouvement {
   eventId: string | null
   payerId: string | null
   moyen: string | null
+  justificatif: { id: string; nom: string; mimeType: string } | null
 }
 
 // Modifier un mouvement (mêmes champs que la création) et le supprimer après case cochée.
@@ -34,6 +37,8 @@ export function FormulaireMouvement({
 }) {
   const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(modifierMouvementAction, null)
   const [suppression, actionSupprimer, enCoursSupprimer] = useActionState<Resultat | null, FormData>(supprimerMouvementAction, null)
+  // Ticket courant (ou envoyé à l'instant) : son id part avec le formulaire, son type choisit la vignette.
+  const [ticket, setTicket] = useState<Pick<FichierEnvoye, "id" | "nom" | "mimeType"> | null>(valeurs.justificatif)
   const estDepense = valeurs.type === "depense"
   return (
     <div className="flex flex-col gap-8">
@@ -96,6 +101,18 @@ export function FormulaireMouvement({
                 <option value="carte">Carte</option>
               </select>
             </label>
+            <div className="sm:col-span-2">
+              <ChampFichier
+                app="budget"
+                libelle={ticket ? "Remplacer la photo du ticket" : "Ajouter la photo du ticket"}
+                valeur={ticket?.id ?? null}
+                typeValeur={ticket?.mimeType ?? null}
+                nomValeur={ticket?.nom ?? null}
+                onChange={setTicket}
+                name="justificatifFileId"
+                libelleRetirer="Retirer la photo"
+              />
+            </div>
           </>
         )}
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
