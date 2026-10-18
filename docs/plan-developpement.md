@@ -199,8 +199,10 @@ Décisions de John (18/10) :
 - un seul gabarit livré au lot 3, celui de la Saxo (citadine 3 portes, plan `saxo_plan_emplacements.svg` du dossier Koehling) ; les six autres silhouettes viendront plus tard ;
 - modèle de convention de base rédigé par l'orchestrateur : `docs/modele-convention.md`, à relire par John avant la tâche 3.5.
 
-### 3.1 Socle : fichiers et PDF
-- Envoi, stockage (volume `STOCKAGE_DIR`), lecture protégée par team et par droits, aperçu des images. Aucun envoi de fichier n'existe encore dans l'app.
+### 3.1 Socle : envoi et lecture des fichiers
+- Brief : `docs/briefs/3.1-envoi-fichiers.md`. Envoi, stockage (volume `STOCKAGE_DIR`), lecture protégée par team et par droits, compression des photos. Premiers usages : logo de la team (remplace l'icône QG), photo du ticket d'une dépense, fichier de preuve d'un résultat.
+
+### 3.1b Socle : outil PDF
 - Outil PDF commun, qui servira aux bilans partenaires et au bilan de saison de Budget.
 
 ### 3.2 Voiture : schéma et services
