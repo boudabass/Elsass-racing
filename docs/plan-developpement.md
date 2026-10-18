@@ -218,7 +218,7 @@ Décisions de John (18/10) :
 - Silhouette Saxo par vue, emplacements cliquables (libre, réservé, occupé, indisponible), édition des emplacements.
 
 ### 3.5 Partenaires : schéma et services
-- Brief : `docs/briefs/3.5-partenaires-schema-services.md`. Point 0 : trois retouches du plan de déco. Entreprise en `core_contact`, interlocuteur en `core_person`, jeton de la page partenaire stocké en empreinte, modèle de convention par défaut dans le code et copié par team, recalculs à l'ouverture du QG.
+- Brief : `docs/briefs/3.5-partenaires-schema-services.md`. Point 0 : trois retouches du plan de déco. Entreprise en `core_contact`, interlocuteur en `core_person`, jeton de la page partenaire stocké en empreinte, modèle de convention par défaut dans le code et copié par team, recalculs à l'ouverture du QG. Fait le 18/10 (a598624 à 403ed1b), relu et accepté.
 - Tables `partenaires_` (partenaires, échanges, modèles, conventions, avenants, contreparties et liste de base, preuves, bilans, lien et messages de la page partenaire), modèle de convention par défaut, champs d'identité manquants dans Réglages (forme juridique, signataire).
 
 ### 3.6 Partenaires : écrans
