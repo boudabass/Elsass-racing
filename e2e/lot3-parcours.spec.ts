@@ -308,6 +308,13 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   await expect(page.getByTestId("apport-recu")).toHaveText("Apport reçu", { timeout: 30_000 })
 
+  // Téléphone : la ligne d'actions de la convention (avenant, résiliation) passe à la ligne sans déborder (brief 3.9, §6).
+  await page.setViewportSize(TELEPHONE)
+  await page.goto(`/apps/partenaires/conventions/${conventionId}`)
+  await sansDefilementHorizontal(page)
+  await capturer(page, "lot3-convention-actions-360x740.png")
+  await page.setViewportSize(bureau)
+
   // 9. Bilan : le PDF se génère et se télécharge.
   await page.goto(`/apps/partenaires/${partenaireId}?onglet=bilans`)
   await page.getByRole("button", { name: "Générer le bilan", exact: true }).click()

@@ -69,6 +69,9 @@ function destinationChamp(cle: string, partnerId: string): { href: string; texte
 
 const CLASSE_BLOC = "flex flex-col gap-4 rounded-md border border-bordure bg-surface p-4"
 
+// Bouton de danger, en contour : la résiliation n'est pas une action comme les autres (brief 3.9, §6).
+const BOUTON_DANGER = "cible-tactile rounded-md border border-etat-rouge px-5 py-3 text-sm text-etat-rouge hover:bg-surface-2 disabled:opacity-50"
+
 export default async function PageConvention({
   params,
   searchParams,
@@ -191,36 +194,40 @@ export default async function PageConvention({
           </details>
         )}
         {estEnvoyee && !gestion && <p className="text-sm text-texte-discret">Seule la gestion peut marquer la convention signée.</p>}
-        {estActive && gestion && (
-          <div className="flex flex-col gap-4">
-            <details>
-              <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Ajouter un avenant</summary>
-              <div className="mt-4">
-                <FormulaireAvenant agreementId={convention.id} aujourdhui={aujourdhui} />
-              </div>
-            </details>
-            <details>
-              <summary className={`${LIEN} cursor-pointer list-none text-sm`}>Résilier la convention</summary>
-              <div className="mt-3">
-                <FormulaireAction action={resilierAction} nom="Résilier" className="flex flex-col gap-3">
-                  <input type="hidden" name="agreementId" value={convention.id} />
-                  <label htmlFor="motif-resiliation" className="font-medium">
-                    Motif (obligatoire)
-                  </label>
-                  <textarea id="motif-resiliation" name="motif" required rows={2} maxLength={1000} className={CHAMP} />
-                  <div>
-                    <BoutonEnvoi libelle="Résilier la convention" secondaire />
-                  </div>
-                </FormulaireAction>
-              </div>
-            </details>
-          </div>
-        )}
+        {/* Une seule ligne d'actions, qui passe à la ligne sur téléphone (brief 3.9, §6). Les formulaires s'ouvrent
+            en pleine largeur, sous la ligne. « Résilier » est à droite, en couleur de danger. */}
         {estSignee && (
-          <FormulaireAction action={renouvelerAction} nom="Renouveler" ok="Convention renouvelée. Elle apparaît dans l'historique." className="flex">
-            <input type="hidden" name="agreementId" value={convention.id} />
-            <BoutonEnvoi libelle="Renouveler" secondaire />
-          </FormulaireAction>
+          <div className="flex flex-wrap items-center gap-3">
+            <FormulaireAction action={renouvelerAction} nom="Renouveler" ok="Convention renouvelée. Elle apparaît dans l'historique." className="flex">
+              <input type="hidden" name="agreementId" value={convention.id} />
+              <BoutonEnvoi libelle="Renouveler" secondaire />
+            </FormulaireAction>
+            {estActive && gestion && (
+              <details className="[&[open]]:basis-full">
+                <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Ajouter un avenant</summary>
+                <div className="mt-4">
+                  <FormulaireAvenant agreementId={convention.id} aujourdhui={aujourdhui} />
+                </div>
+              </details>
+            )}
+            {estActive && gestion && (
+              <details className="ml-auto [&[open]]:basis-full">
+                <summary className={`${BOUTON_DANGER} inline-flex cursor-pointer list-none`}>Résilier la convention</summary>
+                <div className="mt-4">
+                  <FormulaireAction action={resilierAction} nom="Résilier" className="flex flex-col gap-3">
+                    <input type="hidden" name="agreementId" value={convention.id} />
+                    <label htmlFor="motif-resiliation" className="font-medium">
+                      Motif (obligatoire)
+                    </label>
+                    <textarea id="motif-resiliation" name="motif" required rows={2} maxLength={1000} className={CHAMP} />
+                    <div>
+                      <BoutonEnvoi libelle="Résilier la convention" secondaire />
+                    </div>
+                  </FormulaireAction>
+                </div>
+              </details>
+            )}
+          </div>
         )}
         {statut === "resiliee" && <p className="text-sm text-texte-discret">Convention résiliée{convention.motifResiliation ? ` : ${convention.motifResiliation}` : "."}</p>}
       </section>
