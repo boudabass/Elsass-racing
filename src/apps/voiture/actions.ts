@@ -5,11 +5,30 @@
 
 import { executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-serveur"
 
-import { creerVehicule, type EntreeVehicule } from "./services-serveur"
+import { refus } from "./erreurs"
+import {
+  creerPapier,
+  creerVehicule,
+  modifierFiche,
+  modifierPapier,
+  poserPhotoPrincipale,
+  supprimerPapier,
+  type EntreeFiche,
+  type EntreePapier,
+  type EntreeVehicule,
+} from "./services-serveur"
 
 export type { Resultat }
 
 const executerVoiture = (action: () => Promise<string | void>) => executer("/apps/voiture", action)
+
+// Nombre facultatif d'un formulaire : vide devient null, un texte qui n'est pas un entier est refusé.
+function entierOuNull(donnees: FormData, cle: string): number | null {
+  const valeur = texteOuNull(donnees, cle)
+  if (valeur === null) return null
+  if (!/^\d+$/.test(valeur)) refus(`${cle === "annee" ? "L'année" : "Ce nombre"} doit être un nombre entier.`)
+  return Number(valeur)
+}
 
 export async function creerVehiculeAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerVoiture(() => {
@@ -20,4 +39,55 @@ export async function creerVehiculeAction(_etat: Resultat | null, donnees: FormD
     }
     return creerVehicule(entree)
   })
+}
+
+// Identité : les champs de voiture_vehicle. Un champ vide est effacé (null), jamais enregistré vide.
+export async function modifierFicheAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => {
+    const entree: EntreeFiche = {
+      marque: texteOuNull(donnees, "marque"),
+      modele: texteOuNull(donnees, "modele"),
+      version: texteOuNull(donnees, "version"),
+      annee: entierOuNull(donnees, "annee"),
+      cylindreeCm3: entierOuNull(donnees, "cylindreeCm3"),
+      puissanceCh: entierOuNull(donnees, "puissanceCh"),
+      poidsKg: entierOuNull(donnees, "poidsKg"),
+      couleur: texteOuNull(donnees, "couleur"),
+      immatriculation: texteOuNull(donnees, "immatriculation"),
+      numeroSerie: texteOuNull(donnees, "numeroSerie"),
+      groupe: texteOuNull(donnees, "groupe"),
+      classe: texteOuNull(donnees, "classe"),
+      discipline: texteOuNull(donnees, "discipline"),
+      acheteLe: texteOuNull(donnees, "acheteLe"),
+    }
+    return modifierFiche(texte(donnees, "vehicleId"), entree)
+  })
+}
+
+export async function poserPhotoPrincipaleAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => poserPhotoPrincipale(texte(donnees, "vehicleId"), texteOuNull(donnees, "fileId")))
+}
+
+// Papier : même formulaire pour l'ajout et la modification.
+function entreePapier(donnees: FormData): EntreePapier {
+  return {
+    type: texte(donnees, "type") as EntreePapier["type"],
+    libelle: texteOuNull(donnees, "libelle"),
+    numero: texteOuNull(donnees, "numero"),
+    delivreLe: texteOuNull(donnees, "delivreLe"),
+    valableJusquAu: texteOuNull(donnees, "valableJusquAu"),
+    documentFileId: texteOuNull(donnees, "documentFileId"),
+  }
+}
+
+export async function creerPapierAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => creerPapier(texte(donnees, "vehicleId"), entreePapier(donnees)))
+}
+
+export async function modifierPapierAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => modifierPapier(texte(donnees, "papierId"), entreePapier(donnees)))
+}
+
+export async function supprimerPapierAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => supprimerPapier(texte(donnees, "papierId")))
 }

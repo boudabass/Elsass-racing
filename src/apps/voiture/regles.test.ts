@@ -12,6 +12,7 @@ import {
   preremplir,
   SEUIL_RENOUVELLEMENT_JOURS,
   statutEmplacement,
+  trierPapiers,
   statutPapier,
   validerValeurs,
   verifierTransitionOccupation,
@@ -237,5 +238,28 @@ describe("papiers : etatPapiersVehicule", () => {
   it("avec des papiers : le pire statut, comme etatPapiers", () => {
     const papiers = [{ valableJusquAu: new Date("2027-06-01T00:00:00Z") }, { valableJusquAu: new Date("2026-10-01T00:00:00Z") }]
     expect(etatPapiersVehicule(papiers, maintenant)).toBe("expire")
+  })
+})
+
+describe("papiers : trierPapiers", () => {
+  it("expirés d'abord, puis à renouveler, puis valides ; à statut égal, par échéance", () => {
+    const papiers = [
+      { nom: "valide-tard", statut: "valide" as const, valableJusquAu: new Date("2028-01-01T00:00:00Z") },
+      { nom: "a-renouveler", statut: "a_renouveler" as const, valableJusquAu: new Date("2026-11-01T00:00:00Z") },
+      { nom: "expire-recent", statut: "expire" as const, valableJusquAu: new Date("2026-10-10T00:00:00Z") },
+      { nom: "expire-ancien", statut: "expire" as const, valableJusquAu: new Date("2026-01-10T00:00:00Z") },
+      { nom: "valide-sans-echeance", statut: "valide" as const, valableJusquAu: null },
+      { nom: "valide-tot", statut: "valide" as const, valableJusquAu: new Date("2027-01-01T00:00:00Z") },
+    ]
+    expect(trierPapiers(papiers).map((p) => p.nom)).toEqual(["expire-ancien", "expire-recent", "a-renouveler", "valide-tot", "valide-tard", "valide-sans-echeance"])
+  })
+
+  it("ne modifie pas le tableau reçu", () => {
+    const papiers = [
+      { statut: "valide" as const, valableJusquAu: null, nom: "a" },
+      { statut: "expire" as const, valableJusquAu: null, nom: "b" },
+    ]
+    trierPapiers(papiers)
+    expect(papiers[0].nom).toBe("a")
   })
 })

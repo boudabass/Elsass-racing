@@ -45,6 +45,20 @@ export function etatPapiers(papiers: Array<{ valableJusquAu: Date | null }>, mai
   return pire
 }
 
+// Ordre d'affichage des papiers : expirés d'abord, puis à renouveler, puis valides.
+const RANG_PAPIER: Record<StatutPapier, number> = { expire: 0, a_renouveler: 1, valide: 2 }
+
+// Tri de l'onglet Papiers : par statut, puis par échéance (la plus proche d'abord ; sans échéance en dernier).
+export function trierPapiers<T extends { statut: StatutPapier; valableJusquAu: Date | null }>(papiers: T[]): T[] {
+  return [...papiers].sort((a, b) => {
+    if (RANG_PAPIER[a.statut] !== RANG_PAPIER[b.statut]) return RANG_PAPIER[a.statut] - RANG_PAPIER[b.statut]
+    if (a.valableJusquAu && b.valableJusquAu) return a.valableJusquAu.getTime() - b.valableJusquAu.getTime()
+    if (a.valableJusquAu) return -1
+    if (b.valableJusquAu) return 1
+    return 0
+  })
+}
+
 // État affiché sur la carte d'un véhicule : le pire statut, ou « aucun » sans aucun papier.
 export type EtatPapiersVehicule = StatutPapier | "aucun"
 

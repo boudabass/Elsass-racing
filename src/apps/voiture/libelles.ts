@@ -27,6 +27,9 @@ export function libelleDuPapier(type: TypePapier, libelle: string | null): strin
   return type === "autre" && libelle ? libelle : LIBELLE_TYPE_PAPIER[type]
 }
 
+export const LIBELLE_CONDITIONS = { sec: "Sec", humide: "Humide", mixte: "Mixte", neige: "Neige" } as const
+export const LIBELLE_REVETEMENT = { asphalte: "Asphalte", terre: "Terre", mixte: "Mixte" } as const
+
 // Statut d'une ligne de papier (onglet Papiers).
 export const LIBELLE_STATUT_PAPIER: Record<StatutPapier, string> = {
   valide: "Valide",
@@ -83,4 +86,43 @@ export function groupeEtClasse(groupe: string | null, classe: string | null): st
   if (groupe) return groupe
   if (classe) return `classe ${classe}`
   return null
+}
+
+// Vue d'un emplacement : titre du groupe dans l'onglet Déco. La vue gauche n'a pas de groupe : ses emplacements
+// sont les copies symétriques de la vue droite, indiquées par « (symétrique à gauche) ».
+export const TITRE_VUE: Record<"droite" | "avant" | "arriere" | "dessus" | "hors_plan", string> = {
+  droite: "Côté droit",
+  avant: "Avant",
+  arriere: "Arrière",
+  dessus: "Dessus",
+  hors_plan: "Autres emplacements",
+}
+
+export const LIBELLE_STATUT_FINAL = {
+  arrivee: "Arrivée",
+  abandon: "Abandon",
+  exclusion: "Exclusion",
+  forfait: "Forfait",
+} as const
+
+// Kilomètres de spéciale : « 184,6 km de spéciale ».
+export function kmDeSpeciale(km: number): string {
+  return `${km.toFixed(1).replace(".", ",")} km de spéciale`
+}
+
+// Note de comportement : « 4/5 ».
+export function noteSur5(note: number): string {
+  return `${note}/5`
+}
+
+// Dimensions d'un emplacement : « 60 × 20 cm », ou rien si elles ne sont pas renseignées.
+export function dimensionsDe(largeurCm: number | null, hauteurCm: number | null): string | null {
+  return largeurCm && hauteurCm ? `${largeurCm} × ${hauteurCm} cm` : null
+}
+
+// Écart signé d'une comparaison : « +0,2 bar », « −1 mm ». Le signe est toujours écrit.
+export function ecartSigne(ecart: number, unite: string): string {
+  const signe = ecart > 0 ? "+" : ecart < 0 ? "−" : ""
+  const valeur = Math.abs(ecart).toFixed(Number.isInteger(ecart) ? 0 : 1).replace(".", ",")
+  return `${signe}${valeur}${unite ? ` ${unite}` : ""}`
 }

@@ -100,6 +100,25 @@ export async function historiqueVehicule(vehicleId: string) {
 
 // --- Fiches de réglage ----------------------------------------------------------------------
 
+type Client = ReturnType<typeof prismaPourTeam>
+
+// Nom affiché d'un membre (personne du socle), par identifiant de compte. Sans personne : « Membre ».
+async function nomsDesMembres(client: Client, teamId: string, userIds: string[]): Promise<Map<string, string>> {
+  const membres = await client.coreMembership.findMany({
+    where: { teamId, userId: { in: userIds }, deletedAt: null },
+    select: { userId: true, person: { select: { prenom: true, nom: true } } },
+  })
+  return new Map(membres.map((m) => [m.userId, m.person ? `${m.person.prenom} ${m.person.nom}` : "Membre"]))
+}
+
+// Nom des épreuves du socle, par identifiant.
+async function nomsDesEpreuves(client: Client, teamId: string, ids: string[]): Promise<Map<string, string>> {
+  const epreuves = await client.coreEvent.findMany({ where: { teamId, id: { in: ids }, deletedAt: null }, select: { id: true, nom: true } })
+  return new Map(epreuves.map((e) => [e.id, e.nom]))
+}
+
+const presents = (ids: Array<string | null>): string[] => ids.filter((id): id is string => id !== null)
+
 export async function lireReglages(vehicleId: string) {
   const { ctx } = await accesVoiture("lecture")
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
@@ -115,7 +134,16 @@ export async function lireReglages(vehicleId: string) {
       select: { id: true, nom: true, creeDepuisSetupId: true },
     }),
   ])
-  return { fiches, references }
+  const epreuves = await nomsDesEpreuves(client, ctx.teamId, presents(fiches.map((f) => f.eventId)))
+  const auteurs = await nomsDesMembres(client, ctx.teamId, presents(fiches.map((f) => f.createdBy)))
+  return {
+    fiches: fiches.map((f) => ({
+      ...f,
+      epreuve: f.eventId ? (epreuves.get(f.eventId) ?? null) : null,
+      auteur: f.createdBy ? (auteurs.get(f.createdBy) ?? "Membre") : "Membre",
+    })),
+    references,
+  }
 }
 
 export async function lireReglage(id: string) {
@@ -124,8 +152,12 @@ export async function lireReglage(id: string) {
   const fiche = await client.voitureSetup.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null } })
   if (!fiche) return null
   const valeurs = (fiche.valeurs ?? {}) as ValeursReglage
+  const epreuves = await nomsDesEpreuves(client, ctx.teamId, presents([fiche.eventId]))
+  const auteurs = await nomsDesMembres(client, ctx.teamId, presents([fiche.createdBy]))
   return {
     fiche,
+    epreuve: fiche.eventId ? (epreuves.get(fiche.eventId) ?? null) : null,
+    auteur: fiche.createdBy ? (auteurs.get(fiche.createdBy) ?? "Membre") : "Membre",
     champs: CHAMPS_REGLAGE.map((c) => ({ ...c, valeur: valeurs[c.cle] ?? null })),
   }
 }

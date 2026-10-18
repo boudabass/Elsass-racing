@@ -261,6 +261,24 @@ export async function modifierFicheDans(ctx: ContexteTeam, vehicleId: string, en
   await emettre(ctx, "voiture.fiche_modifiee", chargeFicheModifiee.parse({ vehicleId }))
 }
 
+// Photo principale : core_vehicle.photo_file_id (la photo des cartes), et le fichier est rattaché à la fiche
+// (app voiture, rôle photo). Aucun événement : la photo ne change pas les calculs.
+export async function poserPhotoPrincipale(vehicleId: string, fileId: string | null): Promise<void> {
+  const { ctx } = await accesVoiture("ecriture")
+  await poserPhotoPrincipaleDans(ctx, vehicleId, fileId)
+}
+
+export async function poserPhotoPrincipaleDans(ctx: ContexteTeam, vehicleId: string, fileId: string | null): Promise<void> {
+  await ficheVoitureDans(ctx, vehicleId)
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    await tx.coreVehicle.update({
+      where: { id: vehicleId },
+      data: { photoFileId: fileId, rev: { increment: 1 }, updatedBy: ctx.userId },
+    })
+    if (fileId) await rattacherFichier(tx, ctx, { fileId, app: "voiture", ficheType: "vehicle", ficheId: vehicleId, role: "photo" })
+  })
+}
+
 // --- Papiers --------------------------------------------------------------------------------
 
 export async function creerPapier(vehicleId: string, entree: EntreePapier): Promise<string> {
