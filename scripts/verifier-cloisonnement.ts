@@ -259,9 +259,71 @@ async function main() {
     }
     controle("création d'une dépense Budget dans la team B sous le contexte A refusée", depenseRefusee)
 
+    // Voiture (tâche 3.2) : sept tables, même garantie que budget_.
+    const tablesVoiture = [
+      "voiture_vehicle", "voiture_paper", "voiture_slot", "voiture_slot_assignment",
+      "voiture_setup", "voiture_setup_template", "voiture_team_pref",
+    ]
+    const voitureSansRls = await proprietaire.$queryRaw<Array<{ table_name: string }>>`
+      SELECT c.relname AS table_name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = ANY(${tablesVoiture}::text[])
+        AND (
+          NOT c.relrowsecurity
+          OR NOT c.relforcerowsecurity
+          OR NOT EXISTS (
+            SELECT 1 FROM pg_policies p
+            WHERE p.schemaname = 'public' AND p.tablename = c.relname AND p.policyname = 'cloisonnement_team'
+          )
+          OR NOT (
+            has_table_privilege('elsass_racing_app', c.oid, 'SELECT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'INSERT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'UPDATE')
+          )
+        )
+      ORDER BY c.relname`
+    controle(
+      "les sept tables voiture_ ont le RLS forcé, la politique cloisonnement_team et les droits du rôle applicatif",
+      voitureSansRls.length === 0 && tablesVoiture.length === 7,
+      voitureSansRls.map((r) => r.table_name).join(", "),
+    )
+
+    const vehiculeB = randomUUID()
+    await proprietaire.coreVehicle.create({ data: { id: vehiculeB, teamId: teamB.id, type: "course", nomCourt: "Véhicule B" } })
+    const ficheB = randomUUID()
+    await proprietaire.voitureVehicle.create({ data: { id: ficheB, teamId: teamB.id, vehicleId: vehiculeB } })
+    const papierB = randomUUID()
+    await proprietaire.voiturePaper.create({ data: { id: papierB, teamId: teamB.id, vehicleId: vehiculeB, type: "carte_grise" } })
+    const preferenceB = randomUUID()
+    await proprietaire.voitureTeamPref.create({ data: { id: preferenceB, teamId: teamB.id } })
+
+    const fichesVuesParA = await clientA.voitureVehicle.count({ where: { id: ficheB } })
+    controle("une fiche voiture de la team B est invisible sous le contexte A", fichesVuesParA === 0, `vu : ${fichesVuesParA}`)
+    const papiersVusParA = await clientA.voiturePaper.count({ where: { id: papierB } })
+    controle("un papier de la team B est invisible sous le contexte A", papiersVusParA === 0, `vu : ${papiersVusParA}`)
+    const papiersModifies = await clientA.voiturePaper.updateMany({ where: { id: papierB }, data: { numero: "piratage" } })
+    controle("update d'un papier de B sous le contexte A touche 0 ligne", papiersModifies.count === 0, `touché : ${papiersModifies.count}`)
+    const preferencesVues = await clientA.voitureTeamPref.count({ where: { id: preferenceB } })
+    controle("les préférences Voiture de la team B sont invisibles sous le contexte A", preferencesVues === 0, `vu : ${preferencesVues}`)
+    let papierIntrusRefuse = false
+    try {
+      await clientA.voiturePaper.create({
+        data: { id: randomUUID(), teamId: teamB.id, vehicleId: vehiculeB, type: "assurance" },
+      })
+    } catch {
+      papierIntrusRefuse = true
+    }
+    controle("création d'un papier Voiture dans la team B sous le contexte A refusée", papierIntrusRefuse)
+
     console.log("\nCloisonnement vérifié : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
+    await proprietaire.voiturePaper.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.voitureTeamPref.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.voitureVehicle.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.coreVehicle.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.budgetExpense.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.budgetPayer.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.budgetCategory.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })

@@ -505,6 +505,41 @@ async function main() {
     const supprimee = await proprietaire.budgetExpense.findUnique({ where: { id: idSaison } })
     controle("une dépense supprimée reste en base, marquée supprimée", supprimee?.deletedAt != null)
 
+    // 14. Voiture (tâche 3.2) : création d'un véhicule (un seul événement), pose d'un logo, échéances des papiers
+    //     (un rappel par papier et par échéance, rien pour un papier sans échéance).
+    const voiture = await import("../src/apps/voiture/services-serveur")
+    const { jourDeParis } = await import("../src/core/dates")
+    const { recalculerPapiersDans } = voiture
+
+    const avantEmplacements = await compter("voiture.emplacement_modifie")
+    const vehiculeVoiture = await voiture.creerVehiculeDans(ctx, { nom: "Saxo bus", type: "course", gabaritCle: "citadine_3p_saxo" })
+    const apresEmplacements = await compter("voiture.emplacement_modifie")
+    controle("la création d'un véhicule émet un seul voiture.emplacement_modifie", apresEmplacements - avantEmplacements === 1, `${apresEmplacements - avantEmplacements}`)
+    const nbSlots = await proprietaire.voitureSlot.count({ where: { teamId: team.id, vehicleId: vehiculeVoiture, deletedAt: null } })
+    controle("le véhicule reçoit les quinze emplacements de la Saxo (onze en vues dessinées, quatre hors plan)", nbSlots === 15, `${nbSlots}`)
+
+    const slotPortiere = await proprietaire.voitureSlot.findFirst({ where: { teamId: team.id, vehicleId: vehiculeVoiture, vue: "droite", nom: "Portière" } })
+    const reservation = await voiture.reserverEmplacementDans(ctx, slotPortiere?.id ?? "", { partenaireNom: "Partenaire bus" })
+    const avantPose = await compter("voiture.logo_pose")
+    await voiture.poserLogoDans(ctx, reservation, { poseLe: jourDeParis(new Date()) })
+    controle("poserLogo émet voiture.logo_pose", (await compter("voiture.logo_pose")) - avantPose === 1)
+
+    const echeanceProche = jourDeParis(new Date(Date.now() + 10 * 86_400_000))
+    const papierProche = await voiture.creerPapierDans(ctx, vehiculeVoiture, { type: "assurance", valableJusquAu: echeanceProche })
+    const compterRappel = (paperId: string) =>
+      proprietaire.coreDomainEvent.count({
+        where: { teamId: team.id, nom: "voiture.papier_expire_bientot", AND: [{ donnees: { path: ["paperId"], equals: paperId } }] },
+      })
+    await recalculerPapiersDans(ctx)
+    await recalculerPapiersDans(ctx)
+    const rappelsProche = await compterRappel(papierProche)
+    controle("un papier qui expire dans dix jours émet voiture.papier_expire_bientot une seule fois, même après deux ouvertures du QG", rappelsProche === 1, `${rappelsProche}`)
+
+    const papierSansEcheance = await voiture.creerPapierDans(ctx, vehiculeVoiture, { type: "carte_grise", valableJusquAu: null })
+    await recalculerPapiersDans(ctx)
+    const rappelsSansEcheance = await compterRappel(papierSansEcheance)
+    controle("un papier sans échéance n'émet rien", rappelsSansEcheance === 0, `${rappelsSansEcheance}`)
+
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
@@ -524,6 +559,13 @@ async function main() {
     await proprietaire.saisonRegistration.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreEventEntry.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreEvent.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voitureSlotAssignment.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voitureSetup.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voitureSetupTemplate.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voiturePaper.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voitureSlot.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voitureTeamPref.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voitureVehicle.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreVehicle.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreSeason.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreAction.deleteMany({ where: { teamId: team.id } })
