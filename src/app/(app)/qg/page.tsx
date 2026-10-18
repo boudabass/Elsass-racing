@@ -1,18 +1,13 @@
 import { contexteQg, donneesQg } from "@/core/qg/donnees"
-import { niveauDe } from "@/core/actions/actions-serveur"
-import { recalculerPourQg } from "@/apps/saison/services-serveur"
+import { recalculerQg } from "@/apps/recalculs-qg"
 import { modeTerrainDuMembre } from "@/apps/settings/preferences-serveur"
 import { GrilleQG, type DonneesTuile } from "@/components/qg/grille-qg"
 
 export default async function PageQg({ searchParams }: { searchParams: Promise<{ erreur?: string }> }) {
   const { erreur } = await searchParams
   const { contexte } = await contexteQg()
-  // Statuts de Saison à jour à l'ouverture du QG. Un échec ne bloque pas le QG : il est journalisé.
-  try {
-    await recalculerPourQg(contexte, await niveauDe(contexte, "saison"))
-  } catch (cause) {
-    console.error("[saison] recalcul au QG :", cause)
-  }
+  // Statuts de Saison et échéances de Voiture à jour à l'ouverture du QG. Un échec ne bloque pas le QG.
+  await recalculerQg(contexte)
   const terrain = await modeTerrainDuMembre(contexte)
   const donnees = await donneesQg(terrain)
 
