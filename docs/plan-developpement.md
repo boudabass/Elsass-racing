@@ -191,6 +191,39 @@ Spécifications : articles Odoo 949 (Saison v1.3) et 950 (Budget v1.1), catalogu
 ### 2.8 Corrections du lot 2
 - Brief : `docs/briefs/2.8-corrections-lot-2.md`. Issu de la vérification complète du lot 2 : caisse de la team en double, prévu visible par l'assistance, synchro des dépenses alignée sur le payeur, espèces dans Saison, filtres du calendrier en tiroir, solde sur téléphone. Fin du lot 2.
 
+## 5 ter. Lot 3, Voiture et Partenaires, découpé en tâches opérateur
+
+Spécifications : articles Odoo 952 (Voiture v1.2) et 951 (Partenaires v1.2), catalogue 962, UI 953. Découpage validé par John le 18/10. Voiture passe avant Partenaires, parce que les contreparties de logo désignent un emplacement sur la voiture.
+
+Décisions de John (18/10) :
+- un seul gabarit livré au lot 3, celui de la Saxo (citadine 3 portes, plan `saxo_plan_emplacements.svg` du dossier Koehling) ; les six autres silhouettes viendront plus tard ;
+- modèle de convention de base rédigé par l'orchestrateur : `docs/modele-convention.md`, à relire par John avant la tâche 3.5.
+
+### 3.1 Socle : fichiers et PDF
+- Envoi, stockage (volume `STOCKAGE_DIR`), lecture protégée par team et par droits, aperçu des images. Aucun envoi de fichier n'existe encore dans l'app.
+- Outil PDF commun, qui servira aux bilans partenaires et au bilan de saison de Budget.
+
+### 3.2 Voiture : schéma et services
+- Tables `voiture_` (fiche, papiers et statut calculé, emplacements et occupations, fiches et réglages de référence), gabarit Saxo dans le catalogue plateforme, événements émis.
+
+### 3.3 Voiture : écrans
+- Mes véhicules, fiche en onglets (Identité, Papiers, Réglages, Historique), bouton + en 3 champs, fiches de réglage pré-remplies et comparaison côte à côte.
+
+### 3.4 Voiture : plan de déco
+- Silhouette Saxo par vue, emplacements cliquables (libre, réservé, occupé, indisponible), édition des emplacements.
+
+### 3.5 Partenaires : schéma et services
+- Tables `partenaires_` (partenaires, échanges, modèles, conventions, avenants, contreparties et liste de base, preuves, bilans, lien et messages de la page partenaire), modèle de convention par défaut, champs d'identité manquants dans Réglages (forme juridique, signataire).
+
+### 3.6 Partenaires : écrans
+- Prospection par statut avec relances, fiche partenaire, fiche convention et document généré, vue globale des contreparties, bouton + en 2 champs.
+
+### 3.7 Page partenaire et bilans
+- Page sans compte par lien secret révocable (relecture de sécurité dédiée), message du partenaire, bilans PDF, bilan de saison de Budget.
+
+### 3.8 Liaisons et vérification du lot
+- Convention signée vers Budget (recette prévue) et Voiture (réservation d'emplacement), logo posé vers preuve, papier qui expire vers l'indice de Saison, épreuve terminée vers l'historique du véhicule et les publications promises. Puis vérification complète du lot 3.
+
 ## 6. Méthode de travail
 
 - L'orchestrateur rédige un brief par tâche, l'opérateur exécute, l'orchestrateur relit et teste avant de passer à la suivante.
