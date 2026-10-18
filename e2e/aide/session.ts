@@ -285,6 +285,39 @@ export async function ajouterVoitureDeCourse(equipe: Equipe, nomCourt = "Saxo te
   return id
 }
 
+// Voiture (3.3) : donne à un membre un niveau explicite sur Voiture, pour que le scénario ne dépende pas des
+// valeurs par défaut des rôles. « aucun » : la personne n'a pas accès à l'app (l'écran de refus).
+export async function donnerAccesVoiture(equipe: Equipe, membre: Membre, niveau: "aucun" | "lecture" | "contribution" | "ecriture" | "gestion"): Promise<void> {
+  await bd().query(`DELETE FROM core_app_access WHERE team_id = $1 AND membership_id = $2 AND app_cle = 'voiture'`, [equipe.teamId, membre.membershipId])
+  await bd().query(
+    `INSERT INTO core_app_access (id, team_id, membership_id, app_cle, niveau, updated_at)
+     VALUES ($1, $2, $3, 'voiture', $4::core_access_level, now())`,
+    [newId(), equipe.teamId, membre.membershipId, niveau],
+  )
+}
+
+// Véhicule de Voiture complet (ligne du socle et fiche Voiture), sans emplacement : pour une fiche de réglage.
+export async function ajouterVoitureSaxo(equipe: Equipe, nomCourt: string): Promise<string> {
+  const id = newId()
+  await bd().query(
+    `INSERT INTO core_vehicle (id, team_id, type, nom_court, actif, updated_at)
+     VALUES ($1, $2, 'course'::core_vehicle_type, $3, true, now())`,
+    [id, equipe.teamId, nomCourt],
+  )
+  await bd().query(`INSERT INTO voiture_vehicle (id, team_id, vehicle_id, updated_at) VALUES ($1, $2, $3, now())`, [newId(), equipe.teamId, id])
+  return id
+}
+
+// Fiches de réglage de Voiture en base, non supprimées, de la plus ancienne à la plus récente.
+export async function reglagesVoitureEnBase(equipe: Equipe): Promise<Array<{ id: string; vehicleId: string; createdBy: string | null; valeurs: Record<string, number>; note: number | null }>> {
+  const { rows } = await bd().query(
+    `SELECT id, vehicle_id AS "vehicleId", created_by AS "createdBy", valeurs, note FROM voiture_setup
+     WHERE team_id = $1 AND deleted_at IS NULL ORDER BY created_at, id`,
+    [equipe.teamId],
+  )
+  return rows
+}
+
 // Saison (2.3) : donne à un membre un niveau explicite sur Saison, pour que le scénario ne dépende
 // pas des valeurs par défaut des rôles.
 export async function donnerAccesSaison(equipe: Equipe, membre: Membre, niveau: "lecture" | "contribution" | "ecriture" | "gestion"): Promise<void> {
