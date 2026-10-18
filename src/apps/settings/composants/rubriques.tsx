@@ -9,6 +9,7 @@ import { sauverAssociation, sauverIdentite, inviterMembre, renvoyerInvitationAct
 import { lireEquipe, listerInvitationsEnAttente, listerMembres, listerPersonnesLibres } from "../lectures-serveur"
 import { estRubriqueEquipe, RUBRIQUES_EQUIPE } from "../rubriques"
 import { ApercuCouleurs } from "./apercu-couleurs"
+import { ChampLogo } from "./champ-logo"
 import { Apps, Droits, JourEpreuve } from "./droits-apps"
 
 const DISCIPLINES = [
@@ -69,10 +70,12 @@ async function Identite({ contexte, peutModifier, raison }: { contexte: Contexte
           <Label htmlFor="nom">Nom de la team</Label>
           <Input id="nom" name="nom" defaultValue={equipe.nom} disabled={!peutModifier} required />
         </div>
+        <ChampLogo valeur={equipe.logoFileId} disabled={!peutModifier} />
         <ApercuCouleurs
           couleurPrincipale={equipe.couleurPrincipale ?? "#D7141A"}
           couleurSecondaire={equipe.couleurSecondaire ?? "#F4F3F1"}
           nomTeam={equipe.nom}
+          logoFileId={equipe.logoFileId}
           disabled={!peutModifier}
         />
         <div className="flex flex-col gap-2">
@@ -92,9 +95,6 @@ async function Identite({ contexte, peutModifier, raison }: { contexte: Contexte
           </select>
         </div>
         <p className="text-sm text-texte-discret">Langue : français</p>
-        <div className="rounded-md border border-dashed border-bordure p-4 text-sm text-texte-discret">
-          <span className="font-medium">Bientôt</span> : le logo arrive avec le stockage des fichiers.
-        </div>
         {peutModifier ? (
           <button type="submit" className="cible-tactile w-fit rounded-md bg-marque px-5 py-2 font-medium text-marque-texte hover:opacity-90">Enregistrer</button>
         ) : (

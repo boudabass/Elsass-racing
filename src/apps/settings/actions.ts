@@ -5,13 +5,14 @@ import { revalidatePath } from "next/cache"
 
 import { exigerAcces } from "@/core/droits/garde-serveur"
 import { ErreurAcces, libelleErreurAcces } from "@/core/droits/erreurs"
-import { prismaPourTeam } from "@/lib/prisma"
+import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 import { newId } from "@/core/ids"
 import { emettre } from "@/core/evenements/bus-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 import { annulerInvitation, creerInvitation, renvoyerInvitation } from "@/core/invitations/invitations-serveur"
 import { schemaEmail } from "@/core/auth/jetons"
-import { texte } from "@/core/sdk/actions-serveur"
+import { texte, texteOuNull } from "@/core/sdk/actions-serveur"
+import { rattacherFichier, remplacerFichier } from "@/core/fichiers/fichiers-serveur"
 
 import { APPS } from "@/core/catalogue"
 import { NIVEAUX, type Niveau } from "@/core/droits/niveaux"
@@ -26,6 +27,7 @@ const DISCIPLINES = ["rallye", "slalom", "course_de_cote", "circuit", "autre"] a
 const FUSEAUX = ["Europe/Paris", "Europe/Berlin", "Europe/Brussels", "Europe/Madrid", "Europe/Rome", "Europe/London"] as const
 const HEX = /^#[0-9A-Fa-f]{6}$/
 const RNA = /^W\d{9}$/
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Toute action de Réglages passe par la garde. Une erreur revient à la rubrique, en clair.
 function retour(rubrique: string, erreur?: string): never {
@@ -60,16 +62,27 @@ export async function sauverIdentite(formData: FormData): Promise<void> {
     if (!HEX.test(principale) || !HEX.test(secondaire)) throw new Error("Les couleurs doivent être au format #RRGGBB.")
     if (!(DISCIPLINES as readonly string[]).includes(discipline)) throw new Error("Discipline inconnue.")
     if (!(FUSEAUX as readonly string[]).includes(fuseau)) throw new Error("Fuseau inconnu.")
+    const logoId = texteOuNull(formData, "logoFileId")
+    if (logoId && !UUID.test(logoId)) throw new Error("Logo introuvable dans cette team.")
 
-    await prismaPourTeam(ctx.teamId, ctx.userId).coreTeam.update({
-      where: { id: ctx.teamId },
-      data: {
-        nom,
-        couleurPrincipale: principale.toUpperCase(),
-        couleurSecondaire: secondaire.toUpperCase(),
-        disciplinePrincipale: discipline,
-        fuseau,
-      },
+    // Logo, team et rattachement dans une seule transaction : un échec ne laisse ni logo à moitié posé.
+    await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+      const actuelle = await tx.coreTeam.findUnique({ where: { id: ctx.teamId }, select: { logoFileId: true } })
+      await tx.coreTeam.update({
+        where: { id: ctx.teamId },
+        data: {
+          nom,
+          couleurPrincipale: principale.toUpperCase(),
+          couleurSecondaire: secondaire.toUpperCase(),
+          disciplinePrincipale: discipline,
+          fuseau,
+          logoFileId: logoId,
+        },
+      })
+      if (logoId) {
+        await rattacherFichier(tx, ctx, { fileId: logoId, app: "settings", ficheType: "team", ficheId: ctx.teamId, role: "photo" })
+      }
+      await remplacerFichier(tx, ctx, { ancienId: actuelle?.logoFileId ?? null, nouveauId: logoId })
     })
     await emettre(ctx, "settings.identite_modifiee", { rubrique: "identite" })
   } catch (cause) {

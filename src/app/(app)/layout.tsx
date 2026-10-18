@@ -96,6 +96,7 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
       <BarreHaute
         donnees={{
           nomTeam: donnees.team.nom,
+          logoFileId: donnees.team.logoFileId,
           saison: donnees.saisonEnCours?.nom ?? null,
           prochaine: epreuve
             ? { nom: epreuve.nom, compteARebours: libelleCompteARebours(epreuve, maintenant) }

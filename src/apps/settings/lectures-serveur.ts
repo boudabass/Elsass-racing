@@ -10,6 +10,7 @@ export async function lireEquipe(ctx: ContexteTeam) {
       nom: true,
       couleurPrincipale: true,
       couleurSecondaire: true,
+      logoFileId: true,
       disciplinePrincipale: true,
       fuseau: true,
       langue: true,
