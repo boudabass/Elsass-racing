@@ -49,6 +49,8 @@ self.addEventListener("message", function (event) {
 
 function precharger(chemins) {
   return Promise.all(chemins.map(function (chemin) {
+    // Une page partenaire n'est jamais préchargée : son jeton ne doit pas rester en cache.
+    if (String(chemin).indexOf("/p/") === 0) return;
     return fetch(chemin, { credentials: "same-origin", cache: "no-store" }).then(function (reponse) {
       var copiable = doitMettreEnCache({
         ok: reponse.ok,
@@ -67,6 +69,8 @@ self.addEventListener("fetch", function (event) {
   var url = new URL(requete.url);
   if (requete.method !== "GET" || url.origin !== self.location.origin) return;
   if (url.pathname.indexOf("/api/") === 0) return;
+  // Pages partenaire : jamais en cache, jamais interceptées. Un lien révoqué resterait lisible hors ligne.
+  if (url.pathname === "/p" || url.pathname.indexOf("/p/") === 0) return;
   if (requete.headers.get("RSC") === "1") return;
 
   if (url.pathname.indexOf("/_next/static/") === 0 || url.pathname.indexOf("/icones/") === 0) {

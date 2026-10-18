@@ -355,6 +355,25 @@ async function main() {
     }
     controle("création d'un papier Voiture dans la team B sous le contexte A refusée", papierIntrusRefuse)
 
+    // Page partenaire (brief 3.7, point 2) : la fonction de lien, sans aucun contexte, ne renvoie que la ligne demandée.
+    const { empreinteJeton } = await import("../src/apps/partenaires/empreinte-jeton")
+    const empreinteA = empreinteJeton(`verif-lien-${suffixe}`)
+    const contactPartenaire = randomUUID()
+    const partenairePublic = randomUUID()
+    const lienPublic = randomUUID()
+    await proprietaire.coreContact.create({ data: { id: contactPartenaire, teamId: teamA.id, nom: `Partenaire ${suffixe}` } })
+    await proprietaire.partenairesPartner.create({ data: { id: partenairePublic, teamId: teamA.id, contactId: contactPartenaire } })
+    await proprietaire.partenairesPortalLink.create({ data: { id: lienPublic, teamId: teamA.id, partnerId: partenairePublic, jetonEmpreinte: empreinteA } })
+
+    const trouves = await applicatif.$queryRaw<Record<string, unknown>[]>`SELECT * FROM partenaires_lien_par_empreinte(${empreinteA})`
+    controle("sans contexte, la fonction de lien renvoie la seule ligne demandée", trouves.length === 1 && trouves[0].lien_id === lienPublic, `lignes : ${trouves.length}`)
+    const inconnues = await applicatif.$queryRaw<Record<string, unknown>[]>`SELECT * FROM partenaires_lien_par_empreinte(${empreinteJeton(`inconnu-${suffixe}`)})`
+    controle("sans contexte, une empreinte inconnue ne renvoie aucune ligne", inconnues.length === 0, `lignes : ${inconnues.length}`)
+    const colonnes = Object.keys(trouves[0] ?? {}).sort().join(",")
+    controle("la fonction ne renvoie que quatre colonnes, sans autre donnée", colonnes === "lien_id,partner_id,sections,team_id", colonnes)
+    const partenairesVus = await applicatif.$queryRaw<{ n: bigint }[]>`SELECT count(*)::bigint AS n FROM partenaires_partner`
+    controle("sans contexte, la table des partenaires reste invisible à l'application", Number(partenairesVus[0].n) === 0, `vus : ${partenairesVus[0].n}`)
+
     console.log("\nCloisonnement vérifié : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
@@ -366,6 +385,9 @@ async function main() {
     await proprietaire.budgetPayer.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.budgetCategory.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.saisonChampionship.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.partenairesPortalLink.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.partenairesPartner.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.coreContact.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.coreMembership.deleteMany({ where: { id: adhesion } })
     await proprietaire.coreSeason.deleteMany({ where: { id: { in: [saisonA, saisonB] } } })
     await proprietaire.coreTeam.deleteMany({ where: { id: { in: [teamA.id, teamB.id] } } })

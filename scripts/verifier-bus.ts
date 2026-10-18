@@ -603,9 +603,11 @@ async function main() {
 
     // Deux lectures simultanées sur une team neuve (brief 3.6, point 0.1.1) : une seule copie du modèle,
     // une seule ligne par clé dans la liste de base.
+    // Le modèle copié est le modèle par défaut courant (version 2, brief 3.7 point 0) : sa clé suit la constante.
     const { CATALOGUE_DEFAUT_V1 } = await import("../src/apps/partenaires/catalogue-defaut")
+    const { MODELE_DEFAUT_V2 } = await import("../src/apps/partenaires/modele-defaut")
     await Promise.all([partenaires.lireModelesDans(ctx), partenaires.lireModelesDans(ctx), partenaires.lireCatalogueDans(ctx), partenaires.lireCatalogueDans(ctx)])
-    const copiesModele = await proprietaire.partenairesTemplate.count({ where: { teamId: team.id, sourceCle: "defaut_v1" } })
+    const copiesModele = await proprietaire.partenairesTemplate.count({ where: { teamId: team.id, sourceCle: MODELE_DEFAUT_V2.sourceCle } })
     const copiesCatalogue = await proprietaire.partenairesBenefitCatalog.count({ where: { teamId: team.id, sourceCle: { startsWith: "defaut_v1:" } } })
     controle("copie à la volée : un seul modèle après deux lectures simultanées", copiesModele === 1, `${copiesModele}`)
     controle("copie à la volée : une seule liste de base après deux lectures simultanées", copiesCatalogue === CATALOGUE_DEFAUT_V1.length, `${copiesCatalogue}`)

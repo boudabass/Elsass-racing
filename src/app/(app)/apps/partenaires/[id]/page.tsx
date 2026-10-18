@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation"
 import { Lock } from "lucide-react"
 
+import { lireBilansDe } from "@/apps/partenaires/bilan-serveur"
 import { accesEcran } from "@/apps/partenaires/ecran"
 import { ChangerStatut, PastilleStatut } from "@/apps/partenaires/composants/statut"
+import { OngletBilans } from "@/apps/partenaires/composants/onglet-bilans"
 import {
   OngletConventions,
   OngletEchanges,
@@ -13,7 +15,7 @@ import {
 } from "@/apps/partenaires/composants/fiche-partenaire"
 import { CLASSE_TON_RELANCE, ecartRelance } from "@/apps/partenaires/affichage"
 import { listerPersonnes, lirePartenaire } from "@/apps/partenaires/lectures-serveur"
-import { jourParis } from "@/apps/partenaires/regles"
+import { jourParis, STATUTS_CONVENTION_VISIBLES } from "@/apps/partenaires/regles"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { Onglets } from "@/components/qg/onglets-fiche"
 import { aAuMoins } from "@/core/droits/niveaux"
@@ -40,12 +42,23 @@ export default async function PageFichePartenaire({
     { cle: "fiche", libelle: "Fiche" },
     { cle: "echanges", libelle: "Échanges" },
     { cle: "conventions", libelle: "Conventions" },
+    { cle: "bilans", libelle: "Bilans" },
     ...(gestion ? [{ cle: "page", libelle: "Page partenaire" }] : []),
     { cle: "messages", libelle: "Messages" },
   ]
   const actif = onglets.find((choix) => choix.cle === onglet)?.cle ?? "fiche"
   const personnes = await listerPersonnes()
   const aujourdhui = jourParis(new Date())
+  // Les bilans et les conventions proposées ne se lisent que pour cet onglet.
+  const bilans = actif === "bilans" ? await lireBilansDe(id) : []
+  const conventionsBilan = partenaire.conventions
+    .filter((convention) => STATUTS_CONVENTION_VISIBLES.some((statut) => statut === convention.statut))
+    .map((convention) => ({
+      id: convention.id,
+      libelle: convention.season?.nom ?? "Sans saison",
+      debut: convention.dateDebut.toISOString().slice(0, 10),
+      fin: convention.dateFin.toISOString().slice(0, 10),
+    }))
   const relance = ecartRelance(partenaire.prochaineRelance, aujourdhui)
   const initiales = partenaire.entreprise
     .split(/\s+/)
@@ -89,6 +102,9 @@ export default async function PageFichePartenaire({
         {actif === "fiche" && <OngletFiche partenaire={partenaire} personnes={personnes} />}
         {actif === "echanges" && <OngletEchanges partenaire={partenaire} personnes={personnes} aujourdhui={aujourdhui} />}
         {actif === "conventions" && <OngletConventions partenaire={partenaire} />}
+        {actif === "bilans" && (
+          <OngletBilans partenaireId={partenaire.id} conventions={conventionsBilan} bilans={bilans} aujourdhui={aujourdhui} />
+        )}
         {actif === "page" && <OngletPagePartenaire partenaire={partenaire} />}
         {actif === "messages" && <OngletMessages partenaire={partenaire} />}
       </div>

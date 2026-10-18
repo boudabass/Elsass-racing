@@ -4,14 +4,12 @@
 
 import "server-only"
 
-import { createHash, randomBytes } from "node:crypto"
+import { randomBytes } from "node:crypto"
 
 // Jeton de la page partenaire : 32 octets aléatoires, en base64url (43 caractères).
 export function genererJeton(): string {
   return randomBytes(32).toString("base64url")
 }
 
-// Empreinte stockée à la place du jeton : sha256 en hexadécimal.
-export function empreinteJeton(jeton: string): string {
-  return createHash("sha256").update(jeton).digest("hex")
-}
+// L'empreinte se calcule dans empreinte-jeton.ts (fonction pure, que le middleware et les scripts importent aussi).
+export { empreinteJeton } from "./empreinte-jeton"

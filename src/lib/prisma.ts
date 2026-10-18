@@ -79,3 +79,16 @@ export async function executerPourTeam<T>(
         return requete(tx)
     })
 }
+
+// Contexte public (brief 3.7, point 2) : la page partenaire, sans compte. Seul app.team_id est posé, pas app.user_id :
+// les politiques « membre de la team » ne laissent passer aucune ligne qui dépende d'un utilisateur. Le contexte
+// tient dans la transaction, il ne fuit pas vers la requête suivante. Chaque lecture filtre elle-même par partenaire.
+export async function avecContextePublic<T>(
+    teamId: string,
+    requete: (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => Promise<T>,
+): Promise<T> {
+    return prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.team_id', ${teamId}, true)`
+        return requete(tx)
+    })
+}

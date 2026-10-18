@@ -13,6 +13,10 @@ export type StatutPartenaire =
   | "refus"
 export type StatutContrepartie = "a_faire" | "en_cours" | "tenue" | "reportee"
 
+// Statuts de convention que les écrans partagés (page partenaire, bilans) affichent : jamais un brouillon ni une
+// convention envoyée.
+export const STATUTS_CONVENTION_VISIBLES = ["signee", "en_cours", "terminee", "resiliee"] as const
+
 export type TransitionConvention = { ok: true; statut: StatutConvention } | { ok: false; message: string }
 
 const LIBELLE_STATUT: Record<StatutConvention, string> = {

@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache"
 
 import { messageDe, texte, texteOuNull, executer, type Resultat } from "@/core/sdk/actions-serveur"
 
+import { genererBilan, marquerBilanEnvoye } from "./bilan-serveur"
 import { centimesDeSaisie } from "./affichage"
 import { refus } from "./erreurs"
 import { genererDocumentPdf } from "./document-serveur"
@@ -283,6 +284,24 @@ export async function modifierConventionAction(_etat: Resultat | null, donnees: 
 // Le PDF est généré et rattaché à la convention ; sa réponse porte l'identifiant du fichier.
 export async function genererDocumentAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerPartenaires(() => genererDocumentPdf(texte(donnees, "agreementId")))
+}
+
+// --- Bilans ----------------------------------------------------------------------------------
+
+// Le bilan est un PDF rattaché au partenaire ; sa réponse porte l'identifiant du bilan.
+export async function genererBilanAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerPartenaires(() =>
+    genererBilan({
+      partnerId: texte(donnees, "partnerId"),
+      debut: texte(donnees, "debut"),
+      fin: texte(donnees, "fin"),
+      agreementId: texteOuNull(donnees, "agreementId"),
+    }),
+  )
+}
+
+export async function marquerBilanEnvoyeAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerPartenaires(() => marquerBilanEnvoye(texte(donnees, "reportId")))
 }
 
 export async function marquerEnvoyeeAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {

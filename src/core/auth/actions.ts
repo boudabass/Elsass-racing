@@ -8,14 +8,15 @@ import { choisirTeam } from "./team-serveur"
 import { consommerCode, demanderConnexion } from "./jetons-serveur"
 import { finaliserConnexion } from "./connexion-serveur"
 import type { EtatConnexion } from "./etat-connexion"
+import { ipClient } from "@/lib/ip-client"
 import { LIBELLES_DEMANDE_CONNEXION } from "./libelles-connexion"
 
 // Chaque action revérifie la session elle-même : Next expose toutes les actions d'un
 // module, y compris depuis une page publique.
 
+// Même règle que la page partenaire : la première valeur de x-forwarded-for peut être inventée (brief 3.7, point 2).
 async function cleClient(): Promise<string> {
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "inconnu"
-  return ip
+  return ipClient(await headers())
 }
 
 export async function demanderLienAction(

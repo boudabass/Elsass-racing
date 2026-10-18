@@ -91,6 +91,13 @@ export const LIBELLES_TYPE_PREUVE: Record<string, string> = {
   capture: "Capture",
 }
 
+export const LIBELLES_STATUT_RESULTAT: Record<string, string> = {
+  arrivee: "Arrivée",
+  abandon: "Abandon",
+  exclusion: "Exclusion",
+  forfait: "Forfait",
+}
+
 // Nombre de jours entre deux jours civils « AAAA-MM-JJ » (positif si b est après a).
 export function ecartJours(a: string, b: string): number {
   const debut = Date.UTC(Number(a.slice(0, 4)), Number(a.slice(5, 7)) - 1, Number(a.slice(8, 10)))
