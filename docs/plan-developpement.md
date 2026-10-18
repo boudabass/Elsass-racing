@@ -210,10 +210,11 @@ Décisions de John (18/10) :
 - Tables `voiture_` (fiche, papiers et statut calculé, emplacements et occupations, fiches et réglages de référence), gabarit Saxo dans le catalogue plateforme, événements émis.
 
 ### 3.3 Voiture : écrans
-- Brief : `docs/briefs/3.3-voiture-ecrans.md`. Déco en liste en attendant le plan (3.4), fiches de réglage hors ligne pour l'assistance au parc, entrées Réglage et Véhicule du bouton +.
+- Brief : `docs/briefs/3.3-voiture-ecrans.md`. Déco en liste en attendant le plan (3.4), fiches de réglage hors ligne pour l'assistance au parc, entrées Réglage et Véhicule du bouton +. Fait le 18/10 (5f8bfd9 à 018c4e0), relu et accepté.
 - Mes véhicules, fiche en onglets (Identité, Papiers, Réglages, Historique), bouton + en 3 champs, fiches de réglage pré-remplies et comparaison côte à côte.
 
 ### 3.4 Voiture : plan de déco
+- Brief : `docs/briefs/3.4-voiture-plan-deco.md`. Plan SVG aux couleurs du thème, miroir pour le côté gauche, liste des emplacements comme commande principale sur téléphone, réservation, pose et retrait, déplacement au pointeur et au clavier.
 - Silhouette Saxo par vue, emplacements cliquables (libre, réservé, occupé, indisponible), édition des emplacements.
 
 ### 3.5 Partenaires : schéma et services
