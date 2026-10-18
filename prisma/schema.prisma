@@ -285,6 +285,14 @@ model CoreTeam {
   budgetLignesRemboursement BudgetReimbursementLine[]
   budgetSuggestions         BudgetSuggestion[]
 
+  voitureVehicles        VoitureVehicle[]
+  voiturePapers          VoiturePaper[]
+  voitureSlots           VoitureSlot[]
+  voitureSlotAssignments VoitureSlotAssignment[]
+  voitureSetups          VoitureSetup[]
+  voitureSetupTemplates  VoitureSetupTemplate[]
+  voitureTeamPrefs       VoitureTeamPref[]
+
   @@index([logoFileId])
   @@map("core_team")
 }
@@ -626,6 +634,7 @@ model CoreEvent {
   budgetRecettes      BudgetIncome[]
   budgetPrevisionnels BudgetForecast[]
   budgetSuggestions   BudgetSuggestion[]
+  voitureSetups       VoitureSetup[]
 
   @@index([teamId])
   @@index([seasonId])
@@ -669,6 +678,7 @@ model CoreEventEntry {
 
   budgetDepenses    BudgetExpense[]
   budgetSuggestions BudgetSuggestion[]
+  voitureSetups     VoitureSetup[]
 
   @@index([teamId])
   @@index([eventId])
@@ -700,6 +710,12 @@ model CoreVehicle {
   saisonRecces SaisonRecce[]
 
   budgetDepenses BudgetExpense[]
+
+  voitureVehicle        VoitureVehicle?
+  voiturePapers         VoiturePaper[]
+  voitureSlots          VoitureSlot[]
+  voitureSetups         VoitureSetup[]
+  voitureSetupTemplates VoitureSetupTemplate[]
 
   @@index([teamId])
   @@index([photoFileId])
@@ -795,6 +811,10 @@ model CoreFile {
 
   budgetDepenses BudgetExpense[]
   budgetRecettes BudgetIncome[]
+
+  voiturePapers               VoiturePaper[]
+  voitureAssignmentsLogo      VoitureSlotAssignment[] @relation("VoitureAssignmentLogo")
+  voitureAssignmentsPhotoPose VoitureSlotAssignment[] @relation("VoitureAssignmentPhotoPose")
 
   @@index([teamId])
   @@map("core_file")
@@ -2039,4 +2059,278 @@ model BudgetSuggestion {
   @@index([teamId, deletedAt])
   @@index([teamId, statut])
   @@map("budget_suggestion")
+}
+
+// ── Voiture (tâche 3.2) : fiche technique, papiers, emplacements de logo, réglages. ──
+// Les gabarits (plans des véhicules) vivent dans le code (src/apps/voiture/gabarits/), pas en base.
+// Les dates sans heure (papiers, emplacements, réglages) sont en @db.Date (docs/conventions-schema.md).
+
+enum VoiturePaperType {
+  passeport_technique
+  fiche_homologation
+  carte_grise
+  assurance
+  controle_technique
+  autre
+
+  @@map("voiture_paper_type")
+}
+
+enum VoitureVue {
+  droite
+  gauche
+  avant
+  arriere
+  dessus
+  hors_plan
+
+  @@map("voiture_vue")
+}
+
+enum VoitureSlotStatut {
+  libre
+  reserve
+  occupe
+  indisponible
+
+  @@map("voiture_slot_statut")
+}
+
+enum VoitureAssignmentStatut {
+  reserve
+  pose
+  retire
+
+  @@map("voiture_assignment_statut")
+}
+
+enum VoitureConditions {
+  sec
+  humide
+  mixte
+  neige
+
+  @@map("voiture_conditions")
+}
+
+enum VoitureRevetement {
+  asphalte
+  terre
+  mixte
+
+  @@map("voiture_revetement")
+}
+
+// Fiche technique d'un véhicule du socle (1 pour 1). Les photos passent par core_attachment (rôle photo).
+model VoitureVehicle {
+  id              String    @id @db.Uuid
+  teamId          String    @map("team_id") @db.Uuid
+  vehicleId       String    @unique @map("vehicle_id") @db.Uuid
+  gabaritCle      String?   @map("gabarit_cle")
+  marque          String?
+  modele          String?
+  version         String?
+  annee           Int?
+  cylindreeCm3    Int?      @map("cylindree_cm3")
+  puissanceCh     Int?      @map("puissance_ch")
+  poidsKg         Int?      @map("poids_kg")
+  couleur         String?
+  immatriculation String?
+  numeroSerie     String?   @map("numero_serie")
+  groupe          String?
+  classe          String?
+  discipline      String?
+  acheteLe        DateTime? @map("achete_le") @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team    CoreTeam    @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  vehicle CoreVehicle @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("voiture_vehicle")
+}
+
+// Papier du véhicule (passeport, carte grise, assurance…). Pas de statut stocké : il se calcule.
+model VoiturePaper {
+  id             String           @id @db.Uuid
+  teamId         String           @map("team_id") @db.Uuid
+  vehicleId      String           @map("vehicle_id") @db.Uuid
+  type           VoiturePaperType
+  libelle        String?
+  numero         String?
+  delivreLe      DateTime?        @map("delivre_le") @db.Date
+  valableJusquAu DateTime?        @map("valable_jusqu_au") @db.Date
+  documentFileId String?          @map("document_file_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team     CoreTeam    @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  vehicle  CoreVehicle @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  document CoreFile?   @relation(fields: [documentFileId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([vehicleId])
+  @@map("voiture_paper")
+}
+
+// Emplacement de logo sur le véhicule. `forme` est dans les coordonnées du gabarit ; la vue gauche
+// reprend la forme de la vue droite (miroir à l'affichage).
+model VoitureSlot {
+  id         String            @id @db.Uuid
+  teamId     String            @map("team_id") @db.Uuid
+  vehicleId  String            @map("vehicle_id") @db.Uuid
+  vue        VoitureVue
+  nom        String
+  ordre      Int
+  forme      Json?
+  largeurCm  Int?              @map("largeur_cm")
+  hauteurCm  Int?              @map("hauteur_cm")
+  statut     VoitureSlotStatut @default(libre)
+  symetrique Boolean           @default(false)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team        CoreTeam                @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  vehicle     CoreVehicle             @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  occupations VoitureSlotAssignment[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([vehicleId])
+  @@map("voiture_slot")
+}
+
+// Occupation d'un emplacement par un partenaire. Pas de clé étrangère vers Partenaires (app séparée) :
+// partenaire_id est un uuid simple, partenaire_nom une copie du nom.
+// Un seul enregistrement actif par emplacement : index unique partiel dans la migration.
+model VoitureSlotAssignment {
+  id              String                  @id @db.Uuid
+  teamId          String                  @map("team_id") @db.Uuid
+  slotId          String                  @map("slot_id") @db.Uuid
+  partenaireId    String?                 @map("partenaire_id") @db.Uuid
+  partenaireNom   String                  @map("partenaire_nom")
+  logoFileId      String?                 @map("logo_file_id") @db.Uuid
+  du              DateTime?               @db.Date
+  au              DateTime?               @db.Date
+  statut          VoitureAssignmentStatut
+  photoPoseFileId String?                 @map("photo_pose_file_id") @db.Uuid
+  poseLe          DateTime?               @map("pose_le") @db.Date
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team          CoreTeam    @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  slot          VoitureSlot @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  logoFile      CoreFile?   @relation("VoitureAssignmentLogo", fields: [logoFileId], references: [id], onDelete: SetNull)
+  photoPoseFile CoreFile?   @relation("VoitureAssignmentPhotoPose", fields: [photoPoseFileId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([slotId])
+  @@map("voiture_slot_assignment")
+}
+
+// Fiche de réglage d'un véhicule, lors d'une épreuve ou hors épreuve. `valeurs` : { [cle]: nombre | texte }.
+model VoitureSetup {
+  id              String             @id @db.Uuid
+  teamId          String             @map("team_id") @db.Uuid
+  vehicleId       String             @map("vehicle_id") @db.Uuid
+  eventId         String?            @map("event_id") @db.Uuid
+  entryId         String?            @map("entry_id") @db.Uuid
+  date            DateTime           @db.Date
+  conditions      VoitureConditions?
+  revetement      VoitureRevetement?
+  valeurs         Json               @default("{}")
+  remarques       String             @default("")
+  note            Int?
+  setupTemplateId String?            @map("setup_template_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team          CoreTeam               @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  vehicle       CoreVehicle            @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  event         CoreEvent?             @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  entry         CoreEventEntry?        @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  setupTemplate VoitureSetupTemplate?  @relation("VoitureSetupModele", fields: [setupTemplateId], references: [id], onDelete: SetNull)
+  modelesCrees  VoitureSetupTemplate[] @relation("VoitureModeleOrigine")
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([vehicleId])
+  @@map("voiture_setup")
+}
+
+// Modèle de réglage : une fiche de référence réutilisable pour un véhicule.
+model VoitureSetupTemplate {
+  id                String  @id @db.Uuid
+  teamId            String  @map("team_id") @db.Uuid
+  vehicleId         String  @map("vehicle_id") @db.Uuid
+  nom               String
+  valeurs           Json    @default("{}")
+  creeDepuisSetupId String? @map("cree_depuis_setup_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team            CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  vehicle         CoreVehicle    @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  creeDepuisSetup VoitureSetup?  @relation("VoitureModeleOrigine", fields: [creeDepuisSetupId], references: [id], onDelete: SetNull)
+  setupsUtilises  VoitureSetup[] @relation("VoitureSetupModele")
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([vehicleId])
+  @@map("voiture_setup_template")
+}
+
+// Préférences de la team pour Voiture : champs de réglage masqués. Une ligne par team.
+model VoitureTeamPref {
+  id                   String   @id @db.Uuid
+  teamId               String   @map("team_id") @db.Uuid
+  champsReglageMasques String[] @default([]) @map("champs_reglage_masques")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team CoreTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@unique([teamId])
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("voiture_team_pref")
 }

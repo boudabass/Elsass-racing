@@ -43,9 +43,9 @@ describe("gabarit Saxo", () => {
   })
 
   it("le dessin n'utilise que les rôles de couleur", () => {
-    const roles = new Set(gabaritSaxo.dessin.map((e) => e.role))
-    for (const role of roles) {
-      expect(["caisse", "vitre", "roue", "jante", "detail", "sol"]).toContain(role)
+    const rolesPermis = ["caisse", "vitre", "roue", "jante", "detail", "sol"]
+    for (const element of gabaritSaxo.dessin) {
+      expect(rolesPermis).toContain(element.role)
     }
     expect(gabaritSaxo.dessin.map((e) => e.type)).toContain("path")
   })
