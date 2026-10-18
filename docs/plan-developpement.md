@@ -230,6 +230,7 @@ Décisions de John (18/10) :
 - Page sans compte par lien secret révocable (relecture de sécurité dédiée), message du partenaire, bilans PDF.
 
 ### 3.8 Liaisons et vérification du lot
+- Brief : `docs/briefs/3.8-liaisons-verification-lot-3.md`. Point 0 : retouches de la 3.7 (vouvoiement, bilan par période, alerte du message par un contexte système, document signé et section, PDF, ECONNRESET). Rattachement de fichier entre apps, réservation et libération d'emplacement, recettes prévues et apport reçu, preuve de pose, publications promises, parcours e2e complet du lot.
 - Convention signée vers Budget (recette prévue) et Voiture (réservation d'emplacement), logo posé vers preuve, papier qui expire vers l'indice de Saison, épreuve terminée vers l'historique du véhicule et les publications promises. Puis vérification complète du lot 3.
 
 ## 6. Méthode de travail
