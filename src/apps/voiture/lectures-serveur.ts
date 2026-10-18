@@ -5,7 +5,8 @@ import { lireResultatsValidesParVehicule } from "@/apps/saison/lectures-partagee
 import { prismaPourTeam } from "@/lib/prisma"
 
 import { accesVoiture, ficheVoitureDans } from "./services-serveur"
-import { CHAMPS_REGLAGE, etatPapiers, statutPapier, type StatutPapier, type ValeursReglage } from "./regles"
+import { CHAMPS_REGLAGE, etatPapiersVehicule, statutPapier, type EtatPapiersVehicule, type ValeursReglage } from "./regles"
+import type { TypeVehicule } from "./libelles"
 import { gabarit } from "./gabarits"
 
 // --- Liste des véhicules --------------------------------------------------------------------
@@ -13,49 +14,40 @@ import { gabarit } from "./gabarits"
 export type VehiculeListe = {
   vehicleId: string
   nom: string
-  type: string
+  type: TypeVehicule
   photoFileId: string | null
   groupe: string | null
   classe: string | null
-  etatPapiers: StatutPapier
+  etatPapiers: EtatPapiersVehicule
 }
 
+// Tous les véhicules actifs de la team (y compris ceux créés par Saison, sans fiche Voiture encore).
 export async function listerVehicules(): Promise<VehiculeListe[]> {
   const { ctx } = await accesVoiture("lecture")
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
-  const fiches = await client.voitureVehicle.findMany({
-    where: { teamId: ctx.teamId, deletedAt: null, vehicle: { actif: true, deletedAt: null } },
-    select: {
-      vehicleId: true,
-      groupe: true,
-      classe: true,
-      vehicle: { select: { nomCourt: true, type: true } },
-    },
-    orderBy: { vehicle: { nomCourt: "asc" } },
+  const vehicules = await client.coreVehicle.findMany({
+    where: { teamId: ctx.teamId, actif: true, deletedAt: null },
+    select: { id: true, nomCourt: true, type: true, photoFileId: true, voitureVehicle: { select: { groupe: true, classe: true } } },
+    orderBy: { nomCourt: "asc" },
   })
-  const vehiculeIds = fiches.map((f) => f.vehicleId)
+  const vehiculeIds = vehicules.map((v) => v.id)
   if (vehiculeIds.length === 0) return []
 
   const papiers = await client.voiturePaper.findMany({
     where: { teamId: ctx.teamId, deletedAt: null, vehicleId: { in: vehiculeIds } },
     select: { vehicleId: true, valableJusquAu: true },
   })
-  const photos = await client.coreAttachment.findMany({
-    where: { teamId: ctx.teamId, app: "voiture", ficheType: "vehicle", role: "photo", ficheId: { in: vehiculeIds } },
-    select: { ficheId: true, fileId: true },
-    orderBy: { createdAt: "asc" },
-  })
   const maintenant = new Date()
 
-  return fiches.map((f) => ({
-    vehicleId: f.vehicleId,
-    nom: f.vehicle.nomCourt,
-    type: f.vehicle.type,
-    photoFileId: photos.find((p) => p.ficheId === f.vehicleId)?.fileId ?? null,
-    groupe: f.groupe,
-    classe: f.classe,
-    etatPapiers: etatPapiers(
-      papiers.filter((p) => p.vehicleId === f.vehicleId),
+  return vehicules.map((v) => ({
+    vehicleId: v.id,
+    nom: v.nomCourt,
+    type: v.type,
+    photoFileId: v.photoFileId,
+    groupe: v.voitureVehicle?.groupe ?? null,
+    classe: v.voitureVehicle?.classe ?? null,
+    etatPapiers: etatPapiersVehicule(
+      papiers.filter((p) => p.vehicleId === v.id),
       maintenant,
     ),
   }))
@@ -69,7 +61,7 @@ export async function lireVehicule(vehicleId: string) {
   const fiche = await ficheVoitureDans(ctx, vehicleId)
   const vehicule = await client.coreVehicle.findFirst({
     where: { id: vehicleId, teamId: ctx.teamId, deletedAt: null },
-    select: { id: true, nomCourt: true, type: true },
+    select: { id: true, nomCourt: true, type: true, photoFileId: true },
   })
   const papiers = await client.voiturePaper.findMany({
     where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
@@ -92,7 +84,7 @@ export async function lireVehicule(vehicleId: string) {
     fiche,
     gabarit: fiche.gabaritCle ? (gabarit(fiche.gabaritCle) ?? null) : null,
     papiers: papiers.map((p) => ({ ...p, statut: statutPapier(p.valableJusquAu, maintenant) })),
-    etatPapiers: etatPapiers(papiers, maintenant),
+    etatPapiers: etatPapiersVehicule(papiers, maintenant),
     emplacements,
   }
 }

@@ -45,6 +45,13 @@ export function etatPapiers(papiers: Array<{ valableJusquAu: Date | null }>, mai
   return pire
 }
 
+// État affiché sur la carte d'un véhicule : le pire statut, ou « aucun » sans aucun papier.
+export type EtatPapiersVehicule = StatutPapier | "aucun"
+
+export function etatPapiersVehicule(papiers: Array<{ valableJusquAu: Date | null }>, maintenant: Date): EtatPapiersVehicule {
+  return papiers.length === 0 ? "aucun" : etatPapiers(papiers, maintenant)
+}
+
 // ─── 4.2 Emplacements ─────────────────────────────────────────────────────────
 
 export type EmplacementInitial = {

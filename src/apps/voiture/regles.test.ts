@@ -6,6 +6,7 @@ import {
   comparer,
   emplacementsDepuisGabarit,
   etatPapiers,
+  etatPapiersVehicule,
   joursAvantEcheance,
   peutRecevoirOccupation,
   preremplir,
@@ -223,5 +224,18 @@ describe("réglages : comparer", () => {
   it("un champ absent d'une des deux fiches compte comme différent, et vaut null", () => {
     const resultat = comparer({ pression_froid_avg: 2.0 }, {})
     expect(resultat[0]).toMatchObject({ a: 2.0, b: null, different: true })
+  })
+})
+
+describe("papiers : etatPapiersVehicule", () => {
+  const maintenant = new Date("2026-10-18T10:00:00Z")
+
+  it("sans papier : « aucun », et non « valide »", () => {
+    expect(etatPapiersVehicule([], maintenant)).toBe("aucun")
+  })
+
+  it("avec des papiers : le pire statut, comme etatPapiers", () => {
+    const papiers = [{ valableJusquAu: new Date("2027-06-01T00:00:00Z") }, { valableJusquAu: new Date("2026-10-01T00:00:00Z") }]
+    expect(etatPapiersVehicule(papiers, maintenant)).toBe("expire")
   })
 })
