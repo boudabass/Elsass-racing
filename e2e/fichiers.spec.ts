@@ -52,7 +52,7 @@ async function depenseAvecTicket(page: Page, equipe: Equipe): Promise<{ depenseI
   return { depenseId: depense.id, ticketId }
 }
 
-test("l. logo : envoyé dans Identité, affiché dans la barre haute, puis retiré", async ({ page, equipe }) => {
+test("l. logo : envoyé dans Identité, affiché dans la barre haute, puis retiré", async ({ browser, page, equipe }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await connecterParLien(page, equipe)
   await page.goto("/apps/settings/identite")
@@ -66,6 +66,21 @@ test("l. logo : envoyé dans Identité, affiché dans la barre haute, puis retir
   await expect(page.locator('header img[src^="/api/fichiers/"]')).toBeVisible()
   await expect.poll(() => logoEquipeEnBase(equipe)).not.toBeNull()
   await page.screenshot({ path: path.join(DOSSIER, "fichiers-identite-1440x900.png"), fullPage: true })
+
+  // Un membre assistance n'a aucun accès à Réglages : il voit quand même le logo courant de sa team.
+  const assistance = await ajouterMembreConnectable(equipe, "assistance", "-logo")
+  const contexteAssistance = await connecterMembre(browser, assistance.secretLien)
+  try {
+    const pageAssistance = await contexteAssistance.newPage()
+    await pageAssistance.goto("/qg")
+    const logoAssistance = pageAssistance.locator('header img[src^="/api/fichiers/"]')
+    await expect(logoAssistance).toBeVisible()
+    const source = await logoAssistance.getAttribute("src")
+    const reponse = await contexteAssistance.request.get(source!)
+    expect(reponse.status()).toBe(200)
+  } finally {
+    await contexteAssistance.close()
+  }
 
   // Retrait : le logo part avec l'enregistrement, et l'icône QG revient dans la barre.
   await page.goto("/apps/settings/identite")
@@ -100,7 +115,7 @@ test("l. ticket : photo jointe à une dépense en ligne, relue dans la fiche, se
   expect(page2.headers()["content-security-policy"]).toContain("frame-ancestors 'none'")
 })
 
-test("l. preuve : un PDF joint à un résultat s'ouvre par « Voir la preuve »", async ({ page, equipe }) => {
+test("l. preuve : un PDF joint à un résultat s'ouvre par « Voir la preuve »", async ({ browser, page, equipe }) => {
   test.setTimeout(180_000)
   await page.setViewportSize({ width: 1440, height: 900 })
   await preparerSaison(equipe, 2025)
@@ -137,8 +152,24 @@ test("l. preuve : un PDF joint à un résultat s'ouvre par « Voir la preuve »"
   await formulaire.getByRole("button", { name: "Joindre la preuve" }).click()
   await expect(formulaire.getByText("Enregistré.")).toBeVisible()
 
+  // Un autre équipier valide le résultat (le responsable ne valide pas le sien).
+  const valideur = await ajouterMembreConnectable(equipe, "equipage", "-valideur")
+  const contexteValideur = await connecterMembre(browser, valideur.secretLien)
+  try {
+    const pageValideur = await contexteValideur.newPage()
+    await pageValideur.goto("/apps/saison/a-valider")
+    await pageValideur.getByRole("button", { name: "Valider", exact: true }).click()
+    await expect(pageValideur.locator("main").getByRole("link", { name: /Rallye fichiers e2e/ })).toHaveCount(0)
+  } finally {
+    await contexteValideur.close()
+  }
+
   await page.goto(`${fiche}?onglet=resultats`)
-  const lien = page.getByRole("link", { name: "Voir la preuve" })
+  // Résultat validé avec une preuve en fichier : la ligne ne dit pas « sans preuve ».
+  await expect(page.locator("p", { hasText: "Validé" }).first()).toBeVisible()
+  await expect(page.locator("p", { hasText: "Validé" }).first()).not.toContainText("sans preuve")
+  // Deux liens « Voir la preuve » une fois validé (liste des résultats et fin d'épreuve), même fichier.
+  const lien = page.getByRole("link", { name: "Voir la preuve" }).first()
   await expect(lien).toBeVisible()
   const cible = await lien.getAttribute("href")
   const reponse = await page.request.get(cible!)
@@ -159,7 +190,8 @@ test("l. refus : faux JPEG, fichier de plus de 10 Mo, et envoi sans session", as
   const trop = await page.request.post("/api/fichiers", {
     multipart: { app: "budget", fichier: { name: "lourd.jpg", mimeType: "image/jpeg", buffer: lourd } },
   })
-  expect(trop.status()).toBe(400)
+  // 400 si le corps est lu entièrement, 413 si l'en-tête annonce déjà trop lourd.
+  expect([400, 413]).toContain(trop.status())
   expect((await trop.json()).message).toContain("10 Mo")
 
   // Sans session (contexte vierge) : 401, jamais une redirection vers la connexion.

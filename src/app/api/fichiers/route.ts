@@ -15,7 +15,16 @@ function refusJson(statut: number, message: string) {
   return NextResponse.json({ message }, { status: statut })
 }
 
+// Marge pour l'enveloppe multipart (noms de champs, en-têtes des parties) au-dessus de la taille du fichier.
+const MARGE_MULTIPART = 1024 * 1024
+
 export async function POST(requete: Request) {
+  // Un corps annoncé trop lourd est refusé avant que formData() ne le lise en entier.
+  const longueur = requete.headers.get("content-length")
+  if (longueur !== null && Number(longueur) > TAILLE_MAX + MARGE_MULTIPART) {
+    return refusJson(413, "Fichier trop lourd : 10 Mo au plus.")
+  }
+
   const formulaire = await requete.formData().catch(() => null)
   const app = formulaire?.get("app")
   const fichier = formulaire?.get("fichier")

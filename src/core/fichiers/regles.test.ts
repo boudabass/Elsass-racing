@@ -76,4 +76,9 @@ describe("peutLire", () => {
     expect(peutLire({ ...base, estAuteur: true })).toBe(true)
     expect(peutLire(base)).toBe(false)
   })
+
+  it("le logo courant se lit même rattaché à Réglages, sans aucun niveau (assistance, invité)", () => {
+    expect(peutLire({ ...base, applis: ["settings"], niveaux: { settings: "aucun" }, estLogoTeam: true })).toBe(true)
+    expect(peutLire({ ...base, applis: ["settings"], niveaux: {}, estLogoTeam: false })).toBe(false)
+  })
 })

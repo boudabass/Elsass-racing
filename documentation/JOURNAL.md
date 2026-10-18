@@ -170,4 +170,14 @@
 
 - Vérifications : typecheck, vitest 404/404, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, build isolé, e2e complet 80/80 sur build de production (port 3101). Captures commitées : les écrans touchés (Identité, nouvelle dépense, fiche de dépense, formulaire d'audit Budget, résultats Saison) et les deux nouvelles. Les autres captures ont varié avec les données des tests : elles sont restaurées.
 
+## 18/10/2026 : brief 3.1, relecture (logo, preuve, taille)
+
+- Logo courant lisible par tout membre de la team, même rattaché à Réglages (que l'assistance et l'invité n'ont pas) : `peutLire` renvoie vrai avant le test des rattachements. Testé en unitaire et en e2e (un membre assistance voit le logo dans la barre haute, 200 sur le fichier).
+
+- Fiche d'épreuve : « · sans preuve » n'apparaît plus quand la preuve est un fichier (même règle que `sansPreuve`). e2e : après validation par un autre équipier, la ligne ne contient pas « sans preuve ».
+
+- Envoi : un `content-length` au-delà de 10 Mo plus 1 Mo de marge est refusé en 413 avant la lecture du corps. Le test du fichier de plus de 10 Mo accepte 400 ou 413.
+
+- Vérifications : vitest 405/405, typecheck, `db:verifier-synchro`, build isolé, e2e complet 80/80 (port 3101). Comptes du journal e2e : P2003 0, P2025 0, `reading 'id'` 0, `ErreurAcces` 0, `TypeError` 0.
+
 - Points d'attention : le log de l'e2e contient deux avertissements, non investigués et sans effet sur les tests : `next start` demande `node .next/standalone/server.js` avec `output: "standalone"`, et le client pg signale un `client.query()` concurrent (DeprecationWarning).

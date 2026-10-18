@@ -257,7 +257,7 @@ export default async function PageEpreuve({
                   {resultat && (
                     <p className={`text-sm font-medium ${COULEUR_VALIDATION[resultat.validation] ?? ""}`}>
                       {libelle(LIBELLE_VALIDATION_RESULTAT, resultat.validation)}
-                      {resultat.validation === "valide" && !resultat.preuveLien ? " · sans preuve" : ""}
+                      {resultat.validation === "valide" && !resultat.preuveLien && !resultat.preuveFileId ? " · sans preuve" : ""}
                     </p>
                   )}
                 </header>

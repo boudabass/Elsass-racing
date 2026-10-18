@@ -65,10 +65,13 @@ export interface ParametresLecture {
   estAuteur: boolean
 }
 
-// Règle de lecture (brief 1.3). Avec des rattachements : au moins « lecture » sur une de leurs apps.
-// Sans rattachement : seulement le logo de la team, ou l'auteur. Tout refus donne 404 côté route.
+// Règle de lecture (brief 1.3). Le logo courant de la team se lit par tout membre : il est affiché dans la
+// barre haute, même quand il est rattaché à Réglages (que l'assistance et l'invité n'ont pas). Sinon, avec
+// des rattachements : au moins « lecture » sur une de leurs apps. Sans rattachement : l'auteur seulement.
+// Tout refus donne 404 côté route.
 export function peutLire(p: ParametresLecture): boolean {
   if (!p.estDansLaTeam) return false
+  if (p.estLogoTeam) return true
   if (p.applis.length > 0) return p.applis.some((app) => aAuMoins(p.niveaux[app] ?? "aucun", "lecture"))
-  return p.estLogoTeam || p.estAuteur
+  return p.estAuteur
 }
