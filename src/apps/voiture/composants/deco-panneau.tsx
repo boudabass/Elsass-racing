@@ -173,7 +173,7 @@ export function PanneauEmplacement(props: PanneauEmplacementProps) {
           )}
 
           {formeOriginale && (
-            <button type="button" className={BOUTON_SECONDAIRE} onClick={props.onDemarrerDeplacement}>
+            <button type="button" className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`} onClick={props.onDemarrerDeplacement}>
               Déplacer ou redimensionner
             </button>
           )}

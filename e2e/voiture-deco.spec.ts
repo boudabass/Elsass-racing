@@ -20,6 +20,11 @@ async function sansDefilementHorizontal(page: Page): Promise<void> {
   expect(deborde, "défilement horizontal sur la page").toBe(false)
 }
 
+// Capture de l'écran visible (fullPage: false), pour le tiroir : son en-tête doit y être, pas seulement le contenu.
+async function capturerEcran(page: Page, nom: string): Promise<void> {
+  await page.screenshot({ path: path.join(DOSSIER, nom), fullPage: false })
+}
+
 // Capture pleine page : éléments fixes masqués, comme dans voiture.spec.ts, sauf le tiroir (role dialog), qui est
 // le sujet de la capture et que le test retrouve ensuite.
 async function capturer(page: Page, nom: string): Promise<void> {
@@ -204,7 +209,7 @@ test("responsable, téléphone 360 px : la liste ouvre le tiroir, sans défileme
   await expect(tiroir.getByText("Réservé", { exact: true })).toBeVisible()
   await expect(tiroir.getByText("Garage Muller", { exact: true })).toBeVisible()
   await expect(page.getByText("1 réservé")).toBeVisible()
-  await capturer(page, "voiture-deco-tiroir-360.png")
+  await capturerEcran(page, "voiture-deco-tiroir-360.png")
   await page.keyboard.press("Escape")
   await expect(tiroir).toHaveCount(0)
   await sansDefilementHorizontal(page)

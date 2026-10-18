@@ -9,7 +9,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import type { Resultat } from "@/core/sdk/actions-serveur"
-import { BOUTON, BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
+import { BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
 
 import type { FormeEmplacement, Gabarit } from "../gabarits/types"
 import { ajouterEmplacementAction } from "../actions"
@@ -191,12 +191,13 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
 
       {!ordinateur && (
         <Sheet open={visible !== null} onOpenChange={(ouvert) => !ouvert && fermerPanneau()}>
-          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto border-bordure bg-surface text-texte">
-            <SheetHeader>
-              <SheetTitle className="text-left text-texte-discret">Emplacement</SheetTitle>
+          <SheetContent side="bottom" className="flex max-h-[85vh] flex-col overflow-hidden border-bordure bg-surface text-texte">
+            {/* En-tête fixe : le nom et la fermeture restent visibles, le contenu seul défile. */}
+            <SheetHeader className="shrink-0">
+              <SheetTitle className="pr-10 text-left">{visible?.nom ?? "Emplacement"}</SheetTitle>
               <SheetDescription className="sr-only">Détails de l'emplacement choisi et actions disponibles.</SheetDescription>
             </SheetHeader>
-            {panneau}
+            <div className="min-h-0 flex-1 overflow-y-auto">{panneau}</div>
           </SheetContent>
         </Sheet>
       )}
@@ -280,7 +281,7 @@ function AjouterEmplacement({
       <input type="hidden" name="nom" value="Nouvel emplacement" />
       <input type="hidden" name="vue" value={vue} />
       {forme && <input type="hidden" name="forme" value={JSON.stringify(forme)} />}
-      <button type="submit" disabled={enCours} className={vue === "droite" ? BOUTON : BOUTON_SECONDAIRE + " self-start"}>
+      <button type="submit" disabled={enCours} className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`}>
         {libelle}
       </button>
       {resultat && !resultat.ok && (
