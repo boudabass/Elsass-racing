@@ -7,6 +7,7 @@ import { FormulaireConvention, type ValeursConvention } from "@/apps/partenaires
 import { FormulaireContrepartie } from "@/apps/partenaires/composants/formulaire-contrepartie"
 import { FormulaireAvenant, FormulaireSignature } from "@/apps/partenaires/composants/formulaire-documents"
 import { FormulairePreuve } from "@/apps/partenaires/composants/formulaire-preuve"
+import { ActionsContrepartie } from "@/apps/partenaires/composants/actions-contrepartie"
 import { ActionsPreuve } from "@/apps/partenaires/composants/actions-preuve"
 import { SaisieAvancement } from "@/apps/partenaires/composants/saisie-avancement"
 import { BoutonEnvoi, FormulaireAction } from "@/apps/partenaires/composants/formulaire"
@@ -293,92 +294,92 @@ export default async function PageConvention({
                       </p>
                     </div>
 
-                    <div className="flex flex-col gap-3">
-                      {/* Avancement et report, sans glisser-déposer : un champ nombre et des boutons de 44 px. */}
-                      <details>
-                        <summary className={`${LIEN} cursor-pointer list-none text-sm`}>Saisir l&apos;avancement</summary>
-                        <div className="mt-3">
-                          <SaisieAvancement benefitId={benefice.id} quantiteTenue={benefice.quantiteTenue} quantitePromise={benefice.quantitePromise} />
-                        </div>
-                      </details>
-                      <details>
-                        <summary className={`${LIEN} cursor-pointer list-none text-sm`}>Reporter</summary>
-                        <div className="mt-3">
-                          <FormulaireAction action={reporterContrepartieAction} nom="Reporter la contrepartie" className="flex flex-wrap items-end gap-3">
-                            <input type="hidden" name="benefitId" value={benefice.id} />
-                            <label className="flex flex-col gap-1 text-sm font-medium">
-                              Reporter à
-                              <input name="echeance" type="date" defaultValue={echeance ?? ""} className={CHAMP} />
-                            </label>
-                            <BoutonEnvoi libelle="Reporter" secondaire />
-                          </FormulaireAction>
-                        </div>
-                      </details>
-                    </div>
-
-                    <details>
-                      <summary className={`${LIEN} cursor-pointer list-none text-sm`}>Modifier la contrepartie</summary>
-                      <div className="mt-3">
-                        <FormulaireContrepartie
-                          mode="modification"
-                          agreementId={convention.id}
-                          benefitId={benefice.id}
-                          catalogue={[]}
-                          emplacements={emplacementsPourChoix}
-                          epreuves={epreuvesPourChoix}
-                          valeurs={{
-                            libelle: benefice.libelle,
-                            type: benefice.type,
-                            quantitePromise: benefice.quantitePromise,
-                            unite: "",
-                            slotId: benefice.slotId,
-                            eventIds: benefice.eventIds,
-                            echeance,
-                          }}
-                        />
-                      </div>
-                    </details>
-
-                    {/* Preuves : vignette pour une photo, lien pour une adresse, et l'interrupteur de visibilité. */}
-                    <div className="flex flex-col gap-3 border-t border-bordure pt-4">
-                      <h4 className="font-medium">Preuves</h4>
-                      {benefice.proofs.length === 0 ? (
-                        <p className="text-sm text-texte-discret">Aucune preuve pour l&apos;instant.</p>
-                      ) : (
-                        <ul className="flex flex-col gap-3">
-                          {benefice.proofs.map((preuve) => (
-                            <li key={preuve.id} className="flex flex-col gap-2">
-                              <div className="flex flex-wrap items-start gap-3">
-                              {preuve.fileId && (
-                                // eslint-disable-next-line @next/next/no-img-element -- fichier de la team servi par /api/fichiers ; taille fixe et chargement paresseux
-                                <img src={`/api/fichiers/${preuve.fileId}`} width={64} height={64} alt="Photo de la preuve" loading="lazy" decoding="async" className="h-16 w-16 rounded-md object-cover" />
-                              )}
-                              <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-                                <p className="font-medium">
-                                  {dateFrancaise(jour(preuve.date))} · {LIBELLES_TYPE_PREUVE[preuve.type] ?? preuve.type}
-                                  {preuve.event ? ` · ${preuve.event.nom}` : ""}
-                                </p>
-                                {preuve.commentaire && <p className="whitespace-pre-line">{preuve.commentaire}</p>}
-                                {preuve.lien && (
-                                  <a href={preuve.lien} target="_blank" rel="noopener noreferrer" className={`${LIEN} break-all`}>
-                                    Ouvrir le lien
-                                  </a>
-                                )}
-                                <p className="text-texte-discret">{preuve.visiblePartenaire ? "Visible par le partenaire" : "Masquée pour le partenaire"}</p>
-                              </div>
-                              </div>
-                              <ActionsPreuve preuveId={preuve.id} visiblePartenaire={preuve.visiblePartenaire} masquer={masquerPreuveAction} supprimer={supprimerPreuveAction} />
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <details>
-                        <summary className={`${LIEN} cursor-pointer list-none text-sm`}>Ajouter une preuve</summary>
-                        <div className="mt-3">
-                          <FormulairePreuve benefitId={benefice.id} epreuves={epreuvesPourChoix} aujourdhui={aujourdhui} />
-                        </div>
-                      </details>
-                    </div>
+                    <ActionsContrepartie
+                      actions={[
+                        {
+                          cle: "avancement",
+                          libelle: "Saisir l'avancement",
+                          contenu: <SaisieAvancement benefitId={benefice.id} quantiteTenue={benefice.quantiteTenue} quantitePromise={benefice.quantitePromise} />,
+                        },
+                        {
+                          cle: "report",
+                          libelle: "Reporter",
+                          contenu: (
+                            <FormulaireAction action={reporterContrepartieAction} nom="Reporter la contrepartie" className="flex flex-wrap items-end gap-3">
+                              <input type="hidden" name="benefitId" value={benefice.id} />
+                              <label className="flex flex-col gap-1 text-sm font-medium">
+                                Reporter à
+                                <input name="echeance" type="date" defaultValue={echeance ?? ""} className={CHAMP} />
+                              </label>
+                              <BoutonEnvoi libelle="Reporter" secondaire />
+                            </FormulaireAction>
+                          ),
+                        },
+                        {
+                          cle: "modification",
+                          libelle: "Modifier la contrepartie",
+                          contenu: (
+                            <FormulaireContrepartie
+                              mode="modification"
+                              agreementId={convention.id}
+                              benefitId={benefice.id}
+                              catalogue={[]}
+                              emplacements={emplacementsPourChoix}
+                              epreuves={epreuvesPourChoix}
+                              valeurs={{
+                                libelle: benefice.libelle,
+                                type: benefice.type,
+                                quantitePromise: benefice.quantitePromise,
+                                unite: "",
+                                slotId: benefice.slotId,
+                                eventIds: benefice.eventIds,
+                                echeance,
+                              }}
+                            />
+                          ),
+                        },
+                      ]}
+                      preuves={
+                        <>
+                          <h4 className="font-medium">Preuves</h4>
+                          {benefice.proofs.length === 0 ? (
+                            <p className="text-sm text-texte-discret">Aucune preuve pour l&apos;instant.</p>
+                          ) : (
+                            <ul className="flex flex-col gap-3">
+                              {benefice.proofs.map((preuve) => (
+                                <li key={preuve.id} className="flex flex-col gap-2">
+                                  <div className="flex flex-wrap items-start gap-3">
+                                    {preuve.fileId && (
+                                      // eslint-disable-next-line @next/next/no-img-element -- fichier de la team servi par /api/fichiers ; taille fixe et chargement paresseux
+                                      <img src={`/api/fichiers/${preuve.fileId}`} width={64} height={64} alt="Photo de la preuve" loading="lazy" decoding="async" className="h-16 w-16 rounded-md object-cover" />
+                                    )}
+                                    <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
+                                      <p className="font-medium">
+                                        {dateFrancaise(jour(preuve.date))} · {LIBELLES_TYPE_PREUVE[preuve.type] ?? preuve.type}
+                                        {preuve.event ? ` · ${preuve.event.nom}` : ""}
+                                      </p>
+                                      {preuve.commentaire && <p className="whitespace-pre-line">{preuve.commentaire}</p>}
+                                      {preuve.lien && (
+                                        <a href={preuve.lien} target="_blank" rel="noopener noreferrer" className={`${LIEN} break-all`}>
+                                          Ouvrir le lien
+                                        </a>
+                                      )}
+                                      <p className="text-texte-discret">{preuve.visiblePartenaire ? "Visible par le partenaire" : "Masquée pour le partenaire"}</p>
+                                    </div>
+                                  </div>
+                                  <ActionsPreuve preuveId={preuve.id} visiblePartenaire={preuve.visiblePartenaire} masquer={masquerPreuveAction} supprimer={supprimerPreuveAction} />
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </>
+                      }
+                      ajoutPreuve={{
+                        cle: "preuve",
+                        libelle: "Ajouter une preuve",
+                        contenu: <FormulairePreuve benefitId={benefice.id} epreuves={epreuvesPourChoix} aujourdhui={aujourdhui} />,
+                      }}
+                    />
                   </li>
                 )
               })}
