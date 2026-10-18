@@ -72,7 +72,8 @@ const schemaVehicule = z
   .object({
     nom: z.string().trim().min(1, "Donnez un nom au véhicule.").max(60),
     type: z.enum(TYPES_VEHICULE),
-    gabaritCle: z.string().min(1, "Choisissez un gabarit."),
+    // Sans gabarit (« Aucun gabarit ») : pas d'emplacement, la fiche reste à compléter.
+    gabaritCle: z.string().min(1).nullable().optional(),
   })
   .strict()
 export type EntreeVehicule = z.input<typeof schemaVehicule>
@@ -179,8 +180,8 @@ export async function creerVehicule(entree: EntreeVehicule): Promise<string> {
 
 export async function creerVehiculeDans(ctx: ContexteTeam, entree: EntreeVehicule): Promise<string> {
   const donnees = schemaVehicule.parse(entree)
-  const modele = gabarit(donnees.gabaritCle)
-  if (!modele) refus("Gabarit inconnu.")
+  const modele = donnees.gabaritCle ? gabarit(donnees.gabaritCle) : null
+  if (donnees.gabaritCle && !modele) refus("Gabarit inconnu.")
 
   const id = newId()
   await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
@@ -188,8 +189,9 @@ export async function creerVehiculeDans(ctx: ContexteTeam, entree: EntreeVehicul
       data: { id, teamId: ctx.teamId, type: donnees.type, nomCourt: donnees.nom, createdBy: ctx.userId, updatedBy: ctx.userId },
     })
     await tx.voitureVehicle.create({
-      data: { id: newId(), teamId: ctx.teamId, vehicleId: id, gabaritCle: modele.cle, createdBy: ctx.userId, updatedBy: ctx.userId },
+      data: { id: newId(), teamId: ctx.teamId, vehicleId: id, gabaritCle: modele?.cle ?? null, createdBy: ctx.userId, updatedBy: ctx.userId },
     })
+    if (!modele) return
     await tx.voitureSlot.createMany({
       data: emplacementsDepuisGabarit(modele).map((e) => ({
         id: newId(),
@@ -207,8 +209,8 @@ export async function creerVehiculeDans(ctx: ContexteTeam, entree: EntreeVehicul
     })
   })
 
-  // Un seul événement pour la création : les emplacements arrivent avec le véhicule.
-  await emettre(ctx, "voiture.emplacement_modifie", chargeEmplacementModifie.parse({ vehicleId: id }))
+  // Un seul événement pour la création : les emplacements arrivent avec le véhicule (sans gabarit, il n'y en a pas).
+  if (modele) await emettre(ctx, "voiture.emplacement_modifie", chargeEmplacementModifie.parse({ vehicleId: id }))
   return id
 }
 

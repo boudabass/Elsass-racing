@@ -518,6 +518,12 @@ async function main() {
     const nbSlots = await proprietaire.voitureSlot.count({ where: { teamId: team.id, vehicleId: vehiculeVoiture, deletedAt: null } })
     controle("le véhicule reçoit les quinze emplacements de la Saxo (onze en vues dessinées, quatre hors plan)", nbSlots === 15, `${nbSlots}`)
 
+    // Sans gabarit (« Aucun gabarit ») : pas d'emplacement, donc pas d'événement d'emplacement.
+    const avantSansGabarit = await compter("voiture.emplacement_modifie")
+    const vehiculeNu = await voiture.creerVehiculeDans(ctx, { nom: "Nu bus", type: "reco", gabaritCle: null })
+    const slotsNu = await proprietaire.voitureSlot.count({ where: { teamId: team.id, vehicleId: vehiculeNu, deletedAt: null } })
+    controle("un véhicule sans gabarit n'a aucun emplacement et n'émet rien sur les emplacements", slotsNu === 0 && (await compter("voiture.emplacement_modifie")) === avantSansGabarit, `${slotsNu}`)
+
     const slotPortiere = await proprietaire.voitureSlot.findFirst({ where: { teamId: team.id, vehicleId: vehiculeVoiture, vue: "droite", nom: "Portière" } })
     const reservation = await voiture.reserverEmplacementDans(ctx, slotPortiere?.id ?? "", { partenaireNom: "Partenaire bus" })
     const avantPose = await compter("voiture.logo_pose")
