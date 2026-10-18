@@ -222,6 +222,7 @@ Décisions de John (18/10) :
 - Tables `partenaires_` (partenaires, échanges, modèles, conventions, avenants, contreparties et liste de base, preuves, bilans, lien et messages de la page partenaire), modèle de convention par défaut, champs d'identité manquants dans Réglages (forme juridique, signataire).
 
 ### 3.6 Partenaires : écrans
+- Brief : `docs/briefs/3.6-partenaires-ecrans.md`. Point 0 : corrections de la relecture 3.5 (index source_cle, dates en jours, jeton côté serveur) et de l'audit Impeccable des écrans du lot 3 (16/20). PDF de la convention, lien de la page partenaire montré une seule fois, choix d'emplacement par une lecture partagée de Voiture.
 - Prospection par statut avec relances, fiche partenaire, fiche convention et document généré, vue globale des contreparties, bouton + en 2 champs.
 
 ### 3.7 Page partenaire et bilans
