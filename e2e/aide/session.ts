@@ -491,23 +491,6 @@ export async function ajouterVehiculeDeReco(equipe: Equipe, nomCourt: string): P
   return id
 }
 
-// Encaisse une recette prévue de Budget (service réel, dans un processus tsx), par son libellé.
-export function encaisserRecetteBudget(equipe: Equipe, libelle: string): void {
-  const charge = JSON.stringify({
-    teamId: equipe.teamId,
-    userId: equipe.responsable.userId,
-    membershipId: equipe.responsable.membershipId,
-    libelle,
-  })
-  const script = path.join(__dirname, "encaisser-recette.ts")
-  execFileSync(process.execPath, ["--import", "tsx", script, charge], {
-    cwd: path.join(__dirname, "..", ".."),
-    env: process.env,
-    stdio: ["ignore", "pipe", "pipe"],
-    encoding: "utf8",
-  })
-}
-
 // Épreuve à venir (dates données, statut envisagé) : Saison la passe à « terminée » quand ses dates sont passées.
 export async function ajouterEpreuveEnBase(equipe: Equipe, seasonId: string, nom: string, debut: string, fin: string): Promise<string> {
   const id = newId()

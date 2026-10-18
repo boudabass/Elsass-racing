@@ -4,9 +4,11 @@ import { Lock } from "lucide-react"
 import { accesEcran } from "@/apps/budget/ecran"
 import { FiltresMouvements } from "@/apps/budget/composants/filtres"
 import { BOUTON, MONTANT } from "@/apps/budget/composants/classes"
+import { EncaisserRecette } from "@/apps/budget/composants/encaisser"
 import { lireChoix, lireMouvement, listerMouvements, compterSuggestions, type MouvementLu } from "@/apps/budget/lectures-serveur"
 import { formatEuros, libelle } from "@/apps/budget/libelles"
-import { jourDeParis } from "@/core/dates"
+import { comptesEncaissement } from "@/apps/budget/regles"
+import { jourDeParis, jourEnFrancais } from "@/core/dates"
 import { prefsMembre } from "@/apps/settings/preferences-serveur"
 import { appDecouverte } from "@/apps/settings/regles-personnelles"
 import { EcranDecouverte } from "@/components/qg/ecran-decouverte"
@@ -20,6 +22,13 @@ import { LIEN } from "@/lib/classes-formulaire"
 // mouvement s'ouvre à droite sur PC (paramètre m), en pleine page sur téléphone.
 
 const formatJour = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" })
+
+// « Encaissée le 18 octobre 2026 » pour une recette encaissée, le libellé de statut sinon (brief 3.9, §3).
+function libelleStatutRecette(mouvement: MouvementLu): string {
+  return mouvement.encaisseeLe
+    ? `Encaissée le ${jourEnFrancais(new Date(`${mouvement.encaisseeLe}T00:00:00Z`))}`
+    : libelle("BudgetStatutRecette", mouvement.statut)
+}
 
 export default async function PageMouvements({
   searchParams,
@@ -56,6 +65,9 @@ export default async function PageMouvements({
   const totalRecettes = recettes.reduce((total, mouvement) => total + mouvement.montantCentimes, 0)
   const aConfirmer = aAuMoins(acces.niveau, "ecriture") ? await compterSuggestions() : 0
   const fiche = parametres.m ? await lireMouvement(parametres.m) : null
+  // Encaisser une recette prévue : réservé au niveau gestion (brief 3.9, §3). Date par défaut : aujourd'hui.
+  const peutEncaisser = aAuMoins(acces.niveau, "gestion")
+  const encaissement = { comptes: comptesEncaissement(choix.payeurs), aujourdhui: jourDeParis(new Date()) }
 
   // Filtres actifs en pastilles retirables (la saison ne s'retire pas : c'est le choix de période).
   const retirer = (cle: string) => {
@@ -158,13 +170,22 @@ export default async function PageMouvements({
                   {mouvement.type === "recette" ? "+" : "−"} {formatEuros(mouvement.montantCentimes)}
                 </span>
               </Link>
+            {peutEncaisser && mouvement.type === "recette" && mouvement.statut === "prevue" && parametres.m !== mouvement.id && (
+              <div className="px-4 pb-3">
+                <EncaisserRecette recetteId={mouvement.id} comptes={encaissement.comptes} dateDefaut={encaissement.aujourdhui} />
+              </div>
+            )}
             </li>
           ))}
         </ul>
 
         <aside className={parametres.m ? "" : "hidden md:block"} aria-label="Fiche du mouvement">
           {fiche ? (
-            <FicheMouvement mouvement={fiche} retour={query ? `/apps/budget?${query}` : "/apps/budget"} />
+            <FicheMouvement
+              mouvement={fiche}
+              retour={query ? `/apps/budget?${query}` : "/apps/budget"}
+              encaissement={peutEncaisser && fiche.type === "recette" && fiche.statut === "prevue" ? encaissement : null}
+            />
           ) : (
             <p className="text-sm text-texte-discret">Choisis un mouvement pour voir sa fiche.</p>
           )}
@@ -174,7 +195,15 @@ export default async function PageMouvements({
   )
 }
 
-function FicheMouvement({ mouvement, retour }: { mouvement: MouvementLu; retour: string }) {
+function FicheMouvement({
+  mouvement,
+  retour,
+  encaissement,
+}: {
+  mouvement: MouvementLu
+  retour: string
+  encaissement: { comptes: Array<{ id: string; nom: string; parDefaut: boolean }>; aujourdhui: string } | null
+}) {
   const estDepense = mouvement.type === "depense"
   return (
     <article className="flex flex-col gap-3 rounded-lg border border-bordure bg-surface p-4 text-sm">
@@ -203,7 +232,7 @@ function FicheMouvement({ mouvement, retour }: { mouvement: MouvementLu; retour:
           </>
         )}
         <dt className="text-texte-discret">Statut</dt>
-        <dd>{estDepense ? (mouvement.statut === "confirmee" ? "Confirmée" : "À confirmer") : libelle("BudgetStatutRecette", mouvement.statut)}</dd>
+        <dd>{estDepense ? (mouvement.statut === "confirmee" ? "Confirmée" : "À confirmer") : libelleStatutRecette(mouvement)}</dd>
         {estDepense && mouvement.remboursement && (
           <>
             <dt className="text-texte-discret">Remboursement</dt>
@@ -213,6 +242,7 @@ function FicheMouvement({ mouvement, retour }: { mouvement: MouvementLu; retour:
         <dt className="text-texte-discret">Origine</dt>
         <dd>{libelle("BudgetOrigine", mouvement.origine)}</dd>
       </dl>
+      {encaissement && <EncaisserRecette recetteId={mouvement.id} comptes={encaissement.comptes} dateDefaut={encaissement.aujourdhui} />}
       {/* Les droits sont ceux de la page : elle refuse ce que le membre ne peut pas modifier ou supprimer. */}
       <div className="flex flex-wrap gap-2 pt-1">
         <Link href={`/apps/budget/mouvement/${mouvement.id}`} className="cible-tactile flex items-center rounded-md border border-bordure px-3 hover:bg-surface-2">

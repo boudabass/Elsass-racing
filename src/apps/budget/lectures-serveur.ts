@@ -24,6 +24,8 @@ export interface MouvementLu {
   seasonId: string | null
   // Dépense : confirmée ou non. Recette : statut « prevue » ou « encaissee ».
   statut: string
+  // Recette encaissée : sa date d'encaissement (AAAA-MM-JJ). Dépense et recette prévue : null (brief 3.9, §3).
+  encaisseeLe: string | null
   moyen: string | null
   remboursement: string | null
   origine: string
@@ -85,6 +87,7 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
     eventNom: ligne.event?.nom ?? null,
     seasonId: ligne.seasonId,
     statut: ligne.confirmee ? "confirmee" : "a_confirmer",
+    encaisseeLe: null,
     moyen: ligne.moyen,
     remboursement: ligne.remboursement,
     origine: ligne.origine,
@@ -119,6 +122,7 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
       eventNom: ligne.event?.nom ?? null,
       seasonId: ligne.seasonId,
       statut: ligne.statut,
+      encaisseeLe: ligne.encaisseeLe ? jour(ligne.encaisseeLe) : null,
       moyen: null,
       remboursement: null,
       origine: ligne.origine,

@@ -4,7 +4,7 @@
 import fs from "node:fs"
 import path from "node:path"
 
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien, tuilesDuQg } from "./aide/navigation"
@@ -12,7 +12,6 @@ import { renseignerMentionsConvention } from "./aide/partenaire-page"
 import {
   ajouterEpreuveEnBase,
   compterEvenements,
-  encaisserRecetteBudget,
   passerEpreuveDansLePasseEnBase,
   livraisonsEnBase,
   preparerSaison,
@@ -29,6 +28,14 @@ const NOM_EPREUVE = "Rallye de test"
 // Jour civil (AAAA-MM-JJ) à Paris : la locale suédoise donne ce format.
 function jourCivil(): string {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Paris" }).format(new Date())
+}
+
+// Encaisse une recette prévue par son bouton « Encaisser » : date du jour et caisse par défaut (brief 3.9, §3).
+// Le formulaire disparaît quand la recette est encaissée et que la page est rechargée.
+async function encaisserRecette(conteneur: Locator): Promise<void> {
+  await conteneur.getByRole("button", { name: "Encaisser", exact: true }).click()
+  await conteneur.getByRole("button", { name: "Confirmer l'encaissement", exact: true }).click()
+  await expect(conteneur.getByRole("button", { name: "Confirmer l'encaissement", exact: true })).toHaveCount(0, { timeout: 30_000 })
 }
 
 // Aucun défilement horizontal sur la page, à la largeur courante.
@@ -256,12 +263,38 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await capturerBoite(page, "lot3-boite-publications-1440x900.png")
   await page.keyboard.press("Escape")
 
-  // 8. Apport : le premier versement encaissé le rend « partiel », le second « reçu ».
-  encaisserRecetteBudget(equipe, "Garage Muller, versement 1 sur 2")
+  // 8. Apport : le premier versement encaissé le rend « partiel », le second « reçu ». L'encaissement passe par le
+  // bouton « Encaisser » de Budget, comme il le fera à l'écran (brief 3.9, §3).
+  const bureau = page.viewportSize() ?? { width: 1440, height: 900 }
+  await page.goto("/apps/budget")
+  const commencer = page.getByRole("button", { name: "Commencer" })
+  if (await commencer.isVisible().catch(() => false)) await commencer.click()
+  const versement1 = page.locator("li").filter({ has: page.getByText("Garage Muller, versement 1 sur 2", { exact: false }) })
+  await expect(versement1.getByRole("button", { name: "Encaisser", exact: true })).toBeVisible({ timeout: 30_000 })
+  await capturer(page, "lot3-budget-encaisser-1440x900.png")
+  await encaisserRecette(versement1)
+  await versement1.getByRole("link").click()
+  const fiche = page.getByRole("complementary", { name: "Fiche du mouvement" })
+  await expect(fiche.getByText(/^Encaissée le /)).toBeVisible()
+  await capturer(page, "lot3-budget-recette-encaissee-1440x900.png")
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   await expect(page.getByTestId("apport-recu")).toHaveText("Apport partiel", { timeout: 30_000 })
   await capturer(page, "lot3-convention-apport-partiel-1440x900.png")
-  encaisserRecetteBudget(equipe, "Garage Muller, versement 2 sur 2")
+
+  // Téléphone : la recette prévue sur sa fiche, avec le bouton « Encaisser », puis encaissée.
+  await page.setViewportSize(TELEPHONE)
+  await page.goto("/apps/budget")
+  const versement2 = page.locator("li").filter({ has: page.getByText("Garage Muller, versement 2 sur 2", { exact: false }) })
+  await versement2.getByRole("link").click()
+  const ficheTelephone = page.getByRole("complementary", { name: "Fiche du mouvement" })
+  await expect(ficheTelephone.getByRole("button", { name: "Encaisser", exact: true })).toBeVisible({ timeout: 30_000 })
+  await sansDefilementHorizontal(page)
+  await capturer(page, "lot3-budget-encaisser-360x740.png")
+  await encaisserRecette(ficheTelephone)
+  await expect(ficheTelephone.getByText(/^Encaissée le /)).toBeVisible()
+  await sansDefilementHorizontal(page)
+  await capturer(page, "lot3-budget-recette-encaissee-360x740.png")
+  await page.setViewportSize(bureau)
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   await expect(page.getByTestId("apport-recu")).toHaveText("Apport reçu", { timeout: 30_000 })
 

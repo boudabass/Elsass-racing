@@ -2,9 +2,12 @@ import Link from "next/link"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/budget/ecran"
+import { EncaisserRecette } from "@/apps/budget/composants/encaisser"
 import { FormulaireMouvement } from "@/apps/budget/composants/mouvement"
 import { lireChoix, lireMouvement } from "@/apps/budget/lectures-serveur"
 import { aAuMoins } from "@/core/droits/niveaux"
+import { jourDeParis, jourEnFrancais } from "@/core/dates"
+import { comptesEncaissement } from "@/apps/budget/regles"
 import { EcranVide } from "@/components/qg/ecran-vide"
 
 // Modifier ou supprimer un mouvement. Écriture : tout mouvement. Contribution : ses propres dépenses seulement.
@@ -24,6 +27,7 @@ export default async function PageMouvement({ params }: { params: Promise<{ id: 
   }
   const choix = await lireChoix()
   const peutChoisirPayeur = aAuMoins(acces.niveau, "ecriture")
+  const peutEncaisser = aAuMoins(acces.niveau, "gestion")
   const payeurs = peutChoisirPayeur ? choix.payeurs : choix.payeurs.filter((payeur) => payeur.id === choix.moiId)
 
   return (
@@ -32,6 +36,12 @@ export default async function PageMouvement({ params }: { params: Promise<{ id: 
         ← Mouvements
       </Link>
       <h1 className="titre-rallye text-3xl">{mouvement.type === "depense" ? "Modifier la dépense" : "Modifier la recette"}</h1>
+      {mouvement.type === "recette" && mouvement.encaisseeLe && (
+        <p className="text-sm text-etat-ok">Encaissée le {jourEnFrancais(new Date(`${mouvement.encaisseeLe}T00:00:00Z`))}</p>
+      )}
+      {mouvement.type === "recette" && mouvement.statut === "prevue" && peutEncaisser && (
+        <EncaisserRecette recetteId={mouvement.id} comptes={comptesEncaissement(choix.payeurs)} dateDefaut={jourDeParis(new Date())} />
+      )}
       <FormulaireMouvement
         valeurs={{
           id: mouvement.id,
