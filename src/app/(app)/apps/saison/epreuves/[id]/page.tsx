@@ -32,7 +32,7 @@ import {
   LIBELLE_VALIDATION_RESULTAT,
   libelle,
 } from "@/apps/saison/libelles"
-import { Onglets } from "@/apps/saison/composants/onglets"
+import { Onglets } from "@/components/qg/onglets-fiche"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { LIEN } from "@/lib/classes-formulaire"
 import { aAuMoins } from "@/core/droits/niveaux"
