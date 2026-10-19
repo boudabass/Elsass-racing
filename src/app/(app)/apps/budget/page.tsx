@@ -252,7 +252,7 @@ function FicheMouvement({
         <Link href={`/apps/budget/mouvement/${mouvement.id}`} className="cible-tactile flex items-center rounded-md border border-bordure px-3 hover:bg-surface-2">
           Modifier
         </Link>
-        <Link href={`/apps/budget/mouvement/${mouvement.id}#supprimer`} className="cible-tactile flex items-center rounded-md border border-etat-rouge px-3 text-etat-rouge hover:bg-surface-2">
+        <Link href={`/apps/budget/mouvement/${mouvement.id}`} className="cible-tactile flex items-center rounded-md border border-etat-rouge px-3 text-etat-rouge hover:bg-surface-2">
           Supprimer
         </Link>
       </div>

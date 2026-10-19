@@ -3,7 +3,7 @@ import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/budget/ecran"
 import { FormulaireRemboursement } from "@/apps/budget/composants/formulaires"
-import { BOUTON, MONTANT } from "@/apps/budget/composants/classes"
+import { MONTANT } from "@/apps/budget/composants/classes"
 import { LIEN } from "@/lib/classes-formulaire"
 import { lireARembourser, lireChoix, lireMembres } from "@/apps/budget/lectures-serveur"
 import { formatEuros, phraseSoldeMembre } from "@/apps/budget/libelles"
@@ -50,18 +50,13 @@ export default async function PageParMembre({ searchParams }: { searchParams: Pr
       </ul>
 
       {personne && (
-        <section className="flex flex-col gap-4 rounded-lg border border-bordure bg-surface p-4">
-          <h2 className="font-medium">Rembourser {personne.nom}</h2>
-          <FormulaireRemboursement
-            personne={{ id: personne.personneId, nom: personne.nom }}
-            depenses={aRembourser}
-            payeurs={payeursHorsMembre}
-            dateDuJour={jourDeParis(new Date())}
-          />
-          <Link href="/apps/budget/membres" className={`${BOUTON} w-fit bg-transparent text-texte-discret`}>
-            Fermer
-          </Link>
-        </section>
+        <FormulaireRemboursement
+          personne={{ id: personne.personneId, nom: personne.nom }}
+          depenses={aRembourser}
+          payeurs={payeursHorsMembre}
+          dateDuJour={jourDeParis(new Date())}
+          fermerHref="/apps/budget/membres"
+        />
       )}
     </section>
   )

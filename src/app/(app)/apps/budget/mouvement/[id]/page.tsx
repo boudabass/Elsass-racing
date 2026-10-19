@@ -3,7 +3,7 @@ import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/budget/ecran"
 import { EncaisserRecette } from "@/apps/budget/composants/encaisser"
-import { FormulaireMouvement } from "@/apps/budget/composants/mouvement"
+import { FicheMouvement } from "@/apps/budget/composants/mouvement"
 import { lireChoix, lireMouvement } from "@/apps/budget/lectures-serveur"
 import { aAuMoins } from "@/core/droits/niveaux"
 import { jourDeParis, jourEnFrancais } from "@/core/dates"
@@ -42,7 +42,7 @@ export default async function PageMouvement({ params }: { params: Promise<{ id: 
       {mouvement.type === "recette" && mouvement.statut === "prevue" && peutEncaisser && (
         <EncaisserRecette recetteId={mouvement.id} comptes={comptesEncaissement(choix.payeurs)} dateDefaut={jourDeParis(new Date())} />
       )}
-      <FormulaireMouvement
+      <FicheMouvement
         valeurs={{
           id: mouvement.id,
           type: mouvement.type,
