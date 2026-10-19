@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
-import { GABARITS, gabarit } from "./index"
+import { CLE_GABARIT_GENERIQUE, GABARITS, gabarit } from "./index"
+import { gabaritGenerique } from "./generique"
 import { gabaritSaxo } from "./saxo"
 
 // Un chemin droit à quatre sommets (M, L, L, L, Z) forme un rectangle s'il ne prend que deux abscisses et deux ordonnées.
@@ -90,5 +91,44 @@ describe("gabarit Saxo", () => {
       }
     }
     expect(gabaritSaxo.vuesDessinees[0].dessin?.map((e) => e.type)).toContain("path")
+  })
+})
+
+describe("gabarit Voiture générique", () => {
+  it("est le modèle par défaut : premier du catalogue, retrouvé par sa clé", () => {
+    expect(GABARITS[0].cle).toBe(CLE_GABARIT_GENERIQUE)
+    expect(gabarit(CLE_GABARIT_GENERIQUE)?.nom).toBe("Voiture générique")
+  })
+
+  it("porte les 11 emplacements validés, ordres 1 à 11 sans trou", () => {
+    const noms = gabaritGenerique.emplacementsTypes.map((e) => e.nom)
+    expect(new Set(noms)).toEqual(
+      new Set([
+        "Portière",
+        "Custode arrière",
+        "Aile avant",
+        "Aile arrière",
+        "Bas de caisse",
+        "Bandeau de pare-brise",
+        "Capot",
+        "Hayon",
+        "Toit",
+        "Pare-chocs avant",
+        "Pare-chocs arrière",
+      ]),
+    )
+    expect(noms).toHaveLength(11)
+    expect(gabaritGenerique.emplacementsTypes.map((e) => e.ordre)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+  })
+
+  it("n'a aucun emplacement sur la lunette arrière, et chaque emplacement est dans une vue dessinée avec une forme", () => {
+    expect(gabaritGenerique.emplacementsTypes.some((e) => /lunette/i.test(e.nom))).toBe(false)
+    const dessinees = new Set(gabaritGenerique.vuesDessinees.map((v) => v.vue))
+    expect(gabaritGenerique.emplacementsTypes.filter((e) => !dessinees.has(e.vue) || e.forme === null)).toEqual([])
+  })
+
+  it("seuls les emplacements par paire sont symétriques", () => {
+    const symetriques = gabaritGenerique.emplacementsTypes.filter((e) => e.symetrique).map((e) => e.nom)
+    expect(new Set(symetriques)).toEqual(new Set(["Portière", "Custode arrière", "Aile avant", "Aile arrière", "Bas de caisse"]))
   })
 })

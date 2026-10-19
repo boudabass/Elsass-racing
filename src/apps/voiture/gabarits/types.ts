@@ -37,7 +37,7 @@ export type VueDessinee = {
 export type Gabarit = {
   cle: string
   nom: string
-  categorie: "citadine_3p"
+  categorie: "citadine_3p" | "generique"
   version: number
   viewBox: string
   vuesDessinees: VueDessinee[]

@@ -9,6 +9,7 @@ import type { Resultat } from "@/core/sdk/actions-serveur"
 import { CHAMP } from "@/lib/classes-formulaire"
 
 import { creerVehiculeAction } from "../actions"
+import { CLE_GABARIT_GENERIQUE } from "../gabarits"
 import { LIBELLE_TYPE_VEHICULE, type TypeVehicule } from "../libelles"
 
 export interface OptionGabarit {
@@ -47,7 +48,7 @@ export function FormulaireVehicule({ gabarits }: { gabarits: OptionGabarit[] }) 
 
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Gabarit</span>
-          <select name="gabaritCle" defaultValue={gabarits[0]?.cle ?? ""} className={CHAMP}>
+          <select name="gabaritCle" defaultValue={CLE_GABARIT_GENERIQUE} className={CHAMP}>
             {gabarits.map((gabarit) => (
               <option key={gabarit.cle} value={gabarit.cle}>
                 {gabarit.nom}

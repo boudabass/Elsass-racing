@@ -570,6 +570,48 @@ async function capturerTiroirsDeco(page: Page, vue: string, nom: string, taille:
   await page.getByRole("dialog").getByRole("button", { name: "Fermer", exact: true }).click()
 }
 
+// Un véhicule sans plan (« Aucun gabarit ») propose un modèle, qui crée ses emplacements. À la création, le défaut est la
+// voiture générique : ses emplacements arrivent avec le véhicule.
+test("responsable : un véhicule sans plan propose un modèle, et la création prend la voiture générique par défaut", async ({ page, equipe }) => {
+  test.setTimeout(240_000)
+  await connecterParLien(page, equipe)
+  await page.setViewportSize(BUREAU)
+
+  await page.goto("/apps/voiture")
+  await page.getByRole("button", { name: "Ajouter", exact: true }).click()
+  await page.getByRole("menuitem", { name: /Véhicule/ }).click()
+  await page.waitForURL(/\/apps\/voiture\/nouveau$/)
+  await page.locator('input[name="nom"]').fill("Sans plan")
+  await page.locator('select[name="gabaritCle"]').selectOption("")
+  await page.getByRole("button", { name: "Ajouter le véhicule" }).click()
+  await page.waitForURL(/\/apps\/voiture\/vehicules\/[0-9a-f-]{36}/)
+  const sansPlan = new URL(page.url()).pathname.split("/")[4]
+  await page.goto(`/apps/voiture/vehicules/${sansPlan}?onglet=deco`)
+  await expect(page.getByText("Ce véhicule n'a pas encore de plan. Choisissez un modèle de plan pour y placer vos emplacements.")).toBeVisible()
+  await expect(page.getByRole("group", { name: /^Plan de Sans plan/ })).toHaveCount(0)
+  await capturerEcran(page, "voiture-deco-sans-plan-1440.png")
+
+  await page.locator('select[name="gabaritCle"]').selectOption("citadine_3p_saxo")
+  await page.getByRole("button", { name: "Choisir ce modèle", exact: true }).click()
+  await expect(page.getByText("Ce véhicule n'a pas encore de plan.")).toHaveCount(0)
+  await expect(page.getByRole("group", { name: /^Plan de Sans plan/ })).toBeVisible()
+  await expect(listePlan(page).locator("button")).toHaveCount(6)
+
+  // Création sans toucher au choix : le modèle proposé est la voiture générique, avec son plan.
+  await page.goto("/apps/voiture")
+  await page.getByRole("button", { name: "Ajouter", exact: true }).click()
+  await page.getByRole("menuitem", { name: /Véhicule/ }).click()
+  await page.waitForURL(/\/apps\/voiture\/nouveau$/)
+  await page.locator('input[name="nom"]').fill("Voiture par défaut")
+  await expect(page.locator('select[name="gabaritCle"]')).toHaveValue("voiture_generique")
+  await page.getByRole("button", { name: "Ajouter le véhicule" }).click()
+  await page.waitForURL(/\/apps\/voiture\/vehicules\/[0-9a-f-]{36}/)
+  const parDefaut = new URL(page.url()).pathname.split("/")[4]
+  await page.goto(`/apps/voiture/vehicules/${parDefaut}?onglet=deco`)
+  await expect(page.getByRole("group", { name: /^Plan de Voiture par défaut/ })).toBeVisible()
+  await expect(listePlan(page).locator("button")).toHaveCount(6)
+})
+
 test("captures 3.13 · tiroirs de la Déco, en thème clair, à 1440 et à 360 px", async ({ page, equipe }) => {
   test.setTimeout(360_000)
   await connecterParLien(page, equipe)

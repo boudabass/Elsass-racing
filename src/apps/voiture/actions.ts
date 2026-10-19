@@ -10,6 +10,7 @@ import { reserverPourPartenaireDans } from "./liaisons-serveur"
 import { lireSaisieReglage } from "./saisie-reglage"
 import {
   ajouterEmplacement,
+  choisirGabarit,
   completerGabarit,
   creerPapier,
   creerVehicule,
@@ -167,6 +168,15 @@ export type ResultatComplement = { ok: true; avis?: string } | { ok: false; mess
 
 const VUES_DU_PLAN = ["droite", "gauche", "avant", "arriere", "dessus"] as const
 
+function avisDesConserves(conserves: string[]): ResultatComplement {
+  if (conserves.length === 0) return { ok: true }
+  const noms = conserves.map((nom) => `« ${nom} »`).join(", ")
+  return {
+    ok: true,
+    avis: `${noms} ${conserves.length > 1 ? "sont occupées ou liées à une contrepartie et restent" : "est occupée ou liée à une contrepartie et reste"} sur le plan. Libérez-la pour la retirer.`,
+  }
+}
+
 export async function completerGabaritAction(_etat: ResultatComplement | null, donnees: FormData): Promise<ResultatComplement> {
   const bilan: { conserves: string[] } = { conserves: [] }
   const resultat = await executerVoiture(async () => {
@@ -175,12 +185,19 @@ export async function completerGabaritAction(_etat: ResultatComplement | null, d
     bilan.conserves = (await completerGabarit(texte(donnees, "vehicleId"), vue)).conserves
   })
   if (!resultat.ok) return resultat
-  if (bilan.conserves.length === 0) return { ok: true }
-  const noms = bilan.conserves.map((nom) => `« ${nom} »`).join(", ")
-  return {
-    ok: true,
-    avis: `${noms} ${bilan.conserves.length > 1 ? "sont occupées ou liées à une contrepartie et restent" : "est occupée ou liée à une contrepartie et reste"} sur le plan. Libérez-la pour la retirer.`,
-  }
+  return avisDesConserves(bilan.conserves)
+}
+
+// Choix du modèle de plan d'un véhicule qui n'en a pas : pose le modèle, puis crée ses emplacements dans la vue affichée.
+export async function choisirGabaritAction(_etat: ResultatComplement | null, donnees: FormData): Promise<ResultatComplement> {
+  const bilan: { conserves: string[] } = { conserves: [] }
+  const resultat = await executerVoiture(async () => {
+    const vue = VUES_DU_PLAN.find((v) => v === texte(donnees, "vue"))
+    if (!vue) refus("Choisissez une vue du plan avant de choisir le modèle.")
+    bilan.conserves = (await choisirGabarit(texte(donnees, "vehicleId"), texte(donnees, "gabaritCle"), vue)).conserves
+  })
+  if (!resultat.ok) return resultat
+  return avisDesConserves(bilan.conserves)
 }
 
 // Renommer : le nom seulement. La place et la taille se règlent sur le plan, les dimensions en cm ne se saisissent plus.

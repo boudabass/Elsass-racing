@@ -310,6 +310,34 @@ export async function completerGabarit(vehicleId: string, vue: VuePlan): Promise
   return completerGabaritDans(ctx, vehicleId, vue)
 }
 
+// Choix du modèle de plan pour un véhicule qui n'en a pas (créé « Aucun gabarit »). Sans effet sur un véhicule qui en
+// a déjà un : son gabarit ne change pas. Le modèle posé, le complément crée ses emplacements dans la vue affichée.
+export async function choisirGabaritDans(ctx: ContexteTeam, vehicleId: string, cle: string, vue: VuePlan): Promise<BilanComplement> {
+  const modele = gabarit(cle)
+  if (!modele) refus("Modèle de plan inconnu.")
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const vehicule = await client.voitureVehicle.findFirst({
+    where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
+    select: { gabaritCle: true },
+  })
+  if (!vehicule) refus("Véhicule introuvable.")
+  if (vehicule.gabaritCle) refus("Ce véhicule a déjà un modèle de plan.")
+
+  // La condition sur `gabaritCle: null` garde l'écriture sûre si un autre membre vient de choisir un modèle.
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    await tx.voitureVehicle.updateMany({
+      where: { teamId: ctx.teamId, vehicleId, gabaritCle: null },
+      data: { gabaritCle: modele.cle, updatedBy: ctx.userId },
+    })
+  })
+  return completerGabaritDans(ctx, vehicleId, vue)
+}
+
+export async function choisirGabarit(vehicleId: string, cle: string, vue: VuePlan): Promise<BilanComplement> {
+  const { ctx } = await accesVoiture("ecriture")
+  return choisirGabaritDans(ctx, vehicleId, cle, vue)
+}
+
 // Ligne voiture_vehicle d'un véhicule du socle. Crée la ligne à la volée (véhicules créés par Saison à
 // l'engagement). Aucun événement.
 export async function ficheVoiture(vehicleId: string): Promise<string> {

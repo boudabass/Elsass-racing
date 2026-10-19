@@ -9,10 +9,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import type { Resultat } from "@/core/sdk/actions-serveur"
 import type { PartenaireReservable } from "@/apps/partenaires/lectures-partagees"
-import { BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
+import { BOUTON, BOUTON_SECONDAIRE, CHAMP } from "@/lib/classes-formulaire"
 
+import { CLE_GABARIT_GENERIQUE, GABARITS } from "../gabarits"
 import type { FormeEmplacement, Gabarit } from "../gabarits/types"
-import { ajouterEmplacementAction, completerGabaritAction, type ResultatComplement } from "../actions"
+import { ajouterEmplacementAction, choisirGabaritAction, completerGabaritAction, type ResultatComplement } from "../actions"
 import { COULEUR_STATUT_EMPLACEMENT, LIBELLE_STATUT_EMPLACEMENT, TITRE_VUE } from "../libelles"
 import {
   bornesDu,
@@ -152,6 +153,13 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
         </div>
       )}
 
+      {!gabarit && (
+        <div className="flex flex-col gap-3 rounded-lg border border-bordure p-4">
+          <p className="text-texte">Ce véhicule n'a pas encore de plan. Choisissez un modèle de plan pour y placer vos emplacements.</p>
+          {peutEcrire && <ChoisirModele ficheId={ficheId} vue={vue} />}
+        </div>
+      )}
+
       {gabarit && (
         <>
           {enBarre && <p className="text-sm text-texte-discret">Glisse la forme, ou son coin pour la redimensionner.</p>}
@@ -250,6 +258,35 @@ function IndicateurStatut({ statut }: { statut: EmplacementPlan["statut"] }) {
     indisponible: "border-2 border-texte-discret bg-[repeating-linear-gradient(45deg,var(--bordure)_0_3px,transparent_3px_6px)]",
   }
   return <span aria-hidden="true" className={`block h-5 w-5 shrink-0 rounded-sm ${classe[statut]}`} />
+}
+
+// Choix du modèle de plan, pour un véhicule qui n'en a pas. Le modèle se pose une fois : ensuite, le plan est là.
+function ChoisirModele({ ficheId, vue }: { ficheId: string; vue: VuePlan }) {
+  const [resultat, envoyer, enCours] = useActionState<ResultatComplement | null, FormData>(choisirGabaritAction, null)
+  return (
+    <form action={envoyer} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <input type="hidden" name="vehicleId" value={ficheId} />
+      <input type="hidden" name="vue" value={vue} />
+      <label className="flex flex-1 flex-col gap-1 text-sm">
+        <span className="font-medium">Modèle de plan</span>
+        <select name="gabaritCle" defaultValue={CLE_GABARIT_GENERIQUE} className={CHAMP}>
+          {GABARITS.map((modele) => (
+            <option key={modele.cle} value={modele.cle}>
+              {modele.nom}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="submit" disabled={enCours} className={BOUTON}>
+        Choisir ce modèle
+      </button>
+      {resultat && !resultat.ok && (
+        <p role="alert" className="text-sm text-etat-rouge">
+          {resultat.message}
+        </p>
+      )}
+    </form>
+  )
 }
 
 // Complément : les emplacements des vues ajoutées au gabarit, pour un véhicule déjà créé. Sans effet si tout y est.
