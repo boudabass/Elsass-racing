@@ -131,7 +131,8 @@ async function creerConvention(page: Page, partenaireId: string, annee: number):
   await page.getByLabel("Date, ligne 2", { exact: true }).fill(`${annee}-09-15`)
   await page.getByLabel("Montant (€), ligne 2", { exact: true }).fill("750")
   await page.getByRole("button", { name: "Créer la convention" }).click()
-  await page.waitForURL(/\/apps\/partenaires\/conventions\/[0-9a-f-]{36}$/)
+  // Après la création, la convention s'ouvre directement sur ses contreparties (brief 3.11, §2).
+  await page.waitForURL(/\/apps\/partenaires\/conventions\/[0-9a-f-]{36}\?onglet=contreparties$/)
   return new URL(page.url()).pathname.split("/")[4]
 }
 
@@ -234,6 +235,9 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await ouvrirBoite(page, "Réserver la Portière pour Garage Muller ?")
   await capturerBoite(page, "lot3-boite-reserver-1440x900.png")
   await page.keyboard.press("Escape")
+  // Tant que la boîte n'a pas décidé, la contrepartie dit que son emplacement attend (brief 3.11, §3).
+  await page.goto(`/apps/partenaires/conventions/${conventionId}`)
+  await expect(page.getByText("Emplacement à réserver : en attente dans la boîte d'actions")).toBeVisible()
 
   await page.goto("/apps/budget/a-confirmer")
   await expect(page.getByText("Garage Muller, versement 1 sur 2", { exact: false }).first()).toBeVisible({ timeout: 30_000 })

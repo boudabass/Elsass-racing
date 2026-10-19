@@ -71,7 +71,7 @@ export function FormulaireConvention({ mode, partnerId, agreementId, modeles, sa
       nom={mode === "creation" ? "Nouvelle convention" : "Modifier la convention"}
       action={mode === "creation" ? creerConventionAction : modifierConventionAction}
       auSucces={(resultat) => {
-        if (mode === "creation" && resultat.id) router.push(`/apps/partenaires/conventions/${resultat.id}`)
+        if (mode === "creation" && resultat.id) router.push(`/apps/partenaires/conventions/${resultat.id}?onglet=contreparties`)
       }}
       className="flex flex-col gap-8"
     >
