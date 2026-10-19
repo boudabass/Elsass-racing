@@ -114,11 +114,19 @@ export async function contrepartie(teamId: string, conventionId: string, libelle
   return id
 }
 
+// Preuve photo, avec son fichier rattaché à la preuve comme le fait le service (brief 3.10, §2) : sans ce rattachement,
+// /api/fichiers refuse la photo au membre, et la vignette reste en texte alternatif.
 async function preuve(teamId: string, contrepartieId: string, fichierId: string, visible: boolean, commentaire: string): Promise<void> {
+  const preuveId = newId()
   await bd().query(
     `INSERT INTO partenaires_proof (id, team_id, benefit_id, date, type, file_id, commentaire, visible_partenaire, updated_at)
      VALUES ($1, $2, $3, '2027-06-10', 'photo', $4, $5, $6, now())`,
-    [newId(), teamId, contrepartieId, fichierId, commentaire, visible],
+    [preuveId, teamId, contrepartieId, fichierId, commentaire, visible],
+  )
+  await bd().query(
+    `INSERT INTO core_attachment (id, team_id, file_id, app, fiche_type, fiche_id, role, updated_at)
+     VALUES ($1, $2, $3, 'partenaires', 'proof', $4, 'preuve', now())`,
+    [newId(), teamId, fichierId, preuveId],
   )
 }
 

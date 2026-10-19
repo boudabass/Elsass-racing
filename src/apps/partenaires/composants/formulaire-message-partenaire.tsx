@@ -19,7 +19,8 @@ const MESSAGE_MAX = 2000
 const SEUIL_ANNONCE = 1800
 const PAS_ANNONCE = 50
 
-const formater = (nombre: number) => nombre.toLocaleString("fr-FR")
+// Même formatage que les montants (« 2 000 » avec une espace ordinaire, comme dans regles.ts).
+const formater = (nombre: number) => String(nombre).replace(/\B(?=(\d{3})+(?!\d))/g, " ")
 
 function annoncePour(longueur: number): string {
   const restant = MESSAGE_MAX - longueur

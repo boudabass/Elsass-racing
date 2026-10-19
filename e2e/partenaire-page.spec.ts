@@ -504,8 +504,27 @@ test("14 · le compteur du message se lit et n'annonce la limite qu'à partir de
   })
 })
 
+// Ouvre « Saisir l'avancement » de la première contrepartie de la convention : une action ouverte à montrer (brief 3.10, §2).
+async function ouvrirPremiereAction(page: Page, conventionId: string): Promise<void> {
+  await page.goto(`/apps/partenaires/conventions/${conventionId}?onglet=contreparties`)
+  await page.getByRole("button", { name: "Saisir l'avancement", exact: true }).first().click()
+  await expect(page.getByRole("region", { name: "Saisir l'avancement", exact: true }).first()).toBeVisible()
+}
+
+// 15. La vignette d'une preuve s'affiche chez le membre : son fichier est rattaché à la preuve (brief 3.10, §2).
+test("15 · la vignette d'une preuve se charge sur la convention du membre", async ({ page, equipe, browser }) => {
+  await avecAutreTeam(async (autre) => {
+    const donnees = await preparerPageDePartenaire(equipe, autre)
+    await connecterParLien(page, equipe)
+    await page.goto(`/apps/partenaires/conventions/${donnees.conventionA}?onglet=contreparties`)
+    const vignette = page.getByAltText("Photo de la preuve").first()
+    await expect(vignette).toBeVisible()
+    await expect.poll(() => vignette.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0)
+  })
+})
+
 // Captures du brief 3.10 : la page partenaire avec son logo (visiteur en sombre, membre en clair), et une convention
-// avec deux contreparties dont une action est ouverte, à 1440 et à 360 px.
+// avec deux contreparties dont une action est ouverte, à 1440 et à 360 px, en sombre puis en clair.
 test("captures 3.10 · page partenaire avec logo, convention avec deux contreparties et une action ouverte", async ({ page, equipe, browser }) => {
   await avecAutreTeam(async (autre) => {
     const donnees = await preparerPageDePartenaire(equipe, autre)
@@ -514,7 +533,7 @@ test("captures 3.10 · page partenaire avec logo, convention avec deux contrepar
     await connecterParLien(page, equipe)
     const jeton = await creerLien(page, donnees.partenaireA)
 
-    // Sombre : le visiteur sans compte, à 1440 puis à 360 px.
+    // Sombre : le visiteur sans compte (thème par défaut), à 1440 puis à 360 px.
     const sombre = await visiteurSansSession(browser, "198.51.100.16")
     const vueSombre = await sombre.newPage()
     await vueSombre.goto(`/p/${jeton}`)
@@ -526,32 +545,31 @@ test("captures 3.10 · page partenaire avec logo, convention avec deux contrepar
     await capturer(vueTelephone, "partenaire-page-logo-360x740.png")
     await sombreTelephone.close()
 
-    // Clair : le membre connecté a le thème clair, et la même page le suit.
-    await passerEnThemeClair(page)
-    await page.goto(`/p/${jeton}`)
-    await page.setViewportSize(BUREAU)
-    await capturer(page, "partenaire-page-logo-clair-1440x900.png")
-    await page.setViewportSize(TELEPHONE)
-    await capturer(page, "partenaire-page-logo-clair-360x740.png")
-
-    // La convention : deux contreparties, la première avec « Saisir l'avancement » ouvert.
+    // Convention en sombre : le membre a encore le thème par défaut.
     for (const [viewport, suffixe] of [
       [BUREAU, "1440x900"],
       [TELEPHONE, "360x740"],
     ] as const) {
       await page.setViewportSize(viewport)
-      await page.goto(`/apps/partenaires/conventions/${donnees.conventionA}?onglet=contreparties`)
-      await page.getByRole("button", { name: "Saisir l'avancement", exact: true }).first().click()
-      await expect(page.getByRole("region", { name: "Saisir l'avancement", exact: true }).first()).toBeVisible()
+      await ouvrirPremiereAction(page, donnees.conventionA)
       await capturer(page, `convention-contreparties-actions-${suffixe}.png`)
     }
-    // Les captures ci-dessus sont sombres (thème par défaut). Le thème du membre passe en clair pour les suivantes.
+
+    // Clair : le membre passe en thème clair ; la page partenaire et la convention le suivent.
     await passerEnThemeClair(page)
-    await page.goto(`/apps/partenaires/conventions/${donnees.conventionA}?onglet=contreparties`)
-    await page.getByRole("button", { name: "Saisir l'avancement", exact: true }).first().click()
-    await capturer(page, "convention-contreparties-actions-clair-1440x900.png")
+    await page.setViewportSize(BUREAU)
+    await page.goto(`/p/${jeton}`)
+    await capturer(page, "partenaire-page-logo-clair-1440x900.png")
     await page.setViewportSize(TELEPHONE)
-    await capturer(page, "convention-contreparties-actions-clair-360x740.png")
+    await capturer(page, "partenaire-page-logo-clair-360x740.png")
+    for (const [viewport, suffixe] of [
+      [BUREAU, "1440x900"],
+      [TELEPHONE, "360x740"],
+    ] as const) {
+      await page.setViewportSize(viewport)
+      await ouvrirPremiereAction(page, donnees.conventionA)
+      await capturer(page, `convention-contreparties-actions-clair-${suffixe}.png`)
+    }
   })
 })
 
