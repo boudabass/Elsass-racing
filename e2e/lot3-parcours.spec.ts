@@ -270,14 +270,24 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await expect(confirmer).toHaveCount(1, { timeout: 30_000 })
   await confirmer.first().click()
   await expect(confirmer).toHaveCount(0, { timeout: 30_000 })
+  // Sur la convention, les deux versements sont prévus : chacun porte son lien vers Budget (brief 3.11, §4).
+  await page.goto(`/apps/partenaires/conventions/${conventionId}`)
+  const versementsPrevus = page.getByRole("list", { name: "Versements prévus" })
+  await expect(versementsPrevus.getByRole("link", { name: "Encaisser dans Budget" })).toHaveCount(2)
 
   // 6. Logo posé avec sa photo : la boîte propose d'ajouter la photo comme preuve, et la contrepartie devient tenue.
   await page.goto(`/apps/voiture/vehicules/${vehiculeId}?onglet=deco`)
   await page.getByRole("group", { name: /^Plan de Saxo 2/ }).getByRole("button", { name: /Portière/ }).first().click()
   await page.getByRole("button", { name: "Marquer le logo posé", exact: true }).click()
   await page.locator('input[name="poseLe"]').fill(jourCivil())
+  // La réponse de l'envoi est retenue 1,5 s : pendant ce temps, « Enregistrer la pose » est désactivé (brief 3.11, §12).
+  await page.route("**/api/fichiers", async (route) => {
+    await new Promise((resoudre) => setTimeout(resoudre, 1500))
+    await route.continue()
+  }, { times: 1 })
   const envoiPhoto = page.waitForResponse((reponse) => reponse.url().includes("/api/fichiers") && reponse.request().method() === "POST")
   await page.getByLabel("Photo de la pose (facultatif)", { exact: true }).setInputFiles(PHOTO_LOURDE)
+  await expect(page.getByRole("button", { name: "Envoi de la photo…", exact: true })).toBeDisabled()
   await envoiPhoto
   await page.getByRole("button", { name: "Enregistrer la pose", exact: true }).click()
   await page.waitForLoadState("networkidle")
@@ -310,6 +320,10 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await capturer(page, "lot3-budget-recette-encaissee-1440x900.png")
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   await expect(page.getByTestId("apport-recu")).toHaveText("Apport partiel", { timeout: 30_000 })
+  // Le versement encaissé porte sa date ; l'autre reste à encaisser.
+  const versementsEncaisses = page.getByRole("list", { name: "Versements prévus" })
+  await expect(versementsEncaisses.getByText("encaissé le", { exact: false })).toHaveCount(1)
+  await expect(versementsEncaisses.getByRole("link", { name: "Encaisser dans Budget" })).toHaveCount(1)
   await capturer(page, "lot3-convention-apport-partiel-1440x900.png")
 
   // Téléphone : la recette prévue sur sa fiche, avec le bouton « Encaisser », puis encaissée.
