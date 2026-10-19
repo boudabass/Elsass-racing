@@ -83,7 +83,8 @@ async function creerConvention(page: Page, partenaireId: string): Promise<string
   await page.getByLabel("Date, ligne 2", { exact: true }).fill("2027-09-15")
   await page.getByLabel("Montant (€), ligne 2", { exact: true }).fill("750")
   await page.getByRole("button", { name: "Créer la convention" }).click()
-  await page.waitForURL(/\/apps\/partenaires\/conventions\/[0-9a-f-]{36}$/)
+  // La création ouvre la convention sur son onglet Contreparties (?onglet=contreparties).
+  await page.waitForURL(/\/apps\/partenaires\/conventions\/[0-9a-f-]{36}(\?.*)?$/)
   return new URL(page.url()).pathname.split("/")[4]
 }
 
@@ -216,7 +217,7 @@ test("responsable : prospect, échange, convention, document, signature, avancem
   await publications.getByText("Saisir l'avancement", { exact: true }).click()
   await publications.getByLabel("Réalisé sur 4", { exact: true }).fill("4")
   await publications.getByRole("button", { name: "Enregistrer l'avancement" }).click()
-  await expect(publications.getByText("Tenue", { exact: true })).toBeVisible()
+  await expect(publications.getByText("Faite", { exact: true })).toBeVisible()
   await expect.poll(() => compterEvenements(equipe, "partenaires.contrepartie_tenue")).toBe(1)
 
   // 7. Preuves : un lien, puis une photo que l'on masque pour le partenaire.

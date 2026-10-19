@@ -294,7 +294,7 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await ouvrirBoite(page, "Ajouter la photo de pose comme preuve pour Garage Muller ?")
   await decider(page, "Ajouter")
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
-  await expect(ligneContrepartie(page, "Logo sur la voiture").getByText("Tenue", { exact: true })).toBeVisible({ timeout: 30_000 })
+  await expect(ligneContrepartie(page, "Logo sur la voiture").getByText("Faite", { exact: true })).toBeVisible({ timeout: 30_000 })
 
   // 7. L'épreuve a lieu : ses dates passent, et le QG la passe à « terminée ». La boîte propose alors les publications promises à Jo.
   await passerEpreuveDansLePasseEnBase(equipe, epreuveId, `${annee}-03-01`, `${annee}-03-02`)
