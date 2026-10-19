@@ -273,3 +273,6 @@ En attente :
 
 ### 3.12 On décide dans l'app, pas dans les notifications
 - Brief : `docs/briefs/3.12-decider-dans-l-app.md`. Décision de John du 19/10 : la boîte d'actions informe et emmène (« Ouvrir ») ; les décisions se prennent dans l'app concernée, par le même service de décision. Inventaire des 18 types validé avant le code. Après la 3.11, avant la fusion dans main.
+
+### 3.13 Tous les formulaires en tiroirs
+- Brief : `docs/briefs/3.13-formulaires-en-tiroirs.md`. Décision de John du 19/10 : chaque saisie s'ouvre dans un tiroir (bas sur téléphone, droite sur ordinateur) avec Enregistrer et Annuler, le reste de la page inactif ; plus de formulaires dépliés les uns sous les autres. Phase A (composant, fiche convention, Déco) validée par John sur dev, puis phase B (toute l'app, après inventaire). Ordre : 3.11, 3.13, puis 3.12.
