@@ -60,7 +60,7 @@ export const LIBELLES_APPORT_RECU: Record<"non" | "partiel" | "oui", string> = {
 export const LIBELLES_STATUT_CONTREPARTIE: Record<StatutContrepartie | "en_retard", string> = {
   a_faire: "À faire",
   en_cours: "En cours",
-  tenue: "Tenue",
+  tenue: "Faite",
   reportee: "Reportée",
   en_retard: "En retard",
 }

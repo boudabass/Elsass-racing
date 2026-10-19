@@ -13,7 +13,7 @@ const FILTRES = [
   { cle: "toutes", libelle: "Toutes" },
   { cle: "retard", libelle: "En retard" },
   { cle: "a_faire", libelle: "À faire" },
-  { cle: "tenues", libelle: "Tenues" },
+  { cle: "tenues", libelle: "Faites" },
 ] as const
 
 type CleFiltre = (typeof FILTRES)[number]["cle"]

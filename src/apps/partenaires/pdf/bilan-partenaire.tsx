@@ -47,7 +47,7 @@ export function BilanPartenairePdf({ bilan, entreprise, team, images }: BilanPar
     <DocumentTeam titre="Bilan de partenariat" sousTitre={textePdf(`${entreprise} · ${periode}`)} team={team}>
       <ChiffresCles
         chiffres={[
-          { libelle: "Contreparties tenues sur promises", valeur: `${bilan.chiffres.contrepartiesTenues} sur ${bilan.chiffres.contrepartiesTotal}` },
+          { libelle: "Contreparties faites sur promises", valeur: `${bilan.chiffres.contrepartiesTenues} sur ${bilan.chiffres.contrepartiesTotal}` },
           { libelle: "Preuves de la période", valeur: String(bilan.chiffres.preuves) },
           { libelle: "Épreuves courues sur la période", valeur: String(bilan.chiffres.epreuvesCourues) },
         ]}
