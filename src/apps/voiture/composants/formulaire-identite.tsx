@@ -1,11 +1,12 @@
 "use client"
 
-import { useActionState, useState, useTransition } from "react"
+import { useState, useTransition } from "react"
 
 import { ChampFichier, type FichierEnvoye } from "@/components/formulaire/champ-fichier"
 import { Message } from "@/components/formulaire/message"
+import { Tiroir, TiroirAction } from "@/components/formulaire/tiroir"
 import type { Resultat } from "@/core/sdk/actions-serveur"
-import { BOUTON, CHAMP } from "@/lib/classes-formulaire"
+import { BOUTON_SECONDAIRE, CHAMP } from "@/lib/classes-formulaire"
 
 import { modifierFicheAction, poserPhotoPrincipaleAction } from "../actions"
 
@@ -46,52 +47,41 @@ const CHAMPS_PAPIERS: Array<{ cle: keyof ValeursIdentite; libelle: string; type?
   { cle: "acheteLe", libelle: "Date d'achat", type: "date" },
 ]
 
-// Identité en écriture : les champs de voiture_vehicle, en deux blocs. Enregistrer appelle modifierFicheAction.
+// Identité en écriture : la fiche se lit sur la page, « Modifier » ouvre un tiroir avec les champs de voiture_vehicle
+// en deux blocs. Enregistrer appelle modifierFicheAction (brief 3.13b).
 export function FormulaireIdentite({ vehicleId, valeurs }: { vehicleId: string; valeurs: ValeursIdentite }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(modifierFicheAction, null)
-
   return (
-    <form action={action} className="flex flex-col gap-6">
+    <TiroirAction libelle="Modifier la fiche" titre="Modifier le véhicule" action={modifierFicheAction} libelleBouton="Enregistrer" libelleEnCours="Enregistrement…">
       <input type="hidden" name="vehicleId" value={vehicleId} />
       <fieldset className="flex flex-col gap-4">
         <legend className="font-titre text-lg uppercase">Le véhicule</legend>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {CHAMPS_VEHICULE.map((champ) => (
-            <label key={champ.cle} className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">{champ.libelle}</span>
-              <input name={champ.cle} type={champ.type ?? "text"} defaultValue={valeurs[champ.cle]} min={champ.min} max={champ.max} inputMode={champ.type === "number" ? "numeric" : undefined} className={CHAMP} />
-            </label>
-          ))}
-        </div>
+        {CHAMPS_VEHICULE.map((champ) => (
+          <label key={champ.cle} className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">{champ.libelle}</span>
+            <input name={champ.cle} type={champ.type ?? "text"} defaultValue={valeurs[champ.cle]} min={champ.min} max={champ.max} inputMode={champ.type === "number" ? "numeric" : undefined} className={CHAMP} />
+          </label>
+        ))}
       </fieldset>
 
       <fieldset className="flex flex-col gap-4">
         <legend className="font-titre text-lg uppercase">Papiers et homologation</legend>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {CHAMPS_PAPIERS.map((champ) => (
-            <label key={champ.cle} className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">{champ.libelle}</span>
-              <input name={champ.cle} type={champ.type ?? "text"} defaultValue={valeurs[champ.cle]} className={CHAMP} />
-            </label>
-          ))}
-        </div>
+        {CHAMPS_PAPIERS.map((champ) => (
+          <label key={champ.cle} className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">{champ.libelle}</span>
+            <input name={champ.cle} type={champ.type ?? "text"} defaultValue={valeurs[champ.cle]} className={CHAMP} />
+          </label>
+        ))}
       </fieldset>
-
-      <div className="flex flex-col gap-3">
-        <button type="submit" disabled={enCours} className={`${BOUTON} w-full sm:w-auto`}>
-          Enregistrer
-        </button>
-        <Message resultat={resultat} />
-      </div>
-    </form>
+    </TiroirAction>
   )
 }
 
-// Photo principale : la photo des cartes. Le fichier part dès le choix, puis la photo est posée.
+// Photo principale : la photo des cartes. Le fichier part dès le choix, puis la photo est posée. Le choix se fait dans un tiroir.
 export function PhotoPrincipale({ vehicleId, fileId, peutModifier }: { vehicleId: string; fileId: string | null; peutModifier: boolean }) {
   const [photo, setPhoto] = useState<string | null>(fileId)
   const [resultat, setResultat] = useState<Resultat | null>(null)
   const [enCours, demarrer] = useTransition()
+  const [ouvert, setOuvert] = useState(false)
 
   function changer(fichier: FichierEnvoye | null) {
     const donnees = new FormData()
@@ -106,14 +96,31 @@ export function PhotoPrincipale({ vehicleId, fileId, peutModifier }: { vehicleId
 
   return (
     <div className="flex flex-col gap-3">
-      {peutModifier ? (
-        <ChampFichier app="voiture" accept="image/jpeg,image/png,image/webp" libelle="Photo principale" valeur={photo} typeValeur="image/jpeg" onChange={changer} libelleRetirer="Retirer la photo" disabled={enCours} />
-      ) : photo ? (
+      {photo ? (
         <img src={`/api/fichiers/${photo}`} alt="Photo principale du véhicule" className="aspect-video w-full max-w-md rounded-lg object-cover" />
       ) : (
         <p className="text-sm text-texte-discret">Aucune photo principale.</p>
       )}
-      <Message resultat={resultat} ok="Photo mise à jour." />
+      {peutModifier && (
+        <div>
+          <button type="button" aria-haspopup="dialog" onClick={() => setOuvert(true)} className={BOUTON_SECONDAIRE}>
+            {photo ? "Changer la photo" : "Ajouter une photo"}
+          </button>
+          <Tiroir ouvert={ouvert} onOuvertChange={setOuvert} titre="Photo principale" libelleAnnuler="Fermer">
+            <ChampFichier
+              app="voiture"
+              accept="image/jpeg,image/png,image/webp"
+              libelle="Photo principale"
+              valeur={photo}
+              typeValeur="image/jpeg"
+              onChange={changer}
+              libelleRetirer="Retirer la photo"
+              disabled={enCours}
+            />
+            <Message resultat={resultat} ok="Photo mise à jour." />
+          </Tiroir>
+        </div>
+      )}
     </div>
   )
 }

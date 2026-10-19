@@ -11,7 +11,7 @@ import { FormulairePapier, SupprimerPapier, type ValeursPapier } from "./formula
 
 const jourCivil = (date: Date | null) => (date ? date.toISOString().slice(0, 10) : "")
 
-// Onglet Papiers : expirés d'abord, puis à renouveler, puis valides. Ajout et modification se déplient sur la page.
+// Onglet Papiers : expirés d'abord, puis à renouveler, puis valides. Ajout et modification s'ouvrent dans un tiroir.
 export async function PanneauPapiers({ ficheId }: { ficheId: string }) {
   const { niveau } = await accesVoiture("lecture")
   const fiche = await lireVehicule(ficheId)
@@ -21,14 +21,7 @@ export async function PanneauPapiers({ ficheId }: { ficheId: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {peutEcrire && (
-        <details className="rounded-lg border border-bordure p-4">
-          <summary className="cible-tactile cursor-pointer font-medium">Ajouter un papier</summary>
-          <div className="pt-4">
-            <FormulairePapier vehicleId={ficheId} />
-          </div>
-        </details>
-      )}
+      {peutEcrire && <FormulairePapier vehicleId={ficheId} />}
 
       {papiers.length === 0 ? (
         <p className="text-texte-discret">Aucun papier pour ce véhicule.</p>
@@ -62,12 +55,7 @@ export async function PanneauPapiers({ ficheId }: { ficheId: string }) {
                 )}
                 {peutEcrire && (
                   <div className="flex flex-col gap-3">
-                    <details>
-                      <summary className="cible-tactile cursor-pointer self-start text-sm underline underline-offset-4">Modifier</summary>
-                      <div className="pt-3">
-                        <FormulairePapier vehicleId={ficheId} papier={valeurs} />
-                      </div>
-                    </details>
+                    <FormulairePapier vehicleId={ficheId} papier={valeurs} />
                     <SupprimerPapier papierId={papier.id} />
                   </div>
                 )}

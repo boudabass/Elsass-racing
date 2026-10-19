@@ -9,7 +9,7 @@ import { FormulaireIdentite, PhotoPrincipale, type ValeursIdentite } from "./for
 
 const texteOuTiret = (valeur: string | number | null | undefined, unite = "") => (valeur === null || valeur === undefined || valeur === "" ? "—" : `${valeur}${unite}`)
 
-// Onglet Identité. En écriture : le formulaire. En dessous : la fiche en lecture, un champ vide affiche « — ».
+// Onglet Identité : la fiche se lit sur la page, un champ vide affiche « — ». En écriture, « Modifier » ouvre le tiroir.
 export async function PanneauIdentite({ ficheId }: { ficheId: string }) {
   const { niveau } = await accesVoiture("lecture")
   const fiche = await lireVehicule(ficheId)
@@ -56,14 +56,11 @@ export async function PanneauIdentite({ ficheId }: { ficheId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PhotoPrincipale vehicleId={ficheId} fileId={fiche.vehicule.photoFileId} peutModifier={peutEcrire} />
-      {peutEcrire ? (
-        <FormulaireIdentite vehicleId={ficheId} valeurs={valeurs} />
-      ) : (
-        <div className="flex flex-col gap-6">
-          <Liste titre="Le véhicule" lignes={lignesVehicule} />
-          <Liste titre="Papiers et homologation" lignes={lignesPapiers} />
-        </div>
-      )}
+      <div className="flex flex-col gap-6">
+        <Liste titre="Le véhicule" lignes={lignesVehicule} />
+        <Liste titre="Papiers et homologation" lignes={lignesPapiers} />
+        {peutEcrire && <FormulaireIdentite vehicleId={ficheId} valeurs={valeurs} />}
+      </div>
     </div>
   )
 }

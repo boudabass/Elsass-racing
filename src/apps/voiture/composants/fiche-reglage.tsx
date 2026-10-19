@@ -1,6 +1,4 @@
-import Link from "next/link"
-
-import { LIEN } from "@/lib/classes-formulaire"
+import type { ReactNode } from "react"
 
 import { CHAMPS_REGLAGE } from "../regles"
 import { LIBELLE_CONDITIONS, LIBELLE_REVETEMENT, dateEnToutesLettres, noteSur5, valeurDeReglageEnTexte } from "../libelles"
@@ -18,19 +16,20 @@ export interface DetailReglage {
 }
 
 // Fiche de réglage en lecture : valeurs avec unités. Les champs vides ne s'affichent pas, ni les champs masqués.
+// « Modifier la fiche » est fourni par la page (un tiroir), seulement si le membre peut modifier.
 export function FicheReglageLecture({
   vehicleId,
   reglageId,
   detail,
   masques,
-  peutModifier,
+  actionModifier,
   peutEcrire,
 }: {
   vehicleId: string
   reglageId: string
   detail: DetailReglage
   masques: string[]
-  peutModifier: boolean
+  actionModifier: ReactNode
   peutEcrire: boolean
 }) {
   const visibles = (groupe: "essentiel" | "avance") =>
@@ -68,11 +67,7 @@ export function FicheReglageLecture({
       )}
 
       <div className="flex flex-col gap-4 border-t border-bordure pt-6">
-        {peutModifier && (
-          <Link href={`/apps/voiture/vehicules/${vehicleId}/reglages/${reglageId}?mode=modifier`} className={`${LIEN} self-start`}>
-            Modifier la fiche
-          </Link>
-        )}
+        {actionModifier}
         {peutEcrire && (
           <>
             <EnregistrerReference reglageId={reglageId} />

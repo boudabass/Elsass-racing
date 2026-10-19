@@ -1,70 +1,55 @@
 "use client"
 
-import { useActionState, useEffect, useState } from "react"
+import { useActionState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Message } from "@/components/formulaire/message"
+import { TiroirAction } from "@/components/formulaire/tiroir"
 import type { Resultat } from "@/core/sdk/actions-serveur"
-import { BOUTON, BOUTON_SECONDAIRE, CHAMP } from "@/lib/classes-formulaire"
+import { BOUTON, CHAMP } from "@/lib/classes-formulaire"
 
 import { enregistrerCommeReferenceAction, masquerChampsAction, supprimerReglageAction } from "../actions"
 
-// Suppression d'une fiche : la confirmation se fait sur la page, sans confirm() du navigateur.
+// Suppression d'une fiche : un tiroir de confirmation, sans confirm() du navigateur. Après réussite, retour à la liste.
 export function SupprimerReglage({ reglageId, vehicleId }: { reglageId: string; vehicleId: string }) {
   const router = useRouter()
-  const [demande, setDemande] = useState(false)
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(supprimerReglageAction, null)
-
-  useEffect(() => {
-    if (resultat?.ok) router.push(`/apps/voiture/vehicules/${vehicleId}?onglet=reglages`)
-  }, [resultat, router, vehicleId])
-
-  if (!demande) {
-    return (
-      <button type="button" onClick={() => setDemande(true)} className="cible-tactile self-start text-sm text-etat-rouge underline underline-offset-4">
-        Supprimer la fiche
-      </button>
-    )
-  }
-
   return (
-    <form action={action} className="flex flex-col gap-2 text-sm">
+    <TiroirAction
+      libelle="Supprimer la fiche"
+      titre="Supprimer cette fiche"
+      action={supprimerReglageAction}
+      libelleBouton="Confirmer la suppression"
+      libelleEnCours="Suppression…"
+      danger
+      question="Supprimer cette fiche de réglage ? Elle disparaît de la liste."
+      onSucces={() => router.push(`/apps/voiture/vehicules/${vehicleId}?onglet=reglages`)}
+    >
       <input type="hidden" name="reglageId" value={reglageId} />
-      <p>Supprimer cette fiche de réglage ? Elle disparaît de la liste.</p>
-      <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={enCours} className={BOUTON_SECONDAIRE}>
-          Confirmer la suppression
-        </button>
-        <button type="button" onClick={() => setDemande(false)} className={BOUTON_SECONDAIRE}>
-          Annuler
-        </button>
-      </div>
-      <Message resultat={resultat} />
-    </form>
+    </TiroirAction>
   )
 }
 
-// Enregistrer la fiche comme référence : demande un nom, par exemple « Asphalte sec ».
+// Enregistrer la fiche comme référence : demande un nom, par exemple « Asphalte sec ». Dans un tiroir (brief 3.13b).
 export function EnregistrerReference({ reglageId }: { reglageId: string }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(enregistrerCommeReferenceAction, null)
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <TiroirAction
+      libelle="Enregistrer comme référence"
+      titre="Enregistrer comme référence"
+      action={enregistrerCommeReferenceAction}
+      libelleBouton="Enregistrer la référence"
+      libelleEnCours="Enregistrement…"
+    >
       <input type="hidden" name="reglageId" value={reglageId} />
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">Nom de la référence</span>
         <input name="nom" required maxLength={60} placeholder="Asphalte sec" className={CHAMP} />
       </label>
-      <div className="flex flex-col gap-3">
-        <button type="submit" disabled={enCours} className={`${BOUTON_SECONDAIRE} w-full sm:w-auto`}>
-          Enregistrer comme référence
-        </button>
-        <Message resultat={resultat} ok="Référence enregistrée." />
-      </div>
-    </form>
+    </TiroirAction>
   )
 }
 
 // Champs masqués de la team : une case par champ avancé. Les essentiels n'apparaissent pas ici.
+// Reste une page de configuration (décision 1 : grille de cases à cocher, exception documentée).
 export function FormulaireChampsMasques({ groupes }: { groupes: Array<{ titre: string; champs: Array<{ cle: string; libelle: string; masque: boolean }> }> }) {
   const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(masquerChampsAction, null)
   return (

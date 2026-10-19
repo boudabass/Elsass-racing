@@ -4,27 +4,20 @@ import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/voiture/ecran"
 import { FicheReglageLecture } from "@/apps/voiture/composants/fiche-reglage"
-import { FormulaireReglage, type OptionEpreuveReglage, type ValeursFormulaireReglage } from "@/apps/voiture/composants/formulaire-reglage"
+import { ModifierFicheReglage, type OptionEpreuveReglage, type ValeursFormulaireReglage } from "@/apps/voiture/composants/formulaire-reglage"
 import { lireChampsMasques, lireEpreuvesDuVehicule, lireReglage } from "@/apps/voiture/lectures-serveur"
 import { valeurDeReglageEnTexte } from "@/apps/voiture/libelles"
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { jourDeParis } from "@/core/dates"
 import { aAuMoins } from "@/core/droits/niveaux"
 
-// Fiche d'une épreuve de réglage, en lecture. « ?mode=modifier » ouvre le formulaire, si le membre peut modifier.
-export default async function PageFicheReglage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string; reglageId: string }>
-  searchParams: Promise<{ mode?: string }>
-}) {
+// Fiche d'une épreuve de réglage, en lecture. « Modifier la fiche » ouvre un tiroir, si le membre peut modifier (brief 3.13b).
+export default async function PageFicheReglage({ params }: { params: Promise<{ id: string; reglageId: string }> }) {
   const acces = await accesEcran("lecture")
   if (!acces.ok) {
     return <EcranVide icone={Lock} titre={acces.titre} lignes={acces.lignes} action={{ libelle: "Retour aux véhicules", href: "/apps/voiture" }} />
   }
   const { id, reglageId } = await params
-  const { mode } = await searchParams
   const detail = await lireReglage(reglageId)
   if (!detail || detail.fiche.vehicleId !== id) notFound()
 
@@ -41,32 +34,28 @@ export default async function PageFicheReglage({
       </Link>
       <h1 className="titre-rallye text-3xl">Fiche de réglage</h1>
 
-      {mode === "modifier" && peutModifier ? (
-        <EditionReglage vehicleId={id} reglageId={reglageId} detail={detail} masques={masques} />
-      ) : (
-        <FicheReglageLecture
-          vehicleId={id}
-          reglageId={reglageId}
-          detail={{
-            date: detail.fiche.date,
-            epreuve: detail.epreuve,
-            conditions: detail.fiche.conditions,
-            revetement: detail.fiche.revetement,
-            note: detail.fiche.note,
-            auteur: detail.auteur,
-            remarques: detail.fiche.remarques,
-            valeurs: Object.fromEntries(detail.champs.filter((c) => c.valeur !== null).map((c) => [c.cle, c.valeur as string | number])),
-          }}
-          masques={masques}
-          peutModifier={peutModifier}
-          peutEcrire={peutEcrire}
-        />
-      )}
+      <FicheReglageLecture
+        vehicleId={id}
+        reglageId={reglageId}
+        detail={{
+          date: detail.fiche.date,
+          epreuve: detail.epreuve,
+          conditions: detail.fiche.conditions,
+          revetement: detail.fiche.revetement,
+          note: detail.fiche.note,
+          auteur: detail.auteur,
+          remarques: detail.fiche.remarques,
+          valeurs: Object.fromEntries(detail.champs.filter((c) => c.valeur !== null).map((c) => [c.cle, c.valeur as string | number])),
+        }}
+        masques={masques}
+        actionModifier={peutModifier ? <EditionReglage vehicleId={id} reglageId={reglageId} detail={detail} masques={masques} /> : null}
+        peutEcrire={peutEcrire}
+      />
     </section>
   )
 }
 
-// Modification : les valeurs de la fiche, et les épreuves où le véhicule est engagé.
+// Modification : les valeurs de la fiche, et les épreuves où le véhicule est engagé. Le tiroir est dans la fiche.
 async function EditionReglage({
   vehicleId,
   reglageId,
@@ -89,5 +78,5 @@ async function EditionReglage({
     note: detail.fiche.note ? String(detail.fiche.note) : "",
     valeurs: Object.fromEntries(detail.champs.filter((c) => c.valeur !== null).map((c) => [c.cle, valeurDeReglageEnTexte(c.cle, c.valeur)])),
   }
-  return <FormulaireReglage vehicleId={vehicleId} reglageId={reglageId} initiales={initiales} masques={masques} epreuves={options} modeleId={detail.fiche.setupTemplateId} />
+  return <ModifierFicheReglage vehicleId={vehicleId} reglageId={reglageId} initiales={initiales} masques={masques} epreuves={options} modeleId={detail.fiche.setupTemplateId} />
 }

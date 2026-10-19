@@ -48,9 +48,9 @@ async function creerSaxoDeux(page: Page): Promise<string> {
   return new URL(page.url()).pathname.split("/")[4]
 }
 
-// Le formulaire « Ajouter un papier » (replié dans sa rubrique ; les papiers déjà là ont le leur).
+// Le formulaire « Ajouter un papier » : son tiroir, ouvert par le bouton du même nom.
 function formulaireAjoutPapier(page: Page) {
-  return page.locator("details", { hasText: "Ajouter un papier" })
+  return page.getByRole("dialog")
 }
 
 // Une fiche de réglage au formulaire : la pression avant gauche à froid, puis attente de sa présence en base.
@@ -74,10 +74,11 @@ test("responsable : Saxo 2 par le bouton +, identité saisie, la Déco liste les
   await expect(page.getByText("Capot").first()).toBeVisible()
 
   await page.getByRole("link", { name: "Identité" }).click()
+  await page.getByRole("button", { name: "Modifier la fiche", exact: true }).click()
   await page.locator('input[name="marque"]').fill("Citroën")
   await page.locator('input[name="modele"]').fill("Saxo")
   await page.locator('input[name="groupe"]').fill("N2")
-  await page.getByRole("button", { name: "Enregistrer", exact: true }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }).click()
 
   await page.goto("/apps/voiture")
   await expect(page.getByText("N2").first()).toBeVisible()
@@ -124,9 +125,10 @@ test("responsable : deux fiches, comparaison des écarts, référence et pré-re
   await expect.poll(async () => (await reglagesVoitureEnBase(equipe)).length, { timeout: 30_000 }).toBe(1)
   const [premiere] = await reglagesVoitureEnBase(equipe)
   await page.goto(`/apps/voiture/vehicules/${vehiculeId}/reglages/${premiere.id}`)
+  await page.getByRole("button", { name: "Enregistrer comme référence", exact: true }).click()
   await page.locator('input[name="nom"]').fill("Asphalte sec")
-  await page.getByRole("button", { name: "Enregistrer comme référence" }).click()
-  await expect(page.getByText("Référence enregistrée.")).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer la référence", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 
   // Seconde fiche (2,2 bar) : la dernière, qui n'est pas la référence.
   await saisirFicheAvg(page, vehiculeId, "2,2")
@@ -155,10 +157,11 @@ test("responsable : deux fiches, comparaison des écarts, référence et pré-re
   // Données des captures (brief 3.4, point 0.3) : identité remplie, un papier par statut. Les deux fiches et la
   // référence sont déjà là.
   await page.goto(`/apps/voiture/vehicules/${vehiculeId}?onglet=identite`)
+  await page.getByRole("button", { name: "Modifier la fiche", exact: true }).click()
   await page.locator('input[name="marque"]').fill("Citroën")
   await page.locator('input[name="modele"]').fill("Saxo")
   await page.locator('input[name="groupe"]').fill("N2")
-  await page.getByRole("button", { name: "Enregistrer", exact: true }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }).click()
   for (const [type, decalage] of [
     ["assurance", 200],
     ["controle_technique", 10],
