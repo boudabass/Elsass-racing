@@ -17,6 +17,18 @@ Scripts tsx qui se connectent à la base locale. Ils créent des données de tes
 
 Pré-requis : `pnpm db:up`, puis `pnpm db:deploy` si la base est neuve.
 
+## Vérifier sans saturer la mémoire
+
+Trois niveaux, du plus léger au plus lourd. On ne monte d'un niveau que si le précédent ne suffit pas.
+
+1. **Sans serveur** (par défaut, après chaque tâche) : `pnpm typecheck`, `pnpm test`, `pnpm db:verifier-rls`, `pnpm db:verifier-bus`, `pnpm db:verifier-synchro`.
+2. **Sur l'app dev déployée** : après le push sur dev, Coolify construit l'app. On contrôle en HTTP ou à la main sur https://elsass-racing-dev.theelsassisch.com. Rien à lancer en local.
+3. **E2E local ciblé** : `pnpm test:e2e e2e/<fichier>.spec.ts`, seulement les fichiers touchés. La suite complète (`pnpm test:e2e`) est réservée à l'orchestrateur, avant une fusion dans main.
+
+Règles pour l'opérateur :
+- Une seule passe à la fois. Avant de lancer un build ou un e2e, vérifier que le port 3101 est libre (Playwright refuse de démarrer s'il est occupé : ne pas relancer, nettoyer).
+- À la fin de chaque tâche, et après tout échec ou interruption : `pnpm nettoyer:serveurs`. Il arrête le port 3101, les `next build`, `playwright` et les Chromium de Playwright, et épargne le serveur de John (port 3000).
+
 ## Bout en bout (Playwright)
 
 - Commande : `pnpm test:e2e` (`playwright test`). Premier passage sur un poste : `pnpm exec playwright install chromium`.

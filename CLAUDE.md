@@ -28,6 +28,7 @@ Ce fichier ne contient que les règles, les pièges et l'état actuel. Le récit
 
 - pnpm uniquement, jamais npm. Versions épinglées sur Elsass Dico (voir `docs/stack-reference.md`) : Next 15.5.27, React 19.3, Prisma 7.10.0, Tailwind 3.4.17, Node 22, pnpm 11.21.0.
 - Après chaque groupe de changements : `pnpm typecheck`, `pnpm test`, `pnpm build`.
+- Mémoire : vérifier d'abord sans serveur, puis sur l'app dev déployée ; e2e local ciblé seulement (suite complète réservée à l'orchestrateur). Une passe à la fois, et `pnpm nettoyer:serveurs` en fin de tâche et après tout échec (voir `docs/tests.md`).
 - Branches : travail sur `dev`, fusion `dev` vers `main` par commit de merge, jamais de squash. Messages de commit en français, impératif, courts. Une tâche, un commit.
 - Migrations Prisma : dossiers SQL dans `prisma/migrations/`, appliquées par le conteneur au démarrage (`prisma migrate deploy`). Jamais à la main en production, jamais `migrate dev` en production.
 - Mesurer avant d'écrire en base : script jetable en lecture seule, supprimé après. Aucune écriture de test en base partagée.
