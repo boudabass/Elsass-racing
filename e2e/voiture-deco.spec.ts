@@ -93,9 +93,9 @@ async function passerEnThemeClair(page: Page): Promise<void> {
   await expect(page.locator("html")).not.toHaveClass(/\bdark\b/)
 }
 
-// Désactivé (fixme) : à l'étape 6, glisser « Aile avant droite » au pointeur de 20 px ne change pas sa position
-// (x reste à 254,6, l'enregistrement se fait sans mouvement). Déplacer par le champ X (étape 5) fonctionne. Cause non
-// trouvée ; le défilement et l'attente de la vue ajoutés au test n'y changent rien. Les étapes 1 à 5 passaient.
+// Désactivé (fixme) : à l'étape 6, glisser « Aile avant droite » au pointeur de 20 px ne change pas sa position (x reste
+// à 254,6 et l'enregistrement se fait sans mouvement). Le geste fait mouse.down, puis mouse.move en 10 pas, puis mouse.up,
+// sans effet. Déplacer par le champ X (étape 5) fonctionne. Probablement un vrai défaut, à tester à la main sur dev.
 test.fixme("responsable : plan, réservation, pose, indisponibilité, déplacement, ajout et suppression", async ({ page, equipe }) => {
   test.setTimeout(480_000)
   await connecterParLien(page, equipe)
@@ -200,7 +200,7 @@ test.fixme("responsable : plan, réservation, pose, indisponibilité, déplaceme
   const centre = { x: boite.x + boite.width / 2, y: boite.y + boite.height / 2 }
   await page.mouse.move(centre.x, centre.y)
   await page.mouse.down()
-  await page.mouse.move(centre.x + 20, centre.y, { steps: 8 })
+  await page.mouse.move(centre.x + 20, centre.y, { steps: 10 })
   await page.mouse.up()
   await capturer(page, "voiture-deco-deplacement-1440.png")
   await page.getByRole("button", { name: "Enregistrer la position" }).click()
