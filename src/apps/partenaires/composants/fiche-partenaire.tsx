@@ -109,8 +109,11 @@ export function OngletFiche({ partenaire, personnes }: { partenaire: PartenaireF
           </h2>
           <TiroirAction libelle="Modifier" titre="Modifier l'interlocuteur" action={modifierInterlocuteurAction} libelleBouton="Enregistrer l'interlocuteur">
             <input type="hidden" name="partnerId" value={partenaire.id} />
-            <Champ id="interlocuteur-nom" libelle="Nom" aide="Prénom et nom. Laissé vide, l'interlocuteur est retiré.">
-              <input id="interlocuteur-nom" name="nom" defaultValue={partenaire.interlocuteur ?? ""} maxLength={121} className={CHAMP} />
+            <Champ id="interlocuteur-prenom" libelle="Prénom" aide="Prénom et nom ensemble. Laissés tous les deux vides, l'interlocuteur est retiré.">
+              <input id="interlocuteur-prenom" name="prenom" defaultValue={partenaire.interlocuteurPrenom ?? ""} maxLength={60} className={CHAMP} />
+            </Champ>
+            <Champ id="interlocuteur-nom" libelle="Nom">
+              <input id="interlocuteur-nom" name="nom" defaultValue={partenaire.interlocuteurNom ?? ""} maxLength={60} className={CHAMP} />
             </Champ>
             <Champ id="interlocuteur-qualite" libelle="Fonction" aide="Par exemple Gérant. Elle apparaît dans la convention, après son nom.">
               <input id="interlocuteur-qualite" name="qualite" defaultValue={partenaire.interlocuteurQualite ?? ""} maxLength={80} className={CHAMP} />

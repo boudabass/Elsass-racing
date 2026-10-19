@@ -243,7 +243,8 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   // L'interlocuteur se saisit dans la fiche, à l'écran : la ligne « Interlocuteur » s'affiche sans recharger la page.
   await page.goto(`/apps/partenaires/${partenaireId}`)
   await page.locator("#interlocuteur").getByRole("button", { name: "Modifier", exact: true }).click()
-  await page.locator("#interlocuteur-nom").fill("Marc Dupont")
+  await page.locator("#interlocuteur-prenom").fill("Marc")
+  await page.locator("#interlocuteur-nom").fill("Dupont")
   await page.locator("#interlocuteur-qualite").fill("Gérant")
   await page.getByRole("dialog").getByRole("button", { name: "Enregistrer l'interlocuteur", exact: true }).click()
   await expect(page.getByRole("dialog")).toHaveCount(0)

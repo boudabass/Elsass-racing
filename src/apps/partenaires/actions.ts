@@ -11,6 +11,7 @@ import { messageDe, texte, texteOuNull, executer, type Resultat } from "@/core/s
 import { genererBilan, marquerBilanEnvoye } from "./bilan-serveur"
 import { centimesDeSaisie } from "./affichage"
 import { refus } from "./erreurs"
+import { interlocuteurSaisi } from "./interlocuteur"
 import { genererDocumentPdf } from "./document-serveur"
 import { lirePartenaire, verifierEntreprise } from "./lectures-serveur"
 import {
@@ -90,19 +91,18 @@ function listeDe(donnees: FormData, cle: string): string[] {
   return donnees.getAll(cle).map((valeur) => String(valeur)).filter((valeur) => valeur !== "")
 }
 
-// « Prénom Nom » : le premier mot est le prénom, le reste le nom.
-function interlocuteurDe(saisie: string): { prenom: string; nom: string } | null {
-  const mots = saisie.trim().split(/\s+/).filter(Boolean)
-  if (mots.length === 0) return null
-  if (mots.length === 1) refus("Indiquez le prénom et le nom de l'interlocuteur, ou laissez le champ vide.")
-  return { prenom: mots[0], nom: mots.slice(1).join(" ") }
+// Prénom et nom saisis à part : ensemble, ou tous les deux vides (brief 3.14, point 2).
+function interlocuteurDe(prenom: string, nom: string): { prenom: string; nom: string } | null {
+  const saisie = interlocuteurSaisi(prenom, nom)
+  if (!saisie.ok) refus(saisie.message)
+  return saisie.personne
 }
 
 // --- Prospection et partenaire --------------------------------------------------------------
 
 export async function creerProspectAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerPartenaires(async () => {
-    const entree: EntreeProspect = { entreprise: texte(donnees, "entreprise"), contact: interlocuteurDe(texte(donnees, "contact")) }
+    const entree: EntreeProspect = { entreprise: texte(donnees, "entreprise"), contact: interlocuteurDe(texte(donnees, "prenom"), texte(donnees, "nom")) }
     return creerProspect(entree)
   })
 }
@@ -136,7 +136,7 @@ export async function modifierPartenaireAction(_etat: Resultat | null, donnees: 
 // Nom vide : l'interlocuteur est retiré (brief 3.11, §1).
 export async function modifierInterlocuteurAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerPartenaires(() =>
-    modifierInterlocuteur(texte(donnees, "partnerId"), { personne: interlocuteurDe(texte(donnees, "nom")), qualite: texteOuNull(donnees, "qualite") }),
+    modifierInterlocuteur(texte(donnees, "partnerId"), { personne: interlocuteurDe(texte(donnees, "prenom"), texte(donnees, "nom")), qualite: texteOuNull(donnees, "qualite") }),
   )
 }
 

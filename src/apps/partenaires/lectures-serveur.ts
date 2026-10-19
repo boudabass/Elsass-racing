@@ -99,6 +99,9 @@ export async function lirePartenaireDans(ctx: ContexteTeam, id: string) {
       siret: partenaire.contact.siret ?? "",
     },
     interlocuteur: partenaire.interlocuteur ? `${partenaire.interlocuteur.prenom} ${partenaire.interlocuteur.nom}` : null,
+    // Prénom et nom à part, pour pré-remplir les deux champs du tiroir (brief 3.14, point 2).
+    interlocuteurPrenom: partenaire.interlocuteur?.prenom ?? null,
+    interlocuteurNom: partenaire.interlocuteur?.nom ?? null,
     interlocuteurQualite: partenaire.interlocuteurQualite,
     statut: partenaire.statut,
     source: partenaire.source,

@@ -72,9 +72,16 @@ export function FormulaireProspect() {
         )}
         {indice?.contactExiste && !indice.partenaireId && <p className="text-texte-discret">Ce contact existe déjà, il sera réutilisé.</p>}
       </div>
-      <Champ id="contact" libelle="Contact" aide="Le nom de l'interlocuteur, si tu le connais. Facultatif.">
-        <input id="contact" name="contact" autoComplete="off" maxLength={120} placeholder="Prénom Nom" className={CHAMP} aria-describedby="contact-aide" />
-      </Champ>
+      <fieldset className="flex flex-col gap-4 rounded-lg border border-bordure p-4">
+        <legend className="px-1 font-medium">Interlocuteur (facultatif)</legend>
+        <p className="text-sm text-texte-discret">Prénom et nom ensemble, si tu les connais. Laisse les deux vides sinon.</p>
+        <Champ id="contact-prenom" libelle="Prénom">
+          <input id="contact-prenom" name="prenom" autoComplete="off" maxLength={60} className={CHAMP} />
+        </Champ>
+        <Champ id="contact-nom" libelle="Nom">
+          <input id="contact-nom" name="nom" autoComplete="off" maxLength={60} className={CHAMP} />
+        </Champ>
+      </fieldset>
     </FormulaireAction>
     </FormulairePage>
   )
