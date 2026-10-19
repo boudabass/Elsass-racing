@@ -4,7 +4,7 @@
 // sont des variables du thème, donc le plan suit le thème clair ou sombre. Aucun texte dans le SVG : les noms sont
 // dans la liste, à côté du plan. Le statut se lit de trois façons (contour, fond, texte), jamais par la couleur seule.
 
-import { useId, useRef, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react"
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react"
 
 import type { ElementDessin, FormeEmplacement, Gabarit, RoleDessin } from "../gabarits/types"
 import { LIBELLE_STATUT_EMPLACEMENT, TITRE_VUE } from "../libelles"
@@ -22,6 +22,10 @@ import {
 
 // Épaisseur à partir de laquelle un trait « detail » est le filet rouge du dessin d'origine : il prend la couleur de la team.
 const EPAISSEUR_FILET = 4
+// Cible tactile minimale d'une poignée, en pixels à l'écran (règle du projet : 44 px).
+const CIBLE_TACTILE_PX = 44
+// Déplacement minimal, en unités du plan, avant qu'une forme bouge : un appui simple ne change rien.
+const SEUIL_GLISSEMENT = 1
 
 const STYLE_ROLE: Record<RoleDessin, CSSProperties> = {
   caisse: { fill: "var(--surface-2)", stroke: "var(--bordure)", strokeWidth: 1 },
@@ -54,6 +58,7 @@ interface Glissement {
   mode: "corps" | "coin"
   depart: { x: number; y: number }
   origine: FormeEmplacement
+  bouge: boolean
 }
 
 export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, onChoisir, deplacement }: PlanVehiculeProps) {
@@ -63,6 +68,17 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
   const svg = useRef<SVGSVGElement>(null)
   const glissement = useRef<Glissement | null>(null)
   const dessin = dessinDeLaVue(gabarit, vue)
+  // Unités du plan par pixel à l'écran : sert à donner aux poignées une cible de 44 px, quelle que soit la taille du plan.
+  const [echelle, setEchelle] = useState(1)
+  useEffect(() => {
+    const element = svg.current
+    if (!element) return
+    const mesurer = () => setEchelle(element.getBoundingClientRect().width / bornes.l)
+    mesurer()
+    const observateur = new ResizeObserver(mesurer)
+    observateur.observe(element)
+    return () => observateur.disconnect()
+  }, [bornes.l])
 
   // Coordonnées du plan (celles du viewBox) pour un événement de pointeur.
   function pointDuPlan(evenement: PointerEvent<SVGElement>): { x: number; y: number } | null {
@@ -81,7 +97,7 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
     const depart = pointDuPlan(evenement)
     if (!depart) return
     evenement.currentTarget.setPointerCapture(evenement.pointerId)
-    glissement.current = { mode, depart, origine: deplacement.forme }
+    glissement.current = { mode, depart, origine: deplacement.forme, bouge: false }
   }
 
   function suitGlissement(evenement: PointerEvent<SVGElement>) {
@@ -91,6 +107,11 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
     if (!point) return
     const dx = point.x - suivi.depart.x
     const dy = point.y - suivi.depart.y
+    // Un appui qui ne bouge pas, ou à peine, ne change pas la position : le tiroir reste l'action du clic.
+    if (!suivi.bouge) {
+      if (Math.hypot(dx, dy) < SEUIL_GLISSEMENT) return
+      suivi.bouge = true
+    }
     if (suivi.mode === "corps") {
       deplacement.onChange(deplacerForme(suivi.origine, dx, dy, bornes))
     } else {
@@ -183,6 +204,7 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
             {enDeplacement && forme.type === "rect" && (
               <PoigneeSvg
                 forme={forme}
+                echelle={echelle}
                 onDebut={(e) => debutGlissement(e, "coin")}
                 onSuit={suitGlissement}
                 onFin={finGlissement}
@@ -254,9 +276,12 @@ function FormeEmplacementSvg({
   onSuitGlissement,
   onFinGlissement,
 }: FormeEmplacementSvgProps) {
+  // Toute la surface de la forme reçoit le pointeur, pas seulement son contour : un emplacement libre n'a pas de remplissage.
   const style: CSSProperties = {
     ...styleStatut(statut, avecLogo, motifHachures),
     ...(choisi ? { stroke: "var(--texte)", strokeWidth: 3 } : {}),
+    pointerEvents: "all",
+    touchAction: onDebutGlissement ? "none" : undefined,
     cursor: onDebutGlissement ? "move" : "pointer",
   }
   const commun = {
@@ -306,30 +331,34 @@ function LogoSvg({ forme, fichierId, identifiant }: { forme: FormeEmplacement; f
   )
 }
 
-// Poignée carrée au coin bas-droit d'un rectangle, en mode déplacement.
+// Poignée carrée au coin bas-droit d'un rectangle, en mode déplacement. Le dessin reste petit ; la zone de contact
+// autour fait au moins 44 px à l'écran, pour le doigt.
 function PoigneeSvg({
   forme,
+  echelle,
   onDebut,
   onSuit,
   onFin,
 }: {
   forme: Extract<FormeEmplacement, { type: "rect" }>
+  echelle: number
   onDebut: (evenement: PointerEvent<SVGElement>) => void
   onSuit: (evenement: PointerEvent<SVGElement>) => void
   onFin: (evenement: PointerEvent<SVGElement>) => void
 }) {
+  const cible = Math.max(COTE_POIGNEE, CIBLE_TACTILE_PX / echelle)
+  const xCoin = forme.x + forme.l
+  const yCoin = forme.y + forme.h
   return (
-    <rect
-      x={forme.x + forme.l - COTE_POIGNEE / 2}
-      y={forme.y + forme.h - COTE_POIGNEE / 2}
-      width={COTE_POIGNEE}
-      height={COTE_POIGNEE}
-      aria-hidden="true"
-      style={{ fill: "var(--marque)", stroke: "var(--texte)", strokeWidth: 1, cursor: "nwse-resize" }}
-      onPointerDown={onDebut}
-      onPointerMove={onSuit}
-      onPointerUp={onFin}
-      onPointerCancel={onFin}
-    />
+    <g aria-hidden="true" style={{ cursor: "nwse-resize", touchAction: "none" }} onPointerDown={onDebut} onPointerMove={onSuit} onPointerUp={onFin} onPointerCancel={onFin}>
+      <rect x={xCoin - cible / 2} y={yCoin - cible / 2} width={cible} height={cible} style={{ fill: "transparent" }} />
+      <rect
+        x={xCoin - COTE_POIGNEE / 2}
+        y={yCoin - COTE_POIGNEE / 2}
+        width={COTE_POIGNEE}
+        height={COTE_POIGNEE}
+        style={{ fill: "var(--marque)", stroke: "var(--texte)", strokeWidth: 1, pointerEvents: "none" }}
+      />
+    </g>
   )
 }
