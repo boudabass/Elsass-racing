@@ -3,6 +3,7 @@
 
 import type { ContexteTeam } from "@/core/contexte"
 import { prismaPourTeam } from "@/lib/prisma"
+import { lireRecettesParOrigineDans } from "@/apps/budget/liaisons-serveur"
 
 import { accesPartenaires, normaliserNom } from "./services-serveur"
 import { enRetard, jourParis, type StatutPartenaire } from "./regles"
@@ -238,11 +239,7 @@ export async function listerPersonnesDans(ctx: ContexteTeam) {
 
 // Versements prévus de la convention : les recettes Budget d'origine « partenaires:<convention>:<rang> » (brief 3.11, §4).
 export async function lireVersementsConventionDans(ctx: ContexteTeam, agreementId: string) {
-  return prismaPourTeam(ctx.teamId, ctx.userId).budgetIncome.findMany({
-    where: { teamId: ctx.teamId, deletedAt: null, origineRef: { startsWith: `partenaires:${agreementId}:` } },
-    select: { id: true, montant: true, date: true, statut: true, encaisseeLe: true },
-    orderBy: { date: "asc" },
-  })
+  return lireRecettesParOrigineDans(ctx, `partenaires:${agreementId}:`)
 }
 
 export async function lireVersementsConvention(agreementId: string) {

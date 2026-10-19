@@ -324,3 +324,13 @@ export async function etatRecettesParOrigine(
   }
   return { totalCentimes, encaisseCentimes }
 }
+
+// Recettes d'une origine (préfixe, p. ex. partenaires:<convention>:) pour l'écran de la convention (brief 3.11, §4).
+// Lecture seule, par le contexte de Partenaires : Partenaires n'ouvre pas la table budgetIncome.
+export async function lireRecettesParOrigineDans(ctx: ContexteTeam, prefixe: string) {
+  return prismaPourTeam(ctx.teamId, ctx.userId).budgetIncome.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null, origineRef: { startsWith: prefixe } },
+    select: { id: true, montant: true, date: true, statut: true, encaisseeLe: true },
+    orderBy: { date: "asc" },
+  })
+}
