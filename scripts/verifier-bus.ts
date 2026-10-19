@@ -517,7 +517,7 @@ async function main() {
     const apresEmplacements = await compter("voiture.emplacement_modifie")
     controle("la création d'un véhicule émet un seul voiture.emplacement_modifie", apresEmplacements - avantEmplacements === 1, `${apresEmplacements - avantEmplacements}`)
     const nbSlots = await proprietaire.voitureSlot.count({ where: { teamId: team.id, vehicleId: vehiculeVoiture, deletedAt: null } })
-    controle("le véhicule reçoit les dix-sept emplacements de la Saxo (paires droite et gauche, avant, arrière, dessus)", nbSlots === 17, `${nbSlots}`)
+    controle("le véhicule reçoit les seize emplacements de la Saxo (paires droite et gauche, avant, arrière, dessus)", nbSlots === 16, `${nbSlots}`)
 
     // Sans gabarit (« Aucun gabarit ») : pas d'emplacement, donc pas d'événement d'emplacement.
     const avantSansGabarit = await compter("voiture.emplacement_modifie")
