@@ -183,16 +183,9 @@ export async function completerGabaritAction(_etat: ResultatComplement | null, d
   }
 }
 
-// Modification : nom, dimensions en cm et la symétrie (information : la paire est déjà dans le nom).
-export async function modifierEmplacementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executerVoiture(() =>
-    modifierEmplacement(texte(donnees, "slotId"), {
-      nom: texte(donnees, "nom"),
-      largeurCm: entierOuNull(donnees, "largeurCm"),
-      hauteurCm: entierOuNull(donnees, "hauteurCm"),
-      symetrique: texteOuNull(donnees, "symetrique") === "oui",
-    }),
-  )
+// Renommer : le nom seulement. La place et la taille se règlent sur le plan, les dimensions en cm ne se saisissent plus.
+export async function renommerEmplacementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(() => modifierEmplacement(texte(donnees, "slotId"), { nom: texte(donnees, "nom") }))
 }
 
 // Déplacement ou redimensionnement : seule la forme change.

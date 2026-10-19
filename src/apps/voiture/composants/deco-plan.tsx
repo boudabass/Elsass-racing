@@ -173,12 +173,10 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
           emplacement={visible}
           peutEcrire={peutEcrire}
           partenaires={partenaires}
-          bornes={bornes}
           etape={etape}
           ordinateur={ordinateur}
           brouillon={brouillon}
           onEtape={allerA}
-          onChangerBrouillon={setBrouillon}
           onFermer={fermerPanneau}
         />
       )}

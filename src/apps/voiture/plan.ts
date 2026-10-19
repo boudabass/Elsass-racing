@@ -122,20 +122,6 @@ export function redimensionnerForme(forme: FormeEmplacement, largeur: number, ha
   return { type: "rect", x: forme.x, y: forme.y, l, h }
 }
 
-// Valeur d'une forme saisie dans un champ X, Y, Largeur ou Hauteur : elle reste dans le viewBox et au-dessus du minimum.
-export function formeDuChamp(
-  forme: FormeEmplacement,
-  champ: "x" | "y" | "l" | "h",
-  valeur: number,
-  bornes: Bornes,
-): FormeEmplacement {
-  const etendue = etendueDe(forme)
-  if (champ === "x") return deplacerForme(forme, valeur - etendue.x, 0, bornes)
-  if (champ === "y") return deplacerForme(forme, 0, valeur - etendue.y, bornes)
-  if (champ === "l") return redimensionnerForme(forme, valeur, etendue.h, bornes)
-  return redimensionnerForme(forme, etendue.l, valeur, bornes)
-}
-
 // Lecture d'une forme stockée (colonne JSON) : rien ne passe si la forme n'a pas la bonne structure.
 export function formeDeJson(valeur: unknown): FormeEmplacement | null {
   if (typeof valeur !== "object" || valeur === null) return null

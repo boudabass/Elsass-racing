@@ -22,26 +22,25 @@ import { jourDeParis } from "@/core/dates"
 import {
   enregistrerPositionAction,
   marquerIndisponibleAction,
-  modifierEmplacementAction,
   poserLogoAction,
+  renommerEmplacementAction,
   reserverEmplacementAction,
   retirerLogoAction,
   supprimerEmplacementAction,
 } from "../actions"
 import { LIBELLE_STATUT_EMPLACEMENT, COULEUR_STATUT_EMPLACEMENT, TITRE_VUE, dateEnToutesLettres, dimensionsDe } from "../libelles"
-import { COTE_MINIMAL, etendueDe, formeDuChamp, type Bornes, type EmplacementPlan } from "../plan"
+import type { EmplacementPlan } from "../plan"
 
 const ACCEPT_LOGO = "image/jpeg,image/png,image/webp,image/svg+xml"
 const ACCEPT_PHOTO = "image/jpeg,image/png,image/webp"
 
 // Les étapes du tiroir : chacune est une saisie (ou une confirmation) qui revient à la fiche.
-export type EtapeEmplacement = "reserver" | "poser" | "annuler" | "retirer" | "modifier" | "position" | "supprimer"
+export type EtapeEmplacement = "reserver" | "poser" | "annuler" | "retirer" | "renommer" | "position" | "supprimer"
 
 interface TiroirEmplacementProps {
   emplacement: EmplacementPlan
   peutEcrire: boolean
   partenaires: PartenaireReservable[]
-  bornes: Bornes
   // L'étape ouverte ; null pour la fiche.
   etape: EtapeEmplacement | null
   // Sur ordinateur, le tiroir glisse depuis la droite ; sur téléphone il monte du bas (seule la hauteur change).
@@ -49,7 +48,6 @@ interface TiroirEmplacementProps {
   // Mode « Déplacer ou redimensionner » : la forme en cours d'édition, et ses changements.
   brouillon: FormeEmplacement | null
   onEtape: (etape: EtapeEmplacement | null) => void
-  onChangerBrouillon: (forme: FormeEmplacement) => void
   onFermer: () => void
 }
 
@@ -58,7 +56,7 @@ function dateLisible(jour: string | null): string | null {
 }
 
 export function TiroirEmplacement(props: TiroirEmplacementProps) {
-  const { emplacement, etape, ordinateur, brouillon, bornes, onEtape, onChangerBrouillon, onFermer, partenaires } = props
+  const { emplacement, etape, ordinateur, brouillon, onEtape, onFermer, partenaires } = props
   // Modal partout, sauf pour l'étape « position » (plus bas).
   const modal = true
   const occupation = emplacement.occupation
@@ -111,8 +109,8 @@ export function TiroirEmplacement(props: TiroirEmplacementProps) {
       ) : (
         fiche
       )
-    case "modifier":
-      return <EtapeModifier {...commun} />
+    case "renommer":
+      return <EtapeRenommer {...commun} />
     case "supprimer":
       return emplacement.occupation ? (
         fiche
@@ -130,14 +128,7 @@ export function TiroirEmplacement(props: TiroirEmplacementProps) {
       // Non modal sur tous les écrans : le glissement sur le plan doit rester possible. Le reste de la page est inerte
       // (voir DecoPlan), et un clic sur un autre emplacement ne fait rien.
       return emplacement.forme && brouillon ? (
-        <EtapePosition
-          emplacement={emplacement}
-          retour={retour}
-          bornes={bornes}
-          brouillon={brouillon}
-          onChangerBrouillon={onChangerBrouillon}
-          compact={!ordinateur}
-        />
+        <EtapePosition emplacement={emplacement} retour={retour} brouillon={brouillon} compact={!ordinateur} />
       ) : (
         fiche
       )
@@ -248,8 +239,8 @@ function PanneauEmplacement({
             </button>
           )}
 
-          <button type="button" className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`} aria-haspopup="dialog" onClick={() => onEtape("modifier")}>
-            Modifier l'emplacement
+          <button type="button" className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`} aria-haspopup="dialog" onClick={() => onEtape("renommer")}>
+            Renommer
           </button>
 
           {!occupation && (
@@ -426,13 +417,14 @@ function EtapeConfirmation({
   )
 }
 
-function EtapeModifier({ emplacement, retour, modal }: EtapeCommune) {
+// Renommer : le nom de l'emplacement, et rien d'autre. La place et la taille se règlent sur le plan.
+function EtapeRenommer({ emplacement, retour, modal }: EtapeCommune) {
   return (
     <Etape
-      titre="Modifier l'emplacement"
+      titre="Renommer l'emplacement"
       sousTitre={emplacement.nom}
-      action={modifierEmplacementAction}
-      libelleBouton="Enregistrer les modifications"
+      action={renommerEmplacementAction}
+      libelleBouton="Enregistrer le nom"
       retour={retour}
       modal={modal}
     >
@@ -440,58 +432,23 @@ function EtapeModifier({ emplacement, retour, modal }: EtapeCommune) {
       <Champ libelle="Nom">
         <input name="nom" required maxLength={80} defaultValue={emplacement.nom} className={CHAMP} />
       </Champ>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Champ libelle="Largeur (cm)">
-          <input name="largeurCm" inputMode="numeric" defaultValue={emplacement.largeurCm ?? ""} className={CHAMP} />
-        </Champ>
-        <Champ libelle="Hauteur (cm)">
-          <input name="hauteurCm" inputMode="numeric" defaultValue={emplacement.hauteurCm ?? ""} className={CHAMP} />
-        </Champ>
-      </div>
-      {emplacement.vue === "droite" && (
-        <label className="flex items-center gap-3 text-sm">
-          <input type="checkbox" name="symetrique" value="oui" defaultChecked={emplacement.symetrique} className="h-4 w-4" />
-          Symétrique à gauche
-        </label>
-      )}
     </Etape>
   )
 }
 
-// Mode « Déplacer ou redimensionner » : X, Y, Largeur, Hauteur en unités du plan (côté droit). Les champs font la
-// même chose que le glissement au pointeur. Un polygone se déplace, il ne se redimensionne pas. Le tiroir reste non
-// modal : le plan se glisse pendant l'étape. Enregistrer, Annuler et « ← Retour » reviennent à la fiche.
+// Mode « Déplacer ou redimensionner » : on glisse la forme sur le plan, par son corps (déplacer) ou son coin bas-droit
+// (redimensionner). Enregistrer, Annuler et « ← Retour » reviennent à la fiche. Le tiroir reste non modal, pour le plan.
 function EtapePosition({
   emplacement,
   retour,
-  bornes,
   brouillon,
-  onChangerBrouillon,
   compact,
 }: {
   emplacement: EmplacementPlan
   retour: () => void
-  bornes: Bornes
   brouillon: FormeEmplacement
-  onChangerBrouillon: (forme: FormeEmplacement) => void
   compact: boolean
 }) {
-  // Texte tapé dans un champ, le temps qu'il a le focus : un champ vidé reste vide sans envoyer la forme à 0.
-  const [saisies, setSaisies] = useState<Partial<Record<"x" | "y" | "l" | "h", string>>>({})
-  const forme = brouillon
-  const etendue = etendueDe(forme)
-  const polygone = forme.type === "polygone"
-  const champ = (nom: "x" | "y" | "l" | "h", brut: string) => {
-    setSaisies((s) => ({ ...s, [nom]: brut }))
-    if (brut.trim() === "") return
-    const nombre = Number(brut)
-    if (!Number.isFinite(nombre)) return
-    onChangerBrouillon(formeDuChamp(forme, nom, nombre, bornes))
-  }
-  const oublier = (nom: "x" | "y" | "l" | "h") => setSaisies((s) => ({ ...s, [nom]: undefined }))
-  const valeur = (n: number) => n.toFixed(1).replace(/\.0$/, "")
-  const affiche = (nom: "x" | "y" | "l" | "h", n: number) => saisies[nom] ?? valeur(n)
-
   return (
     <TiroirFormulaire
       ouvert
@@ -507,24 +464,12 @@ function EtapePosition({
       compact={compact}
     >
       <input type="hidden" name="slotId" value={emplacement.id} />
-      <input type="hidden" name="forme" value={JSON.stringify(forme)} />
+      <input type="hidden" name="forme" value={JSON.stringify(brouillon)} />
       <p className="text-sm text-texte-discret">
-        Glisse la forme sur le plan, ou règle-la ici. {polygone ? "Un polygone se déplace, il ne se redimensionne pas." : `Taille minimale : ${COTE_MINIMAL} unités.`}
+        {brouillon.type === "polygone"
+          ? "Glisse la forme sur le plan. Un polygone se déplace, il ne se redimensionne pas."
+          : "Glisse la forme sur le plan. Le coin bas-droit la redimensionne."}
       </p>
-      <div className="grid grid-cols-2 gap-4">
-        <Champ libelle="X">
-          <input type="number" step="any" value={affiche("x", etendue.x)} onChange={(e) => champ("x", e.target.value)} onBlur={() => oublier("x")} className={`${CHAMP} tabular-nums`} />
-        </Champ>
-        <Champ libelle="Y">
-          <input type="number" step="any" value={affiche("y", etendue.y)} onChange={(e) => champ("y", e.target.value)} onBlur={() => oublier("y")} className={`${CHAMP} tabular-nums`} />
-        </Champ>
-        <Champ libelle="Largeur">
-          <input type="number" step="any" min={COTE_MINIMAL} value={affiche("l", etendue.l)} disabled={polygone} onChange={(e) => champ("l", e.target.value)} onBlur={() => oublier("l")} className={`${CHAMP} tabular-nums`} />
-        </Champ>
-        <Champ libelle="Hauteur">
-          <input type="number" step="any" min={COTE_MINIMAL} value={affiche("h", etendue.h)} disabled={polygone} onChange={(e) => champ("h", e.target.value)} onBlur={() => oublier("h")} className={`${CHAMP} tabular-nums`} />
-        </Champ>
-      </div>
     </TiroirFormulaire>
   )
 }

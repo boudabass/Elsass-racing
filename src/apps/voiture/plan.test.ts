@@ -11,7 +11,6 @@ import {
   etendueDe,
   formeAuCentre,
   formeDeJson,
-  formeDuChamp,
   libelleComptes,
   miroirDeForme,
   redimensionnerForme,
@@ -84,14 +83,6 @@ describe("plan de déco : géométrie", () => {
     expect(redimensionnerForme(forme, 1000, 1000, bornes)).toMatchObject({ l: 370 - 30, h: 159 - 78 })
     const polygone = { type: "polygone" as const, points: [[1, 1], [2, 2]] as Array<[number, number]> }
     expect(redimensionnerForme(polygone, 100, 100, bornes)).toBe(polygone)
-  })
-
-  it("champs X, Y, Largeur, Hauteur : la valeur saisie est bornée", () => {
-    const forme = { type: "rect" as const, x: 30, y: 78, l: 23, h: 13 }
-    expect(formeDuChamp(forme, "x", 40, bornes)).toMatchObject({ x: 40, y: 78 })
-    expect(formeDuChamp(forme, "y", 9999, bornes)).toMatchObject({ y: 159 - 13 })
-    expect(formeDuChamp(forme, "l", 3, bornes)).toMatchObject({ l: COTE_MINIMAL })
-    expect(etendueDe(formeDuChamp(forme, "h", 40, bornes))).toMatchObject({ h: 40 })
   })
 
   it("lit une forme stockée en JSON, et refuse le reste", () => {
