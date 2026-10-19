@@ -111,6 +111,14 @@ export const TITRE_VUE: Record<VueGabarit, string> = {
   hors_plan: "Autres emplacements",
 }
 
+// Nom d'un emplacement dans le choix d'une contrepartie : « Portière, côté gauche ». Le côté vient de la vue : un
+// emplacement sans paire (capot, bandeau de pare-brise) garde son nom. Rien n'est stocké : le nom enregistré reste le même.
+export function libelleEmplacementPourChoix(nom: string, vue: VueGabarit, symetrique: boolean): string {
+  if (vue === "gauche") return `${nom}, côté gauche`
+  if (vue === "droite" && symetrique) return `${nom}, côté droit`
+  return nom
+}
+
 export const LIBELLE_STATUT_FINAL = {
   arrivee: "Arrivée",
   abandon: "Abandon",

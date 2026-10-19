@@ -5,11 +5,15 @@
 import type { ContexteTeam } from "@/core/contexte"
 import { prismaPourTeam } from "@/lib/prisma"
 
+import { libelleEmplacementPourChoix } from "./libelles"
 import { statutEmplacement, type StatutEmplacement } from "./regles"
 
 export type EmplacementPourPartenaire = {
   id: string
+  // Nom enregistré : c'est lui que copie une contrepartie et que compare le suivi des emplacements.
   nom: string
+  // Nom affiché dans le choix, avec le côté (« Portière, côté gauche »). Dérivé de la vue, jamais stocké.
+  libelle: string
   vehicleId: string
   vehicleNom: string
   // « libre », « réservé », « occupé » ou « indisponible » : même règle que le plan de déco.
@@ -25,6 +29,8 @@ export async function listerEmplacementsPourPartenaires(ctx: ContexteTeam): Prom
     select: {
       id: true,
       nom: true,
+      vue: true,
+      symetrique: true,
       vehicleId: true,
       statut: true,
       vehicle: { select: { nomCourt: true } },
@@ -35,6 +41,7 @@ export async function listerEmplacementsPourPartenaires(ctx: ContexteTeam): Prom
   return emplacements.map((e) => ({
     id: e.id,
     nom: e.nom,
+    libelle: libelleEmplacementPourChoix(e.nom, e.vue, e.symetrique),
     vehicleId: e.vehicleId,
     vehicleNom: e.vehicle.nomCourt,
     statut: statutEmplacement(e.occupations[0] ?? null, e.statut === "indisponible"),

@@ -33,7 +33,7 @@ export function FormulaireContrepartie({
   agreementId: string
   benefitId?: string
   catalogue: { id: string; nom: string; type: string; unite: string; quantiteDefaut: number }[]
-  emplacements: { id: string; nom: string; vehicleNom: string; statut: string }[]
+  emplacements: { id: string; nom: string; libelle: string; vehicleNom: string; statut: string }[]
   epreuves: { id: string; nom: string }[]
   valeurs: ContrepartieValeurs
 }) {
@@ -119,7 +119,7 @@ export function FormulaireContrepartie({
               <option value="">Aucun emplacement choisi</option>
               {emplacements.map((e) => (
                 <option key={e.id} value={e.id}>
-                  {e.vehicleNom} · {e.nom} ({LIBELLE_EMPLACEMENT[e.statut] ?? e.statut})
+                  {e.vehicleNom} · {e.libelle} ({LIBELLE_EMPLACEMENT[e.statut] ?? e.statut})
                 </option>
               ))}
             </select>

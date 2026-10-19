@@ -144,7 +144,7 @@ export default async function PageConvention({
     })),
   }
   const catalogueActif = catalogue.filter((c) => c.actif).map((c) => ({ id: c.id, nom: c.nom, type: c.type, unite: c.unite, quantiteDefaut: c.quantiteDefaut }))
-  const emplacementsPourChoix = emplacements.map((e) => ({ id: e.id, nom: e.nom, vehicleNom: e.vehicleNom, statut: e.statut }))
+  const emplacementsPourChoix = emplacements.map((e) => ({ id: e.id, nom: e.nom, libelle: e.libelle, vehicleNom: e.vehicleNom, statut: e.statut }))
   const epreuvesPourChoix = epreuves.map((e) => ({ id: e.id, nom: e.nom }))
 
   return (
