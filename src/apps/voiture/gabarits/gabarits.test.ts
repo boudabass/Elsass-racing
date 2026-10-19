@@ -124,6 +124,12 @@ describe("gabarit Saxo", () => {
 })
 
 describe("gabarit Voiture générique", () => {
+  it("sa version 1 porte les formes de la Saxo version 3 : c'est sa seule forme antérieure", () => {
+    const aile = gabaritGenerique.emplacementsTypes.find((t) => t.nom === "Aile avant")
+    expect(aile?.formesAnterieures).toEqual([{ type: "rect", x: 254.6, y: 69, l: 61.8, h: 12.4 }])
+    expect(gabaritGenerique.emplacementsTypes.find((t) => t.nom === "Portière")?.formesAnterieures).toBeUndefined()
+  })
+
   it("est le modèle par défaut : premier du catalogue, retrouvé par sa clé", () => {
     expect(GABARITS[0].cle).toBe(CLE_GABARIT_GENERIQUE)
     expect(gabarit(CLE_GABARIT_GENERIQUE)?.nom).toBe("Voiture générique")

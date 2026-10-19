@@ -167,7 +167,7 @@ describe("emplacements : complément d'un véhicule existant", () => {
 
   it("un véhicule déjà complet n'a rien à recevoir", () => {
     const existants = lignes(attendus.map((e) => ({ vue: e.vue, nom: e.nom })))
-    expect(planComplement(existants, attendus, options())).toEqual({ creer: [], reprendre: [], retirer: [], conserves: [], formes: [] })
+    expect(planComplement(existants, attendus, options())).toEqual({ creer: [], reprendre: [], retirer: [], conserves: [], formes: [], deplacees: [] })
   })
 
   it("un véhicule sans vues ajoutées reçoit les emplacements qui lui manquent, sans la lunette arrière", () => {
@@ -220,7 +220,7 @@ describe("emplacements : complément d'un véhicule existant", () => {
     expect(apres.filter((e) => e.nom === "Capot")).toEqual([{ id: "hp-Capot", vue: "dessus", nom: "Capot", libre: true }])
     expect(apres.filter((e) => e.vue === "hors_plan")).toEqual([])
     expect(apres.some((e) => e.nom === "Lunette arrière")).toBe(false)
-    expect(planComplement(apres, attendus, options())).toEqual({ creer: [], reprendre: [], retirer: [], conserves: [], formes: [] })
+    expect(planComplement(apres, attendus, options())).toEqual({ creer: [], reprendre: [], retirer: [], conserves: [], formes: [], deplacees: [] })
   })
 
   it("une ligne déjà à la bonne vue n'est jamais touchée ; un hors plan en double part dans la vue affichée, sans doublon créé", () => {
@@ -230,16 +230,45 @@ describe("emplacements : complément d'un véhicule existant", () => {
     expect(plan.creer.find((e) => e.nom === "Capot")).toBeUndefined()
   })
 
-  it("une ligne libre portant une ancienne forme reçoit celle du gabarit, sans changer d'id ; une ligne occupée garde la sienne", () => {
-    const ancienne: FormeEmplacement = { type: "rect", x: 1, y: 2, l: 3, h: 4 }
-    const existants = lignes(droiteEtGauche).map((l, i) => ({ ...l, forme: ancienne, libre: i !== 0 }))
+  it("une ligne libre à une forme antérieure reçoit la forme actuelle, sans changer d'id ; une ligne occupée garde la sienne", () => {
+    // Chaque ligne porte sa forme de la version précédente (quand le gabarit en a changé) ; la première est occupée.
+    const existants = lignes(droiteEtGauche).map((l, i) => {
+      const attendu = attendus.find((e) => e.vue === l.vue && e.nom === l.nom)
+      return { ...l, forme: attendu?.formesAnterieures?.[0] ?? attendu?.forme ?? null, libre: i !== 0 }
+    })
     const plan = planComplement(existants, attendus, options())
-    expect(plan.formes.map((f) => f.id)).toEqual(existants.slice(1).map((l) => l.id))
+    const attendusRemis = existants.filter((l, i) => i !== 0 && attendus.some((e) => e.vue === l.vue && e.nom === l.nom && e.formesAnterieures))
+    expect(plan.formes.map((f) => f.id)).toEqual(attendusRemis.map((l) => l.id))
     for (const { id, forme } of plan.formes) {
       const ligne = existants.find((l) => l.id === id)
       expect(forme).toEqual(attendus.find((e) => e.vue === ligne?.vue && e.nom === ligne?.nom)?.forme)
     }
     expect(plan.creer).toEqual(planComplement(lignes(droiteEtGauche), attendus, options()).creer)
+  })
+
+  it("une ligne déplacée à la main reste telle quelle, et une ligne occupée à une forme antérieure ne bouge pas", () => {
+    const aile = attendus.find((e) => e.vue === "droite" && e.nom === "Aile avant droite")
+    const bas = attendus.find((e) => e.vue === "droite" && e.nom === "Bas de caisse droite")
+    const main = { type: "rect" as const, x: 10, y: 10, l: 20, h: 8 }
+    const existants = [
+      { id: "remise", vue: "droite" as const, nom: "Aile avant droite", libre: true, forme: aile?.formesAnterieures?.[0] },
+      { id: "main", vue: "droite" as const, nom: "Aile arrière droite", libre: true, forme: main },
+      { id: "occupee", vue: "droite" as const, nom: "Bas de caisse droite", libre: false, forme: bas?.formesAnterieures?.[0] },
+    ]
+    const plan = planComplement(existants, attendus, options())
+    expect(plan.formes).toEqual([{ id: "remise", forme: aile?.forme }])
+    expect(plan.deplacees).toEqual(["main"])
+    expect(plan.formes.some((f) => f.id === "occupee")).toBe(false)
+    expect(plan.deplacees.includes("occupee")).toBe(false)
+  })
+
+  it("une forme qui n'a jamais été celle du gabarit n'est pas remise, même si elle est proche", () => {
+    const aile = attendus.find((e) => e.vue === "droite" && e.nom === "Aile avant droite")
+    const proche = { ...(aile?.formesAnterieures?.[0] ?? { type: "rect" as const, x: 0, y: 0, l: 1, h: 1 }), x: 254 }
+    const existants = [{ id: "proche", vue: "droite" as const, nom: "Aile avant droite", libre: true, forme: proche }]
+    const plan = planComplement(existants, attendus, options())
+    expect(plan.formes).toEqual([])
+    expect(plan.deplacees).toEqual(["proche"])
   })
 
   it("une forme identique à celle du gabarit, aux clés près dans un autre ordre, ne déclenche rien", () => {
@@ -272,13 +301,27 @@ describe("complement : le bouton ne s'affiche que s'il reste quelque chose à fa
 
   it("un ancien véhicule : la phrase chiffre les ajouts, les rangements et les retraits", () => {
     const resume = resumeComplement(planComplement(anciens, attendus, options()))
-    expect(resume).toEqual({ ajouter: 2, ranger: 3, retirer: 1, formes: 0, total: 6 })
+    expect(resume).toEqual({ ajouter: 2, ranger: 3, retirer: 1, formes: 0, deplacees: 0, total: 6 })
     expect(libelleComplement(resume)).toBe("2 emplacements à ajouter, 3 emplacements hors plan à ranger dans la vue, 1 à retirer.")
   })
 
   it("une seule forme à remettre : la phrase l'annonce au singulier", () => {
-    expect(libelleComplement({ ajouter: 0, ranger: 0, retirer: 0, formes: 1, total: 1 })).toBe("1 forme remise au gabarit.")
-    expect(libelleComplement({ ajouter: 1, ranger: 0, retirer: 0, formes: 4, total: 5 })).toBe("1 emplacement à ajouter, 4 formes remises au gabarit.")
+    expect(libelleComplement({ ajouter: 0, ranger: 0, retirer: 0, formes: 1, deplacees: 0, total: 1 })).toBe("1 forme remise au gabarit.")
+    expect(libelleComplement({ ajouter: 1, ranger: 0, retirer: 0, formes: 4, deplacees: 0, total: 5 })).toBe("1 emplacement à ajouter, 4 formes remises au gabarit.")
+  })
+
+  it("les lignes déplacées à la main sont dites, laissées telles quelles ; seules des lignes déplacées ne donnent pas de bouton", () => {
+    expect(libelleComplement({ ajouter: 0, ranger: 0, retirer: 0, formes: 2, deplacees: 2, total: 2 })).toBe(
+      "2 formes remises au gabarit, 2 emplacements déplacés à la main, laissés tels quels.",
+    )
+    expect(libelleComplement({ ajouter: 0, ranger: 0, retirer: 0, formes: 0, deplacees: 1, total: 0 })).toBe("")
+  })
+
+  it("le résumé compte les lignes déplacées à la main sans les ajouter à l'action", () => {
+    const existants = [{ id: "main", vue: "droite" as const, nom: "Aile arrière droite", libre: true, forme: { type: "rect" as const, x: 10, y: 10, l: 20, h: 8 } }]
+    const resume = resumeComplement(planComplement(existants, attendus, options()))
+    expect(resume.deplacees).toBe(1)
+    expect(resume.total).toBe(resume.ajouter + resume.ranger + resume.retirer + resume.formes)
   })
 })
 

@@ -432,6 +432,39 @@ test.describe("téléphone 360 px, au doigt", () => {
     await capturer(page, "voiture-deco-glissement-apres-360.png")
   })
 
+  // Une petite forme (Aile avant droite, 8 unités de haut à 360 px) : un appui au milieu la déplace, un appui au coin la
+  // redimensionne. La poignée ne couvre jamais plus du tiers du côté le plus court, donc le milieu reste à déplacer.
+  test("responsable, téléphone : sur une petite forme, le milieu déplace et le coin redimensionne", async ({ page, equipe }) => {
+    test.setTimeout(240_000)
+    await connecterParLien(page, equipe)
+    await page.setViewportSize(BUREAU)
+    const vehiculeId = await creerSaxoDeux(page)
+    await page.setViewportSize(TELEPHONE)
+    await ouvrirDeco(page, vehiculeId)
+
+    await ligne(page, "Aile avant droite").click()
+    await page.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
+    const cdp = await page.context().newCDPSession(page)
+    const xDepart = Number(await forme(page, "Aile avant droite").getAttribute("x"))
+    const largeurDepart = Number(await forme(page, "Aile avant droite").getAttribute("width"))
+
+    // Appui au milieu : la forme se déplace, sa largeur ne change pas.
+    const milieu = await forme(page, "Aile avant droite").boundingBox()
+    if (!milieu) throw new Error("Aile avant droite : pas de boîte à l'écran")
+    await glisserAuDoigt(cdp, { x: milieu.x + milieu.width / 2, y: milieu.y + milieu.height / 2 }, 20, 0)
+    await expect.poll(async () => Number(await forme(page, "Aile avant droite").getAttribute("x"))).not.toBeCloseTo(xDepart, 0)
+    expect(Number(await forme(page, "Aile avant droite").getAttribute("width"))).toBeCloseTo(largeurDepart, 1)
+
+    // Appui au coin bas-droit : la forme se redimensionne, son coin haut-gauche (x) ne bouge pas.
+    const xApresMilieu = Number(await forme(page, "Aile avant droite").getAttribute("x"))
+    const boitePoignee = await poignee(page).boundingBox()
+    if (!boitePoignee) throw new Error("Aile avant droite : pas de poignée à l'écran")
+    await glisserAuDoigt(cdp, { x: boitePoignee.x + boitePoignee.width / 2, y: boitePoignee.y + boitePoignee.height / 2 }, 10, 0)
+    await expect.poll(async () => Number(await forme(page, "Aile avant droite").getAttribute("width"))).toBeGreaterThan(largeurDepart + 1)
+    expect(Number(await forme(page, "Aile avant droite").getAttribute("x"))).toBeCloseTo(xApresMilieu, 1)
+    await expect(page.getByRole("button", { name: "Enregistrer la position" })).toBeVisible()
+  })
+
   // Sur téléphone, le déplacement se fait sur une barre compacte en bas, sans tiroir : le plan reste visible et actif,
   // la forme se glisse au doigt, et elle reste au-dessus de la barre.
   test("responsable, téléphone : déplacer une forme sur la barre, le plan reste actif et la forme au-dessus de la barre", async ({ page, equipe }) => {
@@ -442,10 +475,10 @@ test.describe("téléphone 360 px, au doigt", () => {
     await page.setViewportSize(TELEPHONE)
     await ouvrirDeco(page, vehiculeId)
 
-    await ligne(page, "Portière droite").click()
+    await ligne(page, "Aile avant").click()
     await page.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
     await expect(page.getByRole("dialog")).toHaveCount(0)
-    const barre = page.getByRole("form", { name: "Déplacer ou redimensionner Portière droite" })
+    const barre = page.getByRole("form", { name: "Déplacer ou redimensionner Aile avant" })
     await expect(barre.getByRole("button")).toHaveCount(2)
     await expect(barre.getByRole("button", { name: "Annuler", exact: true })).toBeVisible()
     await expect(barre.getByRole("button", { name: "Enregistrer la position", exact: true })).toBeVisible()
@@ -454,14 +487,14 @@ test.describe("téléphone 360 px, au doigt", () => {
 
     // Le plan reste actif : on glisse la forme au doigt, puis elle se pose au-dessus de la barre.
     const cdp = await page.context().newCDPSession(page)
-    const xAvant = Number(await forme(page, "Portière droite").getAttribute("x"))
-    const depart = await forme(page, "Portière droite").boundingBox()
-    if (!depart) throw new Error("Portière droite : pas de boîte à l'écran")
+    const xAvant = Number(await forme(page, "Aile avant").getAttribute("x"))
+    const depart = await forme(page, "Aile avant").boundingBox()
+    if (!depart) throw new Error("Aile avant : pas de boîte à l'écran")
     await glisserAuDoigt(cdp, { x: depart.x + depart.width / 2, y: depart.y + depart.height / 2 }, 20, 0)
-    await expect.poll(async () => Number(await forme(page, "Portière droite").getAttribute("x"))).not.toBeCloseTo(xAvant, 0)
-    const xApres = Number(await forme(page, "Portière droite").getAttribute("x"))
+    await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("x"))).not.toBeCloseTo(xAvant, 0)
+    const xApres = Number(await forme(page, "Aile avant").getAttribute("x"))
 
-    const boiteForme = await forme(page, "Portière droite").boundingBox()
+    const boiteForme = await forme(page, "Aile avant").boundingBox()
     const boiteBarre = await barre.boundingBox()
     if (!boiteForme || !boiteBarre) throw new Error("forme ou barre absente à l'écran")
     expect(boiteForme.y + boiteForme.height).toBeLessThanOrEqual(boiteBarre.y)
@@ -470,7 +503,7 @@ test.describe("téléphone 360 px, au doigt", () => {
     await barre.getByRole("button", { name: "Enregistrer la position", exact: true }).click()
     await expect(page.getByRole("button", { name: "Enregistrer la position" })).toHaveCount(0)
     await page.reload()
-    await expect.poll(async () => Number(await forme(page, "Portière droite").getAttribute("x"))).toBeCloseTo(xApres, 1)
+    await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("x"))).toBeCloseTo(xApres, 1)
   })
 })
 

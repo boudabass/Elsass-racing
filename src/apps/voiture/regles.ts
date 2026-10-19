@@ -83,6 +83,8 @@ export type EmplacementInitial = {
   forme: FormeEmplacement | null
   symetrique: boolean
   statut: "libre"
+  // Formes antérieures de cet emplacement, dans sa vue (miroir pour un côté gauche), comme `forme`.
+  formesAnterieures?: FormeEmplacement[]
 }
 
 // Emplacements à créer pour un nouveau véhicule. Un emplacement symétrique devient une ligne par côté, et le côté
@@ -100,6 +102,7 @@ export function emplacementsDepuisGabarit(gabarit: Gabarit): EmplacementInitial[
     const paire = vues.length > 1
     for (const vue of vues) {
       const forme = vue === type.vue || type.forme === null ? type.forme : miroirDeForme(type.forme, bornes)
+      const anterieures = (type.formesAnterieures ?? []).map((f) => (vue === type.vue || type.forme === null ? f : miroirDeForme(f, bornes)))
       emplacements.push({
         nom: paire ? `${type.nom} ${vue}` : type.nom,
         vue,
@@ -107,6 +110,7 @@ export function emplacementsDepuisGabarit(gabarit: Gabarit): EmplacementInitial[
         forme,
         symetrique: paire,
         statut: "libre",
+        ...(anterieures.length > 0 ? { formesAnterieures: anterieures } : {}),
       })
     }
   }
@@ -131,13 +135,15 @@ export type OptionsComplement = {
 // restent donc valides. `retirer` : les lignes libres d'un nom retiré du gabarit (retrait logique). `conserves` : les
 // noms retirés du gabarit mais occupés ou liés à une contrepartie, gardés et à signaler. `formes` : la forme du gabarit
 // remise sur une ligne déjà à sa vue, quand elle en diffère (seulement les lignes libres : une ligne occupée ou liée
-// garde sa forme, son occupation ne bouge pas). L'id reste le même.
+// garde sa forme, son occupation ne bouge pas). L'id reste le même. `deplacees` : les lignes libres dont la forme n'est
+// ni l'actuelle ni une forme antérieure du gabarit : placées à la main, elles restent telles quelles, et le disent.
 export type PlanComplement = {
   creer: EmplacementInitial[]
   reprendre: Array<{ id: string; vue: VueGabarit; forme: FormeEmplacement | null }>
   retirer: string[]
   conserves: string[]
   formes: Array<{ id: string; forme: FormeEmplacement }>
+  deplacees: string[]
 }
 
 // Une ligne déjà à la bonne vue n'est jamais touchée, sauf sa forme (voir `formes`). Une ligne hors plan sans équivalent
@@ -148,6 +154,7 @@ export function planComplement(existants: LigneComplement[], attendus: Emplaceme
   const retirer: string[] = []
   const conserves: string[] = []
   const formes: PlanComplement["formes"] = []
+  const deplacees: string[] = []
   const repris = new Set<string>()
   // Lignes d'un nom retiré : jamais reprises, jamais recréées.
   const ecartees = new Set<string>()
@@ -160,7 +167,12 @@ export function planComplement(existants: LigneComplement[], attendus: Emplaceme
   for (const attendu of attendus) {
     const meme = existants.find((e) => e.vue === attendu.vue && e.nom === attendu.nom && !ecartees.has(e.id))
     if (meme) {
-      if (meme.libre && meme.forme && attendu.forme && !memeForme(meme.forme, attendu.forme)) formes.push({ id: meme.id, forme: attendu.forme })
+      // Une ligne libre n'est remise au gabarit que si sa forme est encore celle d'une version antérieure. Sinon, elle a
+      // été placée à la main : elle reste telle quelle. Une ligne occupée ou liée ne bouge jamais.
+      if (meme.libre && meme.forme && attendu.forme && !memeForme(meme.forme, attendu.forme)) {
+        if ((attendu.formesAnterieures ?? []).some((f) => memeForme(f, meme.forme as FormeEmplacement))) formes.push({ id: meme.id, forme: attendu.forme })
+        else deplacees.push(meme.id)
+      }
       continue
     }
     const horsPlan = existants.find((e) => e.vue === "hors_plan" && e.nom === attendu.nom && !repris.has(e.id) && !ecartees.has(e.id))
@@ -175,7 +187,7 @@ export function planComplement(existants: LigneComplement[], attendus: Emplaceme
     if (ligne.vue !== "hors_plan" || repris.has(ligne.id) || ecartees.has(ligne.id)) continue
     reprendre.push({ id: ligne.id, vue: options.vueAjout, forme: options.formeAjout })
   }
-  return { creer, reprendre, retirer, conserves, formes }
+  return { creer, reprendre, retirer, conserves, formes, deplacees }
 }
 
 // Deux formes sont les mêmes quel que soit l'ordre de leurs clés : la base ne garde pas l'ordre d'écriture d'un JSON.
@@ -192,24 +204,29 @@ function clesTriees(valeur: unknown): unknown {
 
 // Ce que le clic sur « Mettre le plan à jour » va faire, en nombres. `total` vaut 0 quand il n'y a rien à faire : le
 // bouton n'apparaît pas.
-export type ResumeComplement = { ajouter: number; ranger: number; retirer: number; formes: number; total: number }
+// `deplacees` : lignes placées à la main, laissées telles quelles. Elles ne comptent pas dans `total`, qui dit s'il y a
+// une action (et donc un bouton).
+export type ResumeComplement = { ajouter: number; ranger: number; retirer: number; formes: number; deplacees: number; total: number }
 
 export function resumeComplement(plan: PlanComplement): ResumeComplement {
   const ajouter = plan.creer.length
   const ranger = plan.reprendre.length
   const retirer = plan.retirer.length
   const formes = plan.formes.length
-  return { ajouter, ranger, retirer, formes, total: ajouter + ranger + retirer + formes }
+  const deplacees = plan.deplacees.length
+  return { ajouter, ranger, retirer, formes, deplacees, total: ajouter + ranger + retirer + formes }
 }
 
-// La phrase sous le bouton : seulement ce qui va changer, chiffré. Vide si rien à faire.
+// La phrase sous le bouton : ce qui va changer, chiffré, et ce qui est laissé tel quel. Vide si rien à faire.
 export function libelleComplement(resume: ResumeComplement): string {
+  if (resume.total === 0) return ""
   const morceaux: string[] = []
   if (resume.ajouter > 0) morceaux.push(`${resume.ajouter} ${resume.ajouter === 1 ? "emplacement à ajouter" : "emplacements à ajouter"}`)
   if (resume.ranger > 0) morceaux.push(`${resume.ranger} ${resume.ranger === 1 ? "emplacement hors plan à ranger" : "emplacements hors plan à ranger"} dans la vue`)
   if (resume.retirer > 0) morceaux.push(`${resume.retirer} à retirer`)
   if (resume.formes > 0) morceaux.push(`${resume.formes} ${resume.formes === 1 ? "forme remise" : "formes remises"} au gabarit`)
-  if (morceaux.length === 0) return ""
+  if (resume.deplacees === 1) morceaux.push("1 emplacement déplacé à la main, laissé tel quel")
+  if (resume.deplacees > 1) morceaux.push(`${resume.deplacees} emplacements déplacés à la main, laissés tels quels`)
   const phrase = morceaux.join(", ")
   return phrase.charAt(0).toUpperCase() + phrase.slice(1) + "."
 }

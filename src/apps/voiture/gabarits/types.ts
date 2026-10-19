@@ -23,6 +23,10 @@ export type EmplacementType = {
   vue: VueGabarit
   forme: FormeEmplacement | null
   symetrique: boolean
+  // Formes que ce type a portées dans les versions précédentes du gabarit (vue du type, la plus récente d'abord). Le
+  // complément ne remet la forme actuelle que sur une ligne qui porte encore l'une d'elles : une forme déplacée à la
+  // main reste telle quelle. Absent : le type n'a jamais changé de forme.
+  formesAnterieures?: FormeEmplacement[]
 }
 
 // Vue dessinée par le gabarit, avec son propre dessin. Une vue `miroirDe` n'a pas de dessin : elle reprend celui

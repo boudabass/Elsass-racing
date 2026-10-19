@@ -24,6 +24,9 @@ import {
 const EPAISSEUR_FILET = 4
 // Cible tactile minimale d'une poignée, en pixels à l'écran (règle du projet : 44 px).
 const CIBLE_TACTILE_PX = 44
+// La zone de contact de la poignée ne couvre jamais plus de cette part du côté le plus court de la forme : le milieu
+// reste à déplacer, même sur une petite forme.
+const PART_CIBLE_POIGNEE = 0.35
 // Déplacement minimal, en unités du plan, avant qu'une forme bouge : un appui simple ne change rien.
 const SEUIL_GLISSEMENT = 1
 
@@ -348,7 +351,8 @@ function PoigneeSvg({
   onSuit: (evenement: PointerEvent<SVGElement>) => void
   onFin: (evenement: PointerEvent<SVGElement>) => void
 }) {
-  const cible = Math.max(COTE_POIGNEE, CIBLE_TACTILE_PX / echelle)
+  // Au plus 44 px à l'écran, et au plus 35 % du côté le plus court de la forme (en unités du plan).
+  const cible = Math.min(CIBLE_TACTILE_PX / echelle, PART_CIBLE_POIGNEE * Math.min(forme.l, forme.h))
   const xCoin = forme.x + forme.l
   const yCoin = forme.y + forme.h
   return (

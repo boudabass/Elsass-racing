@@ -14,5 +14,7 @@ export const gabaritGenerique: Gabarit = {
   version: 2,
   viewBox: gabaritSaxo.viewBox,
   vuesDessinees: gabaritSaxo.vuesDessinees,
-  emplacementsTypes: gabaritSaxo.emplacementsTypes,
+  // Version 1 du générique : elle porte les formes de la Saxo version 3, c'est-à-dire la plus récente des formes
+  // antérieures de la Saxo (ou sa forme actuelle, si elle n'a pas changé). Rien d'autre à reconnaître.
+  emplacementsTypes: gabaritSaxo.emplacementsTypes.map((type) => ({ ...type, formesAnterieures: type.formesAnterieures?.slice(0, 1) })),
 }
