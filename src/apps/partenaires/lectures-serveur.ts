@@ -7,6 +7,7 @@ import { lireRecettesParOrigineDans } from "@/apps/budget/liaisons-serveur"
 
 import { accesPartenaires, normaliserNom } from "./services-serveur"
 import { enRetard, jourParis, type StatutPartenaire } from "./regles"
+import { bilanApport, rangDepuisOrigine, type BilanApport } from "./apport"
 
 const STATUTS_ACTIFS = ["signee", "en_cours"] as const
 
@@ -111,7 +112,13 @@ export async function lirePartenaireDans(ctx: ContexteTeam, id: string) {
     logoFileId: partenaire.logoFileId,
     prochaineRelance: jourDe(partenaire.prochaineRelance),
     interactions: partenaire.interactions,
-    conventions: partenaire.agreements,
+    // Chaque convention porte son apport : attendu, reçu, reste et versements (brief 3.14, point 4).
+    conventions: await Promise.all(
+      partenaire.agreements.map(async (convention) => ({
+        ...convention,
+        apport: await bilanApportDans(ctx, convention.id, convention.apportFinancierCentimes),
+      })),
+    ),
     bilans: partenaire.reports,
     // Sans jeton : seulement l'état du lien et ses compteurs.
     lienPage: partenaire.portalLinks[0] ?? null,
@@ -240,12 +247,26 @@ export async function listerPersonnesDans(ctx: ContexteTeam) {
   })
 }
 
-// Versements prévus de la convention : les recettes Budget d'origine « partenaires:<convention>:<rang> » (brief 3.11, §4).
-export async function lireVersementsConventionDans(ctx: ContexteTeam, agreementId: string) {
-  return lireRecettesParOrigineDans(ctx, `partenaires:${agreementId}:`)
+// Apport d'une convention (brief 3.14, point 4) : ses versements sont les recettes Budget d'origine
+// « partenaires:<convention>:<rang> » (brief 3.11, §4). Lues par la liaison, jamais écrites ici.
+export async function bilanApportDans(ctx: ContexteTeam, agreementId: string, attenduCentimes: number): Promise<BilanApport> {
+  const recettes = await lireRecettesParOrigineDans(ctx, `partenaires:${agreementId}:`)
+  const jourIso = (date: Date) => date.toISOString().slice(0, 10)
+  return bilanApport({
+    attenduCentimes,
+    aujourdhui: jourParis(new Date()),
+    versements: recettes.map((recette) => ({
+      id: recette.id,
+      rang: rangDepuisOrigine(recette.origineRef),
+      date: jourIso(recette.date),
+      montantCentimes: recette.montant,
+      statut: recette.statut,
+      encaisseeLe: recette.encaisseeLe ? jourIso(recette.encaisseeLe) : null,
+    })),
+  })
 }
 
-export async function lireVersementsConvention(agreementId: string) {
+export async function lireBilanApport(agreementId: string, attenduCentimes: number): Promise<BilanApport> {
   const { ctx } = await accesPartenaires("ecriture")
-  return lireVersementsConventionDans(ctx, agreementId)
+  return bilanApportDans(ctx, agreementId, attenduCentimes)
 }

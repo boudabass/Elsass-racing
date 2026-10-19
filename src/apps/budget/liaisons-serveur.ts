@@ -330,7 +330,7 @@ export async function etatRecettesParOrigine(
 export async function lireRecettesParOrigineDans(ctx: ContexteTeam, prefixe: string) {
   return prismaPourTeam(ctx.teamId, ctx.userId).budgetIncome.findMany({
     where: { teamId: ctx.teamId, deletedAt: null, origineRef: { startsWith: prefixe } },
-    select: { id: true, montant: true, date: true, statut: true, encaisseeLe: true },
+    select: { id: true, montant: true, date: true, statut: true, encaisseeLe: true, origineRef: true },
     orderBy: { date: "asc" },
   })
 }

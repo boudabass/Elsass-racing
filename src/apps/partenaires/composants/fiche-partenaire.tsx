@@ -26,6 +26,7 @@ import {
   supprimerPartenaireAction,
 } from "../actions"
 import { SECTIONS_PAGE } from "../services-serveur"
+import { BlocApports } from "./bloc-apports"
 import type { lirePartenaire } from "../lectures-serveur"
 
 import { TiroirAction } from "@/components/formulaire/tiroir"
@@ -341,25 +342,26 @@ export function OngletConventions({ partenaire }: { partenaire: PartenaireFiche 
         <p className="text-texte-discret">Aucune convention pour l&apos;instant.</p>
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
-          {partenaire.conventions.map((convention) => {
-            const tenues = convention.benefits.filter((b) => b.statut === "tenue").length
-            return (
-              <li key={convention.id}>
-                <Link href={`/apps/partenaires/conventions/${convention.id}`} className="flex flex-col gap-2 rounded-md border border-bordure bg-surface p-4 hover:bg-surface-2">
-                  <span className="font-medium">{convention.season?.nom ?? "Sans saison"}</span>
-                  <span className="text-sm text-texte-discret">
-                    Du {dateFrancaise(convention.dateDebut.toISOString().slice(0, 10))} au {dateFrancaise(convention.dateFin.toISOString().slice(0, 10))}
-                  </span>
-                  <span className="text-sm">
-                    {LIBELLES_STATUT_CONVENTION[convention.statut]} · Apport {formaterMontant(convention.apportFinancierCentimes)} · {LIBELLES_APPORT_RECU[convention.apportRecu]}
-                  </span>
-                  <span className="text-sm text-texte-discret">
-                    Contreparties tenues : {tenues} sur {convention.benefits.length}
-                  </span>
-                </Link>
-              </li>
-            )
-          })}
+          {partenaire.conventions.map((convention) => (
+            // Le lien ne porte que le titre de la convention : le bloc de l'apport (brief 3.14, point 4) n'est pas dans un lien.
+            <li key={convention.id} className="flex flex-col gap-3 rounded-md border border-bordure bg-surface p-4">
+              <Link href={`/apps/partenaires/conventions/${convention.id}`} className="flex flex-col gap-1 hover:underline">
+                <span className="font-medium">{convention.season?.nom ?? "Sans saison"}</span>
+                <span className="text-sm text-texte-discret">
+                  Du {dateFrancaise(convention.dateDebut.toISOString().slice(0, 10))} au {dateFrancaise(convention.dateFin.toISOString().slice(0, 10))}
+                </span>
+                <span className="text-sm">
+                  {LIBELLES_STATUT_CONVENTION[convention.statut]} · Apport {formaterMontant(convention.apportFinancierCentimes)} · {LIBELLES_APPORT_RECU[convention.apportRecu]}
+                </span>
+              </Link>
+              <BlocApports
+                apport={convention.apport}
+                apportNature={convention.apportNatureDescription}
+                contreparties={convention.benefits}
+                detaille={false}
+              />
+            </li>
+          ))}
         </ul>
       )}
     </div>

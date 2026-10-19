@@ -38,7 +38,8 @@ import {
   supprimerPreuveAction,
 } from "@/apps/partenaires/actions"
 import { accesPartenaires, genererDocument, lireCatalogue, lireModeles } from "@/apps/partenaires/services-serveur"
-import { lireConvention, lireEpreuvesDeSaison, lireSaisons, lireVersementsConvention } from "@/apps/partenaires/lectures-serveur"
+import { lireBilanApport, lireConvention, lireEpreuvesDeSaison, lireSaisons } from "@/apps/partenaires/lectures-serveur"
+import { BlocApports } from "@/apps/partenaires/composants/bloc-apports"
 import { listerEmplacementsPourPartenaires } from "@/apps/voiture/lectures-partagees"
 import { enRetard, formaterMontant, jourParis, statutContrepartie } from "@/apps/partenaires/regles"
 import { EcranVide } from "@/components/qg/ecran-vide"
@@ -107,7 +108,7 @@ export default async function PageConvention({
     convention.seasonId ? lireEpreuvesDeSaison(convention.seasonId) : Promise.resolve([]),
     listerEmplacementsPourPartenaires(ctx),
   ])
-  const versements = await lireVersementsConvention(id)
+  const apport = await lireBilanApport(id, convention.apportFinancierCentimes)
   const modelesActifs = modeles.filter((m) => m.actif)
   const nomEpreuve = new Map(epreuves.map((e) => [e.id, e.nom]))
   const statut = convention.statut
@@ -157,28 +158,13 @@ export default async function PageConvention({
           Du {dateFrancaise(jour(convention.dateDebut))} au {dateFrancaise(jour(convention.dateFin))} · {LIBELLES_STATUT_CONVENTION[statut]} · Apport{" "}
           {formaterMontant(convention.apportFinancierCentimes)}
         </p>
-        <p className="font-medium" data-testid="apport-recu">
-          {LIBELLES_APPORT_RECU[convention.apportRecu]}
-        </p>
-        {versements.length > 0 && (
-          <ul aria-label="Versements prévus" className="flex flex-col gap-1 text-sm">
-            {versements.map((versement) => (
-              <li key={versement.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span>
-                  {formaterMontant(versement.montant)}, prévu le {dateFrancaise(jour(versement.date))} ·{" "}
-                  {versement.statut === "encaissee" && versement.encaisseeLe
-                    ? `encaissé le ${dateFrancaise(jour(versement.encaisseeLe))}`
-                    : "pas encore encaissé"}
-                </span>
-                {versement.statut === "prevue" && (
-                  <Link href={`/apps/budget/mouvement/${versement.id}`} className={LIEN}>
-                    Encaisser dans Budget
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+        <BlocApports
+          apport={apport}
+          statut={LIBELLES_APPORT_RECU[convention.apportRecu]}
+          apportNature={convention.apportNatureDescription}
+          contreparties={convention.benefits}
+          detaille
+        />
         {convention.signataires && <p className="text-sm">Signée par {convention.signataires}{convention.signeeLe ? `, le ${dateFrancaise(jour(convention.signeeLe))}` : ""}.</p>}
       </header>
       {estBrouillon && (
