@@ -81,8 +81,12 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
   )
   // Le glissement sur le plan ne vaut que pour l'étape « position », côté droit, sur une forme.
   const enDeplacementVisible = etape === "position" && visible !== null && vue === "droite" && visible.forme !== null
+  // Pendant « Déplacer ou redimensionner », seul le logo en cours bouge : le reste de la page (côtés, ajout, liste) est inerte.
+  const inerte = etape === "position" ? true : undefined
 
+  // Pendant « Déplacer ou redimensionner », un autre emplacement ne se choisit pas : on sort par Enregistrer ou Annuler.
   function choisir(id: string) {
+    if (etape === "position") return
     setChoisi(id)
     setEtape(null)
     setBrouillon(null)
@@ -117,7 +121,7 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
   return (
     <div className="flex flex-col gap-6">
       {aCote && (
-        <div role="group" aria-label="Côté du véhicule" className="inline-flex w-fit overflow-hidden rounded-md border border-bordure">
+        <div role="group" aria-label="Côté du véhicule" inert={inerte} className="inline-flex w-fit overflow-hidden rounded-md border border-bordure">
           {(["droite", "gauche"] as const).map((cote) => (
             <button
               key={cote}
@@ -145,12 +149,14 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
           />
           <p className="text-sm text-texte-discret">{libelleComptes(comptes)}</p>
           {peutEcrire && (
-            <AjouterEmplacement ficheId={ficheId} vue="droite" forme={formeAuCentre(bornes)} libelle="Ajouter un emplacement" onAjoute={ajoute} />
+            <div inert={inerte}>
+              <AjouterEmplacement ficheId={ficheId} vue="droite" forme={formeAuCentre(bornes)} libelle="Ajouter un emplacement" onAjoute={ajoute} />
+            </div>
           )}
         </>
       )}
 
-      <section aria-labelledby="liste-emplacements" className="flex flex-col gap-4">
+      <section aria-labelledby="liste-emplacements" inert={inerte} className="flex flex-col gap-4">
         <h2 id="liste-emplacements" className="sr-only">
           Emplacements
         </h2>

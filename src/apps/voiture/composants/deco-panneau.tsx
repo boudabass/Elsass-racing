@@ -3,7 +3,8 @@
 // Tiroir de l'emplacement choisi (brief 3.4, brief 3.13 phase A). Le tiroir montre la fiche de l'emplacement, puis ses
 // actions. Une action qui demande une saisie ouvre une étape du même tiroir : « ← Retour » revient à la fiche. Chaque
 // étape est un formulaire vers une Server Action de actions.ts. Sur téléphone le tiroir monte du bas ; sur ordinateur il
-// glisse depuis la droite, et le plan reste utilisable à côté. Sous le niveau écriture, la fiche reste en lecture seule.
+// glisse depuis la droite. Modal partout (la page est inerte) : la seule exception est l'étape « Déplacer ou
+// redimensionner », non modale, parce qu'elle agit sur le plan. Sous le niveau écriture, la fiche reste en lecture seule.
 // Les actions sans saisie (rendre indisponible) restent des boutons de la fiche.
 
 import { useActionState, useState, type ReactNode } from "react"
@@ -44,7 +45,7 @@ interface TiroirEmplacementProps {
   bornes: Bornes
   // L'étape ouverte ; null pour la fiche.
   etape: EtapeEmplacement | null
-  // Sur ordinateur, le tiroir est non modal : le plan reste cliquable (un autre emplacement se choisit sur le plan).
+  // Sur ordinateur, le tiroir glisse depuis la droite ; sur téléphone il monte du bas (seule la hauteur change).
   ordinateur: boolean
   // Mode « Déplacer ou redimensionner » : la forme en cours d'édition, et ses changements.
   brouillon: FormeEmplacement | null
@@ -59,7 +60,8 @@ function dateLisible(jour: string | null): string | null {
 
 export function TiroirEmplacement(props: TiroirEmplacementProps) {
   const { emplacement, etape, ordinateur, brouillon, bornes, onEtape, onChangerBrouillon, onFermer, partenaires } = props
-  const modal = !ordinateur
+  // Modal partout, sauf pour l'étape « position » (plus bas).
+  const modal = true
   const occupation = emplacement.occupation
 
   const fiche = (
@@ -126,7 +128,8 @@ export function TiroirEmplacement(props: TiroirEmplacementProps) {
         />
       )
     case "position":
-      // Non modal sur tous les écrans : le glissement sur le plan doit rester possible.
+      // Non modal sur tous les écrans : le glissement sur le plan doit rester possible. Le reste de la page est inerte
+      // (voir DecoPlan), et un clic sur un autre emplacement ne fait rien.
       return emplacement.forme && brouillon ? (
         <EtapePosition
           emplacement={emplacement}

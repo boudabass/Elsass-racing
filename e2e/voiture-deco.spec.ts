@@ -66,6 +66,15 @@ const ligneHorsPlan = (page: Page, nom: string) => listeHorsPlan(page).locator("
 const forme = (page: Page, nom: string) => page.locator(`svg rect[aria-label^="${nom}"], svg polygon[aria-label^="${nom}"]`).first()
 const formesDuPlan = (page: Page) => page.locator('svg [role="button"]')
 
+// Sur ordinateur, la fiche et les étapes sont modales : la page est inerte tant que le tiroir est ouvert. Échap ramène
+// d'une étape à la fiche, et ferme la fiche.
+async function fermerTiroir(page: Page): Promise<void> {
+  for (let i = 0; i < 3 && (await page.getByRole("dialog").count()) > 0; i++) {
+    await page.keyboard.press("Escape")
+  }
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+}
+
 // Le fichier se choisit dans le champ caché de la page (setInputFiles marche même caché).
 async function joindreFichier(page: Page, chemin: string): Promise<void> {
   await page.locator('input[type="file"]').setInputFiles(chemin)
@@ -124,6 +133,7 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   await capturer(page, "voiture-deco-pose-1440.png")
 
   // 4. Indisponible : « Toit » (hors plan) devient indisponible, puis revient.
+  await fermerTiroir(page)
   await ligneHorsPlan(page, "Toit").click()
   await page.getByRole("button", { name: "Rendre indisponible" }).click()
   await expect(ligneHorsPlan(page, "Toit").getByText("Indisponible")).toBeVisible()
@@ -132,9 +142,13 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
 
   // 5. Déplacer au clavier : « Aile arrière », X de +10 dans le champ, puis enregistrer. Après rechargement, la forme a
   // la nouvelle position à droite, et à gauche (miroir : 370 − x − largeur).
+  await fermerTiroir(page)
   await ligne(page, "Aile arrière").click()
   const xAvant = Number(await forme(page, "Aile arrière").getAttribute("x"))
   await page.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
+  // Pendant « Déplacer », un autre emplacement ne se choisit pas : la liste est inerte, la fiche reste la même.
+  await ligne(page, "Portière").click({ force: true })
+  await expect(page.getByRole("dialog", { name: "Déplacer ou redimensionner", exact: true })).toContainText("Aile arrière")
   await page.getByLabel("X", { exact: true }).fill(String(Math.round((xAvant + 10) * 10) / 10))
   await page.getByRole("button", { name: "Enregistrer la position" }).click()
   await expect(page.getByRole("button", { name: "Déplacer ou redimensionner" })).toBeVisible()
@@ -145,6 +159,7 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   await page.getByRole("button", { name: "Côté droit" }).click()
 
   // 6. Déplacer au pointeur : « Aile avant » glissée de 20 px. Capture du mode déplacement avant d'enregistrer.
+  await fermerTiroir(page)
   await ligne(page, "Aile avant").click()
   const xAvantPointeur = Number(await forme(page, "Aile avant").getAttribute("x"))
   await page.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
@@ -161,6 +176,7 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("x"))).toBeGreaterThan(xAvantPointeur + 3)
 
   // 7. Ajouter, renommer, supprimer : « Nouvel emplacement », « Lunette latérale », puis la suppression sur la page.
+  await fermerTiroir(page)
   await page.getByRole("button", { name: "Ajouter un emplacement" }).click()
   await expect(page.getByRole("heading", { name: "Nouvel emplacement" })).toBeVisible()
   await page.getByRole("button", { name: "Modifier l'emplacement", exact: true }).click()
