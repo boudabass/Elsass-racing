@@ -7,7 +7,7 @@ import { EncaisserRecette } from "@/apps/budget/composants/encaisser"
 import { FiltresMouvements, PastillesFiltres } from "@/apps/budget/composants/filtres"
 import { pastillesFiltres, type ParametresFiltres } from "@/apps/budget/filtres-url"
 import { lireChoix, listerMouvements, type MouvementLu } from "@/apps/budget/lectures-serveur"
-import { formatEuros, libelle, libelleStatutRecette } from "@/apps/budget/libelles"
+import { formatEuros, libelleStatutRecette } from "@/apps/budget/libelles"
 import { comptesEncaissement } from "@/apps/budget/regles"
 import { jourDeParis } from "@/core/dates"
 import { aAuMoins } from "@/core/droits/niveaux"
@@ -19,10 +19,11 @@ import { EcranVide } from "@/components/qg/ecran-vide"
 
 const formatJour = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" })
 
-// Provenance : le contact ou la personne saisis ; à défaut, l'origine (une proposition d'une autre app), sinon « Non renseignée ».
+// Provenance : le contact ou la personne saisis. Une recette proposée par une autre app n'a pas de provenance saisie :
+// son libellé porte le nom de la provenance (p. ex. le partenaire), il en tient lieu. Jamais « proposée par une autre app ».
 function provenance(recette: MouvementLu): string {
   if (recette.provenanceNom) return recette.provenanceNom
-  return recette.origine === "proposee" ? libelle("BudgetOrigine", recette.origine) : "Non renseignée"
+  return recette.origine === "proposee" ? recette.libelle : "Non renseignée"
 }
 
 export default async function PageRecettes({ searchParams }: { searchParams: Promise<ParametresFiltres> }) {
@@ -107,7 +108,7 @@ function ListeRecettes({
             <Link href={`/apps/budget/mouvement/${recette.id}`} className="flex min-h-11 items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2">
               <span className="flex min-w-0 flex-col">
                 <span className="truncate font-medium">{provenance(recette)}</span>
-                <span className="truncate text-sm">{recette.libelle}</span>
+                {provenance(recette) !== recette.libelle && <span className="truncate text-sm">{recette.libelle}</span>}
                 <span className="text-xs text-texte-discret">
                   {formatJour.format(new Date(`${recette.date}T00:00:00Z`))} · {recette.categorieNom} · {libelleStatutRecette(recette)}
                 </span>
