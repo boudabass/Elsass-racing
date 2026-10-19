@@ -3,7 +3,7 @@
 // docs/captures/ : à 1440 px, à 360 px, et en thème clair à 1440 px.
 import path from "node:path"
 
-import type { Page } from "@playwright/test"
+import type { CDPSession, Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
@@ -25,13 +25,13 @@ async function capturerEcran(page: Page, nom: string): Promise<void> {
   await page.screenshot({ path: path.join(DOSSIER, nom), fullPage: false })
 }
 
-// Capture pleine page : éléments fixes masqués, comme dans voiture.spec.ts, sauf le tiroir (role dialog), qui est
-// le sujet de la capture et que le test retrouve ensuite.
+// Capture pleine page : éléments fixes masqués, comme dans voiture.spec.ts, sauf le tiroir (role dialog) et la barre
+// « Déplacer ou redimensionner » du téléphone, qui sont le sujet de la capture.
 async function capturer(page: Page, nom: string): Promise<void> {
   await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" })
   await page.evaluate(() => {
     document.querySelectorAll<HTMLElement>("body *").forEach((element) => {
-      if (element.closest('[role="dialog"]')) return
+      if (element.closest('[role="dialog"], [data-barre-position]')) return
       if (getComputedStyle(element).position === "fixed") element.style.display = "none"
     })
   })
@@ -262,12 +262,14 @@ test("responsable, téléphone 360 px : la liste ouvre le tiroir, sans défileme
   await sansDefilementHorizontal(page)
   await capturer(page, "voiture-deco-pose-360.png")
 
-  // Le déplacement se fait aussi dans le tiroir.
+  // Le déplacement ne passe plus par le tiroir : une barre compacte en bas, et le plan reste visible.
   await ligne(page, "Aile arrière").click()
   await tiroir.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
-  await expect(tiroir.getByText("Glisse la forme sur le plan", { exact: false })).toBeVisible()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await expect(page.getByText("Glisse la forme, ou son coin pour la redimensionner.")).toBeVisible()
   await capturer(page, "voiture-deco-deplacement-360.png")
-  await tiroir.getByRole("button", { name: "Annuler" }).click()
+  await page.getByRole("form", { name: "Déplacer ou redimensionner Aile arrière" }).getByRole("button", { name: "Annuler", exact: true }).click()
+  await expect(page.getByRole("button", { name: "Enregistrer la position" })).toHaveCount(0)
   await sansDefilementHorizontal(page)
 })
 
@@ -388,6 +390,15 @@ test("responsable : redimensionner à la poignée, puis glisser, garde la taille
   await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("height"))).toBeCloseTo(tireeHeight, 1)
 })
 
+// Un glissement au doigt, de dx, dy pixels à l'écran, depuis le point de départ (événements tactiles du navigateur).
+async function glisserAuDoigt(cdp: CDPSession, de: { x: number; y: number }, dx: number, dy: number): Promise<void> {
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: de.x, y: de.y }] })
+  for (let i = 1; i <= 8; i++) {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: de.x + (dx * i) / 8, y: de.y + (dy * i) / 8 }] })
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+}
+
 // Même scénario au doigt, sur un téléphone de 360 px : le geste passe par les événements tactiles du navigateur.
 test.describe("téléphone 360 px, au doigt", () => {
   test.use({ hasTouch: true })
@@ -406,26 +417,60 @@ test.describe("téléphone 360 px, au doigt", () => {
     await tiroir.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
     await forme(page, "Aile avant").scrollIntoViewIfNeeded()
     const cdp = await page.context().newCDPSession(page)
-    const toucher = async (de: { x: number; y: number }, dx: number, dy: number) => {
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: de.x, y: de.y }] })
-      for (let i = 1; i <= 8; i++) {
-        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: de.x + (dx * i) / 8, y: de.y + (dy * i) / 8 }] })
-      }
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
-    }
     await capturer(page, "voiture-deco-glissement-avant-360.png")
     const boitePoignee = await poignee(page).boundingBox()
     if (!boitePoignee) throw new Error("Aile avant : pas de poignée à l'écran")
-    await toucher({ x: boitePoignee.x + boitePoignee.width / 2, y: boitePoignee.y + boitePoignee.height / 2 }, 30, 10)
+    await glisserAuDoigt(cdp, { x: boitePoignee.x + boitePoignee.width / 2, y: boitePoignee.y + boitePoignee.height / 2 }, 30, 10)
     await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeGreaterThan(largeur + 3)
-    await expect(tiroir.getByRole("button", { name: "Enregistrer la position" })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Enregistrer la position" })).toBeVisible()
     const largeurTiree = Number(await forme(page, "Aile avant").getAttribute("width"))
 
     const boite = await forme(page, "Aile avant").boundingBox()
     if (!boite) throw new Error("Aile avant : pas de boîte à l'écran")
-    await toucher({ x: boite.x + boite.width / 2, y: boite.y + boite.height / 2 }, 20, 0)
+    await glisserAuDoigt(cdp, { x: boite.x + boite.width / 2, y: boite.y + boite.height / 2 }, 20, 0)
     expect(Number(await forme(page, "Aile avant").getAttribute("width"))).toBeCloseTo(largeurTiree, 1)
     await capturer(page, "voiture-deco-glissement-apres-360.png")
+  })
+
+  // Sur téléphone, le déplacement se fait sur une barre compacte en bas, sans tiroir : le plan reste visible et actif,
+  // la forme se glisse au doigt, et elle reste au-dessus de la barre.
+  test("responsable, téléphone : déplacer une forme sur la barre, le plan reste actif et la forme au-dessus de la barre", async ({ page, equipe }) => {
+    test.setTimeout(240_000)
+    await connecterParLien(page, equipe)
+    await page.setViewportSize(BUREAU)
+    const vehiculeId = await creerSaxoDeux(page)
+    await page.setViewportSize(TELEPHONE)
+    await ouvrirDeco(page, vehiculeId)
+
+    await ligne(page, "Aile avant").click()
+    await page.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
+    await expect(page.getByRole("dialog")).toHaveCount(0)
+    const barre = page.getByRole("form", { name: "Déplacer ou redimensionner Aile avant" })
+    await expect(barre.getByRole("button")).toHaveCount(2)
+    await expect(barre.getByRole("button", { name: "Annuler", exact: true })).toBeVisible()
+    await expect(barre.getByRole("button", { name: "Enregistrer la position", exact: true })).toBeVisible()
+    await expect(page.getByText("Glisse la forme, ou son coin pour la redimensionner.")).toBeVisible()
+    await sansDefilementHorizontal(page)
+
+    // Le plan reste actif : on glisse la forme au doigt, puis elle se pose au-dessus de la barre.
+    const cdp = await page.context().newCDPSession(page)
+    const xAvant = Number(await forme(page, "Aile avant").getAttribute("x"))
+    const depart = await forme(page, "Aile avant").boundingBox()
+    if (!depart) throw new Error("Aile avant : pas de boîte à l'écran")
+    await glisserAuDoigt(cdp, { x: depart.x + depart.width / 2, y: depart.y + depart.height / 2 }, 20, 0)
+    await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("x"))).not.toBeCloseTo(xAvant, 0)
+    const xApres = Number(await forme(page, "Aile avant").getAttribute("x"))
+
+    const boiteForme = await forme(page, "Aile avant").boundingBox()
+    const boiteBarre = await barre.boundingBox()
+    if (!boiteForme || !boiteBarre) throw new Error("forme ou barre absente à l'écran")
+    expect(boiteForme.y + boiteForme.height).toBeLessThanOrEqual(boiteBarre.y)
+    await capturer(page, "voiture-deco-barre-position-apres-360.png")
+
+    await barre.getByRole("button", { name: "Enregistrer la position", exact: true }).click()
+    await expect(page.getByRole("button", { name: "Enregistrer la position" })).toHaveCount(0)
+    await page.reload()
+    await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("x"))).toBeCloseTo(xApres, 1)
   })
 })
 

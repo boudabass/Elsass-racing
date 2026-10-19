@@ -297,6 +297,8 @@ function FormeEmplacementSvg({
     onPointerMove: onSuitGlissement,
     onPointerUp: onFinGlissement,
     onPointerCancel: onFinGlissement,
+    // Repère de la forme en déplacement : la page la retrouve pour la garder au-dessus de la barre (téléphone).
+    "data-deplacement": onDebutGlissement ? "oui" : undefined,
   }
   if (forme.type === "rect") {
     return <rect x={forme.x} y={forme.y} width={forme.l} height={forme.h} {...commun} />

@@ -7,7 +7,7 @@
 // redimensionner », non modale, parce qu'elle agit sur le plan. Sous le niveau écriture, la fiche reste en lecture seule.
 // Les actions sans saisie (rendre indisponible) restent des boutons de la fiche.
 
-import { useActionState, useState, type ReactNode } from "react"
+import { useActionState, useEffect, useState, type ReactNode } from "react"
 
 import { ChampFichier, type FichierEnvoye } from "@/components/formulaire/champ-fichier"
 import { Message } from "@/components/formulaire/message"
@@ -433,6 +433,52 @@ function EtapeRenommer({ emplacement, retour, modal }: EtapeCommune) {
         <input name="nom" required maxLength={80} defaultValue={emplacement.nom} className={CHAMP} />
       </Champ>
     </Etape>
+  )
+}
+
+// Hauteur de la barre « Déplacer ou redimensionner » sur téléphone : le plan la contourne (voir DecoPlan).
+export const HAUTEUR_BARRE_POSITION = 88
+
+// Sur téléphone, « Déplacer ou redimensionner » ne prend pas l'écran : une barre fixe en bas, sans texte d'explication.
+// Le plan reste visible et actif au-dessus. « Enregistrer » est le seul envoi ; « Annuler » revient à la fiche.
+export function BarrePosition({
+  emplacement,
+  brouillon,
+  onTerminer,
+}: {
+  emplacement: EmplacementPlan
+  brouillon: FormeEmplacement
+  onTerminer: () => void
+}) {
+  const [etat, envoyer, enCours] = useActionState<Resultat | null, FormData>(enregistrerPositionAction, null)
+  // Réussite : la barre se ferme, et la page affiche la nouvelle forme (revalidation côté serveur).
+  useEffect(() => {
+    if (etat?.ok) onTerminer()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seule la réponse du serveur ferme la barre.
+  }, [etat])
+  return (
+    <form
+      action={envoyer}
+      aria-label={`Déplacer ou redimensionner ${emplacement.nom}`}
+      data-barre-position="oui"
+      className="fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 border-t border-bordure bg-fond px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+    >
+      <input type="hidden" name="slotId" value={emplacement.id} />
+      <input type="hidden" name="forme" value={JSON.stringify(brouillon)} />
+      {etat && !etat.ok && (
+        <p role="alert" className="text-sm text-etat-rouge">
+          {etat.message}
+        </p>
+      )}
+      <div className="flex gap-3">
+        <button type="button" onClick={onTerminer} className={`${BOUTON_SECONDAIRE} flex-1`}>
+          Annuler
+        </button>
+        <button type="submit" disabled={enCours} className={`${BOUTON} flex-1`}>
+          {enCours ? "Enregistrement…" : "Enregistrer la position"}
+        </button>
+      </div>
+    </form>
   )
 }
 

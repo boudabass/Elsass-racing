@@ -25,7 +25,7 @@ import {
   type VuePlan,
 } from "../plan"
 import { PlanVehicule } from "./plan-vehicule"
-import { TiroirEmplacement, type EtapeEmplacement } from "./deco-panneau"
+import { BarrePosition, HAUTEUR_BARRE_POSITION, TiroirEmplacement, type EtapeEmplacement } from "./deco-panneau"
 
 // Vide : un véhicule sans gabarit n'a pas de plan, donc pas de déplacement.
 const BORNES_VIDES: Bornes = { x: 0, y: 0, l: 0, h: 0 }
@@ -84,6 +84,22 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
   const enDeplacementVisible = etape === "position" && visible !== null && visible.forme !== null
   // Pendant « Déplacer ou redimensionner », seul le logo en cours bouge : le reste de la page (côtés, ajout, liste) est inerte.
   const inerte = etape === "position" ? true : undefined
+  // Sur téléphone, cette étape se fait sur une barre fixe en bas, sans tiroir : le plan reste visible et actif.
+  const enBarre = enDeplacementVisible && !ordinateur && brouillon !== null
+
+  // La forme en déplacement reste au-dessus de la barre : au départ, puis à chaque relâchement du doigt ou de la souris.
+  useEffect(() => {
+    if (!enBarre) return
+    const garder = () => {
+      const forme = document.querySelector<SVGElement>('[data-deplacement="oui"]')
+      if (!forme) return
+      const boite = forme.getBoundingClientRect()
+      if (boite.top < 0 || boite.bottom > window.innerHeight - HAUTEUR_BARRE_POSITION) forme.scrollIntoView({ block: "center" })
+    }
+    garder()
+    window.addEventListener("pointerup", garder)
+    return () => window.removeEventListener("pointerup", garder)
+  }, [enBarre])
 
   // Pendant « Déplacer ou redimensionner », un autre emplacement ne se choisit pas : on sort par Enregistrer ou Annuler.
   function choisir(id: string) {
@@ -119,7 +135,7 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={`flex flex-col gap-6 ${enBarre ? "pb-24" : ""}`}>
       {vuesDessinees.length > 1 && (
         <div role="group" aria-label="Vue du véhicule" inert={inerte} className="flex w-fit flex-wrap overflow-hidden rounded-md border border-bordure">
           {vuesDessinees.map((nouvelle) => (
@@ -138,6 +154,7 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
 
       {gabarit && (
         <>
+          {enBarre && <p className="text-sm text-texte-discret">Glisse la forme, ou son coin pour la redimensionner.</p>}
           <PlanVehicule
             nomVehicule={nomVehicule}
             gabarit={gabarit}
@@ -167,7 +184,9 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
         )}
       </section>
 
-      {visible && (
+      {visible && enBarre && brouillon && <BarrePosition emplacement={visible} brouillon={brouillon} onTerminer={() => allerA(null)} />}
+
+      {visible && !enBarre && (
         <TiroirEmplacement
           key={visible.id}
           emplacement={visible}
