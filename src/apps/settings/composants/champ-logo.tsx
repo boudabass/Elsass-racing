@@ -8,7 +8,7 @@ import { ChampFichier, type FichierEnvoye } from "@/components/formulaire/champ-
 // d'identité (champ caché « logoFileId ») ; « Retirer le logo » le vide, l'enregistrement le retire de la team.
 const TYPES_LOGO = "image/jpeg,image/png,image/webp,image/svg+xml"
 
-export function ChampLogo({ valeur, disabled }: { valeur: string | null; disabled: boolean }) {
+export function ChampLogo({ valeur }: { valeur: string | null }) {
   const [courant, setCourant] = useState<string | null>(valeur)
 
   return (
@@ -21,7 +21,6 @@ export function ChampLogo({ valeur, disabled }: { valeur: string | null; disable
       onChange={(fichier: FichierEnvoye | null) => setCourant(fichier?.id ?? null)}
       name="logoFileId"
       libelleRetirer="Retirer le logo"
-      disabled={disabled}
     />
   )
 }

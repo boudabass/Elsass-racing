@@ -62,13 +62,13 @@ test("captures : QG, Identité et boîte d'actions", async ({ page, equipe }) =>
   await page.keyboard.press("Escape")
 
   await page.goto("/apps/settings/identite")
-  await expect(page.locator("#couleurPrincipale")).toBeVisible()
+  await expect(page.getByRole("heading", { name: "La team", exact: true })).toBeVisible()
   await preparerCapture(page)
   await page.screenshot({ path: path.join(DOSSIER, "identite-1440x900.png"), fullPage: true })
 
   // Brief 3.5, point 2 : la rubrique Association, telle que la team la voit (identité juridique non renseignée).
   await page.goto("/apps/settings/association")
-  await expect(page.getByLabel("Numéro d'inscription")).toBeVisible()
+  await expect(page.getByRole("heading", { name: "L'association", exact: true })).toBeVisible()
   await preparerCapture(page)
   await page.screenshot({ path: path.join(DOSSIER, "reglages-association-1440x900.png"), fullPage: true })
 

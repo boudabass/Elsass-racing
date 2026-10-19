@@ -1,6 +1,5 @@
 "use server"
 
-import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 
 import { exigerAcces } from "@/core/droits/garde-serveur"
@@ -11,7 +10,7 @@ import { emettre } from "@/core/evenements/bus-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 import { annulerInvitation, creerInvitation, renvoyerInvitation } from "@/core/invitations/invitations-serveur"
 import { schemaEmail } from "@/core/auth/jetons"
-import { texte, texteOuNull } from "@/core/sdk/actions-serveur"
+import { texte, texteOuNull, type Resultat } from "@/core/sdk/actions-serveur"
 import { rattacherFichier, remplacerFichier } from "@/core/fichiers/fichiers-serveur"
 
 import { APPS } from "@/core/catalogue"
@@ -28,10 +27,9 @@ const FUSEAUX = ["Europe/Paris", "Europe/Berlin", "Europe/Brussels", "Europe/Mad
 const HEX = /^#[0-9A-Fa-f]{6}$/
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-// Toute action de Réglages passe par la garde. Une erreur revient à la rubrique, en clair.
-function retour(rubrique: string, erreur?: string): never {
-  const base = `${RUBRIQUE}/${rubrique}`
-  redirect(erreur ? `${base}?erreur=${encodeURIComponent(erreur)}` : `${base}?ok=1`)
+// Toute action de Réglages passe par la garde. Une erreur s'affiche dans le tiroir, en clair.
+function retour(erreur?: string): Resultat {
+  return erreur ? { ok: false, message: erreur } : { ok: true }
 }
 
 async function ctxGestion(): Promise<{ ctx: ContexteTeam; nomTeam: string }> {
@@ -47,7 +45,7 @@ function messageErreur(erreur: unknown): string {
   return erreur instanceof Error ? erreur.message : "L'enregistrement n'a pas pu être fait."
 }
 
-export async function sauverIdentite(formData: FormData): Promise<void> {
+export async function sauverIdentite(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -88,10 +86,10 @@ export async function sauverIdentite(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("identite", erreur)
+  return retour(erreur)
 }
 
-export async function sauverAssociation(formData: FormData): Promise<void> {
+export async function sauverAssociation(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -115,11 +113,11 @@ export async function sauverAssociation(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("association", erreur)
+  return retour(erreur)
 }
 
 // Invitation : e-mail obligatoire. Le téléphone n'a pas encore d'invitation par SMS.
-export async function inviterMembre(formData: FormData): Promise<void> {
+export async function inviterMembre(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx, nomTeam } = await ctxGestion()
@@ -150,10 +148,10 @@ export async function inviterMembre(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("membres", erreur)
+  return retour(erreur)
 }
 
-export async function renvoyerInvitationAction(formData: FormData): Promise<void> {
+export async function renvoyerInvitationAction(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx, nomTeam } = await ctxGestion()
@@ -162,10 +160,10 @@ export async function renvoyerInvitationAction(formData: FormData): Promise<void
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("membres", erreur)
+  return retour(erreur)
 }
 
-export async function annulerInvitationAction(formData: FormData): Promise<void> {
+export async function annulerInvitationAction(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -174,11 +172,11 @@ export async function annulerInvitationAction(formData: FormData): Promise<void>
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("membres", erreur)
+  return retour(erreur)
 }
 
 // Changer le rôle, ou retirer un membre : règle du dernier responsable appliquée.
-export async function changerRole(formData: FormData): Promise<void> {
+export async function changerRole(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -200,10 +198,10 @@ export async function changerRole(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("membres", erreur)
+  return retour(erreur)
 }
 
-export async function retirerMembre(formData: FormData): Promise<void> {
+export async function retirerMembre(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -223,12 +221,12 @@ export async function retirerMembre(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("membres", erreur)
+  return retour(erreur)
 }
 
 // Droits par app : une case à la valeur du défaut du rôle ne laisse aucune ligne
 // core_app_access ; une case différente en crée ou met à jour une.
-export async function sauverDroitsMembre(formData: FormData): Promise<void> {
+export async function sauverDroitsMembre(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -267,11 +265,11 @@ export async function sauverDroitsMembre(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("droits", erreur)
+  return retour(erreur)
 }
 
 // Revenir aux droits du rôle : supprime toutes les lignes core_app_access du membre.
-export async function revenirAuxDroitsDuRole(formData: FormData): Promise<void> {
+export async function revenirAuxDroitsDuRole(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -282,10 +280,10 @@ export async function revenirAuxDroitsDuRole(formData: FormData): Promise<void> 
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("droits", erreur)
+  return retour(erreur)
 }
 
-export async function basculerApp(formData: FormData): Promise<void> {
+export async function basculerApp(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -309,11 +307,11 @@ export async function basculerApp(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("apps", erreur)
+  return retour(erreur)
 }
 
 // Ordre des apps : monter ou descendre d'un cran. Le glisser-déposer viendra plus tard.
-export async function deplacerApp(formData: FormData): Promise<void> {
+export async function deplacerApp(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -336,11 +334,11 @@ export async function deplacerApp(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("apps", erreur)
+  return retour(erreur)
 }
 
 // Proposition de passer en mode terrain le jour d'une épreuve : réglage de la team.
-export async function sauverJourEpreuve(formData: FormData): Promise<void> {
+export async function sauverJourEpreuve(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -356,5 +354,5 @@ export async function sauverJourEpreuve(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("identite", erreur)
+  return retour(erreur)
 }

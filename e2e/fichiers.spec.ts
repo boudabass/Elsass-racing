@@ -57,17 +57,18 @@ test("l. logo : envoyé dans Identité, affiché dans la barre haute, puis retir
   await connecterParLien(page, equipe)
   await page.goto("/apps/settings/identite")
 
-  const formulaire = page.locator("form", { has: page.locator("#couleurPrincipale") })
-  await formulaire.getByLabel("Logo de la team").setInputFiles(PHOTO)
-  await expect(formulaire.locator('img[src^="/api/fichiers/"]').first()).toBeVisible()
-  await formulaire.getByRole("button", { name: "Enregistrer", exact: true }).click()
-  await page.waitForURL(/ok=1/)
+  await page.getByRole("button", { name: "Modifier l'identité", exact: true }).click()
+  const tiroir = page.getByRole("dialog")
+  await tiroir.getByLabel("Logo de la team").setInputFiles(PHOTO)
+  await expect(tiroir.locator('img[src^="/api/fichiers/"]').first()).toBeVisible()
+  await tiroir.getByRole("button", { name: "Enregistrer", exact: true }).click()
+  await expect(tiroir).toHaveCount(0)
 
   await expect(page.locator('header img[src^="/api/fichiers/"]')).toBeVisible()
   await expect.poll(() => logoEquipeEnBase(equipe)).not.toBeNull()
-  // La rubrique se rend après le rechargement : on attend son titre et le champ du logo avant la capture.
+  // La rubrique se lit en fiche : on attend son titre et la ligne du logo avant la capture.
   await expect(page.getByRole("heading", { name: "Identité" })).toBeVisible()
-  await expect(page.getByText("Logo de la team")).toBeVisible()
+  await expect(page.getByText("Ajouté", { exact: true })).toBeVisible()
   await page.screenshot({ path: path.join(DOSSIER, "fichiers-identite-1440x900.png"), fullPage: true })
 
   // Un membre assistance n'a aucun accès à Réglages : il voit quand même le logo courant de sa team.
@@ -87,10 +88,11 @@ test("l. logo : envoyé dans Identité, affiché dans la barre haute, puis retir
 
   // Retrait : le logo part avec l'enregistrement, et l'icône QG revient dans la barre.
   await page.goto("/apps/settings/identite")
-  const formulaireRetrait = page.locator("form", { has: page.locator("#couleurPrincipale") })
-  await formulaireRetrait.getByRole("button", { name: "Retirer le logo" }).click()
-  await formulaireRetrait.getByRole("button", { name: "Enregistrer", exact: true }).click()
-  await page.waitForURL(/ok=1/)
+  await page.getByRole("button", { name: "Modifier l'identité", exact: true }).click()
+  const tiroirRetrait = page.getByRole("dialog")
+  await tiroirRetrait.getByRole("button", { name: "Retirer le logo" }).click()
+  await tiroirRetrait.getByRole("button", { name: "Enregistrer", exact: true }).click()
+  await expect(tiroirRetrait).toHaveCount(0)
 
   await expect(page.locator('header img[src^="/api/fichiers/"]')).toHaveCount(0)
   await expect.poll(() => logoEquipeEnBase(equipe)).toBeNull()

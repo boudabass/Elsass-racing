@@ -13,13 +13,11 @@ export function ApercuCouleurs({
   couleurSecondaire,
   nomTeam,
   logoFileId,
-  disabled,
 }: {
   couleurPrincipale: string
   couleurSecondaire: string
   nomTeam: string
   logoFileId: string | null
-  disabled: boolean
 }) {
   const [principale, setPrincipale] = useState(couleurPrincipale)
   const [secondaire, setSecondaire] = useState(couleurSecondaire)
@@ -39,7 +37,6 @@ export function ApercuCouleurs({
             type="color"
             value={principale}
             onChange={(e) => setPrincipale(e.target.value)}
-            disabled={disabled}
             className="cible-tactile h-11 w-full rounded-md border border-bordure bg-surface"
           />
         </div>
@@ -51,7 +48,6 @@ export function ApercuCouleurs({
             type="color"
             value={secondaire}
             onChange={(e) => setSecondaire(e.target.value)}
-            disabled={disabled}
             className="cible-tactile h-11 w-full rounded-md border border-bordure bg-surface"
           />
         </div>
