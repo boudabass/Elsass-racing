@@ -444,25 +444,71 @@ export async function modifierCoordonneesDans(ctx: ContexteTeam, partnerId: stri
   )
 }
 
-// Fonction de l'interlocuteur (par exemple « Gérant ») : elle s'écrit après son nom dans la convention (brief 3.9, §4).
-const schemaInterlocuteurQualite = z.object({ qualite: z.string().trim().max(80).nullable() }).strict()
+// Interlocuteur du partenaire (brief 3.11, §1) : son nom, et sa fonction (par exemple « Gérant ») qui s'écrit après son
+// nom dans la convention (brief 3.9, §4). Le nom crée la personne liée au partenaire, comme la création du prospect ; la
+// modifier met à jour cette personne ; la vider retire l'interlocuteur et sa fonction.
+const schemaInterlocuteur = z
+  .object({
+    personne: z
+      .object({
+        prenom: z.string().trim().min(1, "Donnez le prénom de l'interlocuteur.").max(60),
+        nom: z.string().trim().min(1, "Donnez le nom de l'interlocuteur.").max(60),
+      })
+      .nullable(),
+    qualite: z.string().trim().max(80).nullable(),
+  })
+  .strict()
 
-export async function modifierInterlocuteurQualite(partnerId: string, qualite: string | null): Promise<void> {
-  const { ctx } = await accesPartenaires("ecriture")
-  return modifierInterlocuteurQualiteDans(ctx, partnerId, qualite)
+export interface EntreeInterlocuteur {
+  personne: { prenom: string; nom: string } | null
+  qualite: string | null
 }
 
-export async function modifierInterlocuteurQualiteDans(ctx: ContexteTeam, partnerId: string, qualite: string | null): Promise<void> {
-  const donnees = schemaInterlocuteurQualite.parse({ qualite })
+export async function modifierInterlocuteur(partnerId: string, entree: EntreeInterlocuteur): Promise<void> {
+  const { ctx } = await accesPartenaires("ecriture")
+  return modifierInterlocuteurDans(ctx, partnerId, entree)
+}
+
+export async function modifierInterlocuteurDans(ctx: ContexteTeam, partnerId: string, entree: EntreeInterlocuteur): Promise<void> {
+  const donnees = schemaInterlocuteur.parse(entree)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const partenaire = await partenaireActifDans(client, ctx, partnerId)
-  if (!partenaire.interlocuteurPersonId) refus("Ce partenaire n'a pas encore d'interlocuteur : donnez-lui un nom d'abord.")
-  await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
-    tx.partenairesPartner.update({
+  const personne = donnees.personne
+  // Sans interlocuteur, il n'y a pas de fonction à garder.
+  const qualite = personne ? donnees.qualite || null : null
+
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    let personneId: string | null = null
+    if (personne && partenaire.interlocuteurPersonId) {
+      personneId = partenaire.interlocuteurPersonId
+      await tx.corePerson.update({
+        where: { id: personneId },
+        data: { prenom: personne.prenom, nom: personne.nom, rev: { increment: 1 }, updatedBy: ctx.userId },
+      })
+    } else if (personne) {
+      personneId = newId()
+      await tx.corePerson.create({
+        data: {
+          id: personneId,
+          teamId: ctx.teamId,
+          prenom: personne.prenom,
+          nom: personne.nom,
+          contactId: partenaire.contactId,
+          createdBy: ctx.userId,
+          updatedBy: ctx.userId,
+        },
+      })
+    } else if (partenaire.interlocuteurPersonId) {
+      await tx.corePerson.update({
+        where: { id: partenaire.interlocuteurPersonId },
+        data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId },
+      })
+    }
+    await tx.partenairesPartner.update({
       where: { id: partnerId },
-      data: { interlocuteurQualite: donnees.qualite || null, rev: { increment: 1 }, updatedBy: ctx.userId },
-    }),
-  )
+      data: { interlocuteurPersonId: personneId, interlocuteurQualite: qualite, rev: { increment: 1 }, updatedBy: ctx.userId },
+    })
+  })
 }
 
 export async function supprimerPartenaire(id: string): Promise<void> {

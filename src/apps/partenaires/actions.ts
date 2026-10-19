@@ -33,7 +33,7 @@ import {
   modifierContrepartie,
   modifierConvention,
   modifierCoordonnees,
-  modifierInterlocuteurQualite,
+  modifierInterlocuteur,
   modifierInteraction,
   modifierModele,
   modifierPartenaire,
@@ -133,8 +133,11 @@ export async function modifierPartenaireAction(_etat: Resultat | null, donnees: 
   })
 }
 
-export async function modifierInterlocuteurQualiteAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executerPartenaires(() => modifierInterlocuteurQualite(texte(donnees, "partnerId"), texteOuNull(donnees, "qualite")))
+// Nom vide : l'interlocuteur est retiré (brief 3.11, §1).
+export async function modifierInterlocuteurAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerPartenaires(() =>
+    modifierInterlocuteur(texte(donnees, "partnerId"), { personne: interlocuteurDe(texte(donnees, "nom")), qualite: texteOuNull(donnees, "qualite") }),
+  )
 }
 
 export async function changerStatutAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {

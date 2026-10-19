@@ -215,7 +215,8 @@ export async function preparerPageDePartenaire(equipe: Equipe, autreTeam: Equipe
 // Mentions légales de la convention d'exemple : forme juridique, siège et signataire de la team, adresse du partenaire.
 // Le siège, le signataire et l'adresse sont des valeurs de test, visiblement fictives : elles ne sont pas des
 // coordonnées réelles. La forme juridique est celle de la team (association de droit local, en cours d'inscription).
-export async function renseignerMentionsConvention(equipe: Equipe, partenaireId: string): Promise<void> {
+// Avec interlocuteur = false, le partenaire reste sans interlocuteur : le parcours le saisit alors dans sa fiche (brief 3.11, §1).
+export async function renseignerMentionsConvention(equipe: Equipe, partenaireId: string, avecInterlocuteur = true): Promise<void> {
   await bd().query(
     `UPDATE core_team SET forme_juridique = $2, association_siege = $3, signataire_nom = $4, signataire_qualite = $5, updated_at = now()
      WHERE id = $1`,
@@ -233,15 +234,17 @@ export async function renseignerMentionsConvention(equipe: Equipe, partenaireId:
     [partenaireId, "Adresse du partenaire de test, 00000 Ville de test", equipe.teamId],
   )
   // Interlocuteur du partenaire : c'est lui qui signe pour l'entreprise (« Pour le partenaire : … »).
-  const interlocuteurId = newId()
-  await bd().query(
-    `INSERT INTO core_person (id, team_id, nom, prenom, updated_at) VALUES ($1, $2, $3, $4, now())`,
-    [interlocuteurId, equipe.teamId, "Dupont", "Marc"],
-  )
-  await bd().query(
-    `UPDATE partenaires_partner SET interlocuteur_person_id = $2, updated_at = now() WHERE id = $1 AND team_id = $3`,
-    [partenaireId, interlocuteurId, equipe.teamId],
-  )
+  if (avecInterlocuteur) {
+    const interlocuteurId = newId()
+    await bd().query(
+      `INSERT INTO core_person (id, team_id, nom, prenom, updated_at) VALUES ($1, $2, $3, $4, now())`,
+      [interlocuteurId, equipe.teamId, "Dupont", "Marc"],
+    )
+    await bd().query(
+      `UPDATE partenaires_partner SET interlocuteur_person_id = $2, updated_at = now() WHERE id = $1 AND team_id = $3`,
+      [partenaireId, interlocuteurId, equipe.teamId],
+    )
+  }
   // Logo de la team : il apparaît en tête de la convention, comme sur une vraie convention.
   const logoId = await fichierDeTest(equipe.teamId, PHOTO_DE_TEST, "logo-team.png", "image/png")
   await bd().query(`UPDATE core_team SET logo_file_id = $2, updated_at = now() WHERE id = $1`, [equipe.teamId, logoId])

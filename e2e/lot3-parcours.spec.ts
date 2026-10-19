@@ -205,14 +205,15 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
 
   // 3. Document : mentions renseignées, sauf la fonction de l'interlocuteur. La convention le signale avant le
   // téléchargement ; la fonction se saisit dans la fiche du partenaire, puis le document est généré sans blanc (brief 3.9, §4).
-  await renseignerMentionsConvention(equipe, partenaireId)
+  await renseignerMentionsConvention(equipe, partenaireId, false)
   await page.goto(`/apps/partenaires/conventions/${conventionId}?onglet=document`)
-  await expect(page.getByRole("status").filter({ hasText: "1 champ à compléter" })).toContainText("la fonction de l'interlocuteur du partenaire")
+  await expect(page.getByRole("status").filter({ hasText: "1 champ à compléter" })).toBeVisible()
+  // L'interlocuteur se saisit dans la fiche, à l'écran : la ligne « Interlocuteur » s'affiche sans recharger la page.
   await page.goto(`/apps/partenaires/${partenaireId}`)
+  await page.locator("#interlocuteur-nom").fill("Marc Dupont")
   await page.locator("#interlocuteur-qualite").fill("Gérant")
-  await page.getByRole("button", { name: "Enregistrer la fonction", exact: true }).click()
-  await page.waitForLoadState("networkidle")
-  await expect(page.locator("#interlocuteur-qualite")).toHaveValue("Gérant")
+  await page.getByRole("button", { name: "Enregistrer l'interlocuteur", exact: true }).click()
+  await expect(page.getByText("Interlocuteur : Marc Dupont", { exact: true })).toBeVisible()
   await capturer(page, "lot3-fiche-qualite-1440x900.png")
   await page.goto(`/apps/partenaires/conventions/${conventionId}?onglet=document`)
   await expect(page.getByRole("status").filter({ hasText: "champ à compléter" })).toHaveCount(0)
