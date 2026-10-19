@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import { gabaritSaxo } from "./gabarits/saxo"
+import type { VueGabarit } from "./gabarits/types"
 import {
   CHAMPS_REGLAGE,
   comparer,
   emplacementsDepuisGabarit,
-  emplacementsManquants,
+  planComplement,
   etatPapiers,
   etatPapiersVehicule,
   joursAvantEcheance,
@@ -128,16 +129,37 @@ describe("emplacements : emplacementsDepuisGabarit", () => {
 
 describe("emplacements : complément d'un véhicule existant", () => {
   const attendus = emplacementsDepuisGabarit(gabaritSaxo)
+  // Les lignes d'un véhicule, avec un id stable par ligne (le complément ne doit jamais le changer).
+  const lignes = (rangees: Array<{ vue: VueGabarit; nom: string }>) => rangees.map((r, i) => ({ id: `id-${i}`, ...r }))
+  const droiteEtGauche = attendus.filter((e) => e.vue === "droite" || e.vue === "gauche").map((e) => ({ vue: e.vue, nom: e.nom }))
+  // Un véhicule d'avant les vues ajoutées : ses quatre emplacements hors plan (Capot, Hayon, Lunette, Toit) sont
+  // dans la liste « Autres emplacements », sans vue ni forme.
+  const anciens = [
+    ...lignes(droiteEtGauche),
+    ...["Capot", "Hayon", "Lunette arrière", "Toit"].map((nom) => ({ id: `hp-${nom}`, vue: "hors_plan" as const, nom })),
+  ]
+
+  // Applique le plan à la liste, comme le service le fait en base : une reprise change la vue, une création ajoute une ligne.
+  function appliquer(existants: ReturnType<typeof lignes>, plan: ReturnType<typeof planComplement>) {
+    const reprises = new Map(plan.reprendre.map((r) => [r.id, r]))
+    return [
+      ...existants.map((e) => {
+        const reprise = reprises.get(e.id)
+        return reprise ? { ...e, vue: reprise.vue } : e
+      }),
+      ...plan.creer.map((e, i) => ({ id: `nouveau-${i}`, vue: e.vue, nom: e.nom })),
+    ]
+  }
 
   it("un véhicule déjà complet n'a rien à recevoir", () => {
-    const existants = attendus.map((e) => ({ vue: e.vue, nom: e.nom }))
-    expect(emplacementsManquants(existants, attendus)).toEqual([])
+    const existants = lignes(attendus.map((e) => ({ vue: e.vue, nom: e.nom })))
+    expect(planComplement(existants, attendus)).toEqual({ creer: [], reprendre: [] })
   })
 
-  it("un véhicule d'avant les vues ajoutées reçoit les seuls emplacements qui lui manquent", () => {
-    const anciens = attendus.filter((e) => e.vue === "droite" || e.vue === "gauche").map((e) => ({ vue: e.vue, nom: e.nom }))
-    const manquants = emplacementsManquants(anciens, attendus)
-    expect(manquants.map((e) => `${e.vue}:${e.nom}`)).toEqual([
+  it("un véhicule sans vues ajoutées reçoit les emplacements qui lui manquent, sans homonyme", () => {
+    const plan = planComplement(lignes(droiteEtGauche), attendus)
+    expect(plan.reprendre).toEqual([])
+    expect(plan.creer.map((e) => `${e.vue}:${e.nom}`)).toEqual([
       "dessus:Capot",
       "arriere:Hayon",
       "arriere:Lunette arrière",
@@ -147,18 +169,37 @@ describe("emplacements : complément d'un véhicule existant", () => {
     ])
   })
 
-  it("idempotent : une seconde passe après l'ajout ne trouve plus rien", () => {
-    const existants = attendus.filter((e) => e.vue === "droite").map((e) => ({ vue: e.vue, nom: e.nom }))
-    const premiere = emplacementsManquants(existants, attendus)
-    const apres = [...existants, ...premiere.map((e) => ({ vue: e.vue, nom: e.nom }))]
-    expect(emplacementsManquants(apres, attendus)).toEqual([])
+  it("une ligne hors plan au nom du gabarit est reprise dans sa vue, sans changer d'id ni de nom", () => {
+    const plan = planComplement(anciens, attendus)
+    expect(plan.reprendre.map((r) => `${r.id}→${r.vue}`)).toEqual([
+      "hp-Capot→dessus",
+      "hp-Hayon→arriere",
+      "hp-Lunette arrière→arriere",
+      "hp-Toit→dessus",
+    ])
+    expect(plan.creer.map((e) => `${e.vue}:${e.nom}`)).toEqual(["avant:Pare-chocs avant", "arriere:Pare-chocs arrière"])
+    // La reprise ne porte que l'id, la vue et la forme : le nom et l'occupation (rattachée par id) ne bougent pas.
+    expect(Object.keys(plan.reprendre[0]).sort()).toEqual(["forme", "id", "vue"])
   })
 
-  it("la clé est la vue et le nom : un même nom dans une autre vue n'est pas un doublon", () => {
-    const existants = [{ vue: "dessus" as const, nom: "Capot" }]
-    const manquants = emplacementsManquants(existants, attendus)
-    expect(manquants.find((e) => e.nom === "Capot")).toBeUndefined()
-    expect(manquants.find((e) => e.vue === "arriere" && e.nom === "Hayon")).toBeDefined()
+  it("après reprise, une ligne par nom : aucun doublon de Capot, Hayon, Lunette ou Toit", () => {
+    const apres = appliquer(anciens, planComplement(anciens, attendus))
+    const noms = apres.map((e) => `${e.vue}:${e.nom}`)
+    expect(new Set(noms).size).toBe(noms.length)
+    expect(apres.filter((e) => e.nom === "Capot")).toEqual([{ id: "hp-Capot", vue: "dessus", nom: "Capot" }])
+    expect(apres.filter((e) => e.vue === "hors_plan")).toEqual([])
+  })
+
+  it("une seconde passe après reprise ne fait rien", () => {
+    const apres = appliquer(anciens, planComplement(anciens, attendus))
+    expect(planComplement(apres, attendus)).toEqual({ creer: [], reprendre: [] })
+  })
+
+  it("une ligne déjà à la bonne vue n'est jamais reprise, même si une ligne hors plan porte le même nom", () => {
+    const existants = [...lignes(droiteEtGauche), { id: "capot-dessus", vue: "dessus" as const, nom: "Capot" }, { id: "capot-hp", vue: "hors_plan" as const, nom: "Capot" }]
+    const plan = planComplement(existants, attendus)
+    expect(plan.reprendre.find((r) => r.id === "capot-hp")).toBeUndefined()
+    expect(plan.creer.find((e) => e.nom === "Capot")).toBeUndefined()
   })
 })
 

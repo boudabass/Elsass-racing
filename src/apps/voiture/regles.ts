@@ -113,11 +113,33 @@ export function emplacementsDepuisGabarit(gabarit: Gabarit): EmplacementInitial[
   return emplacements
 }
 
-// Emplacements du gabarit qu'un véhicule n'a pas encore : même vue et même nom. Idempotent : une seconde passe
-// ne trouve plus rien à ajouter.
-export function emplacementsManquants(existants: Array<{ vue: VueGabarit; nom: string }>, attendus: EmplacementInitial[]): EmplacementInitial[] {
-  const cles = new Set(existants.map((e) => `${e.vue}|${e.nom}`))
-  return attendus.filter((e) => !cles.has(`${e.vue}|${e.nom}`))
+// Ligne d'un véhicule, vue par le complément : son identité et sa place.
+export type LigneComplement = { id: string; vue: VueGabarit; nom: string }
+
+// Ce que le complément fait d'un véhicule. `creer` : les emplacements du gabarit qu'il n'a pas. `reprendre` : une
+// ligne hors plan qui porte déjà le nom d'un emplacement du gabarit reçoit sa vue et sa forme, sans changer d'id.
+// Son occupation, rattachée par id, et son historique restent donc valides.
+export type PlanComplement = {
+  creer: EmplacementInitial[]
+  reprendre: Array<{ id: string; vue: VueGabarit; forme: FormeEmplacement | null }>
+}
+
+// Une ligne déjà à la bonne vue n'est jamais touchée. Idempotent : une seconde passe ne trouve plus rien à faire.
+export function planComplement(existants: LigneComplement[], attendus: EmplacementInitial[]): PlanComplement {
+  const creer: EmplacementInitial[] = []
+  const reprendre: PlanComplement["reprendre"] = []
+  const repris = new Set<string>()
+  for (const attendu of attendus) {
+    if (existants.some((e) => e.vue === attendu.vue && e.nom === attendu.nom)) continue
+    const horsPlan = existants.find((e) => e.vue === "hors_plan" && e.nom === attendu.nom && !repris.has(e.id))
+    if (horsPlan) {
+      repris.add(horsPlan.id)
+      reprendre.push({ id: horsPlan.id, vue: attendu.vue, forme: attendu.forme })
+      continue
+    }
+    creer.push(attendu)
+  }
+  return { creer, reprendre }
 }
 
 export type StatutOccupation = "reserve" | "pose" | "retire"

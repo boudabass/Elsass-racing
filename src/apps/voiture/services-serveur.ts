@@ -21,7 +21,7 @@ import { ErreurVoiture, refus } from "./erreurs"
 import {
   CHAMPS_REGLAGE,
   emplacementsDepuisGabarit,
-  emplacementsManquants,
+  planComplement,
   peutRecevoirOccupation,
   preremplir,
   statutEmplacement,
@@ -216,8 +216,9 @@ export async function creerVehiculeDans(ctx: ContexteTeam, entree: EntreeVehicul
 }
 
 // Complément d'un véhicule créé avant une vue ajoutée au gabarit : les emplacements du gabarit qu'il n'a pas
-// (même vue, même nom) sont ajoutés. Lancé à la demande d'un membre ayant l'écriture sur Voiture, jamais au démarrage.
-// Renvoie le nombre d'emplacements ajoutés : une seconde passe n'ajoute rien.
+// (même vue, même nom) sont ajoutés. Une ligne hors plan qui porte déjà le nom d'un emplacement du gabarit est reprise
+// dans la bonne vue, sans changer d'id. Lancé à la demande d'un membre ayant l'écriture sur Voiture, jamais au démarrage.
+// Renvoie le nombre de lignes créées ou reprises : une seconde passe ne fait rien.
 export async function completerGabaritDans(ctx: ContexteTeam, vehicleId: string): Promise<number> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const vehicule = await client.voitureVehicle.findFirst({
@@ -230,30 +231,45 @@ export async function completerGabaritDans(ctx: ContexteTeam, vehicleId: string)
 
   const existants = await client.voitureSlot.findMany({
     where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
-    select: { vue: true, nom: true },
+    select: { id: true, vue: true, nom: true },
   })
-  const manquants = emplacementsManquants(existants, emplacementsDepuisGabarit(modele))
-  if (manquants.length === 0) return 0
+  const plan = planComplement(existants, emplacementsDepuisGabarit(modele))
+  const modifications = plan.creer.length + plan.reprendre.length
+  if (modifications === 0) return 0
 
   await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
-    await tx.voitureSlot.createMany({
-      data: manquants.map((e) => ({
-        id: newId(),
-        teamId: ctx.teamId,
-        vehicleId,
-        vue: e.vue,
-        nom: e.nom,
-        ordre: e.ordre,
-        forme: e.forme ?? undefined,
-        symetrique: e.symetrique,
-        statut: e.statut,
-        createdBy: ctx.userId,
-        updatedBy: ctx.userId,
-      })),
-    })
+    if (plan.creer.length > 0) {
+      await tx.voitureSlot.createMany({
+        data: plan.creer.map((e) => ({
+          id: newId(),
+          teamId: ctx.teamId,
+          vehicleId,
+          vue: e.vue,
+          nom: e.nom,
+          ordre: e.ordre,
+          forme: e.forme ?? undefined,
+          symetrique: e.symetrique,
+          statut: e.statut,
+          createdBy: ctx.userId,
+          updatedBy: ctx.userId,
+        })),
+      })
+    }
+    // Reprise : seule la vue et, si le gabarit en donne une, la forme changent. L'id, le nom et l'occupation restent.
+    for (const reprise of plan.reprendre) {
+      await tx.voitureSlot.update({
+        where: { id: reprise.id },
+        data: {
+          vue: reprise.vue,
+          ...(reprise.forme ? { forme: reprise.forme } : {}),
+          rev: { increment: 1 },
+          updatedBy: ctx.userId,
+        },
+      })
+    }
   })
   await emettre(ctx, "voiture.emplacement_modifie", chargeEmplacementModifie.parse({ vehicleId }))
-  return manquants.length
+  return modifications
 }
 
 export async function completerGabarit(vehicleId: string): Promise<number> {
