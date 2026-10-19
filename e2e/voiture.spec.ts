@@ -70,7 +70,6 @@ test("responsable : Saxo 2 par le bouton +, identité saisie, la Déco liste les
   await page.getByRole("link", { name: "Déco" }).click()
   await expect(page.getByText("Portière droite").first()).toBeVisible()
   await expect(page.getByText("Libre").first()).toBeVisible()
-  await expect(page.getByText("Autres emplacements").first()).toBeVisible()
   // Le capot est dans la vue dessus : il ne s'affiche qu'après le choix de la vue.
   await page.getByRole("button", { name: "Dessus", exact: true }).click()
   await expect(page.getByText("Capot").first()).toBeVisible()

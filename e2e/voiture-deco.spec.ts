@@ -56,10 +56,9 @@ async function ouvrirDeco(page: Page, vehiculeId: string): Promise<void> {
   await expect(page.getByRole("group", { name: /^Plan de Saxo 2/ })).toBeVisible()
 }
 
-// Le plan, la liste de la vue (les emplacements dessinés), la liste « Autres emplacements ».
+// Le plan et la liste de la vue (les emplacements dessinés).
 const plan = (page: Page) => page.getByRole("group", { name: /^Plan de Saxo 2/ })
 const listePlan = (page: Page) => page.locator('section[aria-labelledby="liste-emplacements"] > ul')
-const listeHorsPlan = (page: Page) => page.locator('section[aria-labelledby="autres-emplacements"] ul')
 const ligne = (page: Page, nom: string) => listePlan(page).locator("button", { hasText: nom })
 // Le sélecteur de vues : « Côté droit », « Côté gauche », « Avant », « Arrière », « Dessus ».
 const boutonVue = (page: Page, titre: string) =>
@@ -93,10 +92,8 @@ async function passerEnThemeClair(page: Page): Promise<void> {
   await expect(page.locator("html")).not.toHaveClass(/\bdark\b/)
 }
 
-// Désactivé (fixme) : à l'étape 6, glisser « Aile avant droite » au pointeur de 20 px ne change pas sa position (x reste
-// à 254,6 et l'enregistrement se fait sans mouvement). Le geste fait mouse.down, puis mouse.move en 10 pas, puis mouse.up,
-// sans effet. Déplacer par le champ X (étape 5) fonctionne. Probablement un vrai défaut, à tester à la main sur dev.
-test.fixme("responsable : plan, réservation, pose, indisponibilité, déplacement, ajout et suppression", async ({ page, equipe }) => {
+// Le plan se parcourt de bout en bout : vues, réservation, pose, déplacement au clavier et au pointeur, ajout, renommage.
+test("responsable : plan, réservation, pose, indisponibilité, déplacement, ajout et suppression", async ({ page, equipe }) => {
   test.setTimeout(480_000)
   await connecterParLien(page, equipe)
   await page.setViewportSize(BUREAU)
@@ -104,20 +101,18 @@ test.fixme("responsable : plan, réservation, pose, indisponibilité, déplaceme
   await page.getByRole("link", { name: "Déco" }).click()
 
   // 1. Plan : six formes à droite, cinq à gauche (le bandeau de pare-brise n'est pas symétrique). Chaque vue a ses
-  // propres emplacements : arrière 3, avant 1, dessus 2. Un nouveau véhicule n'a aucun emplacement hors plan.
+  // propres emplacements : arrière 2 (la lunette arrière est une vitre, sans emplacement), avant 1, dessus 2. Il n'y a aucun emplacement hors plan.
   await expect(plan(page)).toBeVisible()
   await expect(formesDuPlan(page)).toHaveCount(6)
   await expect(listePlan(page).locator("li")).toHaveCount(6)
-  await expect(page.getByRole("heading", { name: "Autres emplacements" })).toBeVisible()
-  await expect(listeHorsPlan(page).locator("li")).toHaveCount(0)
   await boutonVue(page, "Côté gauche").click()
   await expect(page).toHaveURL(/vue=gauche/)
   await expect(formesDuPlan(page)).toHaveCount(5)
   await expect(page.getByRole("group", { name: /côté gauche/ })).toBeVisible()
   await boutonVue(page, "Arrière").click()
   await expect(page).toHaveURL(/vue=arriere/)
-  await expect(formesDuPlan(page)).toHaveCount(3)
-  await expect(listePlan(page).locator("li")).toHaveCount(3)
+  await expect(formesDuPlan(page)).toHaveCount(2)
+  await expect(listePlan(page).locator("li")).toHaveCount(2)
   await boutonVue(page, "Avant").click()
   await expect(formesDuPlan(page)).toHaveCount(1)
   await boutonVue(page, "Dessus").click()
@@ -160,8 +155,8 @@ test.fixme("responsable : plan, réservation, pose, indisponibilité, déplaceme
   await boutonVue(page, "Côté droit").click()
   await expect(page).toHaveURL(/vue=droite/)
 
-  // 5. Déplacer au clavier : « Aile arrière droite », X de +10 dans le champ, puis enregistrer. Après rechargement, la
-  // forme a la nouvelle position à droite. Le côté gauche est sa propre ligne : il ne bouge pas avec la droite.
+  // 5. Déplacer au clavier : « Aile arrière droite », de 10 unités vers la droite (Maj + flèche), puis enregistrer. Après
+  // rechargement, la forme a la nouvelle position à droite. Le côté gauche est sa propre ligne : il ne bouge pas avec la droite.
   await boutonVue(page, "Côté gauche").click()
   await expect(page).toHaveURL(/vue=gauche/)
   const xGaucheAvant = Number(await forme(page, "Aile arrière").getAttribute("x"))
@@ -175,7 +170,9 @@ test.fixme("responsable : plan, réservation, pose, indisponibilité, déplaceme
   // Pendant « Déplacer », un autre emplacement ne se choisit pas : la liste est inerte, la fiche reste la même.
   await ligne(page, "Portière").click({ force: true })
   await expect(page.getByRole("dialog", { name: "Déplacer ou redimensionner", exact: true })).toContainText("Aile arrière")
-  await page.getByLabel("X", { exact: true }).fill(String(Math.round((xAvant + 10) * 10) / 10))
+  await forme(page, "Aile arrière").focus()
+  await page.keyboard.press("Shift+ArrowRight")
+  await expect.poll(async () => Number(await forme(page, "Aile arrière").getAttribute("x"))).toBeCloseTo(xAvant + 10, 1)
   await page.getByRole("button", { name: "Enregistrer la position" }).click()
   await expect(page.getByRole("button", { name: "Déplacer ou redimensionner" })).toBeVisible()
   await page.reload()
@@ -211,9 +208,9 @@ test.fixme("responsable : plan, réservation, pose, indisponibilité, déplaceme
   await fermerTiroir(page)
   await page.getByRole("button", { name: "Ajouter un emplacement" }).click()
   await expect(page.getByRole("heading", { name: "Nouvel emplacement" })).toBeVisible()
-  await page.getByRole("button", { name: "Modifier l'emplacement", exact: true }).click()
+  await page.getByRole("button", { name: "Renommer", exact: true }).click()
   await page.getByLabel("Nom", { exact: true }).fill("Lunette latérale")
-  await page.getByRole("button", { name: "Enregistrer les modifications" }).click()
+  await page.getByRole("button", { name: "Enregistrer le nom" }).click()
   await expect(page.getByRole("heading", { name: "Lunette latérale" })).toBeVisible()
   await page.getByRole("button", { name: "Supprimer l'emplacement", exact: true }).click()
   await expect(page.getByRole("dialog", { name: "Supprimer l'emplacement", exact: true })).toContainText("Lunette latérale")
@@ -268,13 +265,40 @@ test("responsable, téléphone 360 px : la liste ouvre le tiroir, sans défileme
   // Le déplacement se fait aussi dans le tiroir.
   await ligne(page, "Aile arrière").click()
   await tiroir.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
-  await expect(tiroir.getByLabel("X", { exact: true })).toBeVisible()
+  await expect(tiroir.getByText("Glisse la forme sur le plan", { exact: false })).toBeVisible()
   await capturer(page, "voiture-deco-deplacement-360.png")
   await tiroir.getByRole("button", { name: "Annuler" }).click()
   await sansDefilementHorizontal(page)
 })
 
-// Redimensionner, puis glisser la forme : elle garde sa taille, et le glissement ne quitte pas le mode déplacement.
+// La poignée du coin bas-droit de la forme en déplacement : sa zone de contact, 44 px au moins.
+const poignee = (page: Page) => page.locator('svg g[style*="nwse-resize"] rect').first()
+
+// Glisse une forme du plan de dx, dy pixels à l'écran, à la souris, depuis son centre.
+async function glisserForme(page: Page, nom: string, dx: number, dy: number): Promise<void> {
+  await forme(page, nom).scrollIntoViewIfNeeded()
+  const boite = await forme(page, nom).boundingBox()
+  if (!boite) throw new Error(`${nom} : pas de boîte à l'écran`)
+  const depart = { x: boite.x + boite.width / 2, y: boite.y + boite.height / 2 }
+  await page.mouse.move(depart.x, depart.y)
+  await page.mouse.down()
+  await page.mouse.move(depart.x + dx, depart.y + dy, { steps: 10 })
+  await page.mouse.up()
+}
+
+// Tire la poignée du coin bas-droit d'une forme du plan de dx, dy pixels à l'écran, à la souris.
+async function redimensionnerAvecPoignee(page: Page, nom: string, dx: number, dy: number): Promise<void> {
+  await forme(page, nom).scrollIntoViewIfNeeded()
+  const boite = await poignee(page).boundingBox()
+  if (!boite) throw new Error(`${nom} : pas de poignée à l'écran`)
+  const depart = { x: boite.x + boite.width / 2, y: boite.y + boite.height / 2 }
+  await page.mouse.move(depart.x, depart.y)
+  await page.mouse.down()
+  await page.mouse.move(depart.x + dx, depart.y + dy, { steps: 10 })
+  await page.mouse.up()
+}
+
+// Redimensionner à la poignée, puis glisser : la forme garde sa taille, et le glissement ne quitte pas le mode déplacement.
 test("responsable : déplacer une forme après l'avoir redimensionnée garde la taille et la position", async ({ page, equipe }) => {
   test.setTimeout(240_000)
   await connecterParLien(page, equipe)
@@ -284,32 +308,23 @@ test("responsable : déplacer une forme après l'avoir redimensionnée garde la 
 
   await ligne(page, "Aile avant").click()
   const largeur = Number(await forme(page, "Aile avant").getAttribute("width"))
-  const hauteur = Number(await forme(page, "Aile avant").getAttribute("height"))
   await page.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
-  await page.getByLabel("Largeur", { exact: true }).fill(String(largeur + 20))
-  await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeCloseTo(largeur + 20, 1)
+  await redimensionnerAvecPoignee(page, "Aile avant", 40, 15)
+  await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeGreaterThan(largeur + 3)
+  const largeurTiree = Number(await forme(page, "Aile avant").getAttribute("width"))
+  const hauteurTiree = Number(await forme(page, "Aile avant").getAttribute("height"))
 
-  // Glisser à la souris, après le redimensionnement.
-  await forme(page, "Aile avant").scrollIntoViewIfNeeded()
-  const boite = await forme(page, "Aile avant").boundingBox()
-  if (!boite) throw new Error("Aile avant : pas de boîte à l'écran")
-  const centre = { x: boite.x + boite.width / 2, y: boite.y + boite.height / 2 }
-  await page.mouse.move(centre.x, centre.y)
-  await page.mouse.down()
-  await page.mouse.move(centre.x + 30, centre.y + 10, { steps: 8 })
-  await page.mouse.up()
+  await glisserForme(page, "Aile avant", 30, 10)
   await expect(page.getByRole("button", { name: "Enregistrer la position" })).toBeVisible()
   const xApresGlissement = Number(await forme(page, "Aile avant").getAttribute("x"))
   expect(xApresGlissement).toBeGreaterThan(0)
-  await expect(page.getByLabel("Largeur", { exact: true })).toHaveValue(String(largeur + 20))
+  expect(Number(await forme(page, "Aile avant").getAttribute("width"))).toBeCloseTo(largeurTiree, 1)
 
-  // Redimensionner encore en hauteur, puis enregistrer : la largeur, la hauteur et la position sont gardées.
-  await page.getByLabel("Hauteur", { exact: true }).fill(String(hauteur + 10))
   await page.getByRole("button", { name: "Enregistrer la position" }).click()
   await expect(page.getByRole("button", { name: "Déplacer ou redimensionner" })).toBeVisible()
   await page.reload()
-  await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeCloseTo(largeur + 20, 1)
-  await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("height"))).toBeCloseTo(hauteur + 10, 1)
+  await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeCloseTo(largeurTiree, 1)
+  await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("height"))).toBeCloseTo(hauteurTiree, 1)
   await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("x"))).toBeCloseTo(xApresGlissement, 1)
 })
 
@@ -329,29 +344,20 @@ test("responsable : déplacer une forme avec son logo après l'avoir redimension
   await page.getByRole("button", { name: "Réserver l'emplacement" }).click()
   await expect(page.getByText("Garage Muller", { exact: true }).first()).toBeVisible()
 
-  const largeur = Number(await forme(page, "Aile avant").getAttribute("width"))
-  const hauteur = Number(await forme(page, "Aile avant").getAttribute("height"))
   await page.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
-  await page.getByLabel("Largeur", { exact: true }).fill(String(largeur + 20))
-  await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeCloseTo(largeur + 20, 1)
+  const largeur = Number(await forme(page, "Aile avant").getAttribute("width"))
+  await redimensionnerAvecPoignee(page, "Aile avant", 40, 15)
+  await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeGreaterThan(largeur + 3)
+  const largeurTiree = Number(await forme(page, "Aile avant").getAttribute("width"))
+  const hauteurTiree = Number(await forme(page, "Aile avant").getAttribute("height"))
 
-  await forme(page, "Aile avant").scrollIntoViewIfNeeded()
-  const boite = await forme(page, "Aile avant").boundingBox()
-  if (!boite) throw new Error("Aile avant : pas de boîte à l'écran")
-  const centre = { x: boite.x + boite.width / 2, y: boite.y + boite.height / 2 }
-  await page.mouse.move(centre.x, centre.y)
-  await page.mouse.down()
-  await page.mouse.move(centre.x + 30, centre.y + 10, { steps: 8 })
-  await page.mouse.up()
+  await glisserForme(page, "Aile avant", 30, 10)
   await expect(page.getByRole("button", { name: "Enregistrer la position" })).toBeVisible()
-  await expect(page.getByLabel("Largeur", { exact: true })).toHaveValue(String(largeur + 20))
-
-  await page.getByLabel("Hauteur", { exact: true }).fill(String(hauteur + 10))
   await page.getByRole("button", { name: "Enregistrer la position" }).click()
   await expect(page.getByRole("button", { name: "Déplacer ou redimensionner" })).toBeVisible()
   await page.reload()
-  await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeCloseTo(largeur + 20, 1)
-  await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("height"))).toBeCloseTo(hauteur + 10, 1)
+  await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeCloseTo(largeurTiree, 1)
+  await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("height"))).toBeCloseTo(hauteurTiree, 1)
 })
 
 // Redimensionner à la poignée, puis glisser le corps : la taille tirée à la poignée reste après le glissement.
@@ -365,25 +371,12 @@ test("responsable : redimensionner à la poignée, puis glisser, garde la taille
   await ligne(page, "Aile avant").click()
   const largeur = Number(await forme(page, "Aile avant").getAttribute("width"))
   await page.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
-  await forme(page, "Aile avant").scrollIntoViewIfNeeded()
-  const boite = await forme(page, "Aile avant").boundingBox()
-  if (!boite) throw new Error("Aile avant : pas de boîte à l'écran")
-  // La poignée est centrée sur le coin bas-droit de la forme.
-  await page.mouse.move(boite.x + boite.width, boite.y + boite.height)
-  await page.mouse.down()
-  await page.mouse.move(boite.x + boite.width + 40, boite.y + boite.height + 15, { steps: 8 })
-  await page.mouse.up()
+  await redimensionnerAvecPoignee(page, "Aile avant", 40, 15)
   await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeGreaterThan(largeur + 3)
   const tireeWidth = Number(await forme(page, "Aile avant").getAttribute("width"))
   const tireeHeight = Number(await forme(page, "Aile avant").getAttribute("height"))
 
-  await forme(page, "Aile avant").scrollIntoViewIfNeeded()
-  const apres = await forme(page, "Aile avant").boundingBox()
-  if (!apres) throw new Error("Aile avant : pas de boîte après redimensionnement")
-  await page.mouse.move(apres.x + apres.width / 2, apres.y + apres.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(apres.x + apres.width / 2 + 25, apres.y + apres.height / 2, { steps: 8 })
-  await page.mouse.up()
+  await glisserForme(page, "Aile avant", 25, 0)
   await expect(page.getByRole("button", { name: "Enregistrer la position" })).toBeVisible()
   expect(Number(await forme(page, "Aile avant").getAttribute("width"))).toBeCloseTo(tireeWidth, 1)
   expect(Number(await forme(page, "Aile avant").getAttribute("height"))).toBeCloseTo(tireeHeight, 1)
@@ -395,11 +388,11 @@ test("responsable : redimensionner à la poignée, puis glisser, garde la taille
   await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("height"))).toBeCloseTo(tireeHeight, 1)
 })
 
-// Même scénario au doigt, sur un téléphone de 360 px : le glissement passe par les événements tactiles du navigateur.
+// Même scénario au doigt, sur un téléphone de 360 px : le geste passe par les événements tactiles du navigateur.
 test.describe("téléphone 360 px, au doigt", () => {
   test.use({ hasTouch: true })
 
-  test("responsable : déplacer au doigt une forme redimensionnée garde la taille", async ({ page, equipe }) => {
+  test("responsable : tirer la poignée au doigt, puis glisser au doigt sur la forme", async ({ page, equipe }) => {
     test.setTimeout(240_000)
     await connecterParLien(page, equipe)
     await page.setViewportSize(BUREAU)
@@ -411,24 +404,28 @@ test.describe("téléphone 360 px, au doigt", () => {
     const tiroir = page.getByRole("dialog")
     const largeur = Number(await forme(page, "Aile avant").getAttribute("width"))
     await tiroir.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
-    await tiroir.getByLabel("Largeur", { exact: true }).fill(String(largeur + 20))
-    await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeCloseTo(largeur + 20, 1)
-
     await forme(page, "Aile avant").scrollIntoViewIfNeeded()
+    const cdp = await page.context().newCDPSession(page)
+    const toucher = async (de: { x: number; y: number }, dx: number, dy: number) => {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: de.x, y: de.y }] })
+      for (let i = 1; i <= 8; i++) {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: de.x + (dx * i) / 8, y: de.y + (dy * i) / 8 }] })
+      }
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+    }
+    await capturer(page, "voiture-deco-glissement-avant-360.png")
+    const boitePoignee = await poignee(page).boundingBox()
+    if (!boitePoignee) throw new Error("Aile avant : pas de poignée à l'écran")
+    await toucher({ x: boitePoignee.x + boitePoignee.width / 2, y: boitePoignee.y + boitePoignee.height / 2 }, 30, 10)
+    await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeGreaterThan(largeur + 3)
+    await expect(tiroir.getByRole("button", { name: "Enregistrer la position" })).toBeVisible()
+    const largeurTiree = Number(await forme(page, "Aile avant").getAttribute("width"))
+
     const boite = await forme(page, "Aile avant").boundingBox()
     if (!boite) throw new Error("Aile avant : pas de boîte à l'écran")
-    const centre = { x: boite.x + boite.width / 2, y: boite.y + boite.height / 2 }
-    const cdp = await page.context().newCDPSession(page)
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: centre.x, y: centre.y }] })
-    for (let i = 1; i <= 8; i++) {
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: centre.x + 3 * i, y: centre.y + i }] })
-    }
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
-
-    await expect(tiroir.getByRole("button", { name: "Enregistrer la position" })).toBeVisible()
-    await expect(tiroir.getByLabel("Largeur", { exact: true })).toHaveValue(String(largeur + 20))
-    await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("width"))).toBeCloseTo(largeur + 20, 1)
-    await page.screenshot({ path: path.join(process.env.CLAUDE_JOB_DIR ?? "test-results", "deco-touch-apres-glissement.png") })
+    await toucher({ x: boite.x + boite.width / 2, y: boite.y + boite.height / 2 }, 20, 0)
+    expect(Number(await forme(page, "Aile avant").getAttribute("width"))).toBeCloseTo(largeurTiree, 1)
+    await capturer(page, "voiture-deco-glissement-apres-360.png")
   })
 })
 
@@ -466,8 +463,8 @@ test("responsable : une étape modifiée demande « Abandonner les modifications
   await ouvrirDeco(page, vehiculeId)
 
   await ligne(page, "Portière").click()
-  await page.getByRole("button", { name: "Modifier l'emplacement", exact: true }).click()
-  const etape = page.getByRole("dialog", { name: "Modifier l'emplacement", exact: true })
+  await page.getByRole("button", { name: "Renommer", exact: true }).click()
+  const etape = page.getByRole("dialog", { name: "Renommer l'emplacement", exact: true })
   await etape.getByLabel("Nom", { exact: true }).fill("Portière arrière")
   await page.keyboard.press("Escape")
   await expect(etape.getByText("Abandonner les modifications ?")).toBeVisible()
@@ -478,7 +475,7 @@ test("responsable : une étape modifiée demande « Abandonner les modifications
   await etape.getByRole("button", { name: "Abandonner", exact: true }).click()
   // Abandonner revient à la fiche, sans rien enregistrer.
   await expect(page.getByRole("dialog", { name: "Portière droite", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Modifier l'emplacement", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Renommer", exact: true })).toBeVisible()
   await expect(listePlan(page).getByText("Portière droite", { exact: true })).toBeVisible()
   await expect(listePlan(page).getByText("Portière arrière")).toHaveCount(0)
 
@@ -517,14 +514,14 @@ async function capturerTiroirsDeco(page: Page, vue: string, nom: string, taille:
   await capturerEcran(page, `tiroir-deco-confirmation-${taille}-clair.png`)
   await page.getByRole("button", { name: "← Retour", exact: true }).click()
 
-  await page.getByRole("button", { name: "Modifier l'emplacement", exact: true }).click()
+  await page.getByRole("button", { name: "Renommer", exact: true }).click()
   await page.getByLabel("Nom", { exact: true }).fill("Capot avant")
   await page.keyboard.press("Escape")
   await expect(page.getByText("Abandonner les modifications ?")).toBeVisible()
   await attendreTiroir(page)
   await capturerEcran(page, `tiroir-deco-abandon-modifications-${taille}-clair.png`)
   await page.getByRole("button", { name: "Abandonner", exact: true }).click()
-  await expect(page.getByRole("button", { name: "Modifier l'emplacement", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Renommer", exact: true })).toBeVisible()
   await page.getByRole("dialog").getByRole("button", { name: "Fermer", exact: true }).click()
 }
 
@@ -562,7 +559,6 @@ test("captures · la Déco de la Saxo, vue par vue, à 1440 et à 360 px", async
     for (const { vue, fichier } of VUES_DECO) {
       await boutonVue(page, vue).click()
       await expect(page.getByRole("group", { name: new RegExp(`^Plan de Saxo 2, ${vue.toLowerCase()}$`) })).toBeVisible()
-      await expect(page.getByRole("heading", { name: "Autres emplacements" })).toBeVisible()
       await capturer(page, `deco-vue-${fichier}-${taille.suffixe}.png`)
       if (taille.suffixe === "360") await sansDefilementHorizontal(page)
     }
