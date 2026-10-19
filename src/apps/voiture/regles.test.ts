@@ -14,6 +14,7 @@ import {
   preremplir,
   SEUIL_RENOUVELLEMENT_JOURS,
   statutEmplacement,
+  verifierVueDuPlan,
   trierPapiers,
   statutPapier,
   validerValeurs,
@@ -225,6 +226,13 @@ describe("emplacements : complément d'un véhicule existant", () => {
     const plan = planComplement(existants, attendus, options("avant"))
     expect(plan.reprendre).toEqual([{ id: "capot-hp", vue: "avant", forme: CENTRE }])
     expect(plan.creer.find((e) => e.nom === "Capot")).toBeUndefined()
+  })
+})
+
+describe("emplacements : vue du plan", () => {
+  it("un emplacement se crée sur une vue du plan ; « hors plan » est refusé avec un message en français", () => {
+    expect(verifierVueDuPlan("dessus")).toEqual({ ok: true })
+    expect(verifierVueDuPlan("hors_plan")).toEqual({ ok: false, message: "Un emplacement appartient à une vue du plan." })
   })
 })
 

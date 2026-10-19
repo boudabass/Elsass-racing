@@ -80,17 +80,6 @@ export function emplacementsDessines<T extends { vue: VueGabarit; forme: FormeEm
   return emplacements.filter((e) => e.forme !== null && e.vue === vue)
 }
 
-// Liste d'une vue : les emplacements dessinés, puis les hors plan (toujours présents, sous « Autres emplacements »).
-export function emplacementsDeLaListe<T extends { vue: VueGabarit; forme: FormeEmplacement | null }>(
-  emplacements: T[],
-  vue: VuePlan,
-): { plan: T[]; horsPlan: T[] } {
-  return {
-    plan: emplacementsDessines(emplacements, vue),
-    horsPlan: emplacements.filter((e) => e.vue === "hors_plan"),
-  }
-}
-
 // Forme d'un nouvel emplacement : un rectangle de 60 × 20 unités au centre du viewBox.
 export function formeAuCentre(bornes: Bornes): FormeEmplacement {
   return {

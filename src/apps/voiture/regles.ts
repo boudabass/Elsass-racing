@@ -180,6 +180,13 @@ export function statutEmplacement(occupationActive: { statut: StatutOccupation }
   return occupationActive.statut === "pose" ? "occupe" : "reserve"
 }
 
+// Tout emplacement appartient à une vue du plan et s'y voit. « hors_plan » reste une valeur de la base, sans usage :
+// on ne crée plus d'emplacement sur elle.
+export function verifierVueDuPlan(vue: string): Verification {
+  if (vue === "hors_plan") return { ok: false, message: "Un emplacement appartient à une vue du plan." }
+  return { ok: true }
+}
+
 export function peutRecevoirOccupation(statut: StatutEmplacement): boolean {
   return statut !== "indisponible"
 }

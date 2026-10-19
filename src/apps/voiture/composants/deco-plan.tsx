@@ -17,7 +17,6 @@ import { COULEUR_STATUT_EMPLACEMENT, LIBELLE_STATUT_EMPLACEMENT, TITRE_VUE } fro
 import {
   bornesDu,
   comptesDeStatuts,
-  emplacementsDeLaListe,
   emplacementsDessines,
   formeAuCentre,
   libelleComptes,
@@ -72,13 +71,14 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
   }, [])
 
   const dessines = useMemo(() => emplacementsDessines(emplacements, vue), [emplacements, vue])
-  const { horsPlan } = useMemo(() => emplacementsDeLaListe(emplacements, vue), [emplacements, vue])
+  // Lignes sans vue du plan (anciennes « Autres emplacements ») : le complément les range dans la vue affichée.
+  const sansVue = useMemo(() => emplacements.filter((e) => e.vue === "hors_plan").length, [emplacements])
   const comptes = useMemo(() => comptesDeStatuts(dessines.map((e) => e.statut)), [dessines])
 
   // L'emplacement choisi n'est affiché que s'il est dans la vue : un bandeau de pare-brise disparaît côté gauche.
   const visible = useMemo(
-    () => emplacements.find((e) => e.id === choisi && (dessines.some((d) => d.id === e.id) || horsPlan.some((h) => h.id === e.id))) ?? null,
-    [emplacements, choisi, dessines, horsPlan],
+    () => emplacements.find((e) => e.id === choisi && dessines.some((d) => d.id === e.id)) ?? null,
+    [emplacements, choisi, dessines],
   )
   // Le glissement sur le plan ne vaut que pour l'étape « position », côté droit, sur une forme.
   const enDeplacementVisible = etape === "position" && visible !== null && visible.forme !== null
@@ -150,8 +150,8 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
           <p className="text-sm text-texte-discret">{libelleComptes(comptes)}</p>
           {peutEcrire && (
             <div inert={inerte}>
-              <AjouterEmplacement ficheId={ficheId} vue={vue} forme={formeAuCentre(bornes)} libelle="Ajouter un emplacement" onAjoute={ajoute} />
-              <CompleterGabarit ficheId={ficheId} vue={vue} />
+              <AjouterEmplacement ficheId={ficheId} vue={vue} forme={formeAuCentre(bornes)} onAjoute={ajoute} />
+              <CompleterGabarit ficheId={ficheId} vue={vue} sansVue={sansVue} />
             </div>
           )}
         </>
@@ -164,15 +164,6 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
         {emplacements.length === 0 && <p className="text-texte-discret">Aucun emplacement défini pour ce véhicule.</p>}
         {dessines.length > 0 && (
           <ListeEmplacements emplacements={dessines} choisi={visible?.id ?? null} onChoisir={choisir} />
-        )}
-        {(horsPlan.length > 0 || peutEcrire) && (
-          <section aria-labelledby="autres-emplacements" className="flex flex-col gap-2">
-            <h3 id="autres-emplacements" className="font-titre text-lg uppercase">
-              {TITRE_VUE.hors_plan}
-            </h3>
-            {horsPlan.length > 0 && <ListeEmplacements emplacements={horsPlan} choisi={visible?.id ?? null} onChoisir={choisir} />}
-            {peutEcrire && <AjouterEmplacement ficheId={ficheId} vue="hors_plan" forme={null} libelle="Ajouter sans forme" onAjoute={ajoute} />}
-          </section>
         )}
       </section>
 
@@ -245,8 +236,8 @@ function IndicateurStatut({ statut }: { statut: EmplacementPlan["statut"] }) {
 }
 
 // Complément : les emplacements des vues ajoutées au gabarit, pour un véhicule déjà créé. Sans effet si tout y est.
-// Les lignes hors plan sans équivalent sont rangées dans la vue affichée (`vue`).
-function CompleterGabarit({ ficheId, vue }: { ficheId: string; vue: VuePlan }) {
+// Les lignes sans vue du plan sont rangées dans la vue affichée (`vue`) ; `sansVue` les compte, pour le dire.
+function CompleterGabarit({ ficheId, vue, sansVue }: { ficheId: string; vue: VuePlan; sansVue: number }) {
   const [resultat, envoyer, enCours] = useActionState<ResultatComplement | null, FormData>(completerGabaritAction, null)
   return (
     <form action={envoyer} className="flex flex-col gap-2">
@@ -258,6 +249,11 @@ function CompleterGabarit({ ficheId, vue }: { ficheId: string; vue: VuePlan }) {
       <p className="text-sm text-texte-discret">
         Ajoute les emplacements des vues nouvelles et range les emplacements hors plan dans la vue affichée. Les emplacements libres que le gabarit ne porte plus sont retirés.
       </p>
+      {sansVue > 0 && (
+        <p className="text-sm text-etat-rouge">
+          {sansVue === 1 ? "Un emplacement n'est sur aucune vue." : `${sansVue} emplacements ne sont sur aucune vue.`} Le complément les range dans la vue affichée.
+        </p>
+      )}
       {resultat && !resultat.ok && (
         <p role="alert" className="text-sm text-etat-rouge">
           {resultat.message}
@@ -272,18 +268,16 @@ function CompleterGabarit({ ficheId, vue }: { ficheId: string; vue: VuePlan }) {
   )
 }
 
-// Ajout d'un emplacement : le service le crée, la page le choisit au retour.
+// Ajout d'un emplacement sur la vue affichée, au centre : le service le crée, la page le choisit au retour.
 function AjouterEmplacement({
   ficheId,
   vue,
   forme,
-  libelle,
   onAjoute,
 }: {
   ficheId: string
-  vue: VuePlan | "hors_plan"
-  forme: FormeEmplacement | null
-  libelle: string
+  vue: VuePlan
+  forme: FormeEmplacement
   onAjoute: (id: string) => void
 }) {
   const [resultat, envoyer, enCours] = useActionState<Resultat | null, FormData>(ajouterEmplacementAction, null)
@@ -298,9 +292,9 @@ function AjouterEmplacement({
       <input type="hidden" name="vehicleId" value={ficheId} />
       <input type="hidden" name="nom" value="Nouvel emplacement" />
       <input type="hidden" name="vue" value={vue} />
-      {forme && <input type="hidden" name="forme" value={JSON.stringify(forme)} />}
+      <input type="hidden" name="forme" value={JSON.stringify(forme)} />
       <button type="submit" disabled={enCours} className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`}>
-        {libelle}
+        Ajouter un emplacement
       </button>
       {resultat && !resultat.ok && (
         <p role="alert" className="text-sm text-etat-rouge">

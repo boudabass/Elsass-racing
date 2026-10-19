@@ -145,7 +145,7 @@ function formeDuFormulaire(donnees: FormData): unknown {
   }
 }
 
-// Ajout : un rectangle au centre de la vue, ou sans forme pour « Autres emplacements ». Le nom vient du plan.
+// Ajout : un rectangle au centre de la vue affichée. Le nom vient du plan.
 export async function ajouterEmplacementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerVoiture(() => {
     const entree: EntreeEmplacement = {

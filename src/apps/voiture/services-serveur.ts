@@ -31,6 +31,7 @@ import {
   statutPapier,
   validerValeurs,
   verifierTransitionOccupation,
+  verifierVueDuPlan,
   type StatutOccupation,
   type ValeursReglage,
 } from "./regles"
@@ -493,6 +494,8 @@ export async function ajouterEmplacement(vehicleId: string, entree: EntreeEmplac
 
 export async function ajouterEmplacementDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeEmplacement): Promise<string> {
   const donnees = schemaEmplacement.parse(entree)
+  const verification = verifierVueDuPlan(donnees.vue)
+  if (!verification.ok) refus(verification.message)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const vehicule = await client.coreVehicle.findFirst({ where: { id: vehicleId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
   if (!vehicule) refus("Véhicule introuvable.")

@@ -7,7 +7,6 @@ import {
   comptesDeStatuts,
   deplacerForme,
   dessinDeLaVue,
-  emplacementsDeLaListe,
   emplacementsDessines,
   etendueDe,
   formeAuCentre,
@@ -48,12 +47,6 @@ describe("plan de déco : géométrie", () => {
     expect(emplacementsDessines(emplacements, "avant")).toHaveLength(1)
     expect(emplacementsDessines(emplacements, "arriere")).toHaveLength(2)
     expect(emplacementsDessines(emplacements, "dessus")).toHaveLength(2)
-  })
-
-  it("la liste d'une vue ne contient que ses emplacements dessinés, sans hors plan pour la Saxo", () => {
-    const emplacements = emplacementsDepuisGabarit(gabaritSaxo).map((e, i) => ({ id: String(i), ...e }))
-    expect(emplacementsDeLaListe(emplacements, "gauche").plan.map((e) => e.nom)).toContain("Portière gauche")
-    expect(emplacementsDeLaListe(emplacements, "gauche").horsPlan).toHaveLength(0)
   })
 
   it("un dessin hors plan (sans forme) ne se dessine dans aucune vue", () => {
