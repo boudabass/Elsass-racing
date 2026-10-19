@@ -270,3 +270,6 @@ En attente :
 
 ### 3.11 Retours du test de John sur le lot 3
 - Brief : `docs/briefs/3.11-retours-test-john-lot-3.md`. Test de John sur dev le 19/10 : interlocuteur impossible à saisir (PDF bloqué), fiches non rafraîchies, réservation et encaissement non remontés, retour arrière, fiche convention réorganisée, message du PDF, « Tenue » devient « Faite », encadré rouge des notifications retiré, texte blanc sur les boutons rouges. À finir avant la fusion dans main.
+
+### 3.12 On décide dans l'app, pas dans les notifications
+- Brief : `docs/briefs/3.12-decider-dans-l-app.md`. Décision de John du 19/10 : la boîte d'actions informe et emmène (« Ouvrir ») ; les décisions se prennent dans l'app concernée, par le même service de décision. Inventaire des 18 types validé avant le code. Après la 3.11, avant la fusion dans main.
