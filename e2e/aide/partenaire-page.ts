@@ -104,7 +104,7 @@ async function convention(
   return id
 }
 
-async function contrepartie(teamId: string, conventionId: string, libelle: string, promise: number, tenue: number): Promise<string> {
+export async function contrepartie(teamId: string, conventionId: string, libelle: string, promise: number, tenue: number): Promise<string> {
   const id = newId()
   await bd().query(
     `INSERT INTO partenaires_benefit (id, team_id, agreement_id, libelle, type, quantite_promise, quantite_tenue, statut, updated_at)

@@ -9,7 +9,7 @@ import type { Browser, BrowserContext, Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
-import { expirerLien, noterJetonDeTest, poserLogoPartenaire, preparerPageDePartenaire, type PageDePartenaire } from "./aide/partenaire-page"
+import { contrepartie, expirerLien, noterJetonDeTest, poserLogoPartenaire, preparerPageDePartenaire, type PageDePartenaire } from "./aide/partenaire-page"
 import { creerEquipe, supprimerEquipe, type Equipe } from "./aide/session"
 
 const DOSSIER = path.join(__dirname, "..", "docs", "captures")
@@ -501,6 +501,57 @@ test("14 · le compteur du message se lit et n'annonce la limite qu'à partir de
     await champ.fill("a".repeat(1810))
     await expect(annonce).toHaveText("Il reste 200 caractères au plus.")
     await visiteur.close()
+  })
+})
+
+// Captures du brief 3.10 : la page partenaire avec son logo (visiteur en sombre, membre en clair), et une convention
+// avec deux contreparties dont une action est ouverte, à 1440 et à 360 px.
+test("captures 3.10 · page partenaire avec logo, convention avec deux contreparties et une action ouverte", async ({ page, equipe, browser }) => {
+  await avecAutreTeam(async (autre) => {
+    const donnees = await preparerPageDePartenaire(equipe, autre)
+    await poserLogoPartenaire(equipe, donnees.partenaireA)
+    await contrepartie(equipe.teamId, donnees.conventionA, "Logo sur la voiture", 1, 0)
+    await connecterParLien(page, equipe)
+    const jeton = await creerLien(page, donnees.partenaireA)
+
+    // Sombre : le visiteur sans compte, à 1440 puis à 360 px.
+    const sombre = await visiteurSansSession(browser, "198.51.100.16")
+    const vueSombre = await sombre.newPage()
+    await vueSombre.goto(`/p/${jeton}`)
+    await capturer(vueSombre, "partenaire-page-logo-1440x900.png")
+    await sombre.close()
+    const sombreTelephone = await visiteurSansSession(browser, "198.51.100.17", TELEPHONE)
+    const vueTelephone = await sombreTelephone.newPage()
+    await vueTelephone.goto(`/p/${jeton}`)
+    await capturer(vueTelephone, "partenaire-page-logo-360x740.png")
+    await sombreTelephone.close()
+
+    // Clair : le membre connecté a le thème clair, et la même page le suit.
+    await passerEnThemeClair(page)
+    await page.goto(`/p/${jeton}`)
+    await page.setViewportSize(BUREAU)
+    await capturer(page, "partenaire-page-logo-clair-1440x900.png")
+    await page.setViewportSize(TELEPHONE)
+    await capturer(page, "partenaire-page-logo-clair-360x740.png")
+
+    // La convention : deux contreparties, la première avec « Saisir l'avancement » ouvert.
+    for (const [viewport, suffixe] of [
+      [BUREAU, "1440x900"],
+      [TELEPHONE, "360x740"],
+    ] as const) {
+      await page.setViewportSize(viewport)
+      await page.goto(`/apps/partenaires/conventions/${donnees.conventionA}?onglet=contreparties`)
+      await page.getByRole("button", { name: "Saisir l'avancement", exact: true }).first().click()
+      await expect(page.getByRole("region", { name: "Saisir l'avancement", exact: true }).first()).toBeVisible()
+      await capturer(page, `convention-contreparties-actions-${suffixe}.png`)
+    }
+    // Les captures ci-dessus sont sombres (thème par défaut). Le thème du membre passe en clair pour les suivantes.
+    await passerEnThemeClair(page)
+    await page.goto(`/apps/partenaires/conventions/${donnees.conventionA}?onglet=contreparties`)
+    await page.getByRole("button", { name: "Saisir l'avancement", exact: true }).first().click()
+    await capturer(page, "convention-contreparties-actions-clair-1440x900.png")
+    await page.setViewportSize(TELEPHONE)
+    await capturer(page, "convention-contreparties-actions-clair-360x740.png")
   })
 })
 
