@@ -1,5 +1,6 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { ErreurAcces, libelleErreurAcces } from "@/core/droits/erreurs"
@@ -26,9 +27,14 @@ const TAILLES = ["normale", "grande"] as const
 const LUDIQUES = ["oui", "non", "comme_la_team"] as const
 const REGROUPEMENTS = ["immediat", "quotidien"] as const
 
-// Une erreur s'affiche dans le tiroir, en clair. Le succès ferme le tiroir.
+// Une erreur s'affiche dans le tiroir, en clair. Le succès ferme le tiroir et relit la rubrique
+// (demandes en cours, appareils, réglages) : le tiroir ne rafraîchit pas la page tout seul.
+const RUBRIQUE = "/apps/settings"
+
 function retour(erreur?: string): Resultat {
-  return erreur ? { ok: false, message: erreur } : { ok: true }
+  if (erreur) return { ok: false, message: erreur }
+  revalidatePath(RUBRIQUE, "layout")
+  return { ok: true }
 }
 
 function choix<T extends string>(valeur: string, liste: readonly T[]): T {
