@@ -368,3 +368,28 @@ test("thème clair à 1440 px : Prospection et Contreparties", async ({ page, eq
   await page.goto("/apps/partenaires/contreparties")
   await capturer(page, "partenaires-contreparties-clair-1440x900.png")
 })
+
+// Captures 3.13 : la fiche convention en thème clair, avec le tiroir « Saisir l'avancement » ouvert, à 1440 et à 360 px.
+// La capture attend la fin de l'animation du tiroir, sinon elle le montre hors de l'écran.
+test("captures 3.13 · fiche convention en clair, tiroir « Saisir l'avancement » à 1440 et à 360 px", async ({ page, equipe }) => {
+  test.setTimeout(240_000)
+  await preparerSaison(equipe, 2027)
+  await connecterParLien(page, equipe)
+  const partenaireId = await creerProspect(page, "Garage Muller")
+  const conventionId = await creerConvention(page, partenaireId)
+  await ajouterContrepartie(page, conventionId, "Publications sur les réseaux")
+  await passerEnThemeClair(page)
+
+  await page.setViewportSize(BUREAU)
+  await page.goto(`/apps/partenaires/conventions/${conventionId}`)
+  await ligneContrepartie(page, "Publications sur les réseaux").getByRole("button", { name: "Saisir l'avancement", exact: true }).click()
+  await expect(page.getByRole("dialog", { name: "Saisir l'avancement", exact: true })).toBeVisible()
+  await expect.poll(() => page.evaluate(() => document.querySelector('[role="dialog"]')?.getAnimations().length ?? 0)).toBe(0)
+  await page.screenshot({ path: path.join(DOSSIER, "tiroir-convention-saisir-avancement-1440x900-clair.png") })
+
+  // Même tiroir sur téléphone : la capture montre le tiroir du bas, avec la page derrière.
+  await page.setViewportSize(TELEPHONE)
+  await expect(page.getByRole("dialog", { name: "Saisir l'avancement", exact: true })).toBeVisible()
+  await expect.poll(() => page.evaluate(() => document.querySelector('[role="dialog"]')?.getAnimations().length ?? 0)).toBe(0)
+  await page.screenshot({ path: path.join(DOSSIER, "tiroir-convention-saisir-avancement-360x740-clair.png") })
+})
