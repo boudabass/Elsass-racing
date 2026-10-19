@@ -43,3 +43,59 @@ export async function lireContrepartieLogoPourVoiture(ctx: ContexteTeam, benefit
     logoFileId: convention.partner.logoFileId,
   }
 }
+
+const STATUTS_ACTIFS_PARTAGES = ["signee", "en_cours"] as const
+
+// Partenaires dont la convention est signée ou en cours : la liste de la réservation à la main dans Voiture (brief 3.11,
+// §3). Pas de contrôle d'accès ici : Voiture vérifie son propre droit avant d'appeler.
+export interface PartenaireReservable {
+  id: string
+  nom: string
+}
+
+export async function lirePartenairesReservablesDans(ctx: ContexteTeam): Promise<PartenaireReservable[]> {
+  const conventions = await prismaPourTeam(ctx.teamId, ctx.userId).partenairesAgreement.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null, statut: { in: [...STATUTS_ACTIFS_PARTAGES] } },
+    select: { partnerId: true, partner: { select: { contact: { select: { nom: true } } } } },
+  })
+  const uniques = new Map<string, PartenaireReservable>()
+  for (const convention of conventions) {
+    uniques.set(convention.partnerId, { id: convention.partnerId, nom: convention.partner.contact.nom })
+  }
+  return Array.from(uniques.values()).sort((a, b) => a.nom.localeCompare(b.nom, "fr"))
+}
+
+// La contrepartie logo de ce partenaire sur cet emplacement, dans une convention signée ou en cours : ce qui se
+// réserve avec l'emplacement (dates de la convention, logo du partenaire). Null si aucune.
+export async function lireReservationConventionDans(
+  ctx: ContexteTeam,
+  partenaireId: string,
+  slotId: string,
+): Promise<{ partenaireNom: string; dateDebut: string; dateFin: string; logoFileId: string | null } | null> {
+  const benefice = await prismaPourTeam(ctx.teamId, ctx.userId).partenairesBenefit.findFirst({
+    where: {
+      teamId: ctx.teamId,
+      deletedAt: null,
+      type: "logo_voiture",
+      slotId,
+      agreement: { partnerId: partenaireId, deletedAt: null, statut: { in: [...STATUTS_ACTIFS_PARTAGES] } },
+    },
+    select: {
+      agreement: {
+        select: {
+          dateDebut: true,
+          dateFin: true,
+          partner: { select: { logoFileId: true, contact: { select: { nom: true } } } },
+        },
+      },
+    },
+  })
+  if (!benefice) return null
+  const convention = benefice.agreement
+  return {
+    partenaireNom: convention.partner.contact.nom,
+    dateDebut: convention.dateDebut.toISOString().slice(0, 10),
+    dateFin: convention.dateFin.toISOString().slice(0, 10),
+    logoFileId: convention.partner.logoFileId,
+  }
+}

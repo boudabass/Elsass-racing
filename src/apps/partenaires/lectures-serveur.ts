@@ -120,6 +120,18 @@ export async function lireConvention(id: string) {
   return lireConventionDans(ctx, id)
 }
 
+// Contreparties dont la réservation d'emplacement attend encore dans la boîte d'actions (brief 3.11, §3). La boîte
+// l'ouvre avec la clé « reserver:<id de la contrepartie> » ; une fois décidée, elle n'est plus en attente.
+export async function lireReservationsEnAttente(idsContreparties: string[]): Promise<Set<string>> {
+  const { ctx } = await accesPartenaires("ecriture")
+  if (idsContreparties.length === 0) return new Set()
+  const actions = await prismaPourTeam(ctx.teamId, ctx.userId).coreAction.findMany({
+    where: { teamId: ctx.teamId, statut: "en_attente", cleUnicite: { in: idsContreparties.map((id) => `reserver:${id}`) } },
+    select: { cleUnicite: true },
+  })
+  return new Set(actions.map((action) => (action.cleUnicite ?? "").replace("reserver:", "")))
+}
+
 export async function lireConventionDans(ctx: ContexteTeam, id: string) {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   return client.partenairesAgreement.findFirst({

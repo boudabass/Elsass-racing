@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 
 import { aAuMoins } from "@/core/droits/niveaux"
 
+import { lirePartenairesReservablesDans } from "@/apps/partenaires/lectures-partagees"
 import { lireVehicule } from "../lectures-serveur"
 import { formeDeJson, type EmplacementPlan } from "../plan"
 import { accesVoiture } from "../services-serveur"
@@ -17,7 +18,9 @@ function versJour(date: Date | null): string | null {
 export async function PanneauDeco({ ficheId }: { ficheId: string }) {
   const fiche = await lireVehicule(ficheId)
   if (!fiche) notFound()
-  const { niveau } = await accesVoiture("lecture")
+  const { ctx, niveau } = await accesVoiture("lecture")
+  // La liste des partenaires ne sert qu'à la réservation : elle n'est lue que pour qui peut écrire (brief 3.11, §3).
+  const partenaires = aAuMoins(niveau, "ecriture") ? await lirePartenairesReservablesDans(ctx) : []
 
   const emplacements: EmplacementPlan[] = fiche.emplacements.map((emplacement) => {
     const occupation = emplacement.occupations[0]
@@ -52,6 +55,7 @@ export async function PanneauDeco({ ficheId }: { ficheId: string }) {
       gabarit={fiche.gabarit}
       emplacements={emplacements}
       peutEcrire={aAuMoins(niveau, "ecriture")}
+      partenaires={partenaires}
     />
   )
 }

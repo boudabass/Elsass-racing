@@ -9,6 +9,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import type { Resultat } from "@/core/sdk/actions-serveur"
+import type { PartenaireReservable } from "@/apps/partenaires/lectures-partagees"
 import { BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
 
 import type { FormeEmplacement, Gabarit } from "../gabarits/types"
@@ -38,6 +39,7 @@ export interface DecoPlanProps {
   gabarit: Gabarit | null
   emplacements: EmplacementPlan[]
   peutEcrire: boolean
+  partenaires: PartenaireReservable[]
 }
 
 export function DecoPlan(props: DecoPlanProps) {
@@ -48,7 +50,7 @@ export function DecoPlan(props: DecoPlanProps) {
   )
 }
 
-function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrire }: DecoPlanProps) {
+function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrire, partenaires }: DecoPlanProps) {
   const router = useRouter()
   const chemin = usePathname()
   const parametres = useSearchParams()
@@ -123,6 +125,7 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
       emplacement={visible}
       vue={vue}
       peutEcrire={peutEcrire}
+      partenaires={partenaires}
       bornes={bornes}
       enDeplacement={enDeplacementVisible}
       brouillon={enDeplacementVisible ? brouillon : null}

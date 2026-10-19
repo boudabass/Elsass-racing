@@ -6,6 +6,7 @@
 import { executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-serveur"
 
 import { refus } from "./erreurs"
+import { reserverPourPartenaireDans } from "./liaisons-serveur"
 import { lireSaisieReglage } from "./saisie-reglage"
 import {
   ajouterEmplacement,
@@ -20,6 +21,7 @@ import {
   modifierReglage,
   poserLogo,
   poserPhotoPrincipale,
+  accesVoiture,
   reserverEmplacement,
   retirerLogo,
   supprimerEmplacement,
@@ -182,16 +184,22 @@ export async function marquerIndisponibleAction(_etat: Resultat | null, donnees:
   return executerVoiture(() => marquerIndisponible(texte(donnees, "slotId"), texte(donnees, "indisponible") === "oui"))
 }
 
-// Réservation : le partenaire est saisi en texte libre (Partenaires arrive à la 3.6). Le logo est rattaché par le service.
+// Réservation à la main : un partenaire de la liste (ses dates et son logo viennent de sa convention, brief 3.11 §3),
+// ou « Autre » avec un nom libre, pour un sponsor hors app.
 export async function reserverEmplacementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executerVoiture(() =>
-    reserverEmplacement(texte(donnees, "slotId"), {
+  return executerVoiture(async () => {
+    const partenaireId = texteOuNull(donnees, "partenaireId")
+    if (partenaireId) {
+      const { ctx } = await accesVoiture("ecriture")
+      return reserverPourPartenaireDans(ctx, texte(donnees, "slotId"), partenaireId)
+    }
+    return reserverEmplacement(texte(donnees, "slotId"), {
       partenaireNom: texte(donnees, "partenaireNom"),
       du: texteOuNull(donnees, "du"),
       au: texteOuNull(donnees, "au"),
       logoFileId: texteOuNull(donnees, "logoFileId"),
-    }),
-  )
+    })
+  })
 }
 
 export async function poserLogoAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {

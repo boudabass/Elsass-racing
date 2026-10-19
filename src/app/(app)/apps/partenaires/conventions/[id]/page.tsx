@@ -31,7 +31,7 @@ import {
   supprimerPreuveAction,
 } from "@/apps/partenaires/actions"
 import { accesPartenaires, genererDocument, lireCatalogue, lireModeles } from "@/apps/partenaires/services-serveur"
-import { lireConvention, lireEpreuvesDeSaison, lireSaisons } from "@/apps/partenaires/lectures-serveur"
+import { lireConvention, lireEpreuvesDeSaison, lireReservationsEnAttente, lireSaisons } from "@/apps/partenaires/lectures-serveur"
 import { listerEmplacementsPourPartenaires } from "@/apps/voiture/lectures-partagees"
 import { enRetard, formaterMontant, jourParis, statutContrepartie } from "@/apps/partenaires/regles"
 import { EcranVide } from "@/components/qg/ecran-vide"
@@ -98,6 +98,7 @@ export default async function PageConvention({
   ])
   const modelesActifs = modeles.filter((m) => m.actif)
   const nomEpreuve = new Map(epreuves.map((e) => [e.id, e.nom]))
+  const reservationsEnAttente = await lireReservationsEnAttente(convention.benefits.map((benefice) => benefice.id))
   const statut = convention.statut
   const estBrouillon = statut === "brouillon"
   const estEnvoyee = statut === "envoyee"
@@ -273,6 +274,9 @@ export default async function PageConvention({
                     <div className="flex flex-col gap-1">
                       <h3 className="break-words font-medium">{benefice.libelle}</h3>
                       {sousTitre && <p className="text-sm text-texte-discret">{sousTitre}</p>}
+                      {benefice.type === "logo_voiture" && reservationsEnAttente.has(benefice.id) && (
+                        <p className="text-sm">Emplacement à réserver : en attente dans la boîte d&apos;actions</p>
+                      )}
                     </div>
                     <div className="flex flex-col gap-2">
                       <div

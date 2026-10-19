@@ -4,7 +4,7 @@
 
 import { z } from "zod"
 
-import { lireContrepartieLogoPourVoiture } from "@/apps/partenaires/lectures-partagees"
+import { lireContrepartieLogoPourVoiture, lireReservationConventionDans } from "@/apps/partenaires/lectures-partagees"
 import { rouvrirAction } from "@/core/actions/actions-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 import { emettre } from "@/core/evenements/bus-serveur"
@@ -12,7 +12,7 @@ import { enregistrerGestionnaire, type EvenementRecu } from "@/core/evenements/g
 import { ErreurMetier } from "@/core/sdk/actions-serveur"
 import { prismaPourTeam } from "@/lib/prisma"
 
-import { ErreurVoiture } from "./erreurs"
+import { ErreurVoiture, refus } from "./erreurs"
 import { reserverEmplacementDans, retirerLogoDans } from "./services-serveur"
 
 const jourCivil = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -126,6 +126,19 @@ export async function proposerLiberationsDans(ctx: ContexteTeam, entree: z.input
       cleRegroupement: "liberations_emplacements",
     })
   }
+}
+
+// Réservation à la main d'un partenaire de la liste (brief 3.11, §3) : elle fait la même chose que la boîte d'actions,
+// avec les dates et le logo de sa convention signée ou en cours pour cet emplacement.
+export async function reserverPourPartenaireDans(ctx: ContexteTeam, slotId: string, partenaireId: string): Promise<string> {
+  const convention = await lireReservationConventionDans(ctx, partenaireId, slotId)
+  if (!convention) refus("Ce partenaire n'a pas de convention signée ou en cours pour cet emplacement.")
+  return reserverEmplacementDans(
+    ctx,
+    slotId,
+    { partenaireId, partenaireNom: convention.partenaireNom, du: convention.dateDebut, au: convention.dateFin, logoFileId: convention.logoFileId },
+    convention.logoFileId ? { logoSource: { app: "partenaires", ficheType: "partner", ficheId: partenaireId } } : {},
+  )
 }
 
 // --- Décisions de la boîte d'actions, pour les actions de Voiture -------------------------------------

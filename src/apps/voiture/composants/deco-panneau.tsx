@@ -7,6 +7,8 @@ import { useActionState, useEffect, useRef, useState, type ReactNode } from "rea
 
 import { ChampFichier, type FichierEnvoye } from "@/components/formulaire/champ-fichier"
 import { Message } from "@/components/formulaire/message"
+import type { PartenaireReservable } from "@/apps/partenaires/lectures-partagees"
+
 import type { FormeEmplacement } from "../gabarits/types"
 import { BOUTON, BOUTON_SECONDAIRE, CHAMP } from "@/lib/classes-formulaire"
 import type { Resultat } from "@/core/sdk/actions-serveur"
@@ -31,6 +33,7 @@ type Action = "reserver" | "poser" | "retirer" | "annuler" | "indisponible" | "d
 
 interface PanneauEmplacementProps {
   emplacement: EmplacementPlan
+  partenaires: PartenaireReservable[]
   vue: VuePlan
   peutEcrire: boolean
   bornes: Bornes
@@ -169,7 +172,9 @@ export function PanneauEmplacement(props: PanneauEmplacementProps) {
             {statut === "indisponible" && <FormulaireIndisponible slotId={emplacement.id} indisponible={false} onSucces={() => setAction(null)} />}
           </div>
 
-          {action === "reserver" && <FormulaireReservation slotId={emplacement.id} onSucces={() => setAction(null)} />}
+          {action === "reserver" && (
+            <FormulaireReservation slotId={emplacement.id} partenaires={props.partenaires} onSucces={() => setAction(null)} />
+          )}
           {action === "poser" && occupation && <FormulairePose assignmentId={occupation.id} onSucces={() => setAction(null)} />}
           {action === "annuler" && occupation && (
             <ConfirmationAction
@@ -286,22 +291,41 @@ function FormulaireIndisponible({ slotId, indisponible, onSucces }: { slotId: st
   )
 }
 
-function FormulaireReservation({ slotId, onSucces }: { slotId: string; onSucces: () => void }) {
+// Un partenaire de la liste (convention signée ou en cours) : ses dates et son logo viennent de sa convention. « Autre »
+// (valeur vide) : un nom libre, pour un sponsor hors app. Brief 3.11, §3.
+function FormulaireReservation({ slotId, partenaires, onSucces }: { slotId: string; partenaires: PartenaireReservable[]; onSucces: () => void }) {
   const [logo, setLogo] = useState<FichierEnvoye | null>(null)
+  const [choix, setChoix] = useState(partenaires[0]?.id ?? "")
+  const partenaireChoisi = choix !== ""
   return (
     <FormulaireAction action={reserverEmplacementAction} libelleBouton="Réserver l'emplacement" onSucces={onSucces}>
       <input type="hidden" name="slotId" value={slotId} />
       <Champ libelle="Partenaire">
-        <input name="partenaireNom" required maxLength={120} autoComplete="off" className={CHAMP} />
+        <select id="reservation-partenaire" name="partenaireId" value={choix} onChange={(evenement) => setChoix(evenement.target.value)} className={CHAMP}>
+          {partenaires.map((partenaire) => (
+            <option key={partenaire.id} value={partenaire.id}>
+              {partenaire.nom}
+            </option>
+          ))}
+          <option value="">Autre (hors app)</option>
+        </select>
       </Champ>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Champ libelle="Du (facultatif)">
-          <input name="du" type="date" className={CHAMP} />
-        </Champ>
-        <Champ libelle="Au (facultatif)">
-          <input name="au" type="date" className={CHAMP} />
-        </Champ>
-      </div>
+      {!partenaireChoisi && (
+        <>
+          <Champ libelle="Nom du sponsor">
+            <input id="reservation-nom" name="partenaireNom" required maxLength={120} autoComplete="off" className={CHAMP} />
+          </Champ>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Champ libelle="Du (facultatif)">
+              <input name="du" type="date" className={CHAMP} />
+            </Champ>
+            <Champ libelle="Au (facultatif)">
+              <input name="au" type="date" className={CHAMP} />
+            </Champ>
+          </div>
+        </>
+      )}
+      {!partenaireChoisi && (
       <ChampFichier
         app="voiture"
         accept={ACCEPT_LOGO}
@@ -313,6 +337,7 @@ function FormulaireReservation({ slotId, onSucces }: { slotId: string; onSucces:
         onChange={setLogo}
         libelleRetirer="Retirer le logo"
       />
+      )}
     </FormulaireAction>
   )
 }
