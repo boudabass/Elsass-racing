@@ -62,6 +62,15 @@ describe("gabarit Saxo", () => {
     expect(parVue("dessus")).toEqual(["Capot", "Toit"])
   })
 
+  it("les vues avant, arrière et dessus sont dessinées en courbes, pas en rectangles", () => {
+    for (const vue of ["avant", "arriere", "dessus"] as const) {
+      const dessin = gabaritSaxo.vuesDessinees.find((v) => v.vue === vue)?.dessin ?? []
+      const courbes = dessin.filter((e) => e.type === "path" && /[QCA]/.test(String(e.attributs.d)))
+      expect(courbes.length, vue).toBeGreaterThan(3)
+      expect(dessin.some((e) => e.type === "path" && !/[QCA]/.test(String(e.attributs.d)) && /^M [\d.]+ [\d.]+ L [\d.]+ [\d.]+ L [\d.]+ [\d.]+ L [\d.]+ [\d.]+ Z$/.test(String(e.attributs.d)))).toBe(false)
+    }
+  })
+
   it("les dessins n'utilisent que les rôles de couleur", () => {
     const rolesPermis = ["caisse", "vitre", "roue", "jante", "detail", "sol"]
     for (const vue of gabaritSaxo.vuesDessinees) {

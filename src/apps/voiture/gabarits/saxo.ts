@@ -49,42 +49,76 @@ const DESSIN_DROIT: ElementDessin[] = [
   { type: "line", role: "sol", attributs: { x1: 0, y1: 142.5, x2: 370, y2: 142.5, "stroke-width": 1.5 } },
 ]
 
-// Silhouette de face et de dos : même carrosserie, vitrage en haut, bouclier en bas.
+// Angles arrondis en chemin : pneus, plaque, rétroviseurs.
+function rectArrondi(x: number, y: number, l: number, h: number, r: number): string {
+  return `M ${x + r} ${y} L ${x + l - r} ${y} Q ${x + l} ${y} ${x + l} ${y + r} L ${x + l} ${y + h - r} Q ${x + l} ${y + h} ${x + l - r} ${y + h} L ${x + r} ${y + h} Q ${x} ${y + h} ${x} ${y + h - r} L ${x} ${y + r} Q ${x} ${y} ${x + r} ${y} Z`
+}
+
+// Vues de face et de dos : même carrosserie, pare-brise ou lunette en haut, pare-chocs en bas, roues qui dépassent.
 const CAISSE_FACE: ElementDessin = {
   type: "path",
   role: "caisse",
-  attributs: { d: "M100 30 Q100 4 126 4 L244 4 Q270 4 270 30 L270 128 Q270 144 254 144 L116 144 Q100 144 100 128 Z" },
+  attributs: { d: "M 110 132 Q 105 132 105 124 L 105 84 Q 105 72 112 66 L 122 56 Q 132 22 185 16 Q 238 22 248 56 L 258 66 Q 265 72 265 84 L 265 124 Q 265 132 260 132 Z" },
 }
 
+const ROUES_FACE: ElementDessin[] = [
+  { type: "path", role: "roue", attributs: { d: rectArrondi(94, 110, 24, 32, 6) } },
+  { type: "path", role: "roue", attributs: { d: rectArrondi(252, 110, 24, 32, 6) } },
+]
+
 const DESSIN_AVANT: ElementDessin[] = [
+  ...ROUES_FACE,
   CAISSE_FACE,
-  { type: "path", role: "vitre", attributs: { d: "M118 20 Q118 12 128 12 L242 12 Q252 12 252 20 L252 58 L118 58 Z" } },
-  { type: "line", role: "detail", attributs: { x1: 104, y1: 62, x2: 266, y2: 62, "stroke-width": 1.5 } },
-  { type: "path", role: "detail", attributs: { d: "M104 66 L120 66 L120 84 L104 84 Z" } },
-  { type: "path", role: "detail", attributs: { d: "M250 66 L266 66 L266 84 L250 84 Z" } },
-  { type: "path", role: "detail", attributs: { d: "M150 96 L220 96 L220 116 L150 116 Z" } },
+  { type: "path", role: "vitre", attributs: { d: "M 128 60 Q 140 32 185 29 Q 230 32 242 60 Z" } },
+  { type: "line", role: "detail", attributs: { x1: 110, y1: 68, x2: 260, y2: 68, "stroke-width": 1.5 } },
+  { type: "path", role: "detail", attributs: { d: "M 116 76 Q 126 68 142 70 L 144 86 Q 128 90 114 86 Z" } },
+  { type: "path", role: "detail", attributs: { d: "M 254 72 Q 244 68 228 70 L 226 86 Q 242 90 256 86 Z" } },
+  { type: "path", role: "detail", attributs: { d: "M 156 74 Q 185 69 214 74 L 216 98 Q 185 102 154 98 Z" } },
+  { type: "line", role: "detail", attributs: { x1: 160, y1: 83, x2: 210, y2: 83, "stroke-width": 1 } },
+  { type: "line", role: "detail", attributs: { x1: 160, y1: 90, x2: 210, y2: 90, "stroke-width": 1 } },
+  { type: "path", role: "detail", attributs: { d: rectArrondi(126, 108, 24, 14, 3) } },
+  { type: "path", role: "detail", attributs: { d: rectArrondi(220, 108, 24, 14, 3) } },
+  { type: "line", role: "detail", attributs: { x1: 110, y1: 126, x2: 260, y2: 126, "stroke-width": 1.2 } },
+  { type: "path", role: "caisse", attributs: { d: rectArrondi(92, 58, 13, 16, 4) } },
+  { type: "path", role: "caisse", attributs: { d: rectArrondi(265, 58, 13, 16, 4) } },
   { type: "line", role: "sol", attributs: { x1: 0, y1: 144.5, x2: 370, y2: 144.5, "stroke-width": 1.5 } },
 ]
 
 const DESSIN_ARRIERE: ElementDessin[] = [
+  ...ROUES_FACE,
   CAISSE_FACE,
-  { type: "path", role: "vitre", attributs: { d: "M118 20 Q118 12 128 12 L242 12 Q252 12 252 20 L252 58 L118 58 Z" } },
-  { type: "line", role: "detail", attributs: { x1: 104, y1: 62, x2: 266, y2: 62, "stroke-width": 1.5 } },
-  { type: "path", role: "detail", attributs: { d: "M104 66 L118 66 L118 90 L104 90 Z" } },
-  { type: "path", role: "detail", attributs: { d: "M252 66 L266 66 L266 90 L252 90 Z" } },
+  { type: "path", role: "vitre", attributs: { d: "M 126 58 Q 138 28 185 25 Q 232 28 244 58 Z" } },
+  { type: "path", role: "detail", attributs: { d: "M 150 52 Q 186 44 222 50", "stroke-width": 1.2 } },
+  { type: "line", role: "detail", attributs: { x1: 110, y1: 62, x2: 260, y2: 62, "stroke-width": 1.5 } },
+  { type: "path", role: "detail", attributs: { d: "M 108 68 Q 116 65 122 66 L 122 94 Q 116 96 108 96 Z" } },
+  { type: "path", role: "detail", attributs: { d: "M 262 68 Q 254 65 248 66 L 248 94 Q 254 96 262 96 Z" } },
+  { type: "line", role: "detail", attributs: { x1: 110, y1: 114, x2: 260, y2: 114, "stroke-width": 1.2 } },
+  { type: "path", role: "detail", attributs: { d: rectArrondi(160, 90, 50, 16, 2), "stroke-width": 1 } },
+  { type: "line", role: "detail", attributs: { x1: 110, y1: 126, x2: 260, y2: 126, "stroke-width": 1.2 } },
+  { type: "path", role: "detail", attributs: { d: rectArrondi(110, 119, 14, 8, 2) } },
+  { type: "path", role: "detail", attributs: { d: rectArrondi(246, 119, 14, 8, 2) } },
   { type: "line", role: "sol", attributs: { x1: 0, y1: 144.5, x2: 370, y2: 144.5, "stroke-width": 1.5 } },
 ]
 
-// Vue de dessus : carrosserie vue du ciel, pare-brise à droite (avant), lunette à gauche (arrière).
+// Vue de dessus : la carrosserie vue du ciel, nez à droite (capot, pare-brise), coffre à gauche (lunette, hayon).
+// Les roues dépassent de la caisse ; les rétroviseurs sortent au pied du pare-brise.
 const DESSIN_DESSUS: ElementDessin[] = [
+  { type: "path", role: "roue", attributs: { d: rectArrondi(53, 2, 26, 22, 4) } },
+  { type: "path", role: "roue", attributs: { d: rectArrondi(53, 126, 26, 22, 4) } },
+  { type: "path", role: "roue", attributs: { d: rectArrondi(270, 2, 26, 22, 4) } },
+  { type: "path", role: "roue", attributs: { d: rectArrondi(270, 126, 26, 22, 4) } },
   {
     type: "path",
     role: "caisse",
-    attributs: { d: "M40 2 L320 2 Q350 2 350 34 L350 110 Q350 142 320 142 L40 142 Q20 142 20 110 L20 34 Q20 2 40 2 Z" },
+    attributs: { d: "M 60 13 L 282 13 Q 318 13 336 30 Q 350 44 352 75 Q 350 106 336 120 Q 318 137 282 137 L 60 137 Q 30 137 24 112 L 22 75 L 24 38 Q 30 13 60 13 Z" },
   },
-  { type: "path", role: "vitre", attributs: { d: "M262 26 L298 14 L298 130 L262 118 Z" } },
-  { type: "path", role: "vitre", attributs: { d: "M62 22 L90 14 L90 130 L62 122 Z" } },
-  { type: "path", role: "detail", attributs: { d: "M98 14 L250 14 L250 130 L98 130 Z", "stroke-width": 1.5 } },
+  { type: "path", role: "vitre", attributs: { d: "M 262 26 Q 282 18 298 20 L 298 130 Q 282 132 262 124 Z" } },
+  { type: "path", role: "vitre", attributs: { d: "M 64 24 Q 80 16 90 22 L 90 128 Q 80 134 64 126 Z" } },
+  { type: "path", role: "detail", attributs: { d: rectArrondi(98, 26, 158, 98, 10) } },
+  { type: "line", role: "detail", attributs: { x1: 298, y1: 20, x2: 298, y2: 130, "stroke-width": 1.2 } },
+  { type: "path", role: "detail", attributs: { d: "M 300 34 Q 326 38 346 52 M 300 116 Q 326 112 346 98", "stroke-width": 1 } },
+  { type: "path", role: "caisse", attributs: { d: rectArrondi(248, 4, 18, 9, 3) } },
+  { type: "path", role: "caisse", attributs: { d: rectArrondi(248, 137, 18, 9, 3) } },
 ]
 
 export const gabaritSaxo: Gabarit = {
