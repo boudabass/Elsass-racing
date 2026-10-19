@@ -240,6 +240,7 @@ Décisions de John (18/10) :
 
 ### 3.10 Finitions de l'audit du lot 3
 - Brief : `docs/briefs/3.10-finitions-audit-lot-3.md`. Audit Impeccable des écrans 3.6 à 3.9 (16/20), corrigé à la demande de John avant son test : structure et logo du partenaire sur la page partenaire, actions des contreparties sur une ligne, une seule règle pour boutons et liens, compteur du message.
+- Acceptée le 19/10 (f165936, retouches 8991559) : suites vertes chez l'orchestrateur (tsc, 594 tests, rls, bus, synchro, build, e2e 123/123), détecteur Impeccable sans constat, captures sombre et clair vérifiées. Lot 3 prêt pour le test de John sur dev.
 
 ## 6. Méthode de travail
 
