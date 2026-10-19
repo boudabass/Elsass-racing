@@ -3,7 +3,7 @@
 // docs/captures/ : à 1440 px, à 360 px, et en thème clair à 1440 px.
 import path from "node:path"
 
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
@@ -106,7 +106,7 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   await ligne(page, "Portière").click()
   await page.getByRole("button", { name: "Réserver", exact: true }).click()
   await page.locator('select[name="partenaireId"]').selectOption("")
-  page.locator('input[name="partenaireNom"]').fill("Garage Muller")
+  await page.locator('input[name="partenaireNom"]').fill("Garage Muller")
   await joindreFichier(page, LOGO)
   await page.getByRole("button", { name: "Réserver l'emplacement" }).click()
   await expect(ligne(page, "Portière").getByText("Réservé · Garage Muller")).toBeVisible()
@@ -163,15 +163,13 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   // 7. Ajouter, renommer, supprimer : « Nouvel emplacement », « Lunette latérale », puis la suppression sur la page.
   await page.getByRole("button", { name: "Ajouter un emplacement" }).click()
   await expect(page.getByRole("heading", { name: "Nouvel emplacement" })).toBeVisible()
-  await page.getByText("Modifier l'emplacement").click()
+  await page.getByRole("button", { name: "Modifier l'emplacement", exact: true }).click()
   await page.getByLabel("Nom", { exact: true }).fill("Lunette latérale")
   await page.getByRole("button", { name: "Enregistrer les modifications" }).click()
   await expect(page.getByRole("heading", { name: "Lunette latérale" })).toBeVisible()
-  await page.getByRole("button", { name: "Supprimer l'emplacement" }).click()
-  await page
-    .getByRole("group", { name: /Supprimer l'emplacement « Lunette latérale »/ })
-    .getByRole("button", { name: "Supprimer l'emplacement" })
-    .click()
+  await page.getByRole("button", { name: "Supprimer l'emplacement", exact: true }).click()
+  await expect(page.getByRole("dialog", { name: "Supprimer l'emplacement", exact: true })).toContainText("Lunette latérale")
+  await page.getByRole("dialog").getByRole("button", { name: "Supprimer l'emplacement", exact: true }).click()
   await expect(listePlan(page).getByText("Lunette latérale")).toHaveCount(0)
 
   // Thème clair, 1440 px : le plan et le panneau de la réservation avec sa pose.
@@ -206,7 +204,7 @@ test("responsable, téléphone 360 px : la liste ouvre le tiroir, sans défileme
   await expect(tiroir).toBeVisible()
   await tiroir.getByRole("button", { name: "Réserver", exact: true }).click()
   await tiroir.locator('select[name="partenaireId"]').selectOption("")
-  tiroir.locator('input[name="partenaireNom"]').fill("Garage Muller")
+  await tiroir.locator('input[name="partenaireNom"]').fill("Garage Muller")
   await joindreFichier(page, LOGO)
   await tiroir.getByRole("button", { name: "Réserver l'emplacement" }).click()
   // Dans le tiroir, le statut et le partenaire sont deux champs de la fiche (la liste, elle, les écrit ensemble).
@@ -278,7 +276,7 @@ test("responsable : déplacer une forme avec son logo après l'avoir redimension
   await ligne(page, "Aile avant").click()
   await page.getByRole("button", { name: "Réserver", exact: true }).click()
   await page.locator('select[name="partenaireId"]').selectOption("")
-  page.locator('input[name="partenaireNom"]').fill("Garage Muller")
+  await page.locator('input[name="partenaireNom"]').fill("Garage Muller")
   await joindreFichier(page, LOGO)
   await page.getByRole("button", { name: "Réserver l'emplacement" }).click()
   await expect(page.getByText("Garage Muller", { exact: true }).first()).toBeVisible()
@@ -408,4 +406,87 @@ test("assistance : le plan et le panneau en lecture seule, sans aucun bouton d'a
   await expect(page.getByRole("button", { name: "Déplacer ou redimensionner" })).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Ajouter un emplacement" })).toHaveCount(0)
   await expect(page.getByText("Modifier l'emplacement")).toHaveCount(0)
+})
+
+// Une étape modifiée ne se ferme pas sans demander : « Abandonner les modifications ? ». « Continuer la saisie » garde le
+// texte ; « Abandonner » revient à la fiche, sans rien enregistrer.
+test("responsable : une étape modifiée demande « Abandonner les modifications ? », puis revient à la fiche", async ({ page, equipe }) => {
+  test.setTimeout(240_000)
+  await connecterParLien(page, equipe)
+  await page.setViewportSize(BUREAU)
+  const vehiculeId = await creerSaxoDeux(page)
+  await ouvrirDeco(page, vehiculeId)
+
+  await ligne(page, "Portière").click()
+  await page.getByRole("button", { name: "Modifier l'emplacement", exact: true }).click()
+  const etape = page.getByRole("dialog", { name: "Modifier l'emplacement", exact: true })
+  await etape.getByLabel("Nom", { exact: true }).fill("Portière arrière")
+  await page.keyboard.press("Escape")
+  await expect(etape.getByText("Abandonner les modifications ?")).toBeVisible()
+  await etape.getByRole("button", { name: "Continuer la saisie", exact: true }).click()
+  await expect(etape.getByLabel("Nom", { exact: true })).toHaveValue("Portière arrière")
+
+  await etape.getByRole("button", { name: "Annuler", exact: true }).click()
+  await etape.getByRole("button", { name: "Abandonner", exact: true }).click()
+  // Abandonner revient à la fiche, sans rien enregistrer.
+  await expect(page.getByRole("dialog", { name: "Portière", exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Modifier l'emplacement", exact: true })).toBeVisible()
+  await expect(listePlan(page).getByText("Portière", { exact: true })).toBeVisible()
+  await expect(listePlan(page).getByText("Portière arrière")).toHaveCount(0)
+
+  await page.getByRole("dialog").getByRole("button", { name: "Fermer", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+})
+
+// Le tiroir glisse à l'ouverture : la capture attend la fin de l'animation, sinon elle le montre hors de l'écran.
+async function attendreTiroir(page: Page): Promise<void> {
+  await expect.poll(() => page.evaluate(() => document.querySelector('[role="dialog"]')?.getAnimations().length ?? 0)).toBe(0)
+}
+
+// Captures du brief 3.13 (phase A) : les tiroirs de la Déco, en thème clair. Une saisie (réserver), une étape de pose, une
+// confirmation (annuler la réservation) et la garde « Abandonner les modifications ? ». Chacune est l'écran visible.
+async function capturerTiroirsDeco(page: Page, emplacement: Locator, taille: string): Promise<void> {
+  await emplacement.click()
+  await page.getByRole("button", { name: "Réserver", exact: true }).click()
+  await page.locator('select[name="partenaireId"]').selectOption("")
+  await page.locator('input[name="partenaireNom"]').fill("Garage Muller")
+  await joindreFichier(page, LOGO)
+  await attendreTiroir(page)
+  await capturerEcran(page, `tiroir-deco-reserver-${taille}-clair.png`)
+  await page.getByRole("button", { name: "Réserver l'emplacement" }).click()
+  await expect(page.getByRole("dialog").getByText("Réservé", { exact: true })).toBeVisible()
+
+  await page.getByRole("button", { name: "Marquer le logo posé", exact: true }).click()
+  await expect(page.getByRole("dialog", { name: "Marquer le logo posé", exact: true })).toBeVisible()
+  await attendreTiroir(page)
+  await capturerEcran(page, `tiroir-deco-marquer-logo-pose-${taille}-clair.png`)
+  await page.getByRole("button", { name: "← Retour", exact: true }).click()
+
+  await page.getByRole("button", { name: "Annuler la réservation", exact: true }).click()
+  await expect(page.getByRole("dialog", { name: "Annuler la réservation", exact: true })).toBeVisible()
+  await attendreTiroir(page)
+  await capturerEcran(page, `tiroir-deco-confirmation-${taille}-clair.png`)
+  await page.getByRole("button", { name: "← Retour", exact: true }).click()
+
+  await page.getByRole("button", { name: "Modifier l'emplacement", exact: true }).click()
+  await page.getByLabel("Nom", { exact: true }).fill("Capot avant")
+  await page.keyboard.press("Escape")
+  await expect(page.getByText("Abandonner les modifications ?")).toBeVisible()
+  await attendreTiroir(page)
+  await capturerEcran(page, `tiroir-deco-abandon-modifications-${taille}-clair.png`)
+  await page.getByRole("button", { name: "Abandonner", exact: true }).click()
+  await expect(page.getByRole("button", { name: "Modifier l'emplacement", exact: true })).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Fermer", exact: true }).click()
+}
+
+test("captures 3.13 · tiroirs de la Déco, en thème clair, à 1440 et à 360 px", async ({ page, equipe }) => {
+  test.setTimeout(360_000)
+  await connecterParLien(page, equipe)
+  await page.setViewportSize(BUREAU)
+  const vehiculeId = await creerSaxoDeux(page)
+  await passerEnThemeClair(page)
+  await ouvrirDeco(page, vehiculeId)
+  await capturerTiroirsDeco(page, ligneHorsPlan(page, "Capot"), "1440x900")
+  await page.setViewportSize(TELEPHONE)
+  await capturerTiroirsDeco(page, ligneHorsPlan(page, "Hayon"), "360x740")
 })

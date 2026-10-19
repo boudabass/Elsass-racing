@@ -1,12 +1,16 @@
 "use client"
 
-// Panneau de l'emplacement choisi (brief 3.4, sections 2 et 3). Chaque action est un formulaire vers une Server Action
-// de actions.ts. Sous le niveau écriture, le panneau reste en lecture seule. Les confirmations se font sur la page.
+// Tiroir de l'emplacement choisi (brief 3.4, brief 3.13 phase A). Le tiroir montre la fiche de l'emplacement, puis ses
+// actions. Une action qui demande une saisie ouvre une étape du même tiroir : « ← Retour » revient à la fiche. Chaque
+// étape est un formulaire vers une Server Action de actions.ts. Sur téléphone le tiroir monte du bas ; sur ordinateur il
+// glisse depuis la droite, et le plan reste utilisable à côté. Sous le niveau écriture, la fiche reste en lecture seule.
+// Les actions sans saisie (rendre indisponible) restent des boutons de la fiche.
 
-import { useActionState, useEffect, useRef, useState, type ReactNode } from "react"
+import { useActionState, useState, type ReactNode } from "react"
 
 import { ChampFichier, type FichierEnvoye } from "@/components/formulaire/champ-fichier"
 import { Message } from "@/components/formulaire/message"
+import { Tiroir, TiroirFormulaire, type TiroirFormulaireProps } from "@/components/formulaire/tiroir"
 import type { PartenaireReservable } from "@/apps/partenaires/lectures-partagees"
 
 import type { FormeEmplacement } from "../gabarits/types"
@@ -29,67 +33,135 @@ import { COTE_MINIMAL, etendueDe, formeDuChamp, type Bornes, type EmplacementPla
 const ACCEPT_LOGO = "image/jpeg,image/png,image/webp,image/svg+xml"
 const ACCEPT_PHOTO = "image/jpeg,image/png,image/webp"
 
-type Action = "reserver" | "poser" | "retirer" | "annuler" | "indisponible" | "disponible" | "modifier" | "supprimer" | "deplacer"
+// Les étapes du tiroir : chacune est une saisie (ou une confirmation) qui revient à la fiche.
+export type EtapeEmplacement = "reserver" | "poser" | "annuler" | "retirer" | "modifier" | "position" | "supprimer"
 
-interface PanneauEmplacementProps {
+interface TiroirEmplacementProps {
   emplacement: EmplacementPlan
-  partenaires: PartenaireReservable[]
   vue: VuePlan
   peutEcrire: boolean
+  partenaires: PartenaireReservable[]
   bornes: Bornes
+  // L'étape ouverte ; null pour la fiche.
+  etape: EtapeEmplacement | null
+  // Sur ordinateur, le tiroir est non modal : le plan reste cliquable (un autre emplacement se choisit sur le plan).
+  ordinateur: boolean
   // Mode « Déplacer ou redimensionner » : la forme en cours d'édition, et ses changements.
-  enDeplacement: boolean
   brouillon: FormeEmplacement | null
-  onDemarrerDeplacement: () => void
+  onEtape: (etape: EtapeEmplacement | null) => void
   onChangerBrouillon: (forme: FormeEmplacement) => void
-  onFinirDeplacement: () => void
-  // Dans le tiroir (téléphone), le nom est déjà dans le titre du tiroir : le panneau ne le répète pas.
-  dansTiroir?: boolean
+  onFermer: () => void
 }
 
 function dateLisible(jour: string | null): string | null {
   return jour ? dateEnToutesLettres(new Date(`${jour}T00:00:00Z`)) : null
 }
 
-export function PanneauEmplacement(props: PanneauEmplacementProps) {
-  const { emplacement, vue, peutEcrire, enDeplacement, dansTiroir = false } = props
-  const [action, setAction] = useState<Action | null>(null)
-  const sectionRef = useRef<HTMLElement>(null)
-  const titreRef = useRef<HTMLHeadingElement>(null)
+export function TiroirEmplacement(props: TiroirEmplacementProps) {
+  const { emplacement, etape, ordinateur, brouillon, bornes, onEtape, onChangerBrouillon, onFermer, partenaires } = props
+  const modal = !ordinateur
+  const occupation = emplacement.occupation
+
+  const fiche = (
+    <Tiroir
+      ouvert
+      onOuvertChange={(suivant) => {
+        if (!suivant) onFermer()
+      }}
+      titre={emplacement.nom}
+      libelleAnnuler="Fermer"
+      modal={modal}
+    >
+      <PanneauEmplacement emplacement={emplacement} vue={props.vue} peutEcrire={props.peutEcrire} onEtape={onEtape} />
+    </Tiroir>
+  )
+  if (etape === null) return fiche
+
+  const retour = () => onEtape(null)
+  const commun = { emplacement, retour, modal }
+  switch (etape) {
+    case "reserver":
+      return <EtapeReserver {...commun} partenaires={partenaires} />
+    case "poser":
+      return occupation ? <EtapePose {...commun} assignmentId={occupation.id} /> : fiche
+    case "annuler":
+      return occupation ? (
+        <EtapeConfirmation
+          {...commun}
+          titre="Annuler la réservation"
+          question={`Annuler la réservation de ${occupation.partenaireNom} ?`}
+          libelleBouton="Confirmer l'annulation"
+          action={retirerLogoAction}
+          champ={{ nom: "assignmentId", valeur: occupation.id }}
+        />
+      ) : (
+        fiche
+      )
+    case "retirer":
+      return occupation ? (
+        <EtapeConfirmation
+          {...commun}
+          titre="Retirer le logo"
+          question={`Retirer le logo de ${occupation.partenaireNom} ?`}
+          libelleBouton="Confirmer le retrait"
+          action={retirerLogoAction}
+          champ={{ nom: "assignmentId", valeur: occupation.id }}
+        />
+      ) : (
+        fiche
+      )
+    case "modifier":
+      return <EtapeModifier {...commun} />
+    case "supprimer":
+      return emplacement.occupation ? (
+        fiche
+      ) : (
+        <EtapeConfirmation
+          {...commun}
+          titre="Supprimer l'emplacement"
+          question={`Supprimer l'emplacement « ${emplacement.nom} » ?`}
+          libelleBouton="Supprimer l'emplacement"
+          action={supprimerEmplacementAction}
+          champ={{ nom: "slotId", valeur: emplacement.id }}
+        />
+      )
+    case "position":
+      // Non modal sur tous les écrans : le glissement sur le plan doit rester possible.
+      return emplacement.forme && brouillon ? (
+        <EtapePosition
+          emplacement={emplacement}
+          retour={retour}
+          bornes={bornes}
+          brouillon={brouillon}
+          onChangerBrouillon={onChangerBrouillon}
+          compact={!ordinateur}
+        />
+      ) : (
+        fiche
+      )
+  }
+}
+
+// La fiche : les dimensions, le statut, le partenaire, les images, puis les actions.
+function PanneauEmplacement({
+  emplacement,
+  vue,
+  peutEcrire,
+  onEtape,
+}: {
+  emplacement: EmplacementPlan
+  vue: VuePlan
+  peutEcrire: boolean
+  onEtape: (etape: EtapeEmplacement) => void
+}) {
   const occupation = emplacement.occupation
   const dimensions = dimensionsDe(emplacement.largeurCm, emplacement.hauteurCm)
   const statut = emplacement.statut
   const formeOriginale = emplacement.forme !== null && vue === "droite"
 
-  // Une autre forme choisie ferme le formulaire ouvert.
-  useEffect(() => {
-    setAction(null)
-  }, [emplacement.id])
-
-  // Sur ordinateur, le panneau apparaît sous la liste : on le fait voir, puis on donne le focus à son titre.
-  // Le panneau ne se monte qu'au choix d'un emplacement (il a une clé par emplacement), donc rien ne bouge au chargement.
-  useEffect(() => {
-    if (dansTiroir) return
-    const reduit = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    sectionRef.current?.scrollIntoView({ block: "nearest", behavior: reduit ? "auto" : "smooth" })
-    titreRef.current?.focus({ preventScroll: true })
-  }, [emplacement.id, dansTiroir])
-
   return (
-    <section
-      ref={sectionRef}
-      aria-labelledby={dansTiroir ? undefined : "panneau-emplacement-titre"}
-      aria-label={dansTiroir ? emplacement.nom : undefined}
-      className="flex flex-col gap-5 rounded-lg border border-bordure bg-surface p-4"
-    >
-      <header className="flex flex-col gap-1">
-        {!dansTiroir && (
-          <h2 ref={titreRef} tabIndex={-1} id="panneau-emplacement-titre" className="font-titre text-lg uppercase focus:outline-none">
-            {emplacement.nom}
-          </h2>
-        )}
-        <p className="text-sm text-texte-discret">{TITRE_VUE[emplacement.vue]}</p>
-      </header>
+    <div className="flex flex-col gap-5">
+      <p className="text-sm text-texte-discret">{TITRE_VUE[emplacement.vue]}</p>
 
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
         <div className="flex flex-col gap-0.5">
@@ -141,64 +213,37 @@ export function PanneauEmplacement(props: PanneauEmplacementProps) {
         </div>
       )}
 
-      {!peutEcrire ? null : enDeplacement ? (
-        <FormulaireDeplacement {...props} />
-      ) : (
+      {peutEcrire && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-3">
             {statut === "libre" && (
               <>
-                <button type="button" className={BOUTON} aria-expanded={action === "reserver"} onClick={() => setAction(action === "reserver" ? null : "reserver")}>
+                <button type="button" className={BOUTON} aria-haspopup="dialog" onClick={() => onEtape("reserver")}>
                   Réserver
                 </button>
-                <FormulaireIndisponible slotId={emplacement.id} indisponible onSucces={() => setAction(null)} />
+                <FormulaireIndisponible slotId={emplacement.id} indisponible />
               </>
             )}
             {statut === "reserve" && occupation && (
               <>
-                <button type="button" className={BOUTON} aria-expanded={action === "poser"} onClick={() => setAction(action === "poser" ? null : "poser")}>
+                <button type="button" className={BOUTON} aria-haspopup="dialog" onClick={() => onEtape("poser")}>
                   Marquer le logo posé
                 </button>
-                <button type="button" className={BOUTON_SECONDAIRE} onClick={() => setAction(action === "annuler" ? null : "annuler")}>
+                <button type="button" className={BOUTON_SECONDAIRE} aria-haspopup="dialog" onClick={() => onEtape("annuler")}>
                   Annuler la réservation
                 </button>
               </>
             )}
             {statut === "occupe" && occupation && (
-              <button type="button" className={BOUTON_SECONDAIRE} onClick={() => setAction(action === "retirer" ? null : "retirer")}>
+              <button type="button" className={BOUTON_SECONDAIRE} aria-haspopup="dialog" onClick={() => onEtape("retirer")}>
                 Retirer le logo
               </button>
             )}
-            {statut === "indisponible" && <FormulaireIndisponible slotId={emplacement.id} indisponible={false} onSucces={() => setAction(null)} />}
+            {statut === "indisponible" && <FormulaireIndisponible slotId={emplacement.id} indisponible={false} />}
           </div>
 
-          {action === "reserver" && (
-            <FormulaireReservation slotId={emplacement.id} partenaires={props.partenaires} onSucces={() => setAction(null)} />
-          )}
-          {action === "poser" && occupation && <FormulairePose assignmentId={occupation.id} onSucces={() => setAction(null)} />}
-          {action === "annuler" && occupation && (
-            <ConfirmationAction
-              action={retirerLogoAction}
-              champ={{ nom: "assignmentId", valeur: occupation.id }}
-              question={`Annuler la réservation de ${occupation.partenaireNom} ?`}
-              libelleBouton="Confirmer l'annulation"
-              onFermer={() => setAction(null)}
-              onSucces={() => setAction(null)}
-            />
-          )}
-          {action === "retirer" && occupation && (
-            <ConfirmationAction
-              action={retirerLogoAction}
-              champ={{ nom: "assignmentId", valeur: occupation.id }}
-              question={`Retirer le logo de ${occupation.partenaireNom} ?`}
-              libelleBouton="Confirmer le retrait"
-              onFermer={() => setAction(null)}
-              onSucces={() => setAction(null)}
-            />
-          )}
-
           {formeOriginale && (
-            <button type="button" className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`} onClick={props.onDemarrerDeplacement}>
+            <button type="button" className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`} aria-haspopup="dialog" onClick={() => onEtape("position")}>
               Déplacer ou redimensionner
             </button>
           )}
@@ -206,26 +251,23 @@ export function PanneauEmplacement(props: PanneauEmplacementProps) {
             <p className="text-sm text-texte-discret">Le déplacement se fait côté droit : le côté gauche suit.</p>
           )}
 
-          <details className="rounded-md border border-bordure p-3">
-            <summary className="cible-tactile cursor-pointer font-medium">Modifier l'emplacement</summary>
-            <FormulaireModifier emplacement={emplacement} />
-          </details>
+          <button type="button" className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`} aria-haspopup="dialog" onClick={() => onEtape("modifier")}>
+            Modifier l'emplacement
+          </button>
 
           {!occupation && (
-            <ConfirmationAction
-              action={supprimerEmplacementAction}
-              champ={{ nom: "slotId", valeur: emplacement.id }}
-              question={`Supprimer l'emplacement « ${emplacement.nom} » ?`}
-              libelleBouton="Supprimer l'emplacement"
-              declencheur="Supprimer l'emplacement"
-              onFermer={() => setAction(null)}
-              onSucces={() => setAction(null)}
-              styleDeclencheur="danger"
-            />
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              className="cible-tactile self-start text-sm font-medium text-etat-rouge underline underline-offset-4"
+              onClick={() => onEtape("supprimer")}
+            >
+              Supprimer l'emplacement
+            </button>
           )}
         </div>
       )}
-    </section>
+    </div>
   )
 }
 
@@ -239,46 +281,26 @@ function Champ({ libelle, children }: { libelle: string; children: ReactNode }) 
   )
 }
 
-// Un formulaire, une action : son résultat s'affiche dessous, et il se ferme au succès.
-function FormulaireAction({
-  action,
-  libelleBouton,
-  onSucces,
-  children,
-  desactive,
-}: {
-  action: (etat: Resultat | null, donnees: FormData) => Promise<Resultat>
-  libelleBouton: string
-  onSucces?: () => void
-  children: ReactNode
-  desactive?: boolean
-}) {
-  const [resultat, envoyer, enCours] = useActionState<Resultat | null, FormData>(action, null)
-  useEffect(() => {
-    if (resultat?.ok) onSucces?.()
-  }, [resultat, onSucces])
-  return (
-    <form action={envoyer} className="flex flex-col gap-3 rounded-md border border-bordure p-4">
-      {children}
-      <div className="flex flex-col gap-3">
-        <button type="submit" disabled={enCours || desactive} className={`${BOUTON} w-full sm:w-auto`}>
-          {libelleBouton}
-        </button>
-        <Message resultat={resultat} />
-      </div>
-    </form>
-  )
-}
-
 function aujourdhui(): string {
   return jourDeParis(new Date())
 }
 
-function FormulaireIndisponible({ slotId, indisponible, onSucces }: { slotId: string; indisponible: boolean; onSucces: () => void }) {
+// Une étape du tiroir : un formulaire, « ← Retour » et la fermeture reviennent à la fiche.
+type EtapeProps = Omit<TiroirFormulaireProps, "ouvert" | "onOuvertChange" | "retour"> & { retour: () => void }
+
+function Etape({ retour, ...reste }: EtapeProps) {
+  return <TiroirFormulaire {...reste} ouvert onOuvertChange={(suivant) => !suivant && retour()} retour={retour} />
+}
+
+// Ce que reçoivent toutes les étapes : l'emplacement, le retour à la fiche, et la modalité du tiroir.
+interface EtapeCommune {
+  emplacement: EmplacementPlan
+  retour: () => void
+  modal: boolean
+}
+
+function FormulaireIndisponible({ slotId, indisponible }: { slotId: string; indisponible: boolean }) {
   const [resultat, envoyer, enCours] = useActionState<Resultat | null, FormData>(marquerIndisponibleAction, null)
-  useEffect(() => {
-    if (resultat?.ok) onSucces()
-  }, [resultat, onSucces])
   return (
     <form action={envoyer} className="flex flex-col gap-2">
       <input type="hidden" name="slotId" value={slotId} />
@@ -293,13 +315,21 @@ function FormulaireIndisponible({ slotId, indisponible, onSucces }: { slotId: st
 
 // Un partenaire de la liste (convention signée ou en cours) : ses dates et son logo viennent de sa convention. « Autre »
 // (valeur vide) : un nom libre, pour un sponsor hors app. Brief 3.11, §3.
-function FormulaireReservation({ slotId, partenaires, onSucces }: { slotId: string; partenaires: PartenaireReservable[]; onSucces: () => void }) {
+function EtapeReserver({ emplacement, retour, modal, partenaires }: EtapeCommune & { partenaires: PartenaireReservable[] }) {
   const [logo, setLogo] = useState<FichierEnvoye | null>(null)
   const [choix, setChoix] = useState(partenaires[0]?.id ?? "")
   const partenaireChoisi = choix !== ""
   return (
-    <FormulaireAction action={reserverEmplacementAction} libelleBouton="Réserver l'emplacement" onSucces={onSucces}>
-      <input type="hidden" name="slotId" value={slotId} />
+    <Etape
+      titre="Réserver"
+      sousTitre={emplacement.nom}
+      action={reserverEmplacementAction}
+      libelleBouton="Réserver l'emplacement"
+      libelleEnCours="Réservation…"
+      retour={retour}
+      modal={modal}
+    >
+      <input type="hidden" name="slotId" value={emplacement.id} />
       <Champ libelle="Partenaire">
         <select id="reservation-partenaire" name="partenaireId" value={choix} onChange={(evenement) => setChoix(evenement.target.value)} className={CHAMP}>
           {partenaires.map((partenaire) => (
@@ -323,31 +353,38 @@ function FormulaireReservation({ slotId, partenaires, onSucces }: { slotId: stri
               <input name="au" type="date" className={CHAMP} />
             </Champ>
           </div>
+          <ChampFichier
+            app="voiture"
+            accept={ACCEPT_LOGO}
+            libelle="Logo (JPEG, PNG, WebP ou SVG)"
+            name="logoFileId"
+            valeur={logo?.id ?? null}
+            typeValeur={logo?.mimeType ?? null}
+            nomValeur={logo?.nom ?? null}
+            onChange={setLogo}
+            libelleRetirer="Retirer le logo"
+          />
         </>
       )}
-      {!partenaireChoisi && (
-      <ChampFichier
-        app="voiture"
-        accept={ACCEPT_LOGO}
-        libelle="Logo (JPEG, PNG, WebP ou SVG)"
-        name="logoFileId"
-        valeur={logo?.id ?? null}
-        typeValeur={logo?.mimeType ?? null}
-        nomValeur={logo?.nom ?? null}
-        onChange={setLogo}
-        libelleRetirer="Retirer le logo"
-      />
-      )}
-    </FormulaireAction>
+    </Etape>
   )
 }
 
-function FormulairePose({ assignmentId, onSucces }: { assignmentId: string; onSucces: () => void }) {
+function EtapePose({ emplacement, retour, modal, assignmentId }: EtapeCommune & { assignmentId: string }) {
   const [photo, setPhoto] = useState<FichierEnvoye | null>(null)
   // Tant que la photo part, on ne peut pas enregistrer : sans elle, la pose serait enregistrée sans photo.
   const [envoiPhoto, setEnvoiPhoto] = useState(false)
   return (
-    <FormulaireAction action={poserLogoAction} libelleBouton={envoiPhoto ? "Envoi de la photo…" : "Enregistrer la pose"} onSucces={onSucces} desactive={envoiPhoto}>
+    <Etape
+      titre="Marquer le logo posé"
+      sousTitre={emplacement.nom}
+      action={poserLogoAction}
+      libelleBouton={envoiPhoto ? "Envoi de la photo…" : "Enregistrer la pose"}
+      libelleEnCours="Enregistrement…"
+      desactive={envoiPhoto}
+      retour={retour}
+      modal={modal}
+    >
       <input type="hidden" name="assignmentId" value={assignmentId} />
       <Champ libelle="Date de pose">
         <input name="poseLe" type="date" required defaultValue={aujourdhui()} className={CHAMP} />
@@ -364,54 +401,44 @@ function FormulairePose({ assignmentId, onSucces }: { assignmentId: string; onSu
         onEnvoi={setEnvoiPhoto}
         libelleRetirer="Retirer la photo"
       />
-    </FormulaireAction>
+    </Etape>
   )
 }
 
-// Confirmation affichée sur la page avant une action qui retire ou supprime (brief 3.4, section 2).
-function ConfirmationAction({
-  action,
-  champ,
+// Confirmation avant une action qui retire ou supprime (brief 3.4, section 2) : la question dit ce qui va se passer.
+function EtapeConfirmation({
+  emplacement,
+  retour,
+  modal,
+  titre,
   question,
   libelleBouton,
-  declencheur,
-  onFermer,
-  onSucces,
-  styleDeclencheur,
-}: {
-  action: (etat: Resultat | null, donnees: FormData) => Promise<Resultat>
-  champ: { nom: string; valeur: string }
+  action,
+  champ,
+}: EtapeCommune & {
+  titre: string
   question: string
   libelleBouton: string
-  declencheur?: string
-  onFermer: () => void
-  onSucces: () => void
-  styleDeclencheur?: "danger"
+  action: TiroirFormulaireProps["action"]
+  champ: { nom: string; valeur: string }
 }) {
-  const [ouvert, setOuvert] = useState(declencheur === undefined)
-  if (!ouvert) {
-    return (
-      <button type="button" className={styleDeclencheur === "danger" ? "cible-tactile self-start text-sm font-medium text-etat-rouge underline underline-offset-4" : BOUTON_SECONDAIRE} onClick={() => setOuvert(true)}>
-        {declencheur}
-      </button>
-    )
-  }
   return (
-    <div role="group" aria-label={question} className="flex flex-col gap-3 rounded-md border border-bordure p-4">
-      <p className="font-medium">{question}</p>
-      <FormulaireAction action={action} libelleBouton={libelleBouton} onSucces={onSucces}>
-        <input type="hidden" name={champ.nom} value={champ.valeur} />
-      </FormulaireAction>
-      <button type="button" className={`${BOUTON_SECONDAIRE} self-start`} onClick={onFermer}>
-        Garder
-      </button>
-    </div>
+    <Etape titre={titre} sousTitre={emplacement.nom} action={action} libelleBouton={libelleBouton} libelleEnCours="Envoi…" danger question={question} retour={retour} modal={modal}>
+      <input type="hidden" name={champ.nom} value={champ.valeur} />
+    </Etape>
   )
 }
 
-function FormulaireModifier({ emplacement }: { emplacement: EmplacementPlan }) {
+function EtapeModifier({ emplacement, retour, modal }: EtapeCommune) {
   return (
-    <FormulaireAction action={modifierEmplacementAction} libelleBouton="Enregistrer les modifications">
+    <Etape
+      titre="Modifier l'emplacement"
+      sousTitre={emplacement.nom}
+      action={modifierEmplacementAction}
+      libelleBouton="Enregistrer les modifications"
+      retour={retour}
+      modal={modal}
+    >
       <input type="hidden" name="slotId" value={emplacement.id} />
       <Champ libelle="Nom">
         <input name="nom" required maxLength={80} defaultValue={emplacement.nom} className={CHAMP} />
@@ -430,18 +457,31 @@ function FormulaireModifier({ emplacement }: { emplacement: EmplacementPlan }) {
           Symétrique à gauche
         </label>
       )}
-    </FormulaireAction>
+    </Etape>
   )
 }
 
 // Mode « Déplacer ou redimensionner » : X, Y, Largeur, Hauteur en unités du plan (côté droit). Les champs font la
-// même chose que le glissement au pointeur. Un polygone se déplace, il ne se redimensionne pas.
-function FormulaireDeplacement(props: PanneauEmplacementProps) {
-  const { emplacement, bornes, brouillon, onChangerBrouillon, onFinirDeplacement } = props
+// même chose que le glissement au pointeur. Un polygone se déplace, il ne se redimensionne pas. Le tiroir reste non
+// modal : le plan se glisse pendant l'étape. Enregistrer, Annuler et « ← Retour » reviennent à la fiche.
+function EtapePosition({
+  emplacement,
+  retour,
+  bornes,
+  brouillon,
+  onChangerBrouillon,
+  compact,
+}: {
+  emplacement: EmplacementPlan
+  retour: () => void
+  bornes: Bornes
+  brouillon: FormeEmplacement
+  onChangerBrouillon: (forme: FormeEmplacement) => void
+  compact: boolean
+}) {
   // Texte tapé dans un champ, le temps qu'il a le focus : un champ vidé reste vide sans envoyer la forme à 0.
   const [saisies, setSaisies] = useState<Partial<Record<"x" | "y" | "l" | "h", string>>>({})
-  const forme = brouillon ?? emplacement.forme
-  if (!forme) return null
+  const forme = brouillon
   const etendue = etendueDe(forme)
   const polygone = forme.type === "polygone"
   const champ = (nom: "x" | "y" | "l" | "h", brut: string) => {
@@ -456,31 +496,38 @@ function FormulaireDeplacement(props: PanneauEmplacementProps) {
   const affiche = (nom: "x" | "y" | "l" | "h", n: number) => saisies[nom] ?? valeur(n)
 
   return (
-    <div className="flex flex-col gap-4 rounded-md border border-bordure p-4">
+    <TiroirFormulaire
+      ouvert
+      onOuvertChange={(suivant) => !suivant && retour()}
+      retour={retour}
+      titre="Déplacer ou redimensionner"
+      sousTitre={emplacement.nom}
+      action={enregistrerPositionAction}
+      libelleBouton="Enregistrer la position"
+      libelleEnCours="Enregistrement…"
+      modifie={brouillon !== emplacement.forme}
+      modal={false}
+      compact={compact}
+    >
+      <input type="hidden" name="slotId" value={emplacement.id} />
+      <input type="hidden" name="forme" value={JSON.stringify(forme)} />
       <p className="text-sm text-texte-discret">
         Glisse la forme sur le plan, ou règle-la ici. {polygone ? "Un polygone se déplace, il ne se redimensionne pas." : `Taille minimale : ${COTE_MINIMAL} unités.`}
       </p>
       <div className="grid grid-cols-2 gap-4">
         <Champ libelle="X">
-          <input type="number" step={1} value={affiche("x", etendue.x)} onChange={(e) => champ("x", e.target.value)} onBlur={() => oublier("x")} className={`${CHAMP} tabular-nums`} />
+          <input type="number" step="any" value={affiche("x", etendue.x)} onChange={(e) => champ("x", e.target.value)} onBlur={() => oublier("x")} className={`${CHAMP} tabular-nums`} />
         </Champ>
         <Champ libelle="Y">
-          <input type="number" step={1} value={affiche("y", etendue.y)} onChange={(e) => champ("y", e.target.value)} onBlur={() => oublier("y")} className={`${CHAMP} tabular-nums`} />
+          <input type="number" step="any" value={affiche("y", etendue.y)} onChange={(e) => champ("y", e.target.value)} onBlur={() => oublier("y")} className={`${CHAMP} tabular-nums`} />
         </Champ>
         <Champ libelle="Largeur">
-          <input type="number" step={1} min={COTE_MINIMAL} value={affiche("l", etendue.l)} disabled={polygone} onChange={(e) => champ("l", e.target.value)} onBlur={() => oublier("l")} className={`${CHAMP} tabular-nums`} />
+          <input type="number" step="any" min={COTE_MINIMAL} value={affiche("l", etendue.l)} disabled={polygone} onChange={(e) => champ("l", e.target.value)} onBlur={() => oublier("l")} className={`${CHAMP} tabular-nums`} />
         </Champ>
         <Champ libelle="Hauteur">
-          <input type="number" step={1} min={COTE_MINIMAL} value={affiche("h", etendue.h)} disabled={polygone} onChange={(e) => champ("h", e.target.value)} onBlur={() => oublier("h")} className={`${CHAMP} tabular-nums`} />
+          <input type="number" step="any" min={COTE_MINIMAL} value={affiche("h", etendue.h)} disabled={polygone} onChange={(e) => champ("h", e.target.value)} onBlur={() => oublier("h")} className={`${CHAMP} tabular-nums`} />
         </Champ>
       </div>
-      <FormulaireAction action={enregistrerPositionAction} libelleBouton="Enregistrer la position" onSucces={onFinirDeplacement} desactive={brouillon === null}>
-        <input type="hidden" name="slotId" value={emplacement.id} />
-        <input type="hidden" name="forme" value={JSON.stringify(forme)} />
-      </FormulaireAction>
-      <button type="button" className={`${BOUTON_SECONDAIRE} self-start`} onClick={onFinirDeplacement}>
-        Annuler
-      </button>
-    </div>
+    </TiroirFormulaire>
   )
 }

@@ -2,12 +2,11 @@
 
 // Onglet Déco (brief 3.4) : le plan, la légende, la liste des emplacements et le panneau de l'emplacement choisi.
 // Le plan et la liste ne servent pas seuls : la liste est la commande principale, et les deux restent synchronisés
-// sur l'emplacement choisi. Sur téléphone, le panneau s'ouvre en tiroir par le bas.
+// sur l'emplacement choisi. Le panneau est un tiroir : par le bas sur téléphone, depuis la droite sur ordinateur (brief 3.13).
 
 import { Suspense, useActionState, useEffect, useMemo, useRef, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import type { Resultat } from "@/core/sdk/actions-serveur"
 import type { PartenaireReservable } from "@/apps/partenaires/lectures-partagees"
 import { BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
@@ -27,7 +26,7 @@ import {
   type VuePlan,
 } from "../plan"
 import { PlanVehicule } from "./plan-vehicule"
-import { PanneauEmplacement } from "./deco-panneau"
+import { TiroirEmplacement, type EtapeEmplacement } from "./deco-panneau"
 
 // Vide : un véhicule sans gabarit n'a pas de plan, donc pas de déplacement.
 const BORNES_VIDES: Bornes = { x: 0, y: 0, l: 0, h: 0 }
@@ -59,7 +58,7 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
   const vue: VuePlan = aCote && parametres.get("vue") === "gauche" ? "gauche" : "droite"
 
   const [choisi, setChoisi] = useState<string | null>(null)
-  const [enDeplacement, setEnDeplacement] = useState(false)
+  const [etape, setEtape] = useState<EtapeEmplacement | null>(null)
   const [brouillon, setBrouillon] = useState<FormeEmplacement | null>(null)
   const [ordinateur, setOrdinateur] = useState(true)
 
@@ -80,17 +79,18 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
     () => emplacements.find((e) => e.id === choisi && (dessines.some((d) => d.id === e.id) || horsPlan.some((h) => h.id === e.id))) ?? null,
     [emplacements, choisi, dessines, horsPlan],
   )
-  const enDeplacementVisible = enDeplacement && visible !== null && vue === "droite" && visible.forme !== null
+  // Le glissement sur le plan ne vaut que pour l'étape « position », côté droit, sur une forme.
+  const enDeplacementVisible = etape === "position" && visible !== null && vue === "droite" && visible.forme !== null
 
   function choisir(id: string) {
     setChoisi(id)
-    setEnDeplacement(false)
+    setEtape(null)
     setBrouillon(null)
   }
 
   function fermerPanneau() {
     setChoisi(null)
-    setEnDeplacement(false)
+    setEtape(null)
     setBrouillon(null)
   }
 
@@ -98,19 +98,14 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
     const p = new URLSearchParams(parametres.toString())
     p.set("vue", nouvelle)
     router.replace(`${chemin}?${p.toString()}`, { scroll: false })
-    setEnDeplacement(false)
+    setEtape(null)
     setBrouillon(null)
   }
 
-  function demarrerDeplacement() {
-    if (!visible?.forme) return
-    setEnDeplacement(true)
-    setBrouillon(visible.forme)
-  }
-
-  function finirDeplacement() {
-    setEnDeplacement(false)
-    setBrouillon(null)
+  // Une étape s'ouvre depuis la fiche. « Position » part de la forme actuelle : la quitter l'annule (le brouillon est jeté).
+  function allerA(nouvelle: EtapeEmplacement | null) {
+    setBrouillon(nouvelle === "position" && visible?.forme ? visible.forme : null)
+    setEtape(nouvelle)
   }
 
   // Un ajout : l'emplacement créé est choisi. Un ajout au côté gauche part du côté droit, où il est stocké : on y bascule.
@@ -118,23 +113,6 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
     choisir(id)
     if (vue === "gauche") changerVue("droite")
   }
-
-  const panneau = visible && (
-    <PanneauEmplacement
-      key={visible.id}
-      emplacement={visible}
-      vue={vue}
-      peutEcrire={peutEcrire}
-      partenaires={partenaires}
-      bornes={bornes}
-      enDeplacement={enDeplacementVisible}
-      brouillon={enDeplacementVisible ? brouillon : null}
-      onDemarrerDeplacement={demarrerDeplacement}
-      onChangerBrouillon={setBrouillon}
-      onFinirDeplacement={finirDeplacement}
-      dansTiroir={!ordinateur}
-    />
-  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -191,19 +169,21 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
         )}
       </section>
 
-      {visible && ordinateur && panneau}
-
-      {!ordinateur && (
-        <Sheet open={visible !== null} onOpenChange={(ouvert) => !ouvert && fermerPanneau()}>
-          <SheetContent side="bottom" className="flex max-h-[85vh] flex-col overflow-hidden border-bordure bg-surface text-texte">
-            {/* En-tête fixe : le nom et la fermeture restent visibles, le contenu seul défile. */}
-            <SheetHeader className="shrink-0">
-              <SheetTitle className="pr-10 text-left">{visible?.nom ?? "Emplacement"}</SheetTitle>
-              <SheetDescription className="sr-only">Détails de l'emplacement choisi et actions disponibles.</SheetDescription>
-            </SheetHeader>
-            <div className="min-h-0 flex-1 overflow-y-auto">{panneau}</div>
-          </SheetContent>
-        </Sheet>
+      {visible && (
+        <TiroirEmplacement
+          key={visible.id}
+          emplacement={visible}
+          vue={vue}
+          peutEcrire={peutEcrire}
+          partenaires={partenaires}
+          bornes={bornes}
+          etape={etape}
+          ordinateur={ordinateur}
+          brouillon={brouillon}
+          onEtape={allerA}
+          onChangerBrouillon={setBrouillon}
+          onFermer={fermerPanneau}
+        />
       )}
     </div>
   )
