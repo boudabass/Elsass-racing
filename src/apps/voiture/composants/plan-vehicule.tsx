@@ -263,7 +263,8 @@ function FormeEmplacementSvg({
     "aria-label": libelle,
     "aria-pressed": choisi,
     style,
-    onClick: onChoisir,
+    // Le clic qui termine un glissement ne doit pas quitter le mode déplacement : la forme en cours est gardée.
+    onClick: onDebutGlissement ? undefined : onChoisir,
     onKeyDown: onTouche,
     onPointerDown: onDebutGlissement,
     onPointerMove: onSuitGlissement,
