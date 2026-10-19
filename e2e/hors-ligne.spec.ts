@@ -39,6 +39,7 @@ test("hors ligne : le QG et les notes s'ouvrent depuis le cache, la note hors li
   await page.goto("/qg")
   await expect(tuilesDuQg(page)).toHaveCount(11)
   await page.goto("/notes")
+  await page.getByRole("button", { name: "Nouvelle note", exact: true }).click()
 
   // Une note hors ligne : badge « En attente » et indicateur.
   await page.locator("#note-texte").fill("Note hors ligne")
@@ -66,6 +67,8 @@ test("une note créée hors ligne reste en attente, puis part au retour du rése
   await zone.fill("Note en ligne 2")
   await page.getByRole("button", { name: "Enregistrer la note" }).click()
   await expect.poll(() => notesEnBase(equipe, "Note en ligne 2")).toBe(1)
+  // Le tiroir se ferme après l'envoi : on le rouvre pour la note hors ligne.
+  await page.getByRole("button", { name: "Nouvelle note", exact: true }).click()
 
   await context.setOffline(true)
   await zone.fill("Note hors ligne 2")

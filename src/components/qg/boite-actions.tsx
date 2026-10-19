@@ -1,40 +1,40 @@
 import Link from "next/link"
 
 import { APPS } from "@/core/catalogue"
-import { deciderAction, reporterAction } from "@/core/actions/formulaires"
+import { deciderAction } from "@/core/actions/formulaires"
 import type { GroupeAction } from "@/core/actions/regroupement"
 import type { ActionBoite } from "@/core/actions/filtrage"
 import { LIEN } from "@/lib/classes-formulaire"
 
-// Liste de la boîte d'actions. Entièrement en formulaires : chaque décision et chaque
-// report est un envoi au serveur, sans JavaScript côté client.
+import { ReporterAction } from "./reporter-action"
+
+// Liste de la boîte d'actions. Décider est un envoi au serveur, sans JavaScript côté client.
+// « Plus tard » ouvre un tiroir de choix (ReporterAction). Les groupes s'écrivent à plat, sans rien à déplier.
 export function BoiteActions({ groupes }: { groupes: GroupeAction[] }) {
   if (groupes.length === 0) {
     return <p className="py-12 text-center text-lg text-texte-discret">Rien à décider. Profite de la route.</p>
   }
 
   return (
-    <ul className="flex flex-col gap-3">
+    <ul className="flex flex-col gap-6">
       {groupes.map((groupe) =>
         groupe.nombre === 1 ? (
           <li key={groupe.actions[0].id}>
             <CarteAction action={groupe.actions[0]} />
           </li>
         ) : (
-          <li key={groupe.cleRegroupement ?? groupe.titreGroupe}>
-            <details className="rounded-lg border border-bordure bg-surface">
-              <summary className="cible-tactile flex cursor-pointer items-center justify-between gap-3 px-4 py-3 font-medium">
-                <span>{groupe.titreGroupe}</span>
-                <span className="chiffre rounded-md bg-surface-2 px-2 py-0.5 text-sm text-texte-discret">{groupe.nombre}</span>
-              </summary>
-              <ul className="flex flex-col gap-3 border-t border-bordure p-3">
-                {groupe.actions.map((action) => (
-                  <li key={action.id}>
-                    <CarteAction action={action} />
-                  </li>
-                ))}
-              </ul>
-            </details>
+          <li key={groupe.cleRegroupement ?? groupe.titreGroupe} className="flex flex-col gap-3">
+            <h3 className="flex items-center justify-between gap-3 font-medium">
+              <span>{groupe.titreGroupe}</span>
+              <span className="chiffre rounded-md bg-surface-2 px-2 py-0.5 text-sm text-texte-discret">{groupe.nombre}</span>
+            </h3>
+            <ul className="flex flex-col gap-3">
+              {groupe.actions.map((action) => (
+                <li key={action.id}>
+                  <CarteAction action={action} />
+                </li>
+              ))}
+            </ul>
           </li>
         ),
       )}
@@ -47,7 +47,6 @@ export function BoiteActions({ groupes }: { groupes: GroupeAction[] }) {
 const BOUTON_BASE = "cible-tactile inline-flex items-center rounded-md px-4 py-2 font-medium"
 const BOUTON_PRINCIPAL = `${BOUTON_BASE} bg-marque text-marque-texte hover:opacity-90`
 const BOUTON_SECONDAIRE = `${BOUTON_BASE} border border-marque text-marque hover:bg-surface-2`
-const BOUTON_DISCRET = `${BOUTON_BASE} border border-bordure text-texte-discret hover:bg-surface-2`
 
 function CarteAction({ action }: { action: ActionBoite }) {
   const boutons = action.boutons as Array<{ cle: string; libelle: string }>
@@ -79,24 +78,7 @@ function CarteAction({ action }: { action: ActionBoite }) {
           </form>
         ))}
 
-        <details className="text-sm">
-          <summary className={`${BOUTON_DISCRET} cursor-pointer list-none`}>Plus tard</summary>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {[
-              { jours: 1, libelle: "Demain" },
-              { jours: 3, libelle: "Dans 3 jours" },
-              { jours: 7, libelle: "Dans 7 jours" },
-            ].map((choix) => (
-              <form key={choix.jours} action={reporterAction}>
-                <input type="hidden" name="actionId" value={action.id} />
-                <input type="hidden" name="jours" value={choix.jours} />
-                <button type="submit" className={BOUTON_DISCRET}>
-                  {choix.libelle}
-                </button>
-              </form>
-            ))}
-          </div>
-        </details>
+        <ReporterAction actionId={action.id} titre={action.titre} />
 
         {action.ficheType && (
           <Link href={`/apps/${action.appOrigine}`} className={`${LIEN} px-2 py-2`}>
