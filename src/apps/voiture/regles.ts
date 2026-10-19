@@ -115,7 +115,8 @@ export function emplacementsDepuisGabarit(gabarit: Gabarit): EmplacementInitial[
 
 // Ligne d'un véhicule, vue par le complément : son identité, sa place, et si elle est libre (ni occupée, ni liée à
 // une contrepartie, statut « libre »). Seule une ligne libre peut être retirée.
-export type LigneComplement = { id: string; vue: VueGabarit; nom: string; libre: boolean }
+// `forme` : la forme portée par la ligne (absente ou null si elle n'en a pas, comme une ligne hors plan).
+export type LigneComplement = { id: string; vue: VueGabarit; nom: string; libre: boolean; forme?: FormeEmplacement | null }
 
 // Réglages du complément : les noms que le gabarit ne porte plus, et la vue où range une ligne hors plan qui n'a pas
 // d'équivalent (la vue affichée au moment du complément), avec la forme posée au centre de cette vue.
@@ -128,21 +129,25 @@ export type OptionsComplement = {
 // Ce que le complément fait d'un véhicule. `creer` : les emplacements du gabarit qu'il n'a pas. `reprendre` : une
 // ligne hors plan reçoit sa vue et sa forme, sans changer d'id ; son occupation, rattachée par id, et son historique
 // restent donc valides. `retirer` : les lignes libres d'un nom retiré du gabarit (retrait logique). `conserves` : les
-// noms retirés du gabarit mais occupés ou liés à une contrepartie, gardés et à signaler.
+// noms retirés du gabarit mais occupés ou liés à une contrepartie, gardés et à signaler. `formes` : la forme du gabarit
+// remise sur une ligne déjà à sa vue, quand elle en diffère (seulement les lignes libres : une ligne occupée ou liée
+// garde sa forme, son occupation ne bouge pas). L'id reste le même.
 export type PlanComplement = {
   creer: EmplacementInitial[]
   reprendre: Array<{ id: string; vue: VueGabarit; forme: FormeEmplacement | null }>
   retirer: string[]
   conserves: string[]
+  formes: Array<{ id: string; forme: FormeEmplacement }>
 }
 
-// Une ligne déjà à la bonne vue n'est jamais touchée. Une ligne hors plan sans équivalent part dans la vue ajoutée.
-// Idempotent : une seconde passe ne trouve plus rien à faire.
+// Une ligne déjà à la bonne vue n'est jamais touchée, sauf sa forme (voir `formes`). Une ligne hors plan sans équivalent
+// part dans la vue ajoutée. Idempotent : une seconde passe ne trouve plus rien à faire.
 export function planComplement(existants: LigneComplement[], attendus: EmplacementInitial[], options: OptionsComplement): PlanComplement {
   const creer: EmplacementInitial[] = []
   const reprendre: PlanComplement["reprendre"] = []
   const retirer: string[] = []
   const conserves: string[] = []
+  const formes: PlanComplement["formes"] = []
   const repris = new Set<string>()
   // Lignes d'un nom retiré : jamais reprises, jamais recréées.
   const ecartees = new Set<string>()
@@ -153,7 +158,11 @@ export function planComplement(existants: LigneComplement[], attendus: Emplaceme
     else conserves.push(ligne.nom)
   }
   for (const attendu of attendus) {
-    if (existants.some((e) => e.vue === attendu.vue && e.nom === attendu.nom && !ecartees.has(e.id))) continue
+    const meme = existants.find((e) => e.vue === attendu.vue && e.nom === attendu.nom && !ecartees.has(e.id))
+    if (meme) {
+      if (meme.libre && meme.forme && attendu.forme && !memeForme(meme.forme, attendu.forme)) formes.push({ id: meme.id, forme: attendu.forme })
+      continue
+    }
     const horsPlan = existants.find((e) => e.vue === "hors_plan" && e.nom === attendu.nom && !repris.has(e.id) && !ecartees.has(e.id))
     if (horsPlan) {
       repris.add(horsPlan.id)
@@ -166,7 +175,43 @@ export function planComplement(existants: LigneComplement[], attendus: Emplaceme
     if (ligne.vue !== "hors_plan" || repris.has(ligne.id) || ecartees.has(ligne.id)) continue
     reprendre.push({ id: ligne.id, vue: options.vueAjout, forme: options.formeAjout })
   }
-  return { creer, reprendre, retirer, conserves }
+  return { creer, reprendre, retirer, conserves, formes }
+}
+
+// Deux formes sont les mêmes quel que soit l'ordre de leurs clés : la base ne garde pas l'ordre d'écriture d'un JSON.
+export function memeForme(a: FormeEmplacement, b: FormeEmplacement): boolean {
+  return JSON.stringify(clesTriees(a)) === JSON.stringify(clesTriees(b))
+}
+
+function clesTriees(valeur: unknown): unknown {
+  if (Array.isArray(valeur)) return valeur.map(clesTriees)
+  if (valeur === null || typeof valeur !== "object") return valeur
+  const objet = valeur as Record<string, unknown>
+  return Object.fromEntries(Object.keys(objet).sort().map((cle) => [cle, clesTriees(objet[cle])]))
+}
+
+// Ce que le clic sur « Mettre le plan à jour » va faire, en nombres. `total` vaut 0 quand il n'y a rien à faire : le
+// bouton n'apparaît pas.
+export type ResumeComplement = { ajouter: number; ranger: number; retirer: number; formes: number; total: number }
+
+export function resumeComplement(plan: PlanComplement): ResumeComplement {
+  const ajouter = plan.creer.length
+  const ranger = plan.reprendre.length
+  const retirer = plan.retirer.length
+  const formes = plan.formes.length
+  return { ajouter, ranger, retirer, formes, total: ajouter + ranger + retirer + formes }
+}
+
+// La phrase sous le bouton : seulement ce qui va changer, chiffré. Vide si rien à faire.
+export function libelleComplement(resume: ResumeComplement): string {
+  const morceaux: string[] = []
+  if (resume.ajouter > 0) morceaux.push(`${resume.ajouter} ${resume.ajouter === 1 ? "emplacement à ajouter" : "emplacements à ajouter"}`)
+  if (resume.ranger > 0) morceaux.push(`${resume.ranger} ${resume.ranger === 1 ? "emplacement hors plan à ranger" : "emplacements hors plan à ranger"} dans la vue`)
+  if (resume.retirer > 0) morceaux.push(`${resume.retirer} à retirer`)
+  if (resume.formes > 0) morceaux.push(`${resume.formes} ${resume.formes === 1 ? "forme remise" : "formes remises"} au gabarit`)
+  if (morceaux.length === 0) return ""
+  const phrase = morceaux.join(", ")
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1) + "."
 }
 
 export type StatutOccupation = "reserve" | "pose" | "retire"

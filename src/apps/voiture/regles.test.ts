@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest"
 
 import { gabaritSaxo } from "./gabarits/saxo"
-import type { VueGabarit } from "./gabarits/types"
+import type { FormeEmplacement, VueGabarit } from "./gabarits/types"
 import {
   CHAMPS_REGLAGE,
   comparer,
   emplacementsDepuisGabarit,
+  libelleComplement,
   planComplement,
+  resumeComplement,
   etatPapiers,
   etatPapiersVehicule,
   joursAvantEcheance,
@@ -165,7 +167,7 @@ describe("emplacements : complément d'un véhicule existant", () => {
 
   it("un véhicule déjà complet n'a rien à recevoir", () => {
     const existants = lignes(attendus.map((e) => ({ vue: e.vue, nom: e.nom })))
-    expect(planComplement(existants, attendus, options())).toEqual({ creer: [], reprendre: [], retirer: [], conserves: [] })
+    expect(planComplement(existants, attendus, options())).toEqual({ creer: [], reprendre: [], retirer: [], conserves: [], formes: [] })
   })
 
   it("un véhicule sans vues ajoutées reçoit les emplacements qui lui manquent, sans la lunette arrière", () => {
@@ -218,7 +220,7 @@ describe("emplacements : complément d'un véhicule existant", () => {
     expect(apres.filter((e) => e.nom === "Capot")).toEqual([{ id: "hp-Capot", vue: "dessus", nom: "Capot", libre: true }])
     expect(apres.filter((e) => e.vue === "hors_plan")).toEqual([])
     expect(apres.some((e) => e.nom === "Lunette arrière")).toBe(false)
-    expect(planComplement(apres, attendus, options())).toEqual({ creer: [], reprendre: [], retirer: [], conserves: [] })
+    expect(planComplement(apres, attendus, options())).toEqual({ creer: [], reprendre: [], retirer: [], conserves: [], formes: [] })
   })
 
   it("une ligne déjà à la bonne vue n'est jamais touchée ; un hors plan en double part dans la vue affichée, sans doublon créé", () => {
@@ -226,6 +228,57 @@ describe("emplacements : complément d'un véhicule existant", () => {
     const plan = planComplement(existants, attendus, options("avant"))
     expect(plan.reprendre).toEqual([{ id: "capot-hp", vue: "avant", forme: CENTRE }])
     expect(plan.creer.find((e) => e.nom === "Capot")).toBeUndefined()
+  })
+
+  it("une ligne libre portant une ancienne forme reçoit celle du gabarit, sans changer d'id ; une ligne occupée garde la sienne", () => {
+    const ancienne: FormeEmplacement = { type: "rect", x: 1, y: 2, l: 3, h: 4 }
+    const existants = lignes(droiteEtGauche).map((l, i) => ({ ...l, forme: ancienne, libre: i !== 0 }))
+    const plan = planComplement(existants, attendus, options())
+    expect(plan.formes.map((f) => f.id)).toEqual(existants.slice(1).map((l) => l.id))
+    for (const { id, forme } of plan.formes) {
+      const ligne = existants.find((l) => l.id === id)
+      expect(forme).toEqual(attendus.find((e) => e.vue === ligne?.vue && e.nom === ligne?.nom)?.forme)
+    }
+    expect(plan.creer).toEqual(planComplement(lignes(droiteEtGauche), attendus, options()).creer)
+  })
+
+  it("une forme identique à celle du gabarit, aux clés près dans un autre ordre, ne déclenche rien", () => {
+    const existants = lignes(droiteEtGauche).map((l) => {
+      const attendu = attendus.find((e) => e.vue === l.vue && e.nom === l.nom)
+      return { ...l, forme: Object.fromEntries(Object.entries(attendu?.forme ?? {}).reverse()) as FormeEmplacement }
+    })
+    expect(planComplement(existants, attendus, options()).formes).toEqual([])
+  })
+})
+
+describe("complement : le bouton ne s'affiche que s'il reste quelque chose à faire", () => {
+  const attendus = emplacementsDepuisGabarit(gabaritSaxo)
+  const CENTRE = { type: "rect" as const, x: 155, y: 70, l: 60, h: 20 }
+  const lignes = (rangees: Array<{ vue: VueGabarit; nom: string; libre?: boolean }>) =>
+    rangees.map((r, i) => ({ id: `id-${i}`, vue: r.vue, nom: r.nom, libre: r.libre ?? true }))
+  const options = () => ({ nomsRetires: gabaritSaxo.nomsRetires ?? [], vueAjout: "droite" as const, formeAjout: CENTRE })
+  const droiteEtGauche = attendus.filter((e) => e.vue === "droite" || e.vue === "gauche").map((e) => ({ vue: e.vue, nom: e.nom }))
+  const anciens = [
+    ...lignes(droiteEtGauche),
+    ...["Capot", "Hayon", "Lunette arrière", "Toit"].map((nom) => ({ id: `hp-${nom}`, vue: "hors_plan" as const, nom, libre: true })),
+  ]
+
+  it("un véhicule complet n'a rien à faire : aucune phrase, donc pas de bouton", () => {
+    const complet = lignes(attendus.map((e) => ({ vue: e.vue, nom: e.nom })))
+    const resume = resumeComplement(planComplement(complet, attendus, options()))
+    expect(resume.total).toBe(0)
+    expect(libelleComplement(resume)).toBe("")
+  })
+
+  it("un ancien véhicule : la phrase chiffre les ajouts, les rangements et les retraits", () => {
+    const resume = resumeComplement(planComplement(anciens, attendus, options()))
+    expect(resume).toEqual({ ajouter: 2, ranger: 3, retirer: 1, formes: 0, total: 6 })
+    expect(libelleComplement(resume)).toBe("2 emplacements à ajouter, 3 emplacements hors plan à ranger dans la vue, 1 à retirer.")
+  })
+
+  it("une seule forme à remettre : la phrase l'annonce au singulier", () => {
+    expect(libelleComplement({ ajouter: 0, ranger: 0, retirer: 0, formes: 1, total: 1 })).toBe("1 forme remise au gabarit.")
+    expect(libelleComplement({ ajouter: 1, ranger: 0, retirer: 0, formes: 4, total: 5 })).toBe("1 emplacement à ajouter, 4 formes remises au gabarit.")
   })
 })
 

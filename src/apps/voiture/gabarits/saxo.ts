@@ -5,16 +5,19 @@ import type { ElementDessin, Gabarit } from "./types"
 // les zones pointillées et la légende du SVG ne sont pas reprises. Les couleurs deviennent des rôles.
 // Vue gauche : le dessin droit, retourné à l'affichage. Vues avant, arrière et dessus : dessins schématiques
 // (validés par John) dans le même viewBox, à partir du profil. Version 2 : vues avant, arrière et dessus.
-// Version 3 : plus de lunette arrière (une vitre n'a pas d'emplacement).
+// Version 3 : plus de lunette arrière (une vitre n'a pas d'emplacement). Version 4 : roues agrandies (diamètre ×1,4,
+// largeur ×0,7) ; les zones qui les touchaient sont déplacées hors de leur cercle (voir le test de chevauchement).
 
+// Roues : diamètre ×1,4 (rayon 28 → 39,2), posées sur le sol (bas à y 142), axes conservés en x. Les passages de roue
+// suivent le nouveau rayon (38,5, comme 27,5 pour 28).
 const DESSIN_DROIT: ElementDessin[] = [
-  { type: "circle", role: "roue", attributs: { cx: 66.4, cy: 114.0, r: 28.0 } },
-  { type: "circle", role: "roue", attributs: { cx: 282.7, cy: 114.0, r: 28.0 } },
+  { type: "circle", role: "roue", attributs: { cx: 66.4, cy: 102.8, r: 39.2 } },
+  { type: "circle", role: "roue", attributs: { cx: 282.7, cy: 102.8, r: 39.2 } },
   {
     type: "path",
     role: "caisse",
     attributs: {
-      d: "M22.8 109.5 L20.0 81.9 Q20.6 67.8 26.2 62.1 L34.0 45.0 Q42.5 33.6 56.5 24.9 L74.8 14.6 Q79.0 12.0 90.2 11.8 L199.8 10.5 Q208.3 10.8 213.9 15.2 L258.9 47.9 Q264.5 51.2 275.7 53.7 L337.5 67.8 Q354.4 71.7 357.8 82.8 L360.0 103.3 L357.2 119.1 L310.0 117.9 A 27.5 27.5 0 1 0 255.5 117.9 L93.6 117.9 A 27.5 27.5 0 1 0 39.1 117.9 L26.2 116.3 Z",
+      d: "M22.8 109.5 L20.0 81.9 Q20.6 67.8 26.2 62.1 L34.0 45.0 Q42.5 33.6 56.5 24.9 L74.8 14.6 Q79.0 12.0 90.2 11.8 L199.8 10.5 Q208.3 10.8 213.9 15.2 L258.9 47.9 Q264.5 51.2 275.7 53.7 L337.5 67.8 Q354.4 71.7 357.8 82.8 L360.0 103.3 L357.2 119.1 L318.1 117.9 A 38.5 38.5 0 1 0 247.3 117.9 L101.8 117.9 A 38.5 38.5 0 1 0 31.0 117.9 L26.2 116.3 Z",
     },
   },
   {
@@ -40,12 +43,12 @@ const DESSIN_DROIT: ElementDessin[] = [
   { type: "path", role: "detail", attributs: { d: "M25.1 64.3 L40.8 64.0 L40.8 78.0 L23.4 79.0 Z" } },
   { type: "path", role: "detail", attributs: { d: "M329.7 73.3 L348.8 74.0 L351.6 84.7 L332.5 83.4 Z" } },
   { type: "line", role: "detail", attributs: { x1: 90.2, y1: 84.2, x2: 256.0, y2: 84.2, "stroke-width": 4 } },
-  { type: "circle", role: "roue", attributs: { cx: 66.4, cy: 114.0, r: 24.7 } },
-  { type: "circle", role: "roue", attributs: { cx: 282.7, cy: 114.0, r: 24.7 } },
-  { type: "circle", role: "jante", attributs: { cx: 66.4, cy: 114.0, r: 16.3 } },
-  { type: "circle", role: "jante", attributs: { cx: 282.7, cy: 114.0, r: 16.3 } },
-  { type: "circle", role: "detail", attributs: { cx: 66.4, cy: 114.0, r: 5.4 } },
-  { type: "circle", role: "detail", attributs: { cx: 282.7, cy: 114.0, r: 5.4 } },
+  { type: "circle", role: "roue", attributs: { cx: 66.4, cy: 102.8, r: 34.6 } },
+  { type: "circle", role: "roue", attributs: { cx: 282.7, cy: 102.8, r: 34.6 } },
+  { type: "circle", role: "jante", attributs: { cx: 66.4, cy: 102.8, r: 22.8 } },
+  { type: "circle", role: "jante", attributs: { cx: 282.7, cy: 102.8, r: 22.8 } },
+  { type: "circle", role: "detail", attributs: { cx: 66.4, cy: 102.8, r: 7.6 } },
+  { type: "circle", role: "detail", attributs: { cx: 282.7, cy: 102.8, r: 7.6 } },
   { type: "line", role: "sol", attributs: { x1: 0, y1: 142.5, x2: 370, y2: 142.5, "stroke-width": 1.5 } },
 ]
 
@@ -62,9 +65,10 @@ const CAISSE_FACE: ElementDessin = {
   attributs: { d: "M 110 132 Q 105 132 105 124 L 105 78 Q 105 70 110 66 L 124 60 L 132 22 Q 133 16 142 16 L 228 16 Q 237 16 238 22 L 246 60 L 260 66 Q 265 70 265 78 L 265 124 Q 265 132 260 132 Z" },
 }
 
+// Largeur ×0,7 (24 → 16,8) et hauteur ×1,4 (32 → 44,8), même centre en x, bas à y 142.
 const ROUES_FACE: ElementDessin[] = [
-  { type: "path", role: "roue", attributs: { d: rectArrondi(94, 110, 24, 32, 6) } },
-  { type: "path", role: "roue", attributs: { d: rectArrondi(252, 110, 24, 32, 6) } },
+  { type: "path", role: "roue", attributs: { d: rectArrondi(97.6, 97.2, 16.8, 44.8, 4) } },
+  { type: "path", role: "roue", attributs: { d: rectArrondi(255.6, 97.2, 16.8, 44.8, 4) } },
 ]
 
 const DESSIN_AVANT: ElementDessin[] = [
@@ -104,10 +108,11 @@ const DESSIN_ARRIERE: ElementDessin[] = [
 // Vue de dessus : la carrosserie vue du ciel, nez à droite (capot, pare-brise), coffre à gauche (lunette, hayon).
 // Les roues dépassent de la caisse ; les rétroviseurs sortent au pied du pare-brise.
 const DESSIN_DESSUS: ElementDessin[] = [
-  { type: "path", role: "roue", attributs: { d: rectArrondi(53, 2, 26, 22, 4) } },
-  { type: "path", role: "roue", attributs: { d: rectArrondi(53, 126, 26, 22, 4) } },
-  { type: "path", role: "roue", attributs: { d: rectArrondi(270, 2, 26, 22, 4) } },
-  { type: "path", role: "roue", attributs: { d: rectArrondi(270, 126, 26, 22, 4) } },
+  // Sur le dessus, le diamètre se voit en longueur (×1,4) et la largeur du pneu en épaisseur (×0,7), centres conservés.
+  { type: "path", role: "roue", attributs: { d: rectArrondi(47.8, 5.3, 36.4, 15.4, 4) } },
+  { type: "path", role: "roue", attributs: { d: rectArrondi(47.8, 129.3, 36.4, 15.4, 4) } },
+  { type: "path", role: "roue", attributs: { d: rectArrondi(264.8, 5.3, 36.4, 15.4, 4) } },
+  { type: "path", role: "roue", attributs: { d: rectArrondi(264.8, 129.3, 36.4, 15.4, 4) } },
   {
     type: "path",
     role: "caisse",
@@ -126,7 +131,7 @@ export const gabaritSaxo: Gabarit = {
   cle: "citadine_3p_saxo",
   nom: "Citadine 3 portes (Saxo)",
   categorie: "citadine_3p",
-  version: 3,
+  version: 4,
   viewBox: "0 -14 370 173",
   vuesDessinees: [
     { vue: "droite", dessin: DESSIN_DROIT },
@@ -137,9 +142,9 @@ export const gabaritSaxo: Gabarit = {
   ],
   emplacementsTypes: [
     { ordre: 1, nom: "Portière", vue: "droite", symetrique: true, forme: { type: "rect", x: 150.7, y: 61.2, l: 87.1, h: 17.4 } },
-    { ordre: 2, nom: "Custode arrière", vue: "droite", symetrique: true, forme: { type: "rect", x: 75.6, y: 61.2, l: 60.1, h: 17.4 } },
-    { ordre: 3, nom: "Aile avant", vue: "droite", symetrique: true, forme: { type: "rect", x: 254.6, y: 69.0, l: 61.8, h: 12.4 } },
-    { ordre: 4, nom: "Aile arrière", vue: "droite", symetrique: true, forme: { type: "rect", x: 29.6, y: 78.0, l: 23.0, h: 13.5 } },
+    { ordre: 2, nom: "Custode arrière", vue: "droite", symetrique: true, forme: { type: "rect", x: 100, y: 61.2, l: 35.7, h: 17.4 } },
+    { ordre: 3, nom: "Aile avant", vue: "droite", symetrique: true, forme: { type: "rect", x: 256, y: 55, l: 28, h: 8 } },
+    { ordre: 4, nom: "Aile arrière", vue: "droite", symetrique: true, forme: { type: "rect", x: 29, y: 57, l: 23, h: 8 } },
     {
       ordre: 5,
       nom: "Bandeau de pare-brise",
@@ -155,12 +160,12 @@ export const gabaritSaxo: Gabarit = {
         ],
       },
     },
-    { ordre: 6, nom: "Bas de caisse", vue: "droite", symetrique: true, forme: { type: "rect", x: 101.5, y: 91.5, l: 143.3, h: 18.0 } },
+    { ordre: 6, nom: "Bas de caisse", vue: "droite", symetrique: true, forme: { type: "rect", x: 108, y: 91.5, l: 133, h: 18.0 } },
     { ordre: 7, nom: "Capot", vue: "dessus", symetrique: false, forme: { type: "rect", x: 300, y: 22, l: 44, h: 100 } },
-    { ordre: 8, nom: "Hayon", vue: "arriere", symetrique: false, forme: { type: "rect", x: 112, y: 66, l: 146, h: 46 } },
+    { ordre: 8, nom: "Hayon", vue: "arriere", symetrique: false, forme: { type: "rect", x: 116, y: 66, l: 138, h: 46 } },
     { ordre: 9, nom: "Toit", vue: "dessus", symetrique: false, forme: { type: "rect", x: 100, y: 22, l: 150, h: 100 } },
-    { ordre: 10, nom: "Pare-chocs avant", vue: "avant", symetrique: false, forme: { type: "rect", x: 110, y: 110, l: 150, h: 22 } },
-    { ordre: 11, nom: "Pare-chocs arrière", vue: "arriere", symetrique: false, forme: { type: "rect", x: 110, y: 114, l: 150, h: 18 } },
+    { ordre: 10, nom: "Pare-chocs avant", vue: "avant", symetrique: false, forme: { type: "rect", x: 116, y: 110, l: 136, h: 22 } },
+    { ordre: 11, nom: "Pare-chocs arrière", vue: "arriere", symetrique: false, forme: { type: "rect", x: 116, y: 114, l: 136, h: 18 } },
   ],
   nomsRetires: ["Lunette arrière"],
 }

@@ -49,6 +49,13 @@ describe("gabarit Saxo", () => {
     expect(sansForme).toEqual([])
   })
 
+  it("chaque zone rectangulaire fait au moins 8 unités de côté (minimum accepté par le service)", () => {
+    for (const emplacement of gabaritSaxo.emplacementsTypes) {
+      if (emplacement.forme?.type !== "rect") continue
+      expect(Math.min(emplacement.forme.l, emplacement.forme.h), emplacement.nom).toBeGreaterThanOrEqual(8)
+    }
+  })
+
   it("les ordres vont de 1 à 11, sans trou", () => {
     const ordres = gabaritSaxo.emplacementsTypes.map((e) => e.ordre)
     expect(ordres).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
@@ -57,6 +64,28 @@ describe("gabarit Saxo", () => {
   it("la lunette arrière n'a aucun emplacement (une vitre reste libre) et son nom est marqué comme retiré", () => {
     expect(gabaritSaxo.emplacementsTypes.some((e) => e.nom === "Lunette arrière")).toBe(false)
     expect(gabaritSaxo.nomsRetires).toEqual(["Lunette arrière"])
+  })
+
+  it("les pneus posent sur le sol (bas à y 142), et aucun emplacement de la vue droite ne touche un pneu", () => {
+    const droite = gabaritSaxo.vuesDessinees.find((v) => v.vue === "droite")?.dessin ?? []
+    // Le cercle extérieur de chaque roue (rayon 39,2) : la bande de roulement (34,6), la jante et le détail n'y sont pas comptés.
+    const pneus = droite.filter((e) => e.type === "circle" && e.role === "roue" && Number(e.attributs.r) > 36)
+    expect(pneus).toHaveLength(2)
+    for (const pneu of pneus) {
+      expect(Number(pneu.attributs.cy) + Number(pneu.attributs.r)).toBeCloseTo(142, 5)
+    }
+    // Distance du centre du pneu au rectangle le plus proche : elle doit dépasser le rayon, sinon la zone touche le pneu.
+    for (const emplacement of gabaritSaxo.emplacementsTypes.filter((e) => e.vue === "droite")) {
+      const forme = emplacement.forme
+      if (forme?.type !== "rect") continue
+      for (const pneu of pneus) {
+        const cx = Number(pneu.attributs.cx)
+        const cy = Number(pneu.attributs.cy)
+        const px = Math.min(Math.max(cx, forme.x), forme.x + forme.l)
+        const py = Math.min(Math.max(cy, forme.y), forme.y + forme.h)
+        expect(Math.hypot(px - cx, py - cy), `${emplacement.nom} et un pneu`).toBeGreaterThan(Number(pneu.attributs.r))
+      }
+    }
   })
 
   it("les seuls emplacements symétriques sont ceux du plan qui le sont", () => {

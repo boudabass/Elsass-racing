@@ -33,6 +33,8 @@ const BORNES_VIDES: Bornes = { x: 0, y: 0, l: 0, h: 0 }
 const LARGEUR_ORDINATEUR = "(min-width: 768px)"
 
 export interface DecoPlanProps {
+  // Ce que « Mettre le plan à jour » fera, en phrase. Vide : rien à faire, le bouton n'apparaît pas.
+  complement: string
   ficheId: string
   nomVehicule: string
   gabarit: Gabarit | null
@@ -49,7 +51,7 @@ export function DecoPlan(props: DecoPlanProps) {
   )
 }
 
-function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrire, partenaires }: DecoPlanProps) {
+function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrire, partenaires, complement }: DecoPlanProps) {
   const router = useRouter()
   const chemin = usePathname()
   const parametres = useSearchParams()
@@ -72,8 +74,6 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
   }, [])
 
   const dessines = useMemo(() => emplacementsDessines(emplacements, vue), [emplacements, vue])
-  // Lignes sans vue du plan (anciennes « Autres emplacements ») : le complément les range dans la vue affichée.
-  const sansVue = useMemo(() => emplacements.filter((e) => e.vue === "hors_plan").length, [emplacements])
   const comptes = useMemo(() => comptesDeStatuts(dessines.map((e) => e.statut)), [dessines])
 
   // L'emplacement choisi n'est affiché que s'il est dans la vue : un bandeau de pare-brise disparaît côté gauche.
@@ -176,7 +176,7 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
           {peutEcrire && (
             <div inert={inerte}>
               <AjouterEmplacement ficheId={ficheId} vue={vue} forme={formeAuCentre(bornes)} onAjoute={ajoute} />
-              <CompleterGabarit ficheId={ficheId} vue={vue} sansVue={sansVue} />
+              {complement !== "" && <MettreAJourPlan ficheId={ficheId} vue={vue} libelle={complement} />}
             </div>
           )}
         </>
@@ -290,24 +290,17 @@ function ChoisirModele({ ficheId, vue }: { ficheId: string; vue: VuePlan }) {
 }
 
 // Complément : les emplacements des vues ajoutées au gabarit, pour un véhicule déjà créé. Sans effet si tout y est.
-// Les lignes sans vue du plan sont rangées dans la vue affichée (`vue`) ; `sansVue` les compte, pour le dire.
-function CompleterGabarit({ ficheId, vue, sansVue }: { ficheId: string; vue: VuePlan; sansVue: number }) {
+// Les lignes sans vue du plan sont rangées dans la vue affichée (`vue`) ; la phrase (`libelle`) le dit, avec les chiffres.
+function MettreAJourPlan({ ficheId, vue, libelle }: { ficheId: string; vue: VuePlan; libelle: string }) {
   const [resultat, envoyer, enCours] = useActionState<ResultatComplement | null, FormData>(completerGabaritAction, null)
   return (
     <form action={envoyer} className="flex flex-col gap-2">
       <input type="hidden" name="vehicleId" value={ficheId} />
       <input type="hidden" name="vue" value={vue} />
       <button type="submit" disabled={enCours} className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`}>
-        Compléter les vues du gabarit
+        Mettre le plan à jour
       </button>
-      <p className="text-sm text-texte-discret">
-        Ajoute les emplacements des vues nouvelles et range les emplacements hors plan dans la vue affichée. Les emplacements libres que le gabarit ne porte plus sont retirés.
-      </p>
-      {sansVue > 0 && (
-        <p className="text-sm text-etat-rouge">
-          {sansVue === 1 ? "Un emplacement n'est sur aucune vue." : `${sansVue} emplacements ne sont sur aucune vue.`} Le complément les range dans la vue affichée.
-        </p>
-      )}
+      <p className="text-sm text-texte-discret">{libelle}</p>
       {resultat && !resultat.ok && (
         <p role="alert" className="text-sm text-etat-rouge">
           {resultat.message}

@@ -5,7 +5,7 @@ import { aAuMoins } from "@/core/droits/niveaux"
 import { lirePartenairesReservablesDans } from "@/apps/partenaires/lectures-partagees"
 import { lireVehicule } from "../lectures-serveur"
 import { formeDeJson, type EmplacementPlan } from "../plan"
-import { accesVoiture } from "../services-serveur"
+import { accesVoiture, previsionComplementDans } from "../services-serveur"
 import { DecoPlan } from "./deco-plan"
 
 // Date civile (@db.Date) en AAAA-MM-JJ, pour le client.
@@ -21,6 +21,8 @@ export async function PanneauDeco({ ficheId }: { ficheId: string }) {
   const { ctx, niveau } = await accesVoiture("lecture")
   // La liste des partenaires ne sert qu'à la réservation : elle n'est lue que pour qui peut écrire (brief 3.11, §3).
   const partenaires = aAuMoins(niveau, "ecriture") ? await lirePartenairesReservablesDans(ctx) : []
+  // « Mettre le plan à jour » n'existe que s'il reste quelque chose à faire : la phrase est vide sinon.
+  const complement = fiche.gabarit && aAuMoins(niveau, "ecriture") ? await previsionComplementDans(ctx, ficheId) : ""
 
   const emplacements: EmplacementPlan[] = fiche.emplacements.map((emplacement) => {
     const occupation = emplacement.occupations[0]
@@ -56,6 +58,7 @@ export async function PanneauDeco({ ficheId }: { ficheId: string }) {
       emplacements={emplacements}
       peutEcrire={aAuMoins(niveau, "ecriture")}
       partenaires={partenaires}
+      complement={complement}
     />
   )
 }

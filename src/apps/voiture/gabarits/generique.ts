@@ -11,7 +11,7 @@ export const gabaritGenerique: Gabarit = {
   cle: CLE_GABARIT_GENERIQUE,
   nom: "Voiture générique",
   categorie: "generique",
-  version: 1,
+  version: 2,
   viewBox: gabaritSaxo.viewBox,
   vuesDessinees: gabaritSaxo.vuesDessinees,
   emplacementsTypes: gabaritSaxo.emplacementsTypes,

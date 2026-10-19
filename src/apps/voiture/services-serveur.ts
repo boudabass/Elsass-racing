@@ -19,12 +19,15 @@ import { lireEmplacementsLiesDans } from "@/apps/partenaires/lectures-partagees"
 
 import { chargeEmplacementModifie, chargeFicheModifiee, chargeLogoPose, chargePapierExpireBientot, cleRappelPapier } from "./charges"
 import { gabarit } from "./gabarits"
+import type { FormeEmplacement } from "./gabarits/types"
 import { ErreurVoiture, refus } from "./erreurs"
 import { bornesDu, formeAuCentre, type VuePlan } from "./plan"
 import {
   CHAMPS_REGLAGE,
   emplacementsDepuisGabarit,
+  libelleComplement,
   planComplement,
+  resumeComplement,
   peutRecevoirOccupation,
   preremplir,
   statutEmplacement,
@@ -227,7 +230,8 @@ export async function creerVehiculeDans(ctx: ContexteTeam, entree: EntreeVehicul
 export type BilanComplement = { modifications: number; conserves: string[] }
 
 // `vue` : la vue affichée au moment du complément. Les lignes hors plan sans équivalent y sont rangées, au centre.
-export async function completerGabaritDans(ctx: ContexteTeam, vehicleId: string, vue: VuePlan): Promise<BilanComplement> {
+// Calcul du complément, sans rien écrire : le même pour l'aperçu (le libellé du bouton) et pour l'écriture.
+async function calculerComplement(ctx: ContexteTeam, vehicleId: string, vue: VuePlan) {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const vehicule = await client.voitureVehicle.findFirst({
     where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
@@ -244,6 +248,7 @@ export async function completerGabaritDans(ctx: ContexteTeam, vehicleId: string,
       vue: true,
       nom: true,
       statut: true,
+      forme: true,
       occupations: { where: { deletedAt: null, statut: { not: "retire" } }, select: { id: true } },
     },
   })
@@ -254,13 +259,26 @@ export async function completerGabaritDans(ctx: ContexteTeam, vehicleId: string,
     vue: l.vue,
     nom: l.nom,
     libre: l.statut === "libre" && l.occupations.length === 0 && !liees.has(l.id),
+    forme: (l.forme as FormeEmplacement | null) ?? null,
   }))
   const plan = planComplement(existants, emplacementsDepuisGabarit(modele), {
     nomsRetires: modele.nomsRetires ?? [],
     vueAjout: vue,
     formeAjout: formeAuCentre(bornesDu(modele.viewBox)),
   })
-  const modifications = plan.creer.length + plan.reprendre.length + plan.retirer.length
+  return { modele, plan }
+}
+
+// Ce que « Mettre le plan à jour » ferait, en phrase (vide s'il n'y a rien à faire : le bouton n'apparaît pas).
+// Le nombre ne dépend pas de la vue affichée : la vue ne sert qu'à ranger les lignes hors plan.
+export async function previsionComplementDans(ctx: ContexteTeam, vehicleId: string): Promise<string> {
+  const { plan } = await calculerComplement(ctx, vehicleId, "droite")
+  return libelleComplement(resumeComplement(plan))
+}
+
+export async function completerGabaritDans(ctx: ContexteTeam, vehicleId: string, vue: VuePlan): Promise<BilanComplement> {
+  const { plan } = await calculerComplement(ctx, vehicleId, vue)
+  const modifications = plan.creer.length + plan.reprendre.length + plan.retirer.length + plan.formes.length
   if (modifications === 0) return { modifications: 0, conserves: plan.conserves }
 
   await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
@@ -298,6 +316,13 @@ export async function completerGabaritDans(ctx: ContexteTeam, vehicleId: string,
           rev: { increment: 1 },
           updatedBy: ctx.userId,
         },
+      })
+    }
+    // Forme du gabarit remise sur une ligne libre : seule la forme change, l'id et l'occupation restent.
+    for (const remise of plan.formes) {
+      await tx.voitureSlot.update({
+        where: { id: remise.id },
+        data: { forme: remise.forme, rev: { increment: 1 }, updatedBy: ctx.userId },
       })
     }
   })

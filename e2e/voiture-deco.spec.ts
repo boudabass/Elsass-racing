@@ -442,10 +442,10 @@ test.describe("téléphone 360 px, au doigt", () => {
     await page.setViewportSize(TELEPHONE)
     await ouvrirDeco(page, vehiculeId)
 
-    await ligne(page, "Aile avant").click()
+    await ligne(page, "Portière droite").click()
     await page.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
     await expect(page.getByRole("dialog")).toHaveCount(0)
-    const barre = page.getByRole("form", { name: "Déplacer ou redimensionner Aile avant" })
+    const barre = page.getByRole("form", { name: "Déplacer ou redimensionner Portière droite" })
     await expect(barre.getByRole("button")).toHaveCount(2)
     await expect(barre.getByRole("button", { name: "Annuler", exact: true })).toBeVisible()
     await expect(barre.getByRole("button", { name: "Enregistrer la position", exact: true })).toBeVisible()
@@ -454,14 +454,14 @@ test.describe("téléphone 360 px, au doigt", () => {
 
     // Le plan reste actif : on glisse la forme au doigt, puis elle se pose au-dessus de la barre.
     const cdp = await page.context().newCDPSession(page)
-    const xAvant = Number(await forme(page, "Aile avant").getAttribute("x"))
-    const depart = await forme(page, "Aile avant").boundingBox()
-    if (!depart) throw new Error("Aile avant : pas de boîte à l'écran")
+    const xAvant = Number(await forme(page, "Portière droite").getAttribute("x"))
+    const depart = await forme(page, "Portière droite").boundingBox()
+    if (!depart) throw new Error("Portière droite : pas de boîte à l'écran")
     await glisserAuDoigt(cdp, { x: depart.x + depart.width / 2, y: depart.y + depart.height / 2 }, 20, 0)
-    await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("x"))).not.toBeCloseTo(xAvant, 0)
-    const xApres = Number(await forme(page, "Aile avant").getAttribute("x"))
+    await expect.poll(async () => Number(await forme(page, "Portière droite").getAttribute("x"))).not.toBeCloseTo(xAvant, 0)
+    const xApres = Number(await forme(page, "Portière droite").getAttribute("x"))
 
-    const boiteForme = await forme(page, "Aile avant").boundingBox()
+    const boiteForme = await forme(page, "Portière droite").boundingBox()
     const boiteBarre = await barre.boundingBox()
     if (!boiteForme || !boiteBarre) throw new Error("forme ou barre absente à l'écran")
     expect(boiteForme.y + boiteForme.height).toBeLessThanOrEqual(boiteBarre.y)
@@ -470,7 +470,7 @@ test.describe("téléphone 360 px, au doigt", () => {
     await barre.getByRole("button", { name: "Enregistrer la position", exact: true }).click()
     await expect(page.getByRole("button", { name: "Enregistrer la position" })).toHaveCount(0)
     await page.reload()
-    await expect.poll(async () => Number(await forme(page, "Aile avant").getAttribute("x"))).toBeCloseTo(xApres, 1)
+    await expect.poll(async () => Number(await forme(page, "Portière droite").getAttribute("x"))).toBeCloseTo(xApres, 1)
   })
 })
 
@@ -610,6 +610,8 @@ test("responsable : un véhicule sans plan propose un modèle, et la création p
   await page.goto(`/apps/voiture/vehicules/${parDefaut}?onglet=deco`)
   await expect(page.getByRole("group", { name: /^Plan de Voiture par défaut/ })).toBeVisible()
   await expect(listePlan(page).locator("button")).toHaveCount(6)
+  // Créé avec le gabarit actuel, rien à mettre à jour : le bouton « Mettre le plan à jour » n'apparaît pas.
+  await expect(page.getByRole("button", { name: "Mettre le plan à jour" })).toHaveCount(0)
 })
 
 test("captures 3.13 · tiroirs de la Déco, en thème clair, à 1440 et à 360 px", async ({ page, equipe }) => {
