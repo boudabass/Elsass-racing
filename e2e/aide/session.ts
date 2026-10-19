@@ -143,6 +143,16 @@ export function emettreActionSaison(equipe: Equipe, cleUnicite: string): void {
   })
 }
 
+// Montant réglé d'un engagement, en centimes (null tant qu'il n'est pas payé). Le statut affiché dépend
+// aussi de la date de l'épreuve (« Parti » une fois commencée), donc le paiement se lit ici.
+export async function montantPayeEnBase(equipe: Equipe, entryId: string): Promise<number | null> {
+  const { rows } = await bd().query<{ montant: number | null }>(
+    "SELECT montant_paye AS montant FROM saison_registration WHERE team_id = $1 AND entry_id = $2",
+    [equipe.teamId, entryId],
+  )
+  return rows[0]?.montant ?? null
+}
+
 export async function statutAction(equipe: Equipe, cleUnicite: string): Promise<string | null> {
   const { rows } = await bd().query<{ statut: string }>(
     "SELECT statut::text AS statut FROM core_action WHERE team_id = $1 AND cle_unicite = $2",

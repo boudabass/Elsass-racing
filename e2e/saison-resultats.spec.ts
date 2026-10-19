@@ -50,7 +50,7 @@ test("k. saison : saisie par l'équipage, validation par un autre membre, débri
 
   await page.goto(`${fiche}?onglet=engagements`)
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo test e2e" })
   await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
 

@@ -9,6 +9,7 @@ import {
   depensesBudgetEnBase,
   donnerAccesSaison,
   rattacherPersonne,
+  montantPayeEnBase,
   statutAction,
   type Membre,
 } from "./aide/session"
@@ -85,7 +86,7 @@ test("liste de John : saison complète par clic, spéciale, reconnaissance, rés
   // Engagement, puis paiement dans Saison.
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo saison John" })
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo saison John" })
   await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await page.getByRole("link", { name: /Saxo saison John/ }).first().click()
   await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
@@ -206,7 +207,7 @@ test("liste de John : Marquer payé dans la boîte, puis paiement direct dans Sa
   // Engagement, puis dépense d'engagement dans Budget : Saison demande « marquer payé ».
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo liaison John" })
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo liaison John" })
   await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await page.getByRole("link", { name: /Saxo liaison John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
@@ -238,8 +239,9 @@ test("liste de John : Marquer payé dans la boîte, puis paiement direct dans Sa
   }).toPass({ timeout: 30_000 })
   await expect(boite.getByRole("button", { name: "Marquer payé" }).first()).toBeVisible()
   await boite.getByRole("button", { name: "Marquer payé" }).first().click()
-  await page.goto(engagement)
-  await expect(page.getByText("Payé").first()).toBeVisible()
+  // La décision part en serveur. Épreuve passée (saisonEtEpreuvePasseeAuClic) : la fiche affiche « Parti »,
+  // le paiement se lit donc en base.
+  await expect.poll(async () => montantPayeEnBase(equipe, entryId), { timeout: 30_000 }).not.toBeNull()
   await page.goto("/apps/budget/a-confirmer")
   await expect(page.getByRole("heading", { name: /Engagement Rallye liaison John/ })).toHaveCount(0)
 
@@ -258,7 +260,7 @@ test("liste de John : paiement direct dans Saison lève « Marquer payé » rest
 
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo direct John" })
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo direct John" })
   await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await page.getByRole("link", { name: /Saxo direct John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)

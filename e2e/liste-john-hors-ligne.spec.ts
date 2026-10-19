@@ -54,7 +54,7 @@ test("liste de John : débrief saisi hors ligne par l'équipage, part au retour 
   await expect(page).toHaveURL(/\/apps\/saison\/epreuves\/[0-9a-f-]+/)
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo debrief John" })
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo debrief John" })
   await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await page.getByRole("link", { name: /Saxo debrief John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)

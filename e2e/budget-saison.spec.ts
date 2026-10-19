@@ -11,6 +11,7 @@ import {
   preparerSaison,
   preverEpreuveEnBase,
   rattacherPersonne,
+  montantPayeEnBase,
   statutAction,
 } from "./aide/session"
 
@@ -32,7 +33,7 @@ async function engagerLaVoiture(page: Page): Promise<{ fiche: string; engagement
   const fiche = page.url().split("?")[0]
   await page.goto(`${fiche}?onglet=engagements`)
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo test e2e" })
   await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
   await page.getByRole("link", { name: /Saxo test e2e/ }).first().click()
@@ -108,8 +109,9 @@ test("liaison : une dépense d'engagement saisie dans Budget demande « marquer 
   }).toPass({ timeout: 30_000 })
   await expect(boite.getByText("Marquer l'engagement comme payé ?").first()).toBeVisible()
   await boite.getByRole("button", { name: "Marquer payé" }).first().click()
-  await page.goto(engagement)
-  await expect(page.getByText("Payé").first()).toBeVisible()
+  // La décision part en serveur : l'engagement est réglé à 450 € (45 000 centimes). Épreuve commencée,
+  // la fiche affiche « Parti » : le paiement se lit en base.
+  await expect.poll(() => montantPayeEnBase(equipe, entryId), { timeout: 30_000 }).toBe(45_000)
 
   // Le paiement qui suit ne propose rien à Budget : aucune proposition pour cet engagement.
   await page.goto("/apps/budget/a-confirmer")

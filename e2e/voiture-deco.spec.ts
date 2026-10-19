@@ -83,10 +83,11 @@ async function joindreFichier(page: Page, chemin: string): Promise<void> {
 
 async function passerEnThemeClair(page: Page): Promise<void> {
   await page.goto("/apps/settings/affichage")
-  const formulaire = page.locator("form", { has: page.locator("#theme") })
-  await formulaire.locator("#theme").selectOption("clair")
-  await formulaire.getByRole("button", { name: "Enregistrer" }).click()
-  await page.waitForURL(/ok=1$/)
+  await page.getByRole("button", { name: "Modifier l'affichage", exact: true }).click()
+  const tiroir = page.getByRole("dialog")
+  await tiroir.locator("#theme").selectOption("clair")
+  await tiroir.getByRole("button", { name: "Enregistrer", exact: true }).click()
+  await expect(tiroir).toHaveCount(0)
   await expect(page.locator("html")).not.toHaveClass(/\bdark\b/)
 }
 

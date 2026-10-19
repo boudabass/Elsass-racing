@@ -33,10 +33,11 @@ function visiteurSansSession(browser: Browser, ip: string, viewport = BUREAU): P
 // Thème clair pour le membre connecté (réglages, affichage) : la page partenaire le suit, comme les autres écrans.
 async function passerEnThemeClair(page: Page): Promise<void> {
   await page.goto("/apps/settings/affichage")
-  const formulaire = page.locator("form", { has: page.locator("#theme") })
-  await formulaire.locator("#theme").selectOption("clair")
-  await formulaire.getByRole("button", { name: "Enregistrer" }).click()
-  await page.waitForURL(/ok=1$/)
+  await page.getByRole("button", { name: "Modifier l'affichage", exact: true }).click()
+  const tiroir = page.getByRole("dialog")
+  await tiroir.locator("#theme").selectOption("clair")
+  await tiroir.getByRole("button", { name: "Enregistrer", exact: true }).click()
+  await expect(tiroir).toHaveCount(0)
 }
 
 // Le jeton affiché une seule fois, lu dans l'élément qui porte l'URL (le reste de la zone n'est pas l'URL).
@@ -128,7 +129,10 @@ test("2 · décocher une section la retire de la page", async ({ page, equipe, b
     // Le rechargement lit l'état enregistré : il ne suffit pas que la case soit décochée à l'écran.
     await page.waitForLoadState("networkidle")
     await page.reload()
+    // Les sections sont dans un tiroir : on le rouvre pour lire l'état enregistré.
+    await page.getByRole("button", { name: "Modifier les sections", exact: true }).click()
     await expect(page.getByLabel("Résultats", { exact: true })).not.toBeChecked()
+    await page.keyboard.press("Escape")
 
     const visiteur = await visiteurSansSession(browser, "198.51.100.2")
     const vue = await visiteur.newPage()
@@ -153,7 +157,10 @@ test("2 bis · la section Conventions décochée retire le document signé", asy
     await page.getByRole("dialog").getByRole("button", { name: "Enregistrer les sections", exact: true }).click()
     await page.waitForLoadState("networkidle")
     await page.reload()
+    // Les sections sont dans un tiroir : on le rouvre pour lire l'état enregistré.
+    await page.getByRole("button", { name: "Modifier les sections", exact: true }).click()
     await expect(page.getByLabel("Conventions", { exact: true })).not.toBeChecked()
+    await page.keyboard.press("Escape")
 
     const visiteur = await visiteurSansSession(browser, "198.51.100.8")
     const document = await visiteur.request.get(`/p/${jeton}/fichiers/${donnees.fichierDocumentA}`)
@@ -381,8 +388,11 @@ test("10 · un bilan se génère, se télécharge et s'affiche sur la page", asy
     const jeton = await creerLien(page, donnees.partenaireA)
 
     await page.goto(`/apps/partenaires/${donnees.partenaireA}?onglet=bilans`)
-    await page.getByRole("button", { name: "Générer le bilan", exact: true }).click()
-    await expect(page.getByRole("status").filter({ hasText: "Bilan généré." })).toBeVisible()
+    // Le bilan se génère depuis un tiroir : « Générer un bilan » l'ouvre, sa validation génère.
+    await page.getByRole("button", { name: "Générer un bilan", exact: true }).click()
+    await page.getByRole("dialog").getByRole("button", { name: "Générer le bilan", exact: true }).click()
+    // Le tiroir se ferme au succès, sans message : le bilan apparaît dans la liste après relecture.
+    await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 30_000 })
     await page.reload()
 
     // Le plus récent est en tête de liste : c'est le premier lien de téléchargement.

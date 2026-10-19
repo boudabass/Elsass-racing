@@ -30,7 +30,7 @@ test("j. saison : une épreuve créée par le +, une voiture engagée, un paieme
 
   await page.goto(`${adresseFiche}?onglet=engagements`)
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo test e2e" })
   await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
 
@@ -65,7 +65,7 @@ test("j-bis. saison : l'assistance voit l'épreuve, sans montant ni bouton d'éc
   const adresseFiche = page.url()
   await page.goto(`${adresseFiche}?onglet=engagements`)
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo test e2e" })
   await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByRole("link", { name: /Saxo test e2e/ }).first()).toBeVisible()
   await expect.poll(async () => (await engagementsEnBase(equipe)).length).toBe(1)

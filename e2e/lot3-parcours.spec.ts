@@ -45,8 +45,11 @@ function jourCivil(): string {
 // Le formulaire disparaît quand la recette est encaissée et que la page est rechargée.
 async function encaisserRecette(conteneur: Locator): Promise<void> {
   await conteneur.getByRole("button", { name: "Encaisser", exact: true }).click()
-  await conteneur.getByRole("button", { name: "Confirmer l'encaissement", exact: true }).click()
-  await expect(conteneur.getByRole("button", { name: "Confirmer l'encaissement", exact: true })).toHaveCount(0, { timeout: 30_000 })
+  // Le formulaire est dans un tiroir (hors de la ligne) : on le cible par son dialogue.
+  const tiroir = conteneur.page().getByRole("dialog", { name: "Encaisser la recette" })
+  await tiroir.getByRole("button", { name: "Confirmer l'encaissement", exact: true }).click()
+  await expect(tiroir).toHaveCount(0, { timeout: 30_000 })
+  await expect(conteneur.getByRole("button", { name: "Encaisser", exact: true })).toHaveCount(0, { timeout: 30_000 })
 }
 
 // Aucun défilement horizontal sur la page, à la largeur courante.
@@ -280,10 +283,13 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await decider(page, "Réserver")
   await page.goto("/apps/budget/a-confirmer")
   const confirmer = page.getByRole("button", { name: "Confirmer", exact: true })
+  // « Confirmer » ouvre un tiroir modal : la proposition ne quitte la liste qu'à sa validation.
   await expect(confirmer).toHaveCount(2, { timeout: 30_000 })
   await confirmer.first().click()
+  await decider(page, "Confirmer le mouvement")
   await expect(confirmer).toHaveCount(1, { timeout: 30_000 })
   await confirmer.first().click()
+  await decider(page, "Confirmer le mouvement")
   await expect(confirmer).toHaveCount(0, { timeout: 30_000 })
   // Sur la convention, les deux versements sont prévus : chacun porte son lien vers Budget (brief 3.11, §4).
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
@@ -367,7 +373,9 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
 
   // 9. Bilan : le PDF se génère et se télécharge.
   await page.goto(`/apps/partenaires/${partenaireId}?onglet=bilans`)
-  await page.getByRole("button", { name: "Générer le bilan", exact: true }).click()
+  // « Générer un bilan » ouvre le tiroir ; sa validation génère le PDF.
+  await page.getByRole("button", { name: "Générer un bilan", exact: true }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Générer le bilan", exact: true }).click()
   const lienBilan = page.getByRole("link", { name: "Télécharger le PDF", exact: true })
   await expect(lienBilan).toBeVisible({ timeout: 30_000 })
   const bilan = await page.request.get((await lienBilan.getAttribute("href")) ?? "")

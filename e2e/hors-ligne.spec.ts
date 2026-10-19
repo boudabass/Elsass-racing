@@ -100,7 +100,10 @@ test("hors ligne : + puis Note depuis le QG ouvre les notes sans erreur", async 
   await page.getByRole("button", { name: "Ajouter" }).first().click()
   await page.getByRole("menuitem", { name: "Note" }).click()
 
-  await expect(page.getByRole("heading", { name: "Notes de la team" })).toBeVisible()
+  // La boîte « Nouvelle note » s'ouvre tout de suite : elle est modale, donc le reste de la page
+  // (titre compris) est masqué aux rôles d'accessibilité. Le titre se vérifie par son texte.
+  await expect(page.getByRole("dialog", { name: "Nouvelle note" })).toBeVisible()
+  await expect(page.locator("h1", { hasText: "Notes de la team" })).toBeVisible()
   expect(erreurs).toEqual([])
 
   // La création fonctionne depuis la page ouverte hors ligne, puis part au retour du réseau.

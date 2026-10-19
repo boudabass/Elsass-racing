@@ -104,9 +104,10 @@ test("l. ticket : photo jointe à une dépense en ligne, relue dans la fiche, se
   const { depenseId, ticketId } = await depenseAvecTicket(page, equipe)
 
   await page.goto(`/apps/budget/mouvement/${depenseId}`)
-  const vignette = page.locator('form img[src^="/api/fichiers/"]')
-  await expect(vignette).toBeVisible()
-  const source = await vignette.getAttribute("src")
+  // La fiche en lecture donne un lien vers la photo (pas de vignette : elle n'est rendue qu'en édition).
+  const lien = page.getByRole("link", { name: "Voir la photo du ticket" })
+  await expect(lien).toBeVisible()
+  const source = await lien.getAttribute("href")
   expect(source).toBe(`/api/fichiers/${ticketId}`)
 
   const reponse = await page.request.get(source!)
@@ -138,7 +139,7 @@ test("l. preuve : un PDF joint à un résultat s'ouvre par « Voir la preuve »"
 
   await page.goto(`${fiche}?onglet=engagements`)
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo test e2e" })
   await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
   await page.getByRole("link", { name: /Saxo test e2e/ }).first().click()

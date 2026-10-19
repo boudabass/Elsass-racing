@@ -150,10 +150,11 @@ async function connecterMembre(browser: Browser, secretLien: string): Promise<Br
 
 async function passerEnThemeClair(page: Page): Promise<void> {
   await page.goto("/apps/settings/affichage")
-  const formulaire = page.locator("form", { has: page.locator("#theme") })
-  await formulaire.locator("#theme").selectOption("clair")
-  await formulaire.getByRole("button", { name: "Enregistrer" }).click()
-  await page.waitForURL(/ok=1$/)
+  await page.getByRole("button", { name: "Modifier l'affichage", exact: true }).click()
+  const tiroir = page.getByRole("dialog")
+  await tiroir.locator("#theme").selectOption("clair")
+  await tiroir.getByRole("button", { name: "Enregistrer", exact: true }).click()
+  await expect(tiroir).toHaveCount(0)
 }
 
 test("responsable : prospect, échange, convention, document, signature, avancement, preuve et lien", async ({ page, equipe }) => {
@@ -355,8 +356,10 @@ test("audit : le plan se lit par rôle, et le message hors ligne est le nouveau"
 
   const partenaireId = await creerProspect(page, "Garage Audit")
   await page.goto(`/apps/partenaires/${partenaireId}`)
+  // Le champ photo du logo est dans son tiroir : on l'ouvre, puis on passe hors ligne.
+  await page.getByRole("button", { name: /^(Ajouter un logo|Changer le logo)$/ }).click()
   await context.setOffline(true)
-  await expect(page.getByText("Pas de réseau : l'envoi de la photo reprend quand tu es en ligne.").first()).toBeVisible()
+  await expect(page.getByRole("dialog").getByText("Pas de réseau : l'envoi de la photo reprend quand tu es en ligne.")).toBeVisible()
   await context.setOffline(false)
 })
 
