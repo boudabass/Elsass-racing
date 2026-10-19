@@ -235,3 +235,17 @@ export async function listerPersonnesDans(ctx: ContexteTeam) {
     orderBy: { prenom: "asc" },
   })
 }
+
+// Versements prévus de la convention : les recettes Budget d'origine « partenaires:<convention>:<rang> » (brief 3.11, §4).
+export async function lireVersementsConventionDans(ctx: ContexteTeam, agreementId: string) {
+  return prismaPourTeam(ctx.teamId, ctx.userId).budgetIncome.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null, origineRef: { startsWith: `partenaires:${agreementId}:` } },
+    select: { id: true, montant: true, date: true, statut: true, encaisseeLe: true },
+    orderBy: { date: "asc" },
+  })
+}
+
+export async function lireVersementsConvention(agreementId: string) {
+  const { ctx } = await accesPartenaires("ecriture")
+  return lireVersementsConventionDans(ctx, agreementId)
+}
