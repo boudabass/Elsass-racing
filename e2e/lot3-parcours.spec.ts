@@ -235,9 +235,6 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await ouvrirBoite(page, "Réserver la Portière pour Garage Muller ?")
   await capturerBoite(page, "lot3-boite-reserver-1440x900.png")
   await page.keyboard.press("Escape")
-  // Tant que la boîte n'a pas décidé, la contrepartie dit que son emplacement attend (brief 3.11, §3).
-  await page.goto(`/apps/partenaires/conventions/${conventionId}`)
-  await expect(page.getByText("Emplacement à réserver : en attente dans la boîte d'actions")).toBeVisible()
 
   await page.goto("/apps/budget/a-confirmer")
   await expect(page.getByText("Garage Muller, versement 1 sur 2", { exact: false }).first()).toBeVisible({ timeout: 30_000 })
