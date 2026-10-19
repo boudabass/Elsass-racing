@@ -222,6 +222,13 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await ajouterPublications(page, conventionId)
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   await expect(page.getByText("Emplacement : Portière")).toBeVisible()
+  // Brouillon, à 1440 et à 360 px (brief 3.11, §6) : rien n'est encore généré ni envoyé.
+  await capturer(page, "lot3-convention-brouillon-1440x900.png")
+  await page.setViewportSize(TELEPHONE)
+  await page.goto(`/apps/partenaires/conventions/${conventionId}`)
+  await sansDefilementHorizontal(page)
+  await capturer(page, "lot3-convention-brouillon-360x740.png")
+  await page.setViewportSize({ width: 1440, height: 900 })
 
   // 3. Document : mentions renseignées, sauf la fonction de l'interlocuteur. La convention le signale avant le
   // téléchargement ; la fonction se saisit dans la fiche du partenaire, puis le document est généré sans blanc (brief 3.9, §4).
