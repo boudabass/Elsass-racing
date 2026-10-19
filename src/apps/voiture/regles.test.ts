@@ -262,6 +262,12 @@ describe("emplacements : complément d'un véhicule existant", () => {
     expect(plan.deplacees.includes("occupee")).toBe(false)
   })
 
+  it("une ligne libre restée à la forme v4 du profil revient à la forme d'origine (v3)", () => {
+    const aile = attendus.find((e) => e.vue === "droite" && e.nom === "Aile avant droite")
+    const existants = [{ id: "v4", vue: "droite" as const, nom: "Aile avant droite", libre: true, forme: aile?.formesAnterieures?.[0] }]
+    expect(planComplement(existants, attendus, options()).formes).toEqual([{ id: "v4", forme: aile?.forme }])
+  })
+
   it("une forme qui n'a jamais été celle du gabarit n'est pas remise, même si elle est proche", () => {
     const aile = attendus.find((e) => e.vue === "droite" && e.nom === "Aile avant droite")
     const proche = { ...(aile?.formesAnterieures?.[0] ?? { type: "rect" as const, x: 0, y: 0, l: 1, h: 1 }), x: 254 }

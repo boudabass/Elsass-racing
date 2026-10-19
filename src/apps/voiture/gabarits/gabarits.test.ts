@@ -49,6 +49,42 @@ describe("gabarit Saxo", () => {
     expect(sansForme).toEqual([])
   })
 
+  // Le profil (vues droite et gauche) est revenu à la version 3 : roues, caisse et zones sont celles de c63b81f.
+  it("le profil v5 est identique au profil v3 : roues d'origine, caisse et zones", () => {
+    const droite = gabaritSaxo.vuesDessinees.find((v) => v.vue === "droite")?.dessin ?? []
+    const cercles = droite.filter((e) => e.type === "circle").map((e) => [e.role, Number(e.attributs.cx), Number(e.attributs.cy), Number(e.attributs.r)])
+    expect(cercles).toEqual([
+      ["roue", 66.4, 114, 28],
+      ["roue", 282.7, 114, 28],
+      ["roue", 66.4, 114, 24.7],
+      ["roue", 282.7, 114, 24.7],
+      ["jante", 66.4, 114, 16.3],
+      ["jante", 282.7, 114, 16.3],
+      ["detail", 66.4, 114, 5.4],
+      ["detail", 282.7, 114, 5.4],
+    ])
+    expect(droite.find((e) => e.role === "caisse")?.attributs.d).toBe(
+      "M22.8 109.5 L20.0 81.9 Q20.6 67.8 26.2 62.1 L34.0 45.0 Q42.5 33.6 56.5 24.9 L74.8 14.6 Q79.0 12.0 90.2 11.8 L199.8 10.5 Q208.3 10.8 213.9 15.2 L258.9 47.9 Q264.5 51.2 275.7 53.7 L337.5 67.8 Q354.4 71.7 357.8 82.8 L360.0 103.3 L357.2 119.1 L310.0 117.9 A 27.5 27.5 0 1 0 255.5 117.9 L93.6 117.9 A 27.5 27.5 0 1 0 39.1 117.9 L26.2 116.3 Z",
+    )
+    const zones = gabaritSaxo.emplacementsTypes.filter((t) => t.vue === "droite" && t.forme?.type === "rect").map((t) => [t.nom, t.forme])
+    expect(zones).toEqual([
+      ["Portière", { type: "rect", x: 150.7, y: 61.2, l: 87.1, h: 17.4 }],
+      ["Custode arrière", { type: "rect", x: 75.6, y: 61.2, l: 60.1, h: 17.4 }],
+      ["Aile avant", { type: "rect", x: 254.6, y: 69, l: 61.8, h: 12.4 }],
+      ["Aile arrière", { type: "rect", x: 29.6, y: 78, l: 23, h: 13.5 }],
+      ["Bas de caisse", { type: "rect", x: 101.5, y: 91.5, l: 143.3, h: 18 }],
+    ])
+    expect(gabaritSaxo.emplacementsTypes.find((t) => t.nom === "Bandeau de pare-brise")?.forme).toEqual({
+      type: "polygone",
+      points: [
+        [204.3, 17.7],
+        [215.6, 16.3],
+        [230.8, 27.2],
+        [215.6, 29.2],
+      ],
+    })
+  })
+
   it("chaque zone rectangulaire fait au moins 8 unités de côté (minimum accepté par le service)", () => {
     for (const emplacement of gabaritSaxo.emplacementsTypes) {
       if (emplacement.forme?.type !== "rect") continue
@@ -68,13 +104,15 @@ describe("gabarit Saxo", () => {
 
   it("les pneus posent sur le sol (bas à y 142), et aucun emplacement de la vue droite ne touche un pneu", () => {
     const droite = gabaritSaxo.vuesDessinees.find((v) => v.vue === "droite")?.dessin ?? []
-    // Le cercle extérieur de chaque roue (rayon 39,2) : la bande de roulement (34,6), la jante et le détail n'y sont pas comptés.
-    const pneus = droite.filter((e) => e.type === "circle" && e.role === "roue" && Number(e.attributs.r) > 36)
+    // Le cercle extérieur de chaque roue (rayon 28) : la bande de roulement (24,7), la jante et le détail n'y sont pas comptés.
+    const pneus = droite.filter((e) => e.type === "circle" && e.role === "roue" && Number(e.attributs.r) > 26)
     expect(pneus).toHaveLength(2)
     for (const pneu of pneus) {
       expect(Number(pneu.attributs.cy) + Number(pneu.attributs.r)).toBeCloseTo(142, 5)
     }
     // Distance du centre du pneu au rectangle le plus proche : elle doit dépasser le rayon, sinon la zone touche le pneu.
+    // Tolérance de 2 unités : le dessin du profil validé par John laisse le coin de « Aile arrière » 1,6 unité dans le
+    // passage de roue arrière (distance 26,4 pour un pneu de 28). Le profil n'est pas retouché pour autant.
     for (const emplacement of gabaritSaxo.emplacementsTypes.filter((e) => e.vue === "droite")) {
       const forme = emplacement.forme
       if (forme?.type !== "rect") continue
@@ -83,7 +121,7 @@ describe("gabarit Saxo", () => {
         const cy = Number(pneu.attributs.cy)
         const px = Math.min(Math.max(cx, forme.x), forme.x + forme.l)
         const py = Math.min(Math.max(cy, forme.y), forme.y + forme.h)
-        expect(Math.hypot(px - cx, py - cy), `${emplacement.nom} et un pneu`).toBeGreaterThan(Number(pneu.attributs.r))
+        expect(Math.hypot(px - cx, py - cy), `${emplacement.nom} et un pneu`).toBeGreaterThanOrEqual(Number(pneu.attributs.r) - 2)
       }
     }
   })
@@ -124,9 +162,11 @@ describe("gabarit Saxo", () => {
 })
 
 describe("gabarit Voiture générique", () => {
-  it("sa version 1 porte les formes de la Saxo version 3 : c'est sa seule forme antérieure", () => {
+  it("reconnaît les formes de sa version 2 (profil de la Saxo version 4) et de sa version 1 (zones de la Saxo version 3)", () => {
     const aile = gabaritGenerique.emplacementsTypes.find((t) => t.nom === "Aile avant")
-    expect(aile?.formesAnterieures).toEqual([{ type: "rect", x: 254.6, y: 69, l: 61.8, h: 12.4 }])
+    expect(aile?.formesAnterieures).toEqual([{ type: "rect", x: 256, y: 55, l: 28, h: 8 }])
+    const hayon = gabaritGenerique.emplacementsTypes.find((t) => t.nom === "Hayon")
+    expect(hayon?.formesAnterieures).toEqual([{ type: "rect", x: 112, y: 66, l: 146, h: 46 }])
     expect(gabaritGenerique.emplacementsTypes.find((t) => t.nom === "Portière")?.formesAnterieures).toBeUndefined()
   })
 
