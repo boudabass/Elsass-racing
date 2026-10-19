@@ -278,3 +278,4 @@ En attente :
 
 ### 3.13 Tous les formulaires en tiroirs
 - Brief : `docs/briefs/3.13-formulaires-en-tiroirs.md`. Décision de John du 19/10 : chaque saisie s'ouvre dans un tiroir (bas sur téléphone, droite sur ordinateur) avec Enregistrer et Annuler, le reste de la page inactif ; plus de formulaires dépliés les uns sous les autres. Phase A (composant, fiche convention, Déco) validée par John sur dev, puis phase B (toute l'app, après inventaire). Ordre : 3.11, 3.13, puis 3.12.
+- Phase A livrée le 19/10 (f5d395e..befa50e) : composant Tiroir, fiche convention et Déco en tiroirs ; modal sur téléphone et ordinateur, sauf l'étape « Déplacer ou redimensionner ». En attente de la validation de John sur dev avant la phase B. Point 0 du lot 4 : liste-john.spec.ts (calendrier, lien « Mois ») instable sous charge, comme voiture.spec.ts:86.
