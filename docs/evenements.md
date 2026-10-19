@@ -57,6 +57,8 @@ Un événement `<app>.action_requise` est traité par le socle (`src/core/action
 
 ## Bouton « Prochaine étape »
 
+Le bouton flottant n'est plus affiché (brief 3.11, §9, 19/10) : ni sur ordinateur ni sur téléphone. La logique ci-dessous reste, pour les écrans qui s'en servent.
+
 `choisirProchaineEtape` (`src/core/actions/prochaine-etape.ts`), règles de l'article 960, section 5 :
 
 1. Les actions proposées sont celles du membre, non reportées, et en mode terrain seulement les actions `terrain`.

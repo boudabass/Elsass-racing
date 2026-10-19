@@ -12,7 +12,6 @@ import { listerTeamsDe } from "@/core/auth/team-serveur"
 import { lireIdsEpreuvesPasseesSaisonEnCours } from "@/apps/saison/lectures-serveur"
 import { BandeauTerrain } from "@/components/qg/bandeau-terrain"
 import { BoiteActions } from "@/components/qg/boite-actions"
-import { BoutonProchaineEtape } from "@/components/qg/bouton-prochaine-etape"
 import { ConteneurBoite } from "@/components/qg/conteneur-boite"
 import { Navigation } from "@/components/qg/navigation"
 import { entreesDuMenuPlus } from "@/components/qg/entrees-plus"
@@ -60,7 +59,7 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
     </button>
   )
   // Une seule boîte, dans la barre haute (sur tous les écrans) : elle écoute le paramètre « boite »
-  // (lien du bouton Prochaine étape).
+  // (lien direct vers une action).
   const boite = (
     <ConteneurBoite declencheur={declencheur} ecouteUrl>
       <BoiteActions groupes={donnees.groupes} />
@@ -118,7 +117,6 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      <BoutonProchaineEtape etape={donnees.prochaineEtape} maintenant={maintenant} />
       {afficherBandeau && epreuve && <BandeauTerrain epreuve={epreuve.nom} />}
       <RaccourciRecherche />
     </div>

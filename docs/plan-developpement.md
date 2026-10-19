@@ -48,7 +48,7 @@ elsass-racing/
   src/core/sdk/             contrat d'une app : manifeste, widgets, événements, routes
   src/apps/<clé>/           une app = un dossier : manifest.ts, écrans, widgets, événements, services
   src/components/ui/        shadcn/ui copié du Dico
-  src/components/qg/        enveloppe du QG : barre haute, grille, boîte d'actions, Prochaine étape, bouton +
+  src/components/qg/        enveloppe du QG : barre haute, grille, boîte d'actions, bouton +
   src/lib/                  utilitaires, prisma.ts
   prisma/                   schema.prisma (tables core_ puis <clé>_), migrations
   docs/                     ce plan, le relevé de stack, les décisions
