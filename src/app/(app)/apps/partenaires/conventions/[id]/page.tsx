@@ -31,7 +31,7 @@ import {
   supprimerPreuveAction,
 } from "@/apps/partenaires/actions"
 import { accesPartenaires, genererDocument, lireCatalogue, lireModeles } from "@/apps/partenaires/services-serveur"
-import { lireConvention, lireEpreuvesDeSaison, lireReservationsEnAttente, lireSaisons } from "@/apps/partenaires/lectures-serveur"
+import { lireConvention, lireEpreuvesDeSaison, lireSaisons } from "@/apps/partenaires/lectures-serveur"
 import { listerEmplacementsPourPartenaires } from "@/apps/voiture/lectures-partagees"
 import { enRetard, formaterMontant, jourParis, statutContrepartie } from "@/apps/partenaires/regles"
 import { EcranVide } from "@/components/qg/ecran-vide"
@@ -98,7 +98,6 @@ export default async function PageConvention({
   ])
   const modelesActifs = modeles.filter((m) => m.actif)
   const nomEpreuve = new Map(epreuves.map((e) => [e.id, e.nom]))
-  const reservationsEnAttente = await lireReservationsEnAttente(convention.benefits.map((benefice) => benefice.id))
   const statut = convention.statut
   const estBrouillon = statut === "brouillon"
   const estEnvoyee = statut === "envoyee"
@@ -137,7 +136,7 @@ export default async function PageConvention({
 
   return (
     <section className="flex w-full max-w-4xl flex-col gap-6">
-      <Link href={`/apps/partenaires/${convention.partnerId}`} className={`${LIEN} self-start text-sm text-texte-discret`}>
+      <Link href={`/apps/partenaires/${convention.partnerId}?onglet=conventions`} className={`${LIEN} self-start text-sm text-texte-discret`}>
         ← {convention.partner.contact.nom}
       </Link>
       <header className="flex flex-col gap-2">
@@ -151,87 +150,15 @@ export default async function PageConvention({
         </p>
         {convention.signataires && <p className="text-sm">Signée par {convention.signataires}{convention.signeeLe ? `, le ${dateFrancaise(jour(convention.signeeLe))}` : ""}.</p>}
       </header>
-
-      {/* Actions selon le statut (brief 3.6, §5). Les refus du service s'affichent tels quels. */}
-      <section aria-labelledby="actions" className={CLASSE_BLOC}>
-        <h2 id="actions" className="text-lg font-medium">
-          Actions
-        </h2>
-        {estBrouillon && (
-          <div className="flex flex-col gap-4">
-            <details>
-              <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Modifier la convention</summary>
-              <div className="mt-4">
-                <FormulaireConvention
-                  mode="modification"
-                  partnerId={convention.partnerId}
-                  agreementId={convention.id}
-                  modeles={modelesActifs.map((m) => ({ id: m.id, nom: m.nom, version: m.version }))}
-                  saisons={saisons.map((s) => ({ id: s.id, nom: s.nom, dateDebut: jour(s.dateDebut), dateFin: jour(s.dateFin) }))}
-                  valeurs={valeursConvention}
-                />
-              </div>
-            </details>
-            <div className="flex flex-wrap gap-3">
-              <FormulaireAction action={genererDocumentAction} nom="Générer le document" ok="Document généré. Le téléchargement est dans l'onglet Document." className="flex">
-                <input type="hidden" name="agreementId" value={convention.id} />
-                <BoutonEnvoi libelle="Générer le document" secondaire />
-              </FormulaireAction>
-              <FormulaireAction action={marquerEnvoyeeAction} nom="Marquer envoyée" className="flex">
-                <input type="hidden" name="agreementId" value={convention.id} />
-                <BoutonEnvoi libelle="Marquer envoyée" secondaire />
-              </FormulaireAction>
-            </div>
-          </div>
-        )}
-        {estEnvoyee && gestion && (
-          <details>
-            <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Marquer signée</summary>
-            <div className="mt-4">
-              <FormulaireSignature agreementId={convention.id} aujourdhui={aujourdhui} />
-            </div>
-          </details>
-        )}
-        {estEnvoyee && !gestion && <p className="text-sm text-texte-discret">Seule la gestion peut marquer la convention signée.</p>}
-        {/* Une seule ligne d'actions, qui passe à la ligne sur téléphone (brief 3.9, §6). Les formulaires s'ouvrent
-            en pleine largeur, sous la ligne. « Résilier » est à droite, en couleur de danger. */}
-        {estSignee && (
-          <div className="flex flex-wrap items-center gap-3">
-            <FormulaireAction action={renouvelerAction} nom="Renouveler" ok="Convention renouvelée. Elle apparaît dans l'historique." className="flex">
-              <input type="hidden" name="agreementId" value={convention.id} />
-              <BoutonEnvoi libelle="Renouveler" secondaire />
-            </FormulaireAction>
-            {estActive && gestion && (
-              <details className="[&[open]]:basis-full">
-                <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Ajouter un avenant</summary>
-                <div className="mt-4">
-                  <FormulaireAvenant agreementId={convention.id} aujourdhui={aujourdhui} />
-                </div>
-              </details>
-            )}
-            {estActive && gestion && (
-              <details className="ml-auto [&[open]]:basis-full">
-                <summary className={`${BOUTON_DANGER} inline-flex cursor-pointer list-none`}>Résilier la convention</summary>
-                <div className="mt-4">
-                  <FormulaireAction action={resilierAction} nom="Résilier" className="flex flex-col gap-3">
-                    <input type="hidden" name="agreementId" value={convention.id} />
-                    <label htmlFor="motif-resiliation" className="font-medium">
-                      Motif (obligatoire)
-                    </label>
-                    <textarea id="motif-resiliation" name="motif" required rows={2} maxLength={1000} className={CHAMP} />
-                    <div>
-                      <BoutonEnvoi libelle="Résilier la convention" danger />
-                    </div>
-                  </FormulaireAction>
-                </div>
-              </details>
-            )}
-          </div>
-        )}
-        {statut === "resiliee" && <p className="text-sm text-texte-discret">Convention résiliée{convention.motifResiliation ? ` : ${convention.motifResiliation}` : "."}</p>}
-      </section>
-
+      {estBrouillon && (
+        <p className="text-sm">
+          Prochaine étape : {convention.benefits.length === 0 ? "« Ajoute une contrepartie »" : "« Génère le document », puis « Marque-la envoyée »"}
+        </p>
+      )}
+      {estEnvoyee && <p className="text-sm">Prochaine étape : « Marque-la signée »</p>}
       <Onglets base={`/apps/partenaires/conventions/${id}`} onglets={onglets} actif={actif} nom="Onglets de la convention" />
+
+
 
       {actif === "contreparties" && (
         <div className="flex flex-col gap-6">
@@ -274,9 +201,6 @@ export default async function PageConvention({
                     <div className="flex flex-col gap-1">
                       <h3 className="break-words font-medium">{benefice.libelle}</h3>
                       {sousTitre && <p className="text-sm text-texte-discret">{sousTitre}</p>}
-                      {benefice.type === "logo_voiture" && reservationsEnAttente.has(benefice.id) && (
-                        <p className="text-sm">Emplacement à réserver : en attente dans la boîte d&apos;actions</p>
-                      )}
                     </div>
                     <div className="flex flex-col gap-2">
                       <div
@@ -501,6 +425,85 @@ export default async function PageConvention({
         </div>
       )}
 
+
+      {/* Actions selon le statut (brief 3.6, §5). Les refus du service s'affichent tels quels. En bas de page depuis la 3.11. */}
+      <section aria-labelledby="gerer" className={CLASSE_BLOC}>
+        <h2 id="gerer" className="text-lg font-medium">
+          Gérer la convention
+        </h2>
+        {estBrouillon && (
+          <div className="flex flex-col gap-4">
+            <details>
+              <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Modifier la convention</summary>
+              <div className="mt-4">
+                <FormulaireConvention
+                  mode="modification"
+                  partnerId={convention.partnerId}
+                  agreementId={convention.id}
+                  modeles={modelesActifs.map((m) => ({ id: m.id, nom: m.nom, version: m.version }))}
+                  saisons={saisons.map((s) => ({ id: s.id, nom: s.nom, dateDebut: jour(s.dateDebut), dateFin: jour(s.dateFin) }))}
+                  valeurs={valeursConvention}
+                />
+              </div>
+            </details>
+            <div className="flex flex-wrap gap-3">
+              <FormulaireAction action={genererDocumentAction} nom="Générer le document" ok="Document généré. Le téléchargement est dans l'onglet Document." className="flex">
+                <input type="hidden" name="agreementId" value={convention.id} />
+                <BoutonEnvoi libelle="Générer le document" secondaire />
+              </FormulaireAction>
+              <FormulaireAction action={marquerEnvoyeeAction} nom="Marquer envoyée" className="flex">
+                <input type="hidden" name="agreementId" value={convention.id} />
+                <BoutonEnvoi libelle="Marquer envoyée" secondaire />
+              </FormulaireAction>
+            </div>
+          </div>
+        )}
+        {estEnvoyee && gestion && (
+          <details>
+            <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Marquer signée</summary>
+            <div className="mt-4">
+              <FormulaireSignature agreementId={convention.id} aujourdhui={aujourdhui} />
+            </div>
+          </details>
+        )}
+        {estEnvoyee && !gestion && <p className="text-sm text-texte-discret">Seule la gestion peut marquer la convention signée.</p>}
+        {/* Une seule ligne d'actions, qui passe à la ligne sur téléphone (brief 3.9, §6). Les formulaires s'ouvrent
+            en pleine largeur, sous la ligne. « Résilier » est à droite, en couleur de danger. */}
+        {estSignee && (
+          <div className="flex flex-wrap items-center gap-3">
+            <FormulaireAction action={renouvelerAction} nom="Renouveler" ok="Convention renouvelée. Elle apparaît dans l'historique." className="flex">
+              <input type="hidden" name="agreementId" value={convention.id} />
+              <BoutonEnvoi libelle="Renouveler" secondaire />
+            </FormulaireAction>
+            {estActive && gestion && (
+              <details className="[&[open]]:basis-full">
+                <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Ajouter un avenant</summary>
+                <div className="mt-4">
+                  <FormulaireAvenant agreementId={convention.id} aujourdhui={aujourdhui} />
+                </div>
+              </details>
+            )}
+            {estActive && gestion && (
+              <details className="ml-auto [&[open]]:basis-full">
+                <summary className={`${BOUTON_DANGER} inline-flex cursor-pointer list-none`}>Résilier la convention</summary>
+                <div className="mt-4">
+                  <FormulaireAction action={resilierAction} nom="Résilier" className="flex flex-col gap-3">
+                    <input type="hidden" name="agreementId" value={convention.id} />
+                    <label htmlFor="motif-resiliation" className="font-medium">
+                      Motif (obligatoire)
+                    </label>
+                    <textarea id="motif-resiliation" name="motif" required rows={2} maxLength={1000} className={CHAMP} />
+                    <div>
+                      <BoutonEnvoi libelle="Résilier la convention" danger />
+                    </div>
+                  </FormulaireAction>
+                </div>
+              </details>
+            )}
+          </div>
+        )}
+        {statut === "resiliee" && <p className="text-sm text-texte-discret">Convention résiliée{convention.motifResiliation ? ` : ${convention.motifResiliation}` : "."}</p>}
+      </section>
     </section>
   )
 }

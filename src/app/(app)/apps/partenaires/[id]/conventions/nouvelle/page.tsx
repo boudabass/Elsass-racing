@@ -28,7 +28,7 @@ export default async function PageNouvelleConvention({ params }: { params: Promi
 
   return (
     <section className="flex w-full max-w-3xl flex-col gap-6">
-      <Link href={`/apps/partenaires/${id}`} className={`${LIEN} self-start text-sm text-texte-discret`}>
+      <Link href={`/apps/partenaires/${id}?onglet=conventions`} className={`${LIEN} self-start text-sm text-texte-discret`}>
         ← {partenaire.entreprise}
       </Link>
       <h1 className="titre-rallye text-3xl">Nouvelle convention</h1>
