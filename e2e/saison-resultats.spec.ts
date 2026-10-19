@@ -49,25 +49,28 @@ test("k. saison : saisie par l'équipage, validation par un autre membre, débri
   await expect(page.getByRole("button", { name: "Filtrer" })).toHaveCount(0)
 
   await page.goto(`${fiche}?onglet=engagements`)
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
 
   // Un engagement sans dossier ni paiement reste « envisagé » : on enregistre le paiement, puis le résultat
   // se saisit (l'épreuve étant passée, l'engagement est parti).
   await page.getByRole("link", { name: /Saxo test e2e/ }).first().click()
+  await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
   await page.getByLabel("Montant payé (€)").fill("450")
-  await page.getByRole("button", { name: "Enregistrer le paiement" }).click()
-  await expect(page.getByText("Enregistré.")).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
   await page.goto(`${fiche}?onglet=resultats`)
 
   // A saisit le résultat : il ne peut pas le valider lui-même.
   const a = await connecterMembre(browser, equipierA)
   try {
     await a.page.goto(`${fiche}?onglet=resultats`)
+    await a.page.getByRole("button", { name: /^(Saisir|Modifier) le résultat$/ }).click()
     await a.page.getByLabel("Classement de classe").fill("2")
-    await a.page.getByRole("button", { name: "Enregistrer le résultat" }).click()
-    await expect(a.page.getByText("Enregistré.")).toBeVisible()
+    await a.page.getByRole("dialog").getByRole("button", { name: "Enregistrer le résultat", exact: true }).click()
+    await expect(a.page.getByRole("dialog")).toHaveCount(0)
     await expect(a.page.getByRole("button", { name: "Valider", exact: true })).toHaveCount(0)
     await expect(a.page.getByText("Un autre membre doit valider ce résultat.")).toBeVisible()
   } finally {
@@ -93,8 +96,10 @@ test("k. saison : saisie par l'équipage, validation par un autre membre, débri
     // Débrief : le ressenti est un bouton, puis le bloc de fin d'épreuve est là.
     await b.page.goto(adresseEngagement)
     await expect(b.page.getByRole("heading", { name: "Débrief de l'épreuve" })).toBeVisible()
+    await b.page.getByRole("button", { name: /^(Ajouter|Modifier) mon débrief$/ }).click()
     await b.page.getByRole("button", { name: "Ressenti 4 sur 5" }).click()
-    await expect(b.page.getByText("Enregistré.").first()).toBeVisible()
+    await b.page.getByRole("dialog").getByRole("button", { name: "Enregistrer le débrief", exact: true }).click()
+    await expect(b.page.getByText("Enregistré. Le débrief part")).toBeVisible()
   } finally {
     await b.fermer()
   }

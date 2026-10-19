@@ -20,8 +20,9 @@ async function engagerLaVoiture(page: Page): Promise<{ eventId: string; entryId:
   const fiche = page.url().split("?")[0]
   const eventId = fiche.split("/").pop() ?? ""
   await page.goto(`${fiche}?onglet=engagements`)
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
   await page.getByRole("link", { name: /Saxo test e2e/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
@@ -48,7 +49,6 @@ test("point 2 : dépense d'engagement, navigation client vers le QG, boîte et c
   await page.goto(`/apps/budget/nouvelle?epreuve=${eventId}`)
   await page.getByLabel("Montant (€)").fill("450")
   await page.getByLabel("Catégorie", { exact: true }).selectOption({ label: "Engagement" })
-  await page.getByText("Plus de détails").click()
   await page.getByLabel(/Engagement concerné/).selectOption({ index: 1 })
   await page.getByRole("button", { name: "Ajouter la dépense" }).click()
   await expect(page.getByText("Enregistré. La dépense part")).toBeVisible()

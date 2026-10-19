@@ -34,7 +34,8 @@ async function passerDecouverteBudget(page: Page): Promise<void> {
 // Saison ouverte à l'écran, puis une épreuve (dates passées de l'année en cours). Renvoie la fiche épreuve.
 async function saisonEtEpreuvePasseeAuClic(page: Page, nomEpreuve: string): Promise<string> {
   await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Saison" }).click()
-  await page.getByRole("button", { name: "Ouvrir la saison" }).click()
+  await page.getByRole("button", { name: "Nouvelle saison", exact: true }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Ouvrir la saison", exact: true }).click()
   await page.getByRole("link", { name: "Ajouter une épreuve" }).click()
   await page.getByLabel("Nom de l'épreuve").fill(nomEpreuve)
   await page.getByLabel("Premier jour").fill(`${ANNEE}-01-10`)
@@ -62,39 +63,45 @@ test("liste de John : saison complète par clic, spéciale, reconnaissance, rés
 
   // Spéciale et reconnaissance, dans la fiche épreuve.
   await page.goto(`${fiche}?onglet=programme`)
+  await page.getByRole("button", { name: "Ajouter une spéciale", exact: true }).click()
   await page.getByLabel("N°").fill("1")
   await page.getByLabel("Nom", { exact: true }).fill("ES1 John")
-  await page.getByRole("button", { name: "Ajouter la spéciale" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Ajouter la spéciale", exact: true }).click()
   await expect(page.getByText("ES1 John").first()).toBeVisible()
 
   // Reconnaissance : la voiture de reco est choisie dans les règles, puis une sortie est saisie.
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Reconnaissances" }).click()
+  await page.getByRole("button", { name: /^(Définir|Modifier) les règles$/ }).click()
   await page.locator("select[name='vehiculeId']").selectOption({ label: "Reco John" })
-  await page.getByRole("button", { name: "Enregistrer les règles" }).click()
-  await expect(page.getByText("Enregistré.").first()).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer les règles", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await page.getByRole("button", { name: "Ajouter une sortie", exact: true }).click()
   await page.locator("input[name='date']").fill(`${ANNEE}-01-10`)
   await page.locator("input[name='passages']").fill("2")
   await page.locator("label").filter({ hasText: "ES1 John" }).locator("input").check()
-  await page.getByRole("button", { name: "Ajouter la sortie" }).click()
-  await expect(page.getByText("Enregistré.").first()).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Ajouter la sortie", exact: true }).click()
+  await expect(page.getByText("Enregistré sur cet appareil").first()).toBeVisible()
 
   // Engagement, puis paiement dans Saison.
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture").selectOption({ label: "Saxo saison John" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await page.getByRole("link", { name: /Saxo saison John/ }).first().click()
+  await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
   await page.getByLabel("Montant payé (€)").fill("450")
-  await page.getByRole("button", { name: "Enregistrer le paiement" }).click()
-  await expect(page.getByText("Enregistré.")).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
   await page.goto(`${fiche}?onglet=resultats`)
 
   // Un équipier saisit le résultat : il ne le valide pas lui-même.
   const a = await connecterMembre(browser, equipierA)
   try {
     await a.page.goto(`${fiche}?onglet=resultats`)
+    await a.page.getByRole("button", { name: /^(Saisir|Modifier) le résultat$/ }).click()
     await a.page.getByLabel("Classement de classe").fill("2")
-    await a.page.getByRole("button", { name: "Enregistrer le résultat" }).click()
-    await expect(a.page.getByText("Enregistré.")).toBeVisible()
+    await a.page.getByRole("dialog").getByRole("button", { name: "Enregistrer le résultat", exact: true }).click()
+    await expect(a.page.getByRole("dialog")).toHaveCount(0)
     await expect(a.page.getByRole("button", { name: "Valider", exact: true })).toHaveCount(0)
   } finally {
     await a.fermer()
@@ -112,8 +119,10 @@ test("liste de John : saison complète par clic, spéciale, reconnaissance, rés
     await expect(b.page.getByRole("heading", { name: "Débrief de l'épreuve" }).first()).toBeVisible()
     adresseEngagement = (await b.page.getByRole("link", { name: "Ouvrir l'engagement" }).first().getAttribute("href")) ?? ""
     await b.page.goto(adresseEngagement)
+    await b.page.getByRole("button", { name: /^(Ajouter|Modifier) mon débrief$/ }).click()
     await b.page.getByRole("button", { name: "Ressenti 4 sur 5" }).click()
-    await expect(b.page.getByText("Enregistré.").first()).toBeVisible()
+    await b.page.getByRole("dialog").getByRole("button", { name: "Enregistrer le débrief", exact: true }).click()
+    await expect(b.page.getByText("Enregistré. Le débrief part")).toBeVisible()
   } finally {
     await b.fermer()
   }
@@ -195,8 +204,9 @@ test("liste de John : Marquer payé dans la boîte, puis paiement direct dans Sa
 
   // Engagement, puis dépense d'engagement dans Budget : Saison demande « marquer payé ».
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture").selectOption({ label: "Saxo liaison John" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await page.getByRole("link", { name: /Saxo liaison John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
   const engagement = page.url().split("?")[0]
@@ -246,8 +256,9 @@ test("liste de John : paiement direct dans Saison lève « Marquer payé » rest
   const eventId = fiche.split("/").pop() ?? ""
 
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture").selectOption({ label: "Saxo direct John" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await page.getByRole("link", { name: /Saxo direct John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
   const entryId = page.url().split("?")[0].split("/").pop() ?? ""
@@ -265,9 +276,10 @@ test("liste de John : paiement direct dans Saison lève « Marquer payé » rest
 
   // Le paiement est saisi directement dans Saison : l'action levée disparaît de la boîte.
   await page.goto(`/apps/saison/engagements/${entryId}`)
+  await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
   await page.getByLabel("Montant payé (€)").fill("450")
-  await page.getByRole("button", { name: "Enregistrer le paiement" }).click()
-  await expect(page.getByText("Enregistré.")).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
   await expect.poll(async () => statutAction(equipe, `marquer_paye:${entryId}`)).toBe("annulee")
   await page.getByRole("link", { name: /retour au QG/ }).click()
   await page.getByRole("button", { name: /Boîte d'actions/ }).first().click()

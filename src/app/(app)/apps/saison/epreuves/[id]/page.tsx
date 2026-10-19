@@ -13,6 +13,7 @@ import { PanneauReconnaissances } from "@/apps/saison/composants/reconnaissances
 import { ProgrammeHorsLigne } from "@/apps/saison/composants/programme-hors-ligne"
 import {
   BoutonAnnulerEpreuve,
+  FicheInfos,
   FormulaireEngagement,
   FormulaireInfos,
   FormulaireProgramme,
@@ -81,6 +82,26 @@ export default async function PageEpreuve({
   const preparation = onglet === "pret" ? await lirePreparation(id) : null
   const reco = onglet === "reconnaissances" ? await lireReconnaissances(id) : null
   const annulee = epreuve.statut === "annulee"
+  // Valeurs de la fiche Infos. Les tarifs ne sont présents que sous écriture (masquerMontants les retire pour la lecture).
+  const tarifs = infos as { tarifNormal?: number | null; tarifLicencieAsa?: number | null } | null
+  const valeursInfos = {
+    lieu: epreuve.lieu,
+    departement: epreuve.departement,
+    lienOfficiel: epreuve.lienOfficiel,
+    championnat: infos?.championnat ?? null,
+    lienResultats: infos?.lienResultats ?? null,
+    engagementsOuverture: infos?.engagementsOuverture ? infos.engagementsOuverture.toISOString().slice(0, 10) : null,
+    engagementsCloture: infos?.engagementsCloture ? infos.engagementsCloture.toISOString().slice(0, 10) : null,
+    ...(tarifs && "tarifNormal" in tarifs
+      ? { tarifNormal: tarifs.tarifNormal ?? null, tarifLicencieAsa: tarifs.tarifLicencieAsa ?? null }
+      : {}),
+    geolocalisationIncluse: infos?.geolocalisationIncluse ?? false,
+    nbSpeciales: infos?.nbSpeciales ?? null,
+    kmChronometresPrevus: infos?.kmChronometresPrevus?.toString() ?? null,
+    kmTotal: infos?.kmTotal?.toString() ?? null,
+    lieuParcAssistance: infos?.lieuParcAssistance ?? null,
+    adresseEnvoiDossier: infos?.adresseEnvoiDossier ?? null,
+  }
 
   return (
     <section className="flex max-w-4xl flex-col gap-5">
@@ -100,62 +121,19 @@ export default async function PageEpreuve({
 
       {onglet === "infos" && (
         <div className="flex flex-col gap-6">
-          {peutEcrire ? (
-            <FormulaireInfos
-              eventId={id}
-              contacts={contacts}
-              organisateurId={epreuve.organisateurContactId ?? null}
-              asaId={infos?.asaContactId ?? null}
-              valeurs={
-                infos
-                  ? {
-                      lieu: epreuve.lieu,
-                      departement: epreuve.departement,
-                      lienOfficiel: epreuve.lienOfficiel,
-                      championnat: infos.championnat,
-                      lienResultats: infos.lienResultats,
-                      engagementsOuverture: infos.engagementsOuverture ? infos.engagementsOuverture.toISOString().slice(0, 10) : null,
-                      engagementsCloture: infos.engagementsCloture ? infos.engagementsCloture.toISOString().slice(0, 10) : null,
-                      // Présents seulement sous écriture : masquerMontants les retire pour la lecture.
-                      tarifNormal: (infos as { tarifNormal?: number | null }).tarifNormal ?? null,
-                      tarifLicencieAsa: (infos as { tarifLicencieAsa?: number | null }).tarifLicencieAsa ?? null,
-                      geolocalisationIncluse: infos.geolocalisationIncluse,
-                      nbSpeciales: infos.nbSpeciales,
-                      kmChronometresPrevus: infos.kmChronometresPrevus?.toString() ?? null,
-                      kmTotal: infos.kmTotal?.toString() ?? null,
-                      lieuParcAssistance: infos.lieuParcAssistance,
-                      adresseEnvoiDossier: infos.adresseEnvoiDossier,
-                    }
-                  : {
-                      lieu: epreuve.lieu,
-                      departement: epreuve.departement,
-                      lienOfficiel: epreuve.lienOfficiel,
-                      championnat: null,
-                      lienResultats: null,
-                      engagementsOuverture: null,
-                      engagementsCloture: null,
-                      tarifNormal: null,
-                      tarifLicencieAsa: null,
-                      geolocalisationIncluse: false,
-                      nbSpeciales: null,
-                      kmChronometresPrevus: null,
-                      kmTotal: null,
-                      lieuParcAssistance: null,
-                      adresseEnvoiDossier: null,
-                    }
-              }
-            />
-          ) : (
-            <dl className="grid gap-2 text-sm sm:grid-cols-2">
-              <dt className="text-texte-discret">Lieu</dt>
-              <dd>{epreuve.lieu ?? "—"}</dd>
-              <dt className="text-texte-discret">Lien officiel</dt>
-              <dd className="break-all">{epreuve.lienOfficiel ?? "—"}</dd>
-              <dt className="text-texte-discret">Championnat</dt>
-              <dd>{infos?.championnat ?? "—"}</dd>
-            </dl>
-          )}
-          {peutEcrire && !annulee && <BoutonAnnulerEpreuve eventId={id} />}
+          <FicheInfos valeurs={valeursInfos} />
+          <div className="flex flex-wrap gap-3">
+            {peutEcrire && (
+              <FormulaireInfos
+                eventId={id}
+                contacts={contacts}
+                organisateurId={epreuve.organisateurContactId ?? null}
+                asaId={infos?.asaContactId ?? null}
+                valeurs={valeursInfos}
+              />
+            )}
+            {peutEcrire && !annulee && <BoutonAnnulerEpreuve eventId={id} />}
+          </div>
         </div>
       )}
 
@@ -183,10 +161,7 @@ export default async function PageEpreuve({
             ))}
           </ul>
           {peutEcrire && !annulee && choix && (
-            <div className="flex flex-col gap-2">
-              <h2 className="font-medium">Engager une voiture</h2>
-              <FormulaireEngagement eventId={id} choix={choix} />
-            </div>
+            <FormulaireEngagement eventId={id} choix={choix} />
           )}
         </div>
       )}

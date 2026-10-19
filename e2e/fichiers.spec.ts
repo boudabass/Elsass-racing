@@ -135,26 +135,30 @@ test("l. preuve : un PDF joint à un résultat s'ouvre par « Voir la preuve »"
   const fiche = page.url()
 
   await page.goto(`${fiche}?onglet=engagements`)
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
   await page.getByRole("link", { name: /Saxo test e2e/ }).first().click()
+  await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
   await page.getByLabel("Montant payé (€)").fill("450")
-  await page.getByRole("button", { name: "Enregistrer le paiement" }).click()
-  await expect(page.getByText("Enregistré.").first()).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 
   await page.goto(`${fiche}?onglet=resultats`)
+  await page.getByRole("button", { name: /^(Saisir|Modifier) le résultat$/ }).click()
   await page.getByLabel("Classement de classe").fill("2")
-  await page.getByRole("button", { name: "Enregistrer le résultat" }).click()
-  await expect(page.getByText("Enregistré.").first()).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le résultat", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 
-  // Le champ fichier est l'input caché relié à « ou un fichier » : setInputFiles marche même caché.
-  const formulaire = page.locator("form", { has: page.getByLabel("ou un fichier") })
-  await formulaire.getByLabel("ou un fichier").setInputFiles(PREUVE)
-  await expect(formulaire.getByText("preuve.pdf")).toBeVisible()
+  // Le champ fichier est l'input caché relié à « ou un fichier » : setInputFiles marche même caché. Il est dans le tiroir.
+  await page.getByRole("button", { name: /^(Joindre une preuve|Modifier la preuve)$/ }).click()
+  const tiroir = page.getByRole("dialog")
+  await tiroir.getByLabel("ou un fichier").setInputFiles(PREUVE)
+  await expect(tiroir.getByText("preuve.pdf")).toBeVisible()
   await page.screenshot({ path: path.join(DOSSIER, "fichiers-preuve-1440x900.png"), fullPage: true })
-  await formulaire.getByRole("button", { name: "Joindre la preuve" }).click()
-  await expect(formulaire.getByText("Enregistré.")).toBeVisible()
+  await tiroir.getByRole("button", { name: "Joindre la preuve", exact: true }).click()
+  await expect(tiroir).toHaveCount(0)
 
   // Un autre équipier valide le résultat (le responsable ne valide pas le sien).
   const valideur = await ajouterMembreConnectable(equipe, "equipage", "-valideur")

@@ -39,17 +39,19 @@ test("saison hors ligne : le programme s'affiche en mode avion, une sortie de re
   const base = page.url().split("?")[0]
 
   await page.goto(`${base}?onglet=programme`)
-  const formulaireSpeciale = page.locator("form", { has: page.getByRole("button", { name: "Ajouter la spéciale" }) })
+  await page.getByRole("button", { name: "Ajouter une spéciale", exact: true }).click()
+  const formulaireSpeciale = page.getByRole("dialog")
   await formulaireSpeciale.locator("#numero").fill("1")
   await formulaireSpeciale.locator("#nom").fill("Spéciale hors ligne")
   await formulaireSpeciale.locator("#longueurKm").fill("12.5")
   await formulaireSpeciale.locator("#nbPassages").fill("2")
-  await page.getByRole("button", { name: "Ajouter la spéciale" }).click()
+  await formulaireSpeciale.getByRole("button", { name: "Ajouter la spéciale", exact: true }).click()
   await expect(page.getByText("Spéciale hors ligne").first()).toBeVisible()
 
   await page.goto(`${base}?onglet=reconnaissances`)
-  await page.getByRole("button", { name: "Enregistrer les règles" }).click()
-  await expect(page.getByText("Enregistré.")).toBeVisible()
+  await page.getByRole("button", { name: /^(Définir|Modifier) les règles$/ }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer les règles", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 
   // Le service worker prend le contrôle, puis les pages de l'épreuve sont visitées une fois en ligne :
   // elles sont alors mises en cache, avec leur paramètre d'onglet.
@@ -57,7 +59,7 @@ test("saison hors ligne : le programme s'affiche en mode avion, une sortie de re
   await page.goto(`${base}?onglet=programme`)
   await expect(page.getByText("Spéciale hors ligne").first()).toBeVisible()
   await page.goto(`${base}?onglet=reconnaissances`)
-  await expect(page.getByRole("button", { name: "Ajouter la sortie" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Ajouter une sortie", exact: true })).toBeVisible()
 
   // Hors ligne : le programme s'affiche depuis le cache et la base locale.
   await context.setOffline(true)
@@ -66,9 +68,10 @@ test("saison hors ligne : le programme s'affiche en mode avion, une sortie de re
 
   // Une sortie de reco saisie hors ligne : affichée tout de suite, pas encore en base.
   await page.goto(`${base}?onglet=reconnaissances`)
+  await page.getByRole("button", { name: "Ajouter une sortie", exact: true }).click()
   await page.locator("#date").fill(`${ANNEE}-05-10`)
   await page.getByLabel("1. Spéciale hors ligne").check()
-  await page.getByRole("button", { name: "Ajouter la sortie" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Ajouter la sortie", exact: true }).click()
   await expect(page.getByText("Enregistré sur cet appareil")).toBeVisible()
   await expect(page.getByText("Spéciales reconnues : 1. Spéciale hors ligne")).toBeVisible()
   expect(await sortiesRecceEnBase(equipe, `${ANNEE}-05-10`)).toBe(0)
@@ -98,28 +101,32 @@ test("saison hors ligne : un débrief saisi sans réseau part au retour du rése
 
   // Engagement payé d'une épreuve passée : il est parti, donc la fiche affiche le débrief.
   await page.goto(`${base}?onglet=engagements`)
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
   await page.getByRole("link", { name: /Saxo test e2e/ }).first().click()
+  await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
   await page.getByLabel("Montant payé (€)").fill("450")
-  await page.getByRole("button", { name: "Enregistrer le paiement" }).click()
-  await expect(page.getByText("Enregistré.")).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
   const fiche = page.url().split("?")[0]
   const entryId = fiche.split("/").pop() ?? ""
 
   // En ligne, une fois : la fiche est mise en cache avec son formulaire de débrief.
   await attendreServiceWorker(page)
   await page.goto(fiche)
-  await expect(page.getByRole("button", { name: "Ressenti 3 sur 5" })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^(Ajouter|Modifier) mon débrief$/ })).toBeVisible()
 
   // Hors ligne : la fiche s'affiche, le débrief s'enregistre sur l'appareil, sans encore être en base.
   await context.setOffline(true)
   await page.goto(fiche)
+  await page.getByRole("button", { name: /^(Ajouter|Modifier) mon débrief$/ }).click()
   await page.getByLabel("Points positifs").fill("Bon départ")
   await page.getByRole("button", { name: "Ressenti 3 sur 5" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le débrief", exact: true }).click()
   await expect(page.getByText("Enregistré. Le débrief part")).toBeVisible()
-  await expect(page.getByRole("button", { name: "Ressenti 3 sur 5" })).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByRole("button", { name: "Modifier mon débrief", exact: true })).toBeVisible()
   expect(await debriefsEnBase(equipe, entryId)).toBe(0)
 
   // Retour du réseau : le débrief arrive en base, et son événement est émis une seule fois.

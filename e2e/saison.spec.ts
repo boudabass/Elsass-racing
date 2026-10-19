@@ -29,14 +29,16 @@ test("j. saison : une épreuve créée par le +, une voiture engagée, un paieme
   await expect(page.getByRole("heading", { name: "Rallye test e2e" })).toBeVisible()
 
   await page.goto(`${adresseFiche}?onglet=engagements`)
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
 
   await page.getByRole("link", { name: /Saxo test e2e/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
+  await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
   await page.getByLabel("Montant payé (€)").fill("450")
-  await page.getByRole("button", { name: "Enregistrer le paiement" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }).click()
   await expect(page.getByText("Payé", { exact: true }).first()).toBeVisible()
 
   // Captures du calendrier et de la fiche, en PC et en téléphone.
@@ -62,8 +64,9 @@ test("j-bis. saison : l'assistance voit l'épreuve, sans montant ni bouton d'éc
   await expect(page).toHaveURL(/\/apps\/saison\/epreuves\/[0-9a-f-]+/)
   const adresseFiche = page.url()
   await page.goto(`${adresseFiche}?onglet=engagements`)
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByRole("link", { name: /Saxo test e2e/ }).first()).toBeVisible()
   await expect.poll(async () => (await engagementsEnBase(equipe)).length).toBe(1)
 

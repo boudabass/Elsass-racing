@@ -31,8 +31,9 @@ async function engagerLaVoiture(page: Page): Promise<{ fiche: string; engagement
   await expect(page).toHaveURL(/\/apps\/saison\/epreuves\/[0-9a-f-]+/)
   const fiche = page.url().split("?")[0]
   await page.goto(`${fiche}?onglet=engagements`)
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
   await page.getByRole("link", { name: /Saxo test e2e/ }).first().click()
   // Attendre la page de l'engagement : sinon l'URL lue est encore celle de l'épreuve.
@@ -50,10 +51,11 @@ test("liaison : un paiement d'engagement propose une dépense, confirmée depuis
   await page.setViewportSize({ width: 1440, height: 900 })
 
   const { engagement } = await engagerLaVoiture(page)
+  await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
   await page.getByLabel("Montant payé (€)").fill("450")
   await page.getByLabel("Payeur").selectOption({ index: 1 })
-  await page.getByRole("button", { name: "Enregistrer le paiement" }).click()
-  await expect(page.getByText("Enregistré.")).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 
   // Une seule proposition dans À confirmer, de 450 €.
   await page.goto("/apps/budget/a-confirmer")

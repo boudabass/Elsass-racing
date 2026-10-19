@@ -96,8 +96,9 @@ test("résultat annulé : il disparaît de la page partenaire", async ({ browser
       const epreuveId = await idEpreuveParNomEnBase(equipe, "Rallye public de test")
       expect(epreuveId).not.toBeNull()
       await page.goto(`/apps/saison/epreuves/${epreuveId}?onglet=resultats`)
-      await page.getByLabel("Pourquoi contester ce résultat", { exact: true }).fill("Résultat annulé pour le test")
       await page.getByRole("button", { name: "Contester", exact: true }).click()
+      await page.getByLabel("Pourquoi contester ce résultat", { exact: true }).fill("Résultat annulé pour le test")
+      await page.getByRole("dialog").getByRole("button", { name: "Envoyer la contestation", exact: true }).click()
       await page.waitForLoadState("networkidle")
 
       await vue.reload()

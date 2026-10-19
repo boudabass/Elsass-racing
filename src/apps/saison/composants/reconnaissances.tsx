@@ -1,19 +1,20 @@
 "use client"
 
-import { useActionState, useState, type FormEvent } from "react"
+import { useState } from "react"
 
-import { Button } from "@/components/ui/button"
+import { TiroirAction } from "@/components/formulaire/tiroir"
 import { Input } from "@/components/ui/input"
 import { enregistrerRecceAction, type Resultat } from "@/apps/saison/actions"
 import { champDateHeure, positionCreneau } from "@/apps/saison/reconnaissances"
 import { newId } from "@/core/ids"
 import { useMoteurSynchro, useTable } from "@/core/synchro/client/react"
 
-import { CHAMP, Champ, Message } from "./formulaires"
+import { CHAMP, Champ } from "./formulaires"
 
 // Onglet Reconnaissances : règles de la reco (créneau, passages, vitesse, véhicule, plaque, consignes),
 // puis les sorties. Une sortie hors créneau reste enregistrée : c'est une information.
 // Les sorties se lisent et s'écrivent dans la base locale : elles fonctionnent hors ligne.
+// Règles et sorties se saisissent dans un tiroir (brief 3.13b) ; la fiche des règles se lit sur la page.
 
 export interface SortieReco {
   id: string
@@ -74,9 +75,7 @@ export function PanneauReconnaissances({ donnees }: { donnees: DonneesReconnaiss
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-4">
         <h2 className="font-medium">Règles de la reconnaissance</h2>
-        {peutEcrire ? (
-          <FormulaireRecce donnees={donnees} />
-        ) : recce ? (
+        {recce ? (
           <dl className="grid gap-2 text-sm sm:grid-cols-2">
             <dt className="text-texte-discret">Créneau</dt>
             <dd>
@@ -97,6 +96,7 @@ export function PanneauReconnaissances({ donnees }: { donnees: DonneesReconnaiss
         ) : (
           <p className="text-texte-discret">Aucune reconnaissance définie pour cette épreuve.</p>
         )}
+        {peutEcrire && <FormulaireRecce donnees={donnees} />}
       </section>
 
       <section className="flex flex-col gap-3">
@@ -132,10 +132,15 @@ export function PanneauReconnaissances({ donnees }: { donnees: DonneesReconnaiss
 }
 
 function FormulaireRecce({ donnees }: { donnees: DonneesReconnaissances }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(enregistrerRecceAction, null)
   const recce = donnees.recce
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-2">
+    <TiroirAction
+      libelle={recce ? "Modifier les règles" : "Définir les règles"}
+      titre="Règles de la reconnaissance"
+      action={enregistrerRecceAction}
+      libelleBouton="Enregistrer les règles"
+      libelleEnCours="Enregistrement…"
+    >
       <input type="hidden" name="eventId" value={donnees.eventId} />
       <Champ id="debutAutorise" libelle="Début du créneau autorisé">
         <Input id="debutAutorise" name="debutAutorise" type="datetime-local" defaultValue={champDateHeure(recce?.debutAutorise ?? null)} className={CHAMP} />
@@ -159,41 +164,27 @@ function FormulaireRecce({ donnees }: { donnees: DonneesReconnaissances }) {
           ))}
         </select>
       </Champ>
-      <label className="flex min-h-11 items-center gap-3 self-end">
+      <label className="flex min-h-11 items-center gap-3">
         <input type="checkbox" name="plaqueRecue" defaultChecked={recce?.plaqueRecue ?? false} className="size-5" />
         <span>Plaque reçue</span>
       </label>
       <Champ id="consignes" libelle="Consignes">
         <textarea id="consignes" name="consignes" rows={3} defaultValue={recce?.consignes ?? ""} maxLength={2000} className={CHAMP} />
       </Champ>
-      <div className="sm:col-span-2">
-        <Message resultat={resultat} />
-      </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2 sm:justify-self-start">
-        Enregistrer les règles
-      </Button>
-    </form>
+    </TiroirAction>
   )
 }
 
 // Sortie de reco : écrite dans la base locale, puis envoyée à la prochaine connexion. Fonctionne hors ligne.
 function FormulaireSortie({ donnees, recceId }: { donnees: DonneesReconnaissances; recceId: string }) {
   const moteur = useMoteurSynchro()
-  const [resultat, setResultat] = useState<Resultat | null>(null)
-  const [enCours, setEnCours] = useState(false)
+  const [confirmee, setConfirmee] = useState(false)
 
-  async function enregistrer(evenement: FormEvent<HTMLFormElement>) {
-    evenement.preventDefault()
-    const formulaire = evenement.currentTarget
-    const saisie = new FormData(formulaire)
+  async function enregistrer(_etat: Resultat | null, saisie: FormData): Promise<Resultat> {
     const date = String(saisie.get("date") ?? "")
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      setResultat({ ok: false, message: "Date de la sortie attendue." })
-      return
-    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, message: "Date de la sortie attendue." }
     const passages = String(saisie.get("passages") ?? "").trim()
     const notes = String(saisie.get("notes") ?? "").trim()
-    setEnCours(true)
     try {
       await moteur.ecrireLocal("saison_recce_session", {
         type: "creer",
@@ -207,66 +198,61 @@ function FormulaireSortie({ donnees, recceId }: { donnees: DonneesReconnaissance
           notes: notes === "" ? null : notes,
         },
       })
-      formulaire.reset()
-      setResultat({ ok: true, id: undefined })
+      return { ok: true }
     } catch {
-      setResultat({ ok: false, message: "La sortie n'a pas pu être enregistrée sur cet appareil." })
-    } finally {
-      setEnCours(false)
+      return { ok: false, message: "La sortie n'a pas pu être enregistrée sur cet appareil." }
     }
   }
 
   return (
-    <form onSubmit={enregistrer} className="flex flex-col gap-4 rounded-lg border border-bordure p-4">
-      <h3 className="font-medium">Ajouter une sortie</h3>
-      <div className="grid gap-4 sm:grid-cols-2">
+    <div className="flex flex-col gap-2">
+      <TiroirAction
+        libelle="Ajouter une sortie"
+        titre="Ajouter une sortie"
+        action={enregistrer}
+        libelleBouton="Ajouter la sortie"
+        libelleEnCours="Enregistrement…"
+        onSucces={() => setConfirmee(true)}
+      >
         <Champ id="date" libelle="Date de la sortie">
           <Input id="date" name="date" type="date" required className={CHAMP} />
         </Champ>
         <Champ id="passages" libelle="Passages">
           <Input id="passages" name="passages" inputMode="numeric" className={CHAMP} />
         </Champ>
-      </div>
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium">Présents</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {donnees.personnes.map((personne) => (
-            <label key={personne.id} className="flex min-h-11 items-center gap-3">
-              <input type="checkbox" name="personnes" value={personne.id} className="size-5" />
-              <span>{personne.nom}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium">Spéciales reconnues</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {donnees.speciales.map((stage) => (
-            <label key={stage.id} className="flex min-h-11 items-center gap-3">
-              <input type="checkbox" name="speciales" value={stage.id} className="size-5" />
-              <span>
-                {stage.numero}. {stage.nom}
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <Champ id="notes" libelle="Notes">
-        <textarea id="notes" name="notes" rows={3} maxLength={2000} className={CHAMP} />
-      </Champ>
-      {resultat &&
-        (resultat.ok ? (
-          <p role="status" className="text-sm text-etat-ok">
-            Enregistré sur cet appareil. La sortie part à la prochaine connexion.
-          </p>
-        ) : (
-          <p role="alert" className="text-sm text-etat-rouge">
-            {resultat.message}
-          </p>
-        ))}
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:self-start">
-        Ajouter la sortie
-      </Button>
-    </form>
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-sm font-medium">Présents</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {donnees.personnes.map((personne) => (
+              <label key={personne.id} className="flex min-h-11 items-center gap-3">
+                <input type="checkbox" name="personnes" value={personne.id} className="size-5" />
+                <span>{personne.nom}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-sm font-medium">Spéciales reconnues</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {donnees.speciales.map((stage) => (
+              <label key={stage.id} className="flex min-h-11 items-center gap-3">
+                <input type="checkbox" name="speciales" value={stage.id} className="size-5" />
+                <span>
+                  {stage.numero}. {stage.nom}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <Champ id="notes" libelle="Notes">
+          <textarea id="notes" name="notes" rows={3} maxLength={2000} className={CHAMP} />
+        </Champ>
+      </TiroirAction>
+      {confirmee && (
+        <p role="status" className="text-sm text-etat-ok">
+          Enregistré sur cet appareil. La sortie part à la prochaine connexion.
+        </p>
+      )}
+    </div>
   )
 }
