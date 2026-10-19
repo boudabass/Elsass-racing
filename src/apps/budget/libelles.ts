@@ -1,6 +1,7 @@
 // Libellés français de Budget. Chaque valeur d'énumération du schéma a son libellé : le test
 // libelles.test.ts lit prisma/schema.prisma et échoue si une valeur n'en a pas.
 
+import { jourEnFrancais } from "@/core/dates"
 import { formatEuros } from "@/lib/euros"
 
 export { formatEuros }
@@ -54,6 +55,14 @@ export const LIBELLES_PAR_ENUMERATION = {
 export function libelle(enumeration: keyof typeof LIBELLES_PAR_ENUMERATION, valeur: string): string {
   const table: Record<string, string> = LIBELLES_PAR_ENUMERATION[enumeration]
   return table[valeur] ?? valeur
+}
+
+// « Encaissée le 18 octobre 2026 » pour une recette encaissée, le libellé de statut sinon (brief 3.9, §3).
+// Une recette prévue dit qu'elle n'est pas encore encaissée : « Prévue » seul ne suffisait pas (brief 3.11, §4).
+export function libelleStatutRecette(recette: { statut: string; encaisseeLe: string | null }): string {
+  if (recette.encaisseeLe) return `Encaissée le ${jourEnFrancais(new Date(`${recette.encaisseeLe}T00:00:00Z`))}`
+  if (recette.statut === "prevue") return "Prévue, pas encore encaissée"
+  return libelle("BudgetStatutRecette", recette.statut)
 }
 
 // Solde en clair (le signe seul ne se lit pas). Positif : la team doit de l'argent. Négatif : le membre doit à la team.

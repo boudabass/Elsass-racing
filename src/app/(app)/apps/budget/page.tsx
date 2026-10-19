@@ -2,13 +2,14 @@ import Link from "next/link"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/budget/ecran"
-import { FiltresMouvements } from "@/apps/budget/composants/filtres"
+import { FiltresMouvements, PastillesFiltres } from "@/apps/budget/composants/filtres"
 import { BOUTON, MONTANT } from "@/apps/budget/composants/classes"
 import { EncaisserRecette } from "@/apps/budget/composants/encaisser"
 import { lireChoix, lireMouvement, listerMouvements, compterSuggestions, type MouvementLu } from "@/apps/budget/lectures-serveur"
-import { formatEuros, libelle } from "@/apps/budget/libelles"
+import { parametresSauf, pastillesFiltres } from "@/apps/budget/filtres-url"
+import { formatEuros, libelle, libelleStatutRecette } from "@/apps/budget/libelles"
 import { comptesEncaissement } from "@/apps/budget/regles"
-import { jourDeParis, jourEnFrancais } from "@/core/dates"
+import { jourDeParis } from "@/core/dates"
 import { prefsMembre } from "@/apps/settings/preferences-serveur"
 import { appDecouverte } from "@/apps/settings/regles-personnelles"
 import { EcranDecouverte } from "@/components/qg/ecran-decouverte"
@@ -22,14 +23,6 @@ import { LIEN } from "@/lib/classes-formulaire"
 // mouvement s'ouvre à droite sur PC (paramètre m), en pleine page sur téléphone.
 
 const formatJour = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" })
-
-// « Encaissée le 18 octobre 2026 » pour une recette encaissée, le libellé de statut sinon (brief 3.9, §3).
-// Une recette prévue dit qu'elle n'est pas encore encaissée : « Prévue » seul ne suffisait pas (brief 3.11, §4).
-function libelleStatutRecette(mouvement: MouvementLu): string {
-  if (mouvement.encaisseeLe) return `Encaissée le ${jourEnFrancais(new Date(`${mouvement.encaisseeLe}T00:00:00Z`))}`
-  if (mouvement.statut === "prevue") return "Prévue, pas encore encaissée"
-  return libelle("BudgetStatutRecette", mouvement.statut)
-}
 
 export default async function PageMouvements({
   searchParams,
@@ -71,17 +64,8 @@ export default async function PageMouvements({
   const encaissement = { comptes: comptesEncaissement(choix.payeurs), aujourdhui: jourDeParis(new Date()) }
 
   // Filtres actifs en pastilles retirables (la saison ne s'retire pas : c'est le choix de période).
-  const retirer = (cle: string) => {
-    const sansCle = new URLSearchParams(Object.entries(parametres).filter(([nom, valeur]) => nom !== "m" && nom !== cle && valeur) as [string, string][])
-    return `/apps/budget${sansCle.toString() ? `?${sansCle.toString()}` : ""}`
-  }
-  const pastilles = [
-    ...(parametres.epreuve ? [{ cle: "epreuve", libelle: choix.epreuves.find((epreuve) => epreuve.id === parametres.epreuve)?.nom ?? "Épreuve" }] : []),
-    ...(parametres.categorie ? [{ cle: "categorie", libelle: [...choix.categoriesDepense, ...choix.categoriesRecette].find((categorie) => categorie.id === parametres.categorie)?.nom ?? "Catégorie" }] : []),
-    ...(parametres.membre ? [{ cle: "membre", libelle: choix.payeurs.find((payeur) => payeur.id === parametres.membre)?.nom ?? "Membre" }] : []),
-  ].map((pastille) => ({ ...pastille, retirer: retirer(pastille.cle) }))
-
-  const query = new URLSearchParams(Object.entries(parametres).filter(([cle, valeur]) => cle !== "m" && valeur) as [string, string][]).toString()
+  const pastilles = pastillesFiltres(parametres, choix, "/apps/budget")
+  const query = parametresSauf(parametres, ["m"])
   const adresse = (id: string) => `/apps/budget?${query ? `${query}&` : ""}m=${id}`
 
   return (
@@ -117,21 +101,7 @@ export default async function PageMouvements({
         valeurs={{ saison: saisonId ?? "", epreuve: parametres.epreuve ?? "", categorie: parametres.categorie ?? "", membre: parametres.membre ?? "" }}
         afficherMembres={toutVisible}
         nombreActifs={pastilles.length}
-        pastilles={
-          pastilles.length > 0 ? (
-            <ul className="flex flex-wrap gap-2" aria-label="Filtres actifs">
-              {pastilles.map((pastille) => (
-                <li key={pastille.cle}>
-                  <Link href={pastille.retirer} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-bordure bg-surface px-3 py-1 text-sm">
-                    {pastille.libelle}
-                    <span aria-hidden>×</span>
-                    <span className="sr-only">Retirer ce filtre</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : null
-        }
+        pastilles={<PastillesFiltres pastilles={pastilles} />}
       />
 
       {/* Téléphone : une seule carte, trois lignes (libellé à gauche, montant à droite). Ordinateur : trois cartes. */}

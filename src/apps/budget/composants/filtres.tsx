@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useState, type ReactNode } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
@@ -124,5 +125,23 @@ export function FiltresMouvements({
         {pastilles}
       </div>
     </>
+  )
+}
+
+// Pastilles des filtres actifs : chacune mène à l'adresse qui retire ce seul filtre.
+export function PastillesFiltres({ pastilles }: { pastilles: Array<{ cle: string; libelle: string; retirer: string }> }) {
+  if (pastilles.length === 0) return null
+  return (
+    <ul className="flex flex-wrap gap-2" aria-label="Filtres actifs">
+      {pastilles.map((pastille) => (
+        <li key={pastille.cle}>
+          <Link href={pastille.retirer} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-bordure bg-surface px-3 py-1 text-sm">
+            {pastille.libelle}
+            <span aria-hidden>×</span>
+            <span className="sr-only">Retirer ce filtre</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
   )
 }

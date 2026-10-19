@@ -176,6 +176,7 @@ test("liste de John : recette saisie, remboursement d'un membre, sa ligne revien
   await expect(page.getByText("Enregistré. La dépense part")).toBeVisible()
 
   await menuBudget.getByRole("link", { name: "Recette" }).click()
+  await page.getByRole("link", { name: "Nouvelle recette" }).click()
   await page.getByLabel("Montant (€)").fill("120")
   await page.getByLabel("Catégorie", { exact: true }).selectOption({ index: 1 })
   await page.getByRole("button", { name: "Enregistrer la recette" }).click()

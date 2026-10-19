@@ -246,7 +246,7 @@ export function FormulaireRecette({
 }) {
   const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(creerRecetteAction, null)
   return (
-    <FormulairePage formulaireId="recette-formulaire" annulerHref="/apps/budget" libelleBouton="Enregistrer la recette" enCours={enCours}>
+    <FormulairePage formulaireId="recette-formulaire" annulerHref="/apps/budget/recette" libelleBouton="Enregistrer la recette" enCours={enCours}>
     <form id="recette-formulaire" action={action} className="grid gap-4 sm:grid-cols-2">
       <div className="flex flex-col gap-1">
         <label htmlFor="montant" className="font-medium">

@@ -18,6 +18,8 @@ export interface MouvementLu {
   categorieNom: string
   payeurId: string | null
   payeurNom: string | null
+  // Recette : contact ou personne d'où vient l'argent, s'ils sont renseignés. Dépense : null.
+  provenanceNom: string | null
   personneId: string | null
   eventId: string | null
   eventNom: string | null
@@ -82,6 +84,7 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
     categorieNom: ligne.category.nom,
     payeurId: ligne.payerId,
     payeurNom: ligne.payer.nom,
+    provenanceNom: null,
     personneId: ligne.payer.personId,
     eventId: ligne.eventId,
     eventNom: ligne.event?.nom ?? null,
@@ -104,7 +107,13 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
         ...(filtres.eventId ? { eventId: filtres.eventId } : {}),
         ...(filtres.categorieId ? { categoryId: filtres.categorieId } : {}),
       },
-      include: { category: { select: { nom: true } }, encaisseeSur: { select: { id: true, nom: true } }, event: { select: { nom: true } } },
+      include: {
+        category: { select: { nom: true } },
+        encaisseeSur: { select: { id: true, nom: true } },
+        event: { select: { nom: true } },
+        provenanceContact: { select: { nom: true } },
+        provenancePerson: { select: { prenom: true, nom: true } },
+      },
       orderBy: [{ date: "desc" }, { id: "asc" }],
     })
     recettes = recettesBrutes.map((ligne) => ({
@@ -117,6 +126,7 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
       categorieNom: ligne.category.nom,
       payeurId: ligne.encaisseeSur?.id ?? null,
       payeurNom: ligne.encaisseeSur?.nom ?? null,
+      provenanceNom: ligne.provenanceContact?.nom ?? (ligne.provenancePerson ? `${ligne.provenancePerson.prenom} ${ligne.provenancePerson.nom}` : null),
       personneId: null,
       eventId: ligne.eventId,
       eventNom: ligne.event?.nom ?? null,
