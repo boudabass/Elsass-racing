@@ -22,6 +22,17 @@ import {
 const DOSSIER = path.join(__dirname, "..", "docs", "captures")
 const PDF_SIGNE = path.join(__dirname, "fichiers", "preuve.pdf")
 const PHOTO_POSE = path.join(__dirname, "fichiers", "photo.jpg")
+// Photo prise au téléphone : un JPEG de plusieurs Mo (brief 3.11, §12). Des segments COM, sans effet sur l'image, le grossissent.
+// PHOTO_TELEPHONE : une vraie photo de téléphone, si on la fournit ; sinon, un JPEG fabriqué ici.
+const PHOTO_LOURDE = process.env.PHOTO_TELEPHONE ?? path.join(__dirname, "..", "test-results", "photo-lourde.jpg")
+function fabriquerPhotoLourde(): void {
+  const original = fs.readFileSync(PHOTO_POSE)
+  // Segment COM : marqueur FFFE, longueur 65002 (0xFDEA, longueur comprise), puis 65000 octets de remplissage.
+  const segment = Buffer.concat([Buffer.from([0xff, 0xfe, 0xfd, 0xea]), Buffer.alloc(65000, 0x20)])
+  const segments = Array.from({ length: 80 }, () => segment)
+  fs.mkdirSync(path.dirname(PHOTO_LOURDE), { recursive: true })
+  fs.writeFileSync(PHOTO_LOURDE, Buffer.concat([original.subarray(0, 2), ...segments, original.subarray(2)]))
+}
 const TELEPHONE = { width: 360, height: 740 }
 const NOM_EPREUVE = "Rallye de test"
 
@@ -175,6 +186,7 @@ async function signerConvention(page: Page, conventionId: string): Promise<void>
 }
 
 test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, apport, bilan et résiliation", async ({ page, equipe }) => {
+  if (!process.env.PHOTO_TELEPHONE) fabriquerPhotoLourde()
   const annee = new Date().getFullYear()
   const saisonId = await preparerSaison(equipe, annee)
   const personneId = await rattacherPersonne(equipe, equipe.responsable, "Jeoffrey", "Koehling")
@@ -258,7 +270,7 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await page.getByRole("button", { name: "Marquer le logo posé", exact: true }).click()
   await page.locator('input[name="poseLe"]').fill(jourCivil())
   const envoiPhoto = page.waitForResponse((reponse) => reponse.url().includes("/api/fichiers") && reponse.request().method() === "POST")
-  await page.getByLabel("Photo de la pose (facultatif)", { exact: true }).setInputFiles(PHOTO_POSE)
+  await page.getByLabel("Photo de la pose (facultatif)", { exact: true }).setInputFiles(PHOTO_LOURDE)
   await envoiPhoto
   await page.getByRole("button", { name: "Enregistrer la pose", exact: true }).click()
   await page.waitForLoadState("networkidle")
