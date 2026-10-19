@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Lock } from "lucide-react"
 
@@ -34,9 +33,6 @@ export default async function PageVehicule({ params, searchParams }: { params: P
 
   return (
     <section className="flex max-w-4xl flex-col gap-5">
-      <Link href="/apps/voiture" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
-        ← Véhicules
-      </Link>
       <header className="flex flex-col gap-1">
         <h1 className="font-titre text-2xl uppercase">{fiche.vehicule.nomCourt}</h1>
         <p className="text-sm text-texte-discret">

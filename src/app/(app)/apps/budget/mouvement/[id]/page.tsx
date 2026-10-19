@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/budget/ecran"
@@ -32,9 +31,6 @@ export default async function PageMouvement({ params }: { params: Promise<{ id: 
 
   return (
     <section className="flex max-w-2xl flex-col gap-6">
-      <Link href="/apps/budget" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
-        ← Mouvements
-      </Link>
       <h1 className="titre-rallye text-3xl">{mouvement.type === "depense" ? "Modifier la dépense" : "Modifier la recette"}</h1>
       {mouvement.type === "recette" && mouvement.encaisseeLe && (
         <p className="text-sm text-etat-ok">Encaissée le {jourEnFrancais(new Date(`${mouvement.encaisseeLe}T00:00:00Z`))}</p>

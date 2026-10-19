@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/partenaires/ecran"
@@ -14,9 +13,6 @@ export default async function PageNouveauProspect() {
   }
   return (
     <section className="flex max-w-xl flex-col gap-6">
-      <Link href="/apps/partenaires" className={`${LIEN} self-start text-sm text-texte-discret`}>
-        ← Prospection
-      </Link>
       <h1 className="titre-rallye text-3xl">Nouveau prospect</h1>
       <FormulaireProspect />
     </section>

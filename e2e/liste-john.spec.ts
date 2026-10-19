@@ -109,7 +109,7 @@ test("liste de John : saison créée à l'écran, épreuve, engagement, paiement
   await page.getByRole("dialog").getByLabel(/Libellé/).fill("Pneus modifiés John")
   await page.getByRole("button", { name: "Enregistrer les modifications" }).click()
   await expect(page.getByRole("dialog")).toHaveCount(0)
-  await page.getByRole("link", { name: "← Mouvements" }).click()
+  await menuBudget.getByRole("link", { name: "Mouvements", exact: true }).click()
   await page.getByRole("link", { name: /Pneus modifiés John/ }).first().click()
   await page.getByRole("complementary", { name: "Fiche du mouvement" }).getByRole("link", { name: "Supprimer" }).click()
   await expect(page.getByRole("heading", { name: "Modifier la dépense" })).toBeVisible()

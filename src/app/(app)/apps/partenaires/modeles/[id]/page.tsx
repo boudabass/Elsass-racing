@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Lock } from "lucide-react"
 
@@ -20,9 +19,6 @@ export default async function PageModele({ params }: { params: Promise<{ id: str
 
   return (
     <section className="flex w-full max-w-4xl flex-col gap-6">
-      <Link href="/apps/partenaires/modeles" className={`${LIEN} self-start text-sm text-texte-discret`}>
-        ← Modèles
-      </Link>
       <h1 className="titre-rallye text-3xl">{modele.nom}</h1>
       <EditeurModele modele={{ id: modele.id, nom: modele.nom, texte: modele.texte, version: modele.version, actif: modele.actif }} />
     </section>

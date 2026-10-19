@@ -105,9 +105,6 @@ export default async function PageEpreuve({
 
   return (
     <section className="flex max-w-4xl flex-col gap-5">
-      <Link href="/apps/saison" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
-        ← Calendrier
-      </Link>
       <header className="flex flex-col gap-1">
         <h1 className="font-titre text-2xl uppercase">{epreuve.nom}</h1>
         <p className="text-sm text-texte-discret">

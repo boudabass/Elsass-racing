@@ -1,4 +1,3 @@
-import Link from "next/link"
 
 import { accesEcran } from "@/apps/saison/ecran"
 import { FormulaireNouvelleEpreuve } from "@/apps/saison/composants/formulaires"
@@ -13,9 +12,6 @@ export default async function PageNouvelleEpreuve() {
   }
   return (
     <section className="flex max-w-xl flex-col gap-5">
-      <Link href="/apps/saison" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
-        ← Calendrier
-      </Link>
       <h1 className="font-titre text-2xl uppercase">Nouvelle épreuve</h1>
       <FormulaireNouvelleEpreuve />
     </section>
