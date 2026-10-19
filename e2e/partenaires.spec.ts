@@ -93,7 +93,7 @@ function ligneContrepartie(page: Page, nom: string) {
   return page.locator('li[id^="contrepartie-"]').filter({ has: page.getByRole("heading", { name: nom, exact: true }) })
 }
 
-// Une contrepartie de la liste de base, par son nom. Un logo prend l'emplacement « Portière » de la voiture.
+// Une contrepartie de la liste de base, par son nom. Un logo prend l'emplacement « Portière droite » de la voiture.
 async function ajouterContrepartie(page: Page, conventionId: string, nomListe: string, emplacement?: string): Promise<void> {
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   await page.getByRole("button", { name: "Ajouter une contrepartie", exact: true }).click()
@@ -187,10 +187,10 @@ test("responsable : prospect, échange, convention, document, signature, avancem
   // 3. Convention de 1 500 € en deux échéances, avec un logo sur la Saxo et quatre publications.
   await creerSaxoDeux(page)
   const conventionId = await creerConvention(page, partenaireId)
-  await ajouterContrepartie(page, conventionId, "Logo sur la voiture", "Portière")
+  await ajouterContrepartie(page, conventionId, "Logo sur la voiture", "Portière droite")
   await ajouterContrepartie(page, conventionId, "Publications sur les réseaux")
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
-  await expect(page.getByText("Emplacement : Portière")).toBeVisible()
+  await expect(page.getByText("Emplacement : Portière droite")).toBeVisible()
 
   // 4. Document : un PDF de plus de 2 Ko, qui commence par %PDF-. Les mentions légales sont renseignées, pour que
   // l'exemple publié (docs/captures/convention-exemple.pdf) n'ait pas de blanc.

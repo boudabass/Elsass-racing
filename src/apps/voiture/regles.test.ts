@@ -5,6 +5,7 @@ import {
   CHAMPS_REGLAGE,
   comparer,
   emplacementsDepuisGabarit,
+  emplacementsManquants,
   etatPapiers,
   etatPapiersVehicule,
   joursAvantEcheance,
@@ -83,28 +84,81 @@ describe("papiers : etatPapiers", () => {
 describe("emplacements : emplacementsDepuisGabarit", () => {
   const emplacements = emplacementsDepuisGabarit(gabaritSaxo)
 
-  it("crée les emplacements de la vue droite, les miroirs de la vue gauche, et les hors plan", () => {
+  it("une ligne par côté pour chaque symétrique, et une ligne pour chaque autre emplacement : 17 pour la Saxo", () => {
     const parVue = (vue: string) => emplacements.filter((e) => e.vue === vue).length
     expect(parVue("droite")).toBe(6)
     expect(parVue("gauche")).toBe(5)
-    expect(parVue("hors_plan")).toBe(4)
-    expect(emplacements).toHaveLength(15)
+    expect(parVue("avant")).toBe(1)
+    expect(parVue("arriere")).toBe(3)
+    expect(parVue("dessus")).toBe(2)
+    expect(parVue("hors_plan")).toBe(0)
+    expect(emplacements).toHaveLength(17)
   })
 
-  it("seuls les emplacements symétriques ont un miroir à gauche", () => {
+  it("le côté est dans le nom stocké, à droite comme à gauche", () => {
     const gauche = emplacements.filter((e) => e.vue === "gauche").map((e) => e.nom)
-    expect(gauche).toEqual(["Portière", "Custode arrière", "Aile avant", "Aile arrière", "Bas de caisse"])
-    expect(gauche).not.toContain("Bandeau de pare-brise")
+    expect(gauche).toEqual([
+      "Portière gauche",
+      "Custode arrière gauche",
+      "Aile avant gauche",
+      "Aile arrière gauche",
+      "Bas de caisse gauche",
+    ])
+    expect(emplacements.find((e) => e.vue === "droite" && e.nom === "Portière droite")).toBeDefined()
+    expect(emplacements.find((e) => e.nom === "Bandeau de pare-brise")?.symetrique).toBe(false)
   })
 
-  it("le miroir reprend la forme de la vue droite", () => {
-    const droite = emplacements.find((e) => e.vue === "droite" && e.nom === "Portière")
-    const miroir = emplacements.find((e) => e.vue === "gauche" && e.nom === "Portière")
-    expect(miroir?.forme).toEqual(droite?.forme)
+  it("la forme gauche est la forme droite retournée autour de l'axe du viewBox", () => {
+    const droite = emplacements.find((e) => e.nom === "Portière droite")
+    const gauche = emplacements.find((e) => e.nom === "Portière gauche")
+    expect(droite?.forme).toEqual({ type: "rect", x: 150.7, y: 61.2, l: 87.1, h: 17.4 })
+    expect(gauche?.forme?.type).toBe("rect")
+    if (gauche?.forme?.type === "rect") {
+      expect(gauche.forme.x).toBeCloseTo(370 - 150.7 - 87.1)
+      expect(gauche.forme.y).toBe(61.2)
+      expect(gauche.forme.l).toBe(87.1)
+    }
   })
 
-  it("tous les emplacements sont créés libres", () => {
+  it("chaque emplacement de la Saxo a une forme, et tous sont créés libres", () => {
+    expect(emplacements.every((e) => e.forme !== null)).toBe(true)
     expect(emplacements.every((e) => e.statut === "libre")).toBe(true)
+  })
+})
+
+describe("emplacements : complément d'un véhicule existant", () => {
+  const attendus = emplacementsDepuisGabarit(gabaritSaxo)
+
+  it("un véhicule déjà complet n'a rien à recevoir", () => {
+    const existants = attendus.map((e) => ({ vue: e.vue, nom: e.nom }))
+    expect(emplacementsManquants(existants, attendus)).toEqual([])
+  })
+
+  it("un véhicule d'avant les vues ajoutées reçoit les seuls emplacements qui lui manquent", () => {
+    const anciens = attendus.filter((e) => e.vue === "droite" || e.vue === "gauche").map((e) => ({ vue: e.vue, nom: e.nom }))
+    const manquants = emplacementsManquants(anciens, attendus)
+    expect(manquants.map((e) => `${e.vue}:${e.nom}`)).toEqual([
+      "dessus:Capot",
+      "arriere:Hayon",
+      "arriere:Lunette arrière",
+      "dessus:Toit",
+      "avant:Pare-chocs avant",
+      "arriere:Pare-chocs arrière",
+    ])
+  })
+
+  it("idempotent : une seconde passe après l'ajout ne trouve plus rien", () => {
+    const existants = attendus.filter((e) => e.vue === "droite").map((e) => ({ vue: e.vue, nom: e.nom }))
+    const premiere = emplacementsManquants(existants, attendus)
+    const apres = [...existants, ...premiere.map((e) => ({ vue: e.vue, nom: e.nom }))]
+    expect(emplacementsManquants(apres, attendus)).toEqual([])
+  })
+
+  it("la clé est la vue et le nom : un même nom dans une autre vue n'est pas un doublon", () => {
+    const existants = [{ vue: "dessus" as const, nom: "Capot" }]
+    const manquants = emplacementsManquants(existants, attendus)
+    expect(manquants.find((e) => e.nom === "Capot")).toBeUndefined()
+    expect(manquants.find((e) => e.vue === "arriere" && e.nom === "Hayon")).toBeDefined()
   })
 })
 

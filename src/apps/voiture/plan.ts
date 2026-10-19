@@ -1,11 +1,12 @@
 // Géométrie du plan de déco (brief 3.4). Fonctions pures : le composant et les tests les partagent.
-// Les formes stockées sont dans les coordonnées du gabarit (vue droite). La vue gauche est le miroir de la droite,
-// calculé ici, jamais stocké : un emplacement symétrique n'a qu'une forme.
+// Les formes stockées sont dans les coordonnées du gabarit, et chaque emplacement a sa forme dans sa propre vue
+// (la ligne « Portière gauche » a sa forme gauche, stockée). Le dessin, lui, peut être retourné : une vue gauche
+// reprend le dessin droit en miroir, sans rien toucher aux formes.
 
-import type { FormeEmplacement, VueGabarit } from "./gabarits/types"
+import type { ElementDessin, FormeEmplacement, Gabarit, VueGabarit } from "./gabarits/types"
 import type { StatutEmplacement } from "./regles"
 
-export type VuePlan = "droite" | "gauche"
+export type VuePlan = Exclude<VueGabarit, "hors_plan">
 
 // Viewbox du gabarit : x, y (coin haut-gauche), l et h (largeur et hauteur).
 export interface Bornes {
@@ -63,22 +64,24 @@ export function miroirDeForme(forme: FormeEmplacement, bornes: Bornes): FormeEmp
   return { type: "polygone", points: forme.points.map(([x, y]) => [axe - x, y] as [number, number]) }
 }
 
-// La forme telle qu'elle se dessine dans la vue demandée.
-export function formeAffichee(forme: FormeEmplacement, vue: VuePlan, bornes: Bornes): FormeEmplacement {
-  return vue === "gauche" ? miroirDeForme(forme, bornes) : forme
+// Dessin d'une vue : ses éléments, et s'ils sont à retourner (vue en miroir d'une autre). Null si la vue n'a pas de dessin.
+export function dessinDeLaVue(gabarit: Gabarit, vue: VuePlan): { elements: ElementDessin[]; retourne: boolean } | null {
+  const dessinee = gabarit.vuesDessinees.find((v) => v.vue === vue)
+  if (!dessinee) return null
+  if (dessinee.miroirDe) {
+    const source = gabarit.vuesDessinees.find((v) => v.vue === dessinee.miroirDe)
+    return source?.dessin ? { elements: source.dessin, retourne: true } : null
+  }
+  return dessinee.dessin ? { elements: dessinee.dessin, retourne: false } : null
 }
 
-// Emplacements dessinés dans une vue : côté droit, tous les emplacements droits ; côté gauche, les symétriques.
-// Les emplacements hors plan n'ont pas de forme et ne se dessinent jamais.
-export function emplacementsDessines<T extends { vue: VueGabarit; symetrique: boolean; forme: FormeEmplacement | null }>(
-  emplacements: T[],
-  vue: VuePlan,
-): T[] {
-  return emplacements.filter((e) => e.forme !== null && e.vue === "droite" && (vue === "droite" || e.symetrique))
+// Emplacements dessinés dans une vue : ceux de cette vue qui ont une forme. Les hors plan n'ont pas de forme.
+export function emplacementsDessines<T extends { vue: VueGabarit; forme: FormeEmplacement | null }>(emplacements: T[], vue: VuePlan): T[] {
+  return emplacements.filter((e) => e.forme !== null && e.vue === vue)
 }
 
 // Liste d'une vue : les emplacements dessinés, puis les hors plan (toujours présents, sous « Autres emplacements »).
-export function emplacementsDeLaListe<T extends { vue: VueGabarit; symetrique: boolean; forme: FormeEmplacement | null }>(
+export function emplacementsDeLaListe<T extends { vue: VueGabarit; forme: FormeEmplacement | null }>(
   emplacements: T[],
   vue: VuePlan,
 ): { plan: T[]; horsPlan: T[] } {

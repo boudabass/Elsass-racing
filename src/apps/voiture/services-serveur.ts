@@ -21,6 +21,7 @@ import { ErreurVoiture, refus } from "./erreurs"
 import {
   CHAMPS_REGLAGE,
   emplacementsDepuisGabarit,
+  emplacementsManquants,
   peutRecevoirOccupation,
   preremplir,
   statutEmplacement,
@@ -212,6 +213,52 @@ export async function creerVehiculeDans(ctx: ContexteTeam, entree: EntreeVehicul
   // Un seul événement pour la création : les emplacements arrivent avec le véhicule (sans gabarit, il n'y en a pas).
   if (modele) await emettre(ctx, "voiture.emplacement_modifie", chargeEmplacementModifie.parse({ vehicleId: id }))
   return id
+}
+
+// Complément d'un véhicule créé avant une vue ajoutée au gabarit : les emplacements du gabarit qu'il n'a pas
+// (même vue, même nom) sont ajoutés. Lancé à la demande d'un membre ayant l'écriture sur Voiture, jamais au démarrage.
+// Renvoie le nombre d'emplacements ajoutés : une seconde passe n'ajoute rien.
+export async function completerGabaritDans(ctx: ContexteTeam, vehicleId: string): Promise<number> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const vehicule = await client.voitureVehicle.findFirst({
+    where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
+    select: { gabaritCle: true },
+  })
+  if (!vehicule) refus("Véhicule introuvable.")
+  const modele = vehicule.gabaritCle ? gabarit(vehicule.gabaritCle) : null
+  if (!modele) refus("Ce véhicule n'a pas de gabarit à compléter.")
+
+  const existants = await client.voitureSlot.findMany({
+    where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
+    select: { vue: true, nom: true },
+  })
+  const manquants = emplacementsManquants(existants, emplacementsDepuisGabarit(modele))
+  if (manquants.length === 0) return 0
+
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    await tx.voitureSlot.createMany({
+      data: manquants.map((e) => ({
+        id: newId(),
+        teamId: ctx.teamId,
+        vehicleId,
+        vue: e.vue,
+        nom: e.nom,
+        ordre: e.ordre,
+        forme: e.forme ?? undefined,
+        symetrique: e.symetrique,
+        statut: e.statut,
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
+      })),
+    })
+  })
+  await emettre(ctx, "voiture.emplacement_modifie", chargeEmplacementModifie.parse({ vehicleId }))
+  return manquants.length
+}
+
+export async function completerGabarit(vehicleId: string): Promise<number> {
+  const { ctx } = await accesVoiture("ecriture")
+  return completerGabaritDans(ctx, vehicleId)
 }
 
 // Ligne voiture_vehicle d'un véhicule du socle. Crée la ligne à la volée (véhicules créés par Saison à
@@ -446,7 +493,6 @@ export async function modifierEmplacementDans(
 ): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const slot = await emplacementActifDans(client, ctx, slotId)
-  if (champs.symetrique === true && slot.vue !== "droite") refus("Seul un emplacement du côté droit peut être symétrique à gauche.")
   const data: Record<string, unknown> = {}
   if (champs.symetrique !== undefined) data.symetrique = champs.symetrique
   if (champs.nom !== undefined) {

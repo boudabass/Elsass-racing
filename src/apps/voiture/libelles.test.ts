@@ -1,18 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { COULEUR_ETAT_PAPIERS, LIBELLE_ETAT_PAPIERS, LIBELLE_STATUT_EMPLACEMENT, LIBELLE_TYPE_PAPIER, LIBELLE_TYPE_VEHICULE, groupeEtClasse, libelleDuPapier, libelleEmplacementPourChoix } from "./libelles"
-
-describe("libelleEmplacementPourChoix", () => {
-  it("nomme le côté d'un emplacement symétrique, à gauche comme à droite", () => {
-    expect(libelleEmplacementPourChoix("Portière", "gauche", true)).toBe("Portière, côté gauche")
-    expect(libelleEmplacementPourChoix("Portière", "droite", true)).toBe("Portière, côté droit")
-  })
-
-  it("ne nomme pas le côté d'un emplacement sans paire ni d'un emplacement hors plan", () => {
-    expect(libelleEmplacementPourChoix("Bandeau de pare-brise", "droite", false)).toBe("Bandeau de pare-brise")
-    expect(libelleEmplacementPourChoix("Capot", "hors_plan", false)).toBe("Capot")
-  })
-})
+import { COULEUR_ETAT_PAPIERS, LIBELLE_ETAT_PAPIERS, LIBELLE_STATUT_EMPLACEMENT, LIBELLE_TYPE_PAPIER, LIBELLE_TYPE_VEHICULE, groupeEtClasse, libelleDuPapier } from "./libelles"
 
 describe("libellés de Voiture", () => {
   it("chaque type de véhicule a son libellé français", () => {

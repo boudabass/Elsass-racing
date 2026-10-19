@@ -6,10 +6,10 @@ import {
   bornesDu,
   comptesDeStatuts,
   deplacerForme,
+  dessinDeLaVue,
   emplacementsDeLaListe,
   emplacementsDessines,
   etendueDe,
-  formeAffichee,
   formeAuCentre,
   formeDeJson,
   formeDuChamp,
@@ -17,6 +17,7 @@ import {
   miroirDeForme,
   redimensionnerForme,
 } from "./plan"
+import { emplacementsDepuisGabarit } from "./regles"
 
 const bornes = bornesDu(gabaritSaxo.viewBox)
 
@@ -38,25 +39,34 @@ describe("plan de déco : géométrie", () => {
     expect(miroir).toEqual({ type: "polygone", points: [[360, 1], [350, 2]] })
   })
 
-  it("côté gauche : seuls les emplacements symétriques de la vue droite sont dessinés (5 sur 6 pour la Saxo)", () => {
-    const emplacements = gabaritSaxo.emplacementsTypes.map((t, i) => ({ id: String(i), ...t, vue: t.vue }))
+  it("chaque vue ne dessine que ses emplacements : 6 à droite, 5 à gauche, 1 à l'avant, 3 à l'arrière, 2 dessus", () => {
+    const emplacements = emplacementsDepuisGabarit(gabaritSaxo).map((e, i) => ({ id: String(i), ...e }))
     expect(emplacementsDessines(emplacements, "droite")).toHaveLength(6)
     const gauche = emplacementsDessines(emplacements, "gauche")
     expect(gauche).toHaveLength(5)
-    expect(gauche.map((e) => e.nom)).not.toContain("Bandeau de pare-brise")
+    expect(gauche.every((e) => e.nom.endsWith(" gauche"))).toBe(true)
+    expect(emplacementsDessines(emplacements, "avant")).toHaveLength(1)
+    expect(emplacementsDessines(emplacements, "arriere")).toHaveLength(3)
+    expect(emplacementsDessines(emplacements, "dessus")).toHaveLength(2)
   })
 
-  it("la liste garde les hors plan, sous « Autres emplacements », dans les deux côtés", () => {
-    const emplacements = gabaritSaxo.emplacementsTypes.map((t, i) => ({ id: String(i), ...t }))
-    expect(emplacementsDeLaListe(emplacements, "droite").plan).toHaveLength(6)
-    expect(emplacementsDeLaListe(emplacements, "droite").horsPlan).toHaveLength(4)
-    expect(emplacementsDeLaListe(emplacements, "gauche").horsPlan).toHaveLength(4)
+  it("la liste d'une vue ne contient que ses emplacements dessinés, sans hors plan pour la Saxo", () => {
+    const emplacements = emplacementsDepuisGabarit(gabaritSaxo).map((e, i) => ({ id: String(i), ...e }))
+    expect(emplacementsDeLaListe(emplacements, "gauche").plan.map((e) => e.nom)).toContain("Portière gauche")
+    expect(emplacementsDeLaListe(emplacements, "gauche").horsPlan).toHaveLength(0)
   })
 
-  it("forme affichée : la vue gauche prend le miroir, la vue droite non", () => {
-    const forme = { type: "rect" as const, x: 29.6, y: 78, l: 23, h: 13.5 }
-    expect(formeAffichee(forme, "droite", bornes)).toBe(forme)
-    expect(etendueDe(formeAffichee(forme, "gauche", bornes)).x).toBeCloseTo(370 - 29.6 - 23)
+  it("un dessin hors plan (sans forme) ne se dessine dans aucune vue", () => {
+    const sansForme = [{ vue: "avant" as const, forme: null }]
+    expect(emplacementsDessines(sansForme, "avant")).toHaveLength(0)
+  })
+
+  it("dessin d'une vue : la gauche reprend le dessin droit à retourner, les autres vues ont le leur", () => {
+    expect(dessinDeLaVue(gabaritSaxo, "gauche")?.retourne).toBe(true)
+    expect(dessinDeLaVue(gabaritSaxo, "gauche")?.elements).toBe(gabaritSaxo.vuesDessinees[0].dessin)
+    expect(dessinDeLaVue(gabaritSaxo, "droite")?.retourne).toBe(false)
+    expect(dessinDeLaVue(gabaritSaxo, "arriere")?.elements).toBe(gabaritSaxo.vuesDessinees.find((v) => v.vue === "arriere")?.dessin)
+    expect(dessinDeLaVue(gabaritSaxo, "arriere")?.retourne).toBe(false)
   })
 
   it("nouvel emplacement : 60 × 20 unités, centré sur le viewBox", () => {

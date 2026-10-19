@@ -3,7 +3,7 @@
 // docs/captures/ : à 1440 px, à 360 px, et en thème clair à 1440 px.
 import path from "node:path"
 
-import type { Locator, Page } from "@playwright/test"
+import type { Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
@@ -61,8 +61,10 @@ const plan = (page: Page) => page.getByRole("group", { name: /^Plan de Saxo 2/ }
 const listePlan = (page: Page) => page.locator('section[aria-labelledby="liste-emplacements"] > ul')
 const listeHorsPlan = (page: Page) => page.locator('section[aria-labelledby="autres-emplacements"] ul')
 const ligne = (page: Page, nom: string) => listePlan(page).locator("button", { hasText: nom })
-const ligneHorsPlan = (page: Page, nom: string) => listeHorsPlan(page).locator("button", { hasText: nom })
-// Une forme du plan, par son nom accessible (« Aile arrière, Libre »).
+// Le sélecteur de vues : « Côté droit », « Côté gauche », « Avant », « Arrière », « Dessus ».
+const boutonVue = (page: Page, titre: string) =>
+  page.getByRole("group", { name: "Vue du véhicule" }).getByRole("button", { name: titre, exact: true })
+// Une forme du plan, par son nom accessible (« Aile arrière droite, Libre »).
 const forme = (page: Page, nom: string) => page.locator(`svg rect[aria-label^="${nom}"], svg polygon[aria-label^="${nom}"]`).first()
 const formesDuPlan = (page: Page) => page.locator('svg [role="button"]')
 
@@ -98,21 +100,31 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   const vehiculeId = await creerSaxoDeux(page)
   await page.getByRole("link", { name: "Déco" }).click()
 
-  // 1. Plan : six formes à droite, cinq à gauche (le bandeau de pare-brise n'est pas symétrique), dix dans la liste.
+  // 1. Plan : six formes à droite, cinq à gauche (le bandeau de pare-brise n'est pas symétrique). Chaque vue a ses
+  // propres emplacements : arrière 3, avant 1, dessus 2. Un nouveau véhicule n'a aucun emplacement hors plan.
   await expect(plan(page)).toBeVisible()
   await expect(formesDuPlan(page)).toHaveCount(6)
   await expect(listePlan(page).locator("li")).toHaveCount(6)
   await expect(page.getByRole("heading", { name: "Autres emplacements" })).toBeVisible()
-  await expect(listeHorsPlan(page).locator("li")).toHaveCount(4)
-  await page.getByRole("button", { name: "Côté gauche" }).click()
+  await expect(listeHorsPlan(page).locator("li")).toHaveCount(0)
+  await boutonVue(page, "Côté gauche").click()
   await expect(page).toHaveURL(/vue=gauche/)
   await expect(formesDuPlan(page)).toHaveCount(5)
   await expect(page.getByRole("group", { name: /côté gauche/ })).toBeVisible()
-  await page.getByRole("button", { name: "Côté droit" }).click()
+  await boutonVue(page, "Arrière").click()
+  await expect(page).toHaveURL(/vue=arriere/)
+  await expect(formesDuPlan(page)).toHaveCount(3)
+  await expect(listePlan(page).locator("li")).toHaveCount(3)
+  await boutonVue(page, "Avant").click()
+  await expect(formesDuPlan(page)).toHaveCount(1)
+  await boutonVue(page, "Dessus").click()
+  await expect(formesDuPlan(page)).toHaveCount(2)
+  await expect(page.getByRole("group", { name: /^Plan de Saxo 2, dessus/ })).toBeVisible()
+  await boutonVue(page, "Côté droit").click()
   await expect(page).toHaveURL(/vue=droite/)
   await expect(page.getByText("6 libres · 0 réservés · 0 occupés · 0 indisponibles")).toBeVisible()
 
-  // 2. Réserver : « Portière », puis « Réserver », avec un nom et un logo PNG.
+  // 2. Réserver : « Portière droite », puis « Réserver », avec un nom et un logo PNG.
   await ligne(page, "Portière").click()
   await page.getByRole("button", { name: "Réserver", exact: true }).click()
   await page.locator('select[name="partenaireId"]').selectOption("")
@@ -133,18 +145,28 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   await expect.poll(() => compterEvenements(equipe, "voiture.logo_pose"), { timeout: 30_000 }).toBeGreaterThanOrEqual(1)
   await capturer(page, "voiture-deco-pose-1440.png")
 
-  // 4. Indisponible : « Toit » (hors plan) devient indisponible, puis revient.
+  // 4. Indisponible : « Toit », dans la vue dessus, devient indisponible, puis revient.
   await fermerTiroir(page)
-  await ligneHorsPlan(page, "Toit").click()
+  await boutonVue(page, "Dessus").click()
+  await ligne(page, "Toit").click()
   await page.getByRole("button", { name: "Rendre indisponible" }).click()
-  await expect(ligneHorsPlan(page, "Toit").getByText("Indisponible")).toBeVisible()
+  await expect(ligne(page, "Toit").getByText("Indisponible")).toBeVisible()
   await page.getByRole("button", { name: "Rendre disponible" }).click()
-  await expect(ligneHorsPlan(page, "Toit").getByText("Libre")).toBeVisible()
+  await expect(ligne(page, "Toit").getByText("Libre")).toBeVisible()
+  await fermerTiroir(page)
+  await boutonVue(page, "Côté droit").click()
+  await expect(page).toHaveURL(/vue=droite/)
 
-  // 5. Déplacer au clavier : « Aile arrière », X de +10 dans le champ, puis enregistrer. Après rechargement, la forme a
-  // la nouvelle position à droite, et à gauche (miroir : 370 − x − largeur).
+  // 5. Déplacer au clavier : « Aile arrière droite », X de +10 dans le champ, puis enregistrer. Après rechargement, la
+  // forme a la nouvelle position à droite. Le côté gauche est sa propre ligne : il ne bouge pas avec la droite.
+  await boutonVue(page, "Côté gauche").click()
+  await expect(page).toHaveURL(/vue=gauche/)
+  const xGaucheAvant = Number(await forme(page, "Aile arrière").getAttribute("x"))
+  await boutonVue(page, "Côté droit").click()
+  await expect(page).toHaveURL(/vue=droite/)
   await fermerTiroir(page)
   await ligne(page, "Aile arrière").click()
+  await expect(page.getByRole("dialog")).toBeVisible()
   const xAvant = Number(await forme(page, "Aile arrière").getAttribute("x"))
   await page.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
   // Pendant « Déplacer », un autre emplacement ne se choisit pas : la liste est inerte, la fiche reste la même.
@@ -154,16 +176,22 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   await page.getByRole("button", { name: "Enregistrer la position" }).click()
   await expect(page.getByRole("button", { name: "Déplacer ou redimensionner" })).toBeVisible()
   await page.reload()
+  await page.waitForLoadState("networkidle")
   await expect.poll(async () => Number(await forme(page, "Aile arrière").getAttribute("x"))).toBeCloseTo(xAvant + 10, 1)
-  await page.getByRole("button", { name: "Côté gauche" }).click()
-  await expect.poll(async () => Number(await forme(page, "Aile arrière").getAttribute("x"))).toBeCloseTo(370 - (xAvant + 10) - 23, 1)
-  await page.getByRole("button", { name: "Côté droit" }).click()
+  await boutonVue(page, "Côté gauche").click()
+  await expect.poll(async () => Number(await forme(page, "Aile arrière").getAttribute("x"))).toBeCloseTo(xGaucheAvant, 1)
+  await boutonVue(page, "Côté droit").click()
+  // Attendre la vue droite avant de cliquer une ligne : un clic pendant le changement de vue choisit une forme de la vue
+  // quittée, qui disparaît avec la vue (le tiroir se ferme).
+  await expect(page).toHaveURL(/vue=droite/)
 
   // 6. Déplacer au pointeur : « Aile avant » glissée de 20 px. Capture du mode déplacement avant d'enregistrer.
   await fermerTiroir(page)
   await ligne(page, "Aile avant").click()
+  await expect(page.getByRole("dialog")).toBeVisible()
   const xAvantPointeur = Number(await forme(page, "Aile avant").getAttribute("x"))
   await page.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
+  await forme(page, "Aile avant").scrollIntoViewIfNeeded()
   const boite = await forme(page, "Aile avant").boundingBox()
   if (!boite) throw new Error("Aile avant : pas de boîte à l'écran")
   const centre = { x: boite.x + boite.width / 2, y: boite.y + boite.height / 2 }
@@ -417,7 +445,7 @@ test("assistance : le plan et le panneau en lecture seule, sans aucun bouton d'a
   await expect(formesDuPlan(page)).toHaveCount(6)
   await expect(listePlan(page).locator("li")).toHaveCount(6)
   await ligne(page, "Portière").click()
-  await expect(page.getByRole("heading", { name: "Portière" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Portière droite", exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Réserver", exact: true })).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Rendre indisponible" })).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Déplacer ou redimensionner" })).toHaveCount(0)
@@ -446,9 +474,9 @@ test("responsable : une étape modifiée demande « Abandonner les modifications
   await etape.getByRole("button", { name: "Annuler", exact: true }).click()
   await etape.getByRole("button", { name: "Abandonner", exact: true }).click()
   // Abandonner revient à la fiche, sans rien enregistrer.
-  await expect(page.getByRole("dialog", { name: "Portière", exact: true })).toBeVisible()
+  await expect(page.getByRole("dialog", { name: "Portière droite", exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Modifier l'emplacement", exact: true })).toBeVisible()
-  await expect(listePlan(page).getByText("Portière", { exact: true })).toBeVisible()
+  await expect(listePlan(page).getByText("Portière droite", { exact: true })).toBeVisible()
   await expect(listePlan(page).getByText("Portière arrière")).toHaveCount(0)
 
   await page.getByRole("dialog").getByRole("button", { name: "Fermer", exact: true }).click()
@@ -462,8 +490,9 @@ async function attendreTiroir(page: Page): Promise<void> {
 
 // Captures du brief 3.13 (phase A) : les tiroirs de la Déco, en thème clair. Une saisie (réserver), une étape de pose, une
 // confirmation (annuler la réservation) et la garde « Abandonner les modifications ? ». Chacune est l'écran visible.
-async function capturerTiroirsDeco(page: Page, emplacement: Locator, taille: string): Promise<void> {
-  await emplacement.click()
+async function capturerTiroirsDeco(page: Page, vue: string, nom: string, taille: string): Promise<void> {
+  await boutonVue(page, vue).click()
+  await ligne(page, nom).click()
   await page.getByRole("button", { name: "Réserver", exact: true }).click()
   await page.locator('select[name="partenaireId"]').selectOption("")
   await page.locator('input[name="partenaireNom"]').fill("Garage Muller")
@@ -503,7 +532,36 @@ test("captures 3.13 · tiroirs de la Déco, en thème clair, à 1440 et à 360 p
   const vehiculeId = await creerSaxoDeux(page)
   await passerEnThemeClair(page)
   await ouvrirDeco(page, vehiculeId)
-  await capturerTiroirsDeco(page, ligneHorsPlan(page, "Capot"), "1440x900")
+  await capturerTiroirsDeco(page, "Dessus", "Capot", "1440x900")
   await page.setViewportSize(TELEPHONE)
-  await capturerTiroirsDeco(page, ligneHorsPlan(page, "Hayon"), "360x740")
+  await capturerTiroirsDeco(page, "Arrière", "Hayon", "360x740")
+})
+
+// Captures de chaque vue du plan (brief 3.4) : le plan et la liste groupée, à 1440 px puis à 360 px. La liste de la vue
+// montre le côté dans le nom (« Portière gauche »). Une vue sans emplacement n'existerait pas dans le gabarit de la Saxo.
+const VUES_DECO = [
+  { vue: "Côté droit", fichier: "droite" },
+  { vue: "Côté gauche", fichier: "gauche" },
+  { vue: "Avant", fichier: "avant" },
+  { vue: "Arrière", fichier: "arriere" },
+  { vue: "Dessus", fichier: "dessus" },
+] as const
+
+test("captures · la Déco de la Saxo, vue par vue, à 1440 et à 360 px", async ({ page, equipe }) => {
+  test.setTimeout(480_000)
+  await connecterParLien(page, equipe)
+  await page.setViewportSize(BUREAU)
+  const vehiculeId = await creerSaxoDeux(page)
+  await ouvrirDeco(page, vehiculeId)
+
+  for (const taille of [{ largeur: BUREAU, suffixe: "1440" }, { largeur: TELEPHONE, suffixe: "360" }]) {
+    await page.setViewportSize(taille.largeur)
+    for (const { vue, fichier } of VUES_DECO) {
+      await boutonVue(page, vue).click()
+      await expect(page.getByRole("group", { name: new RegExp(`^Plan de Saxo 2, ${vue.toLowerCase()}$`) })).toBeVisible()
+      await expect(page.getByRole("heading", { name: "Autres emplacements" })).toBeVisible()
+      await capturer(page, `deco-vue-${fichier}-${taille.suffixe}.png`)
+      if (taille.suffixe === "360") await sansDefilementHorizontal(page)
+    }
+  }
 })

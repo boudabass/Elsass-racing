@@ -29,7 +29,7 @@ import {
   supprimerEmplacementAction,
 } from "../actions"
 import { LIBELLE_STATUT_EMPLACEMENT, COULEUR_STATUT_EMPLACEMENT, TITRE_VUE, dateEnToutesLettres, dimensionsDe } from "../libelles"
-import { COTE_MINIMAL, etendueDe, formeDuChamp, type Bornes, type EmplacementPlan, type VuePlan } from "../plan"
+import { COTE_MINIMAL, etendueDe, formeDuChamp, type Bornes, type EmplacementPlan } from "../plan"
 
 const ACCEPT_LOGO = "image/jpeg,image/png,image/webp,image/svg+xml"
 const ACCEPT_PHOTO = "image/jpeg,image/png,image/webp"
@@ -39,7 +39,6 @@ export type EtapeEmplacement = "reserver" | "poser" | "annuler" | "retirer" | "m
 
 interface TiroirEmplacementProps {
   emplacement: EmplacementPlan
-  vue: VuePlan
   peutEcrire: boolean
   partenaires: PartenaireReservable[]
   bornes: Bornes
@@ -74,7 +73,7 @@ export function TiroirEmplacement(props: TiroirEmplacementProps) {
       libelleAnnuler="Fermer"
       modal={modal}
     >
-      <PanneauEmplacement emplacement={emplacement} vue={props.vue} peutEcrire={props.peutEcrire} onEtape={onEtape} />
+      <PanneauEmplacement emplacement={emplacement} peutEcrire={props.peutEcrire} onEtape={onEtape} />
     </Tiroir>
   )
   if (etape === null) return fiche
@@ -148,19 +147,17 @@ export function TiroirEmplacement(props: TiroirEmplacementProps) {
 // La fiche : les dimensions, le statut, le partenaire, les images, puis les actions.
 function PanneauEmplacement({
   emplacement,
-  vue,
   peutEcrire,
   onEtape,
 }: {
   emplacement: EmplacementPlan
-  vue: VuePlan
   peutEcrire: boolean
   onEtape: (etape: EtapeEmplacement) => void
 }) {
   const occupation = emplacement.occupation
   const dimensions = dimensionsDe(emplacement.largeurCm, emplacement.hauteurCm)
   const statut = emplacement.statut
-  const formeOriginale = emplacement.forme !== null && vue === "droite"
+  const formeOriginale = emplacement.forme !== null
 
   return (
     <div className="flex flex-col gap-5">
@@ -249,9 +246,6 @@ function PanneauEmplacement({
             <button type="button" className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`} aria-haspopup="dialog" onClick={() => onEtape("position")}>
               Déplacer ou redimensionner
             </button>
-          )}
-          {emplacement.forme !== null && vue === "gauche" && (
-            <p className="text-sm text-texte-discret">Le déplacement se fait côté droit : le côté gauche suit.</p>
           )}
 
           <button type="button" className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`} aria-haspopup="dialog" onClick={() => onEtape("modifier")}>

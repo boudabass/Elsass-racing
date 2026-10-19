@@ -12,7 +12,7 @@ import type { PartenaireReservable } from "@/apps/partenaires/lectures-partagees
 import { BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
 
 import type { FormeEmplacement, Gabarit } from "../gabarits/types"
-import { ajouterEmplacementAction } from "../actions"
+import { ajouterEmplacementAction, completerGabaritAction } from "../actions"
 import { COULEUR_STATUT_EMPLACEMENT, LIBELLE_STATUT_EMPLACEMENT, TITRE_VUE } from "../libelles"
 import {
   bornesDu,
@@ -54,8 +54,9 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
   const chemin = usePathname()
   const parametres = useSearchParams()
   const bornes = gabarit ? bornesDu(gabarit.viewBox) : BORNES_VIDES
-  const aCote = gabarit?.vuesDessinees.some((v) => v.vue === "gauche") ?? false
-  const vue: VuePlan = aCote && parametres.get("vue") === "gauche" ? "gauche" : "droite"
+  // Les vues proposées sont celles que le gabarit dessine (droite, gauche, avant, arrière, dessus).
+  const vuesDessinees: VuePlan[] = (gabarit?.vuesDessinees ?? []).map((v) => v.vue).filter((v): v is VuePlan => v !== "hors_plan")
+  const vue: VuePlan = vuesDessinees.find((v) => v === parametres.get("vue")) ?? "droite"
 
   const [choisi, setChoisi] = useState<string | null>(null)
   const [etape, setEtape] = useState<EtapeEmplacement | null>(null)
@@ -80,7 +81,7 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
     [emplacements, choisi, dessines, horsPlan],
   )
   // Le glissement sur le plan ne vaut que pour l'étape « position », côté droit, sur une forme.
-  const enDeplacementVisible = etape === "position" && visible !== null && vue === "droite" && visible.forme !== null
+  const enDeplacementVisible = etape === "position" && visible !== null && visible.forme !== null
   // Pendant « Déplacer ou redimensionner », seul le logo en cours bouge : le reste de la page (côtés, ajout, liste) est inerte.
   const inerte = etape === "position" ? true : undefined
 
@@ -112,25 +113,24 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
     setEtape(nouvelle)
   }
 
-  // Un ajout : l'emplacement créé est choisi. Un ajout au côté gauche part du côté droit, où il est stocké : on y bascule.
+  // Un ajout : l'emplacement créé, dans la vue affichée, est choisi.
   function ajoute(id: string) {
     choisir(id)
-    if (vue === "gauche") changerVue("droite")
   }
 
   return (
     <div className="flex flex-col gap-6">
-      {aCote && (
-        <div role="group" aria-label="Côté du véhicule" inert={inerte} className="inline-flex w-fit overflow-hidden rounded-md border border-bordure">
-          {(["droite", "gauche"] as const).map((cote) => (
+      {vuesDessinees.length > 1 && (
+        <div role="group" aria-label="Vue du véhicule" inert={inerte} className="flex w-fit flex-wrap overflow-hidden rounded-md border border-bordure">
+          {vuesDessinees.map((nouvelle) => (
             <button
-              key={cote}
+              key={nouvelle}
               type="button"
-              aria-pressed={vue === cote}
-              onClick={() => changerVue(cote)}
-              className={`cible-tactile px-4 text-sm ${vue === cote ? "bg-surface-2 font-medium text-texte" : "text-texte-discret"}`}
+              aria-pressed={vue === nouvelle}
+              onClick={() => changerVue(nouvelle)}
+              className={`cible-tactile px-4 text-sm ${vue === nouvelle ? "bg-surface-2 font-medium text-texte" : "text-texte-discret"}`}
             >
-              {TITRE_VUE[cote]}
+              {TITRE_VUE[nouvelle]}
             </button>
           ))}
         </div>
@@ -150,7 +150,8 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
           <p className="text-sm text-texte-discret">{libelleComptes(comptes)}</p>
           {peutEcrire && (
             <div inert={inerte}>
-              <AjouterEmplacement ficheId={ficheId} vue="droite" forme={formeAuCentre(bornes)} libelle="Ajouter un emplacement" onAjoute={ajoute} />
+              <AjouterEmplacement ficheId={ficheId} vue={vue} forme={formeAuCentre(bornes)} libelle="Ajouter un emplacement" onAjoute={ajoute} />
+              <CompleterGabarit ficheId={ficheId} />
             </div>
           )}
         </>
@@ -179,7 +180,6 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
         <TiroirEmplacement
           key={visible.id}
           emplacement={visible}
-          vue={vue}
           peutEcrire={peutEcrire}
           partenaires={partenaires}
           bornes={bornes}
@@ -244,6 +244,25 @@ function IndicateurStatut({ statut }: { statut: EmplacementPlan["statut"] }) {
   return <span aria-hidden="true" className={`block h-5 w-5 shrink-0 rounded-sm ${classe[statut]}`} />
 }
 
+// Complément : les emplacements des vues ajoutées au gabarit, pour un véhicule déjà créé. Sans effet si tout y est.
+function CompleterGabarit({ ficheId }: { ficheId: string }) {
+  const [resultat, envoyer, enCours] = useActionState<Resultat | null, FormData>(completerGabaritAction, null)
+  return (
+    <form action={envoyer} className="flex flex-col gap-2">
+      <input type="hidden" name="vehicleId" value={ficheId} />
+      <button type="submit" disabled={enCours} className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`}>
+        Compléter les vues du gabarit
+      </button>
+      <p className="text-sm text-texte-discret">Ajoute les emplacements des vues nouvelles, sans toucher aux existants.</p>
+      {resultat && !resultat.ok && (
+        <p role="alert" className="text-sm text-etat-rouge">
+          {resultat.message}
+        </p>
+      )}
+    </form>
+  )
+}
+
 // Ajout d'un emplacement : le service le crée, la page le choisit au retour.
 function AjouterEmplacement({
   ficheId,
@@ -253,7 +272,7 @@ function AjouterEmplacement({
   onAjoute,
 }: {
   ficheId: string
-  vue: "droite" | "hors_plan"
+  vue: VuePlan | "hors_plan"
   forme: FormeEmplacement | null
   libelle: string
   onAjoute: (id: string) => void

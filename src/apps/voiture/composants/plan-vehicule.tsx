@@ -7,13 +7,13 @@
 import { useId, useRef, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react"
 
 import type { ElementDessin, FormeEmplacement, Gabarit, RoleDessin } from "../gabarits/types"
-import { LIBELLE_STATUT_EMPLACEMENT } from "../libelles"
+import { LIBELLE_STATUT_EMPLACEMENT, TITRE_VUE } from "../libelles"
 import {
   COTE_POIGNEE,
   bornesDu,
   deplacerForme,
+  dessinDeLaVue,
   etendueDe,
-  formeAffichee,
   pasClavier,
   redimensionnerForme,
   type EmplacementPlan,
@@ -32,7 +32,7 @@ const STYLE_ROLE: Record<RoleDessin, CSSProperties> = {
   sol: { fill: "none", stroke: "var(--bordure)", strokeWidth: 1.5 },
 }
 
-// Déplacement en cours d'un emplacement (mode « Déplacer ou redimensionner », vue droite seulement).
+// Déplacement en cours d'un emplacement (mode « Déplacer ou redimensionner »), dans la vue où il est dessiné.
 export interface DeplacementEnCours {
   id: string
   forme: FormeEmplacement
@@ -62,7 +62,7 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
   const motifHachures = `${identifiant}-hachures`
   const svg = useRef<SVGSVGElement>(null)
   const glissement = useRef<Glissement | null>(null)
-  const libelleVue = vue === "droite" ? "côté droit" : "côté gauche"
+  const dessin = dessinDeLaVue(gabarit, vue)
 
   // Coordonnées du plan (celles du viewBox) pour un événement de pointeur.
   function pointDuPlan(evenement: PointerEvent<SVGElement>): { x: number; y: number } | null {
@@ -129,8 +129,8 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
   }
 
   const dessinees = emplacements.map((emplacement) => {
-    const formeBrute = deplacement?.id === emplacement.id ? deplacement.forme : emplacement.forme
-    return { emplacement, forme: formeBrute ? formeAffichee(formeBrute, vue, bornes) : null }
+    const forme = deplacement?.id === emplacement.id ? deplacement.forme : emplacement.forme
+    return { emplacement, forme }
   })
 
   return (
@@ -138,7 +138,7 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
       ref={svg}
       viewBox={gabarit.viewBox}
       role="group"
-      aria-label={`Plan de ${nomVehicule}, ${libelleVue}`}
+      aria-label={`Plan de ${nomVehicule}, ${TITRE_VUE[vue].toLowerCase()}`}
       className="block h-auto w-full"
       style={{ touchAction: deplacement ? "none" : undefined }}
     >
@@ -148,19 +148,21 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
         </pattern>
       </defs>
 
-      {/* La vue gauche est le dessin retourné autour de l'axe vertical du viewBox. */}
-      <g transform={vue === "gauche" ? `translate(${bornes.x + bornes.l} 0) scale(-1 1)` : undefined}>
-        {gabarit.dessin.map((element, index) => (
-          <TraitDessin key={index} element={element} />
-        ))}
-      </g>
+      {/* Une vue en miroir (le côté gauche) reprend le dessin droit, retourné autour de l'axe vertical du viewBox. */}
+      {dessin && (
+        <g transform={dessin.retourne ? `translate(${bornes.x + bornes.l} 0) scale(-1 1)` : undefined}>
+          {dessin.elements.map((element, index) => (
+            <TraitDessin key={index} element={element} />
+          ))}
+        </g>
+      )}
 
       {dessinees.map(({ emplacement, forme }) => {
         if (!forme) return null
         const estChoisi = emplacement.id === choisi
         // Le logo du partenaire s'affiche dès la réservation, et reste après la pose.
         const logo = emplacement.occupation?.logoFileId ?? null
-        const enDeplacement = deplacement?.id === emplacement.id && vue === "droite"
+        const enDeplacement = deplacement?.id === emplacement.id
         return (
           <g key={emplacement.id}>
             <FormeEmplacementSvg

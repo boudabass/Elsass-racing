@@ -10,6 +10,7 @@ import { reserverPourPartenaireDans } from "./liaisons-serveur"
 import { lireSaisieReglage } from "./saisie-reglage"
 import {
   ajouterEmplacement,
+  completerGabarit,
   creerPapier,
   creerVehicule,
   enregistrerCommeReference,
@@ -159,7 +160,15 @@ export async function ajouterEmplacementAction(_etat: Resultat | null, donnees: 
   })
 }
 
-// Modification : nom, dimensions en cm et, côté droit seulement, la symétrie à gauche.
+// Complément du gabarit : ajoute les emplacements des vues ajoutées au gabarit à un véhicule existant. Sans effet
+// si tout y est déjà.
+export async function completerGabaritAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerVoiture(async () => {
+    await completerGabarit(texte(donnees, "vehicleId"))
+  })
+}
+
+// Modification : nom, dimensions en cm et la symétrie (information : la paire est déjà dans le nom).
 export async function modifierEmplacementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerVoiture(() =>
     modifierEmplacement(texte(donnees, "slotId"), {

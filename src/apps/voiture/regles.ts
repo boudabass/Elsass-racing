@@ -4,6 +4,7 @@
 import { jourDeParis } from "@/core/dates"
 
 import type { Gabarit, FormeEmplacement, VueGabarit } from "./gabarits/types"
+import { bornesDu, miroirDeForme } from "./plan"
 
 // ─── 4.1 Papiers ──────────────────────────────────────────────────────────────
 
@@ -84,10 +85,10 @@ export type EmplacementInitial = {
   statut: "libre"
 }
 
-// Emplacements à créer pour un nouveau véhicule. Un emplacement symétrique est aussi créé dans chaque
-// vue qui en est le miroir (la Saxo : portière droite et portière gauche). Même forme : la symétrie
-// est appliquée à l'affichage.
+// Emplacements à créer pour un nouveau véhicule. Un emplacement symétrique devient une ligne par côté, et le côté
+// est dans le nom stocké (« Portière droite », « Portière gauche »). La forme gauche est la forme droite retournée.
 export function emplacementsDepuisGabarit(gabarit: Gabarit): EmplacementInitial[] {
+  const bornes = bornesDu(gabarit.viewBox)
   const emplacements: EmplacementInitial[] = []
   for (const type of gabarit.emplacementsTypes) {
     const vues: VueGabarit[] = [type.vue]
@@ -96,18 +97,27 @@ export function emplacementsDepuisGabarit(gabarit: Gabarit): EmplacementInitial[
         if (dessinee.miroirDe === type.vue) vues.push(dessinee.vue)
       }
     }
+    const paire = vues.length > 1
     for (const vue of vues) {
+      const forme = vue === type.vue || type.forme === null ? type.forme : miroirDeForme(type.forme, bornes)
       emplacements.push({
-        nom: type.nom,
+        nom: paire ? `${type.nom} ${vue}` : type.nom,
         vue,
         ordre: type.ordre,
-        forme: type.forme,
-        symetrique: type.symetrique,
+        forme,
+        symetrique: paire,
         statut: "libre",
       })
     }
   }
   return emplacements
+}
+
+// Emplacements du gabarit qu'un véhicule n'a pas encore : même vue et même nom. Idempotent : une seconde passe
+// ne trouve plus rien à ajouter.
+export function emplacementsManquants(existants: Array<{ vue: VueGabarit; nom: string }>, attendus: EmplacementInitial[]): EmplacementInitial[] {
+  const cles = new Set(existants.map((e) => `${e.vue}|${e.nom}`))
+  return attendus.filter((e) => !cles.has(`${e.vue}|${e.nom}`))
 }
 
 export type StatutOccupation = "reserve" | "pose" | "retire"

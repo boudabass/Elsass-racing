@@ -25,11 +25,13 @@ export type EmplacementType = {
   symetrique: boolean
 }
 
-// Vue dessinée par le gabarit. Une vue `miroirDe` reprend le dessin d'une autre vue, en symétrie
-// horizontale à l'affichage : les formes sont les mêmes dans les coordonnées du gabarit.
+// Vue dessinée par le gabarit, avec son propre dessin. Une vue `miroirDe` n'a pas de dessin : elle reprend celui
+// d'une autre vue, retourné autour de l'axe vertical du viewBox. Les emplacements, eux, ont toujours leur forme
+// stockée dans leur vue : la vue gauche n'est pas un miroir à l'affichage pour les emplacements.
 export type VueDessinee = {
   vue: VueGabarit
   miroirDe?: VueGabarit
+  dessin?: ElementDessin[]
 }
 
 export type Gabarit = {
@@ -39,6 +41,5 @@ export type Gabarit = {
   version: number
   viewBox: string
   vuesDessinees: VueDessinee[]
-  dessin: ElementDessin[]
   emplacementsTypes: EmplacementType[]
 }

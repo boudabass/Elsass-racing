@@ -150,13 +150,13 @@ async function creerConvention(page: Page, partenaireId: string, annee: number):
   return new URL(page.url()).pathname.split("/")[4]
 }
 
-// Logo sur la Portière, pris dans la liste de base.
+// Logo sur la Portière droite, pris dans la liste de base.
 async function ajouterLogo(page: Page, conventionId: string): Promise<void> {
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   await page.getByRole("button", { name: "Ajouter une contrepartie", exact: true }).click()
   const tiroir = page.getByRole("dialog")
   await tiroir.getByLabel("Dans la liste de base", { exact: true }).selectOption({ label: "Logo sur la voiture" })
-  const valeur = await tiroir.getByLabel("Emplacement sur la voiture", { exact: true }).locator("option", { hasText: "Portière" }).first().getAttribute("value")
+  const valeur = await tiroir.getByLabel("Emplacement sur la voiture", { exact: true }).locator("option", { hasText: "Portière droite" }).first().getAttribute("value")
   await tiroir.getByLabel("Emplacement sur la voiture", { exact: true }).selectOption(valeur ?? "")
   await tiroir.getByRole("button", { name: "Ajouter la contrepartie", exact: true }).click()
   await expect(ligneContrepartie(page, "Logo sur la voiture")).toBeVisible()
@@ -223,13 +223,13 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await page.reload()
   await expect(page.getByText("Intéressé", { exact: true }).first()).toBeVisible()
 
-  // 2. Saxo 2, convention de 1 500 € en deux versements, logo sur la Portière, deux publications pour l'épreuve.
+  // 2. Saxo 2, convention de 1 500 € en deux versements, logo sur la Portière droite, deux publications pour l'épreuve.
   const vehiculeId = await creerSaxoDeux(page)
   const conventionId = await creerConvention(page, partenaireId, annee)
   await ajouterLogo(page, conventionId)
   await ajouterPublications(page, conventionId)
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
-  await expect(page.getByText("Emplacement : Portière")).toBeVisible()
+  await expect(page.getByText("Emplacement : Portière droite")).toBeVisible()
   // Brouillon, à 1440 et à 360 px (brief 3.11, §6) : rien n'est encore généré ni envoyé.
   await capturer(page, "lot3-convention-brouillon-1440x900.png")
   await page.setViewportSize(TELEPHONE)
@@ -269,7 +269,7 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   // 4. Signature : la convention passe signée, et Budget reçoit deux recettes à confirmer.
   await signerConvention(page, conventionId)
   await expect.poll(() => compterEvenements(equipe, "partenaires.convention_signee")).toBe(1)
-  await ouvrirBoite(page, "Réserver la Portière pour Garage Muller ?")
+  await ouvrirBoite(page, "Réserver la Portière droite pour Garage Muller ?")
   await capturerBoite(page, "lot3-boite-reserver-1440x900.png")
   await page.keyboard.press("Escape")
 
@@ -279,7 +279,7 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await capturer(page, "lot3-budget-recettes-a-confirmer-1440x900.png")
 
   // 5. Réservation depuis la boîte. Puis confirmation des deux recettes dans Budget : chaque clic retire une proposition.
-  await ouvrirBoite(page, "Réserver la Portière pour Garage Muller ?")
+  await ouvrirBoite(page, "Réserver la Portière droite pour Garage Muller ?")
   await decider(page, "Réserver")
   await page.goto("/apps/budget/a-confirmer")
   const confirmer = page.getByRole("button", { name: "Confirmer", exact: true })
@@ -384,17 +384,17 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   expect(octetsBilan.length).toBeGreaterThan(2048)
   fs.writeFileSync(path.join(DOSSIER, "bilan-partenaire-exemple.pdf"), octetsBilan)
 
-  // 10. Résiliation : la boîte propose de libérer la Portière, et la décision la libère.
+  // 10. Résiliation : la boîte propose de libérer la Portière droite, et la décision la libère.
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   await page.getByRole("button", { name: "Résilier la convention", exact: true }).click()
   const tiroirResiliation = page.getByRole("dialog")
   await tiroirResiliation.locator("#motif-resiliation").fill("Fin de saison de test")
   await tiroirResiliation.getByRole("button", { name: "Résilier la convention", exact: true }).click()
   await page.waitForLoadState("networkidle")
-  await ouvrirBoite(page, "Libérer la Portière ? La convention de Garage Muller est terminée.")
+  await ouvrirBoite(page, "Libérer la Portière droite ? La convention de Garage Muller est terminée.")
   await decider(page, "Libérer")
   await page.goto(`/apps/voiture/vehicules/${vehiculeId}?onglet=deco`)
-  await expect(page.getByRole("group", { name: /^Plan de Saxo 2/ }).getByRole("button", { name: /Portière/ }).first()).toHaveAccessibleName(/Portière, Libre/)
+  await expect(page.getByRole("group", { name: /^Plan de Saxo 2/ }).getByRole("button", { name: /Portière/ }).first()).toHaveAccessibleName(/Portière droite, Libre/)
 
   // 11. Téléphone 360 px : les écrans du parcours, sans défilement horizontal.
   await page.setViewportSize(TELEPHONE)

@@ -5,14 +5,13 @@
 import type { ContexteTeam } from "@/core/contexte"
 import { prismaPourTeam } from "@/lib/prisma"
 
-import { libelleEmplacementPourChoix } from "./libelles"
 import { statutEmplacement, type StatutEmplacement } from "./regles"
 
 export type EmplacementPourPartenaire = {
   id: string
-  // Nom enregistré : c'est lui que copie une contrepartie et que compare le suivi des emplacements.
+  // Nom enregistré, côté compris (« Portière gauche ») : c'est lui que copie une contrepartie et que compare le suivi.
   nom: string
-  // Nom affiché dans le choix, avec le côté (« Portière, côté gauche »). Dérivé de la vue, jamais stocké.
+  // Nom affiché dans le choix : le même que le nom enregistré.
   libelle: string
   vehicleId: string
   vehicleNom: string
@@ -30,7 +29,6 @@ export async function listerEmplacementsPourPartenaires(ctx: ContexteTeam): Prom
       id: true,
       nom: true,
       vue: true,
-      symetrique: true,
       vehicleId: true,
       statut: true,
       vehicle: { select: { nomCourt: true } },
@@ -41,7 +39,7 @@ export async function listerEmplacementsPourPartenaires(ctx: ContexteTeam): Prom
   return emplacements.map((e) => ({
     id: e.id,
     nom: e.nom,
-    libelle: libelleEmplacementPourChoix(e.nom, e.vue, e.symetrique),
+    libelle: e.nom,
     vehicleId: e.vehicleId,
     vehicleNom: e.vehicle.nomCourt,
     statut: statutEmplacement(e.occupations[0] ?? null, e.statut === "indisponible"),

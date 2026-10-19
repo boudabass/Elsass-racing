@@ -100,8 +100,7 @@ export function groupeEtClasse(groupe: string | null, classe: string | null): st
   return null
 }
 
-// Vue d'un emplacement : titre du groupe dans l'onglet Déco. La vue gauche n'a pas de groupe : ses emplacements
-// sont les copies symétriques de la vue droite, indiquées par « (symétrique à gauche) ».
+// Vue d'un emplacement : titre du groupe dans l'onglet Déco, et nom de la vue dans le plan.
 export const TITRE_VUE: Record<VueGabarit, string> = {
   droite: "Côté droit",
   gauche: "Côté gauche",
@@ -109,14 +108,6 @@ export const TITRE_VUE: Record<VueGabarit, string> = {
   arriere: "Arrière",
   dessus: "Dessus",
   hors_plan: "Autres emplacements",
-}
-
-// Nom d'un emplacement dans le choix d'une contrepartie : « Portière, côté gauche ». Le côté vient de la vue : un
-// emplacement sans paire (capot, bandeau de pare-brise) garde son nom. Rien n'est stocké : le nom enregistré reste le même.
-export function libelleEmplacementPourChoix(nom: string, vue: VueGabarit, symetrique: boolean): string {
-  if (vue === "gauche") return `${nom}, côté gauche`
-  if (vue === "droite" && symetrique) return `${nom}, côté droit`
-  return nom
 }
 
 export const LIBELLE_STATUT_FINAL = {
