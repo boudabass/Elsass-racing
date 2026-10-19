@@ -39,9 +39,14 @@ describe("gabarit Saxo", () => {
     expect(sansForme).toEqual([])
   })
 
-  it("les ordres vont de 1 à 12, sans trou", () => {
+  it("les ordres vont de 1 à 11, sans trou", () => {
     const ordres = gabaritSaxo.emplacementsTypes.map((e) => e.ordre)
-    expect(ordres).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+    expect(ordres).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+  })
+
+  it("la lunette arrière n'a aucun emplacement (une vitre reste libre) et son nom est marqué comme retiré", () => {
+    expect(gabaritSaxo.emplacementsTypes.some((e) => e.nom === "Lunette arrière")).toBe(false)
+    expect(gabaritSaxo.nomsRetires).toEqual(["Lunette arrière"])
   })
 
   it("les seuls emplacements symétriques sont ceux du plan qui le sont", () => {
@@ -53,7 +58,7 @@ describe("gabarit Saxo", () => {
     const parVue = (vue: string) => gabaritSaxo.emplacementsTypes.filter((e) => e.vue === vue).map((e) => e.nom)
     expect(parVue("droite")).toEqual(["Portière", "Custode arrière", "Aile avant", "Aile arrière", "Bandeau de pare-brise", "Bas de caisse"])
     expect(parVue("avant")).toEqual(["Pare-chocs avant"])
-    expect(parVue("arriere")).toEqual(["Hayon", "Lunette arrière", "Pare-chocs arrière"])
+    expect(parVue("arriere")).toEqual(["Hayon", "Pare-chocs arrière"])
     expect(parVue("dessus")).toEqual(["Capot", "Toit"])
   })
 

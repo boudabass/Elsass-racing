@@ -12,7 +12,7 @@ import type { PartenaireReservable } from "@/apps/partenaires/lectures-partagees
 import { BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
 
 import type { FormeEmplacement, Gabarit } from "../gabarits/types"
-import { ajouterEmplacementAction, completerGabaritAction } from "../actions"
+import { ajouterEmplacementAction, completerGabaritAction, type ResultatComplement } from "../actions"
 import { COULEUR_STATUT_EMPLACEMENT, LIBELLE_STATUT_EMPLACEMENT, TITRE_VUE } from "../libelles"
 import {
   bornesDu,
@@ -151,7 +151,7 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
           {peutEcrire && (
             <div inert={inerte}>
               <AjouterEmplacement ficheId={ficheId} vue={vue} forme={formeAuCentre(bornes)} libelle="Ajouter un emplacement" onAjoute={ajoute} />
-              <CompleterGabarit ficheId={ficheId} />
+              <CompleterGabarit ficheId={ficheId} vue={vue} />
             </div>
           )}
         </>
@@ -245,18 +245,27 @@ function IndicateurStatut({ statut }: { statut: EmplacementPlan["statut"] }) {
 }
 
 // Complément : les emplacements des vues ajoutées au gabarit, pour un véhicule déjà créé. Sans effet si tout y est.
-function CompleterGabarit({ ficheId }: { ficheId: string }) {
-  const [resultat, envoyer, enCours] = useActionState<Resultat | null, FormData>(completerGabaritAction, null)
+// Les lignes hors plan sans équivalent sont rangées dans la vue affichée (`vue`).
+function CompleterGabarit({ ficheId, vue }: { ficheId: string; vue: VuePlan }) {
+  const [resultat, envoyer, enCours] = useActionState<ResultatComplement | null, FormData>(completerGabaritAction, null)
   return (
     <form action={envoyer} className="flex flex-col gap-2">
       <input type="hidden" name="vehicleId" value={ficheId} />
+      <input type="hidden" name="vue" value={vue} />
       <button type="submit" disabled={enCours} className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`}>
         Compléter les vues du gabarit
       </button>
-      <p className="text-sm text-texte-discret">Ajoute les emplacements des vues nouvelles, sans toucher aux existants.</p>
+      <p className="text-sm text-texte-discret">
+        Ajoute les emplacements des vues nouvelles et range les emplacements hors plan dans la vue affichée. Les emplacements libres que le gabarit ne porte plus sont retirés.
+      </p>
       {resultat && !resultat.ok && (
         <p role="alert" className="text-sm text-etat-rouge">
           {resultat.message}
+        </p>
+      )}
+      {resultat && resultat.ok && resultat.avis && (
+        <p role="status" className="text-sm text-texte">
+          {resultat.avis}
         </p>
       )}
     </form>

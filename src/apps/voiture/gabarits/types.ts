@@ -42,4 +42,7 @@ export type Gabarit = {
   viewBox: string
   vuesDessinees: VueDessinee[]
   emplacementsTypes: EmplacementType[]
+  // Noms d'emplacements que des versions précédentes du gabarit portaient, et qu'il ne porte plus. Le complément
+  // retire les lignes libres de ces noms ; une ligne occupée ou liée à une contrepartie reste, et il le signale.
+  nomsRetires?: string[]
 }

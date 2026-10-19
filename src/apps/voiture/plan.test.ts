@@ -39,14 +39,14 @@ describe("plan de déco : géométrie", () => {
     expect(miroir).toEqual({ type: "polygone", points: [[360, 1], [350, 2]] })
   })
 
-  it("chaque vue ne dessine que ses emplacements : 6 à droite, 5 à gauche, 1 à l'avant, 3 à l'arrière, 2 dessus", () => {
+  it("chaque vue ne dessine que ses emplacements : 6 à droite, 5 à gauche, 1 à l'avant, 2 à l'arrière, 2 dessus", () => {
     const emplacements = emplacementsDepuisGabarit(gabaritSaxo).map((e, i) => ({ id: String(i), ...e }))
     expect(emplacementsDessines(emplacements, "droite")).toHaveLength(6)
     const gauche = emplacementsDessines(emplacements, "gauche")
     expect(gauche).toHaveLength(5)
     expect(gauche.every((e) => e.nom.endsWith(" gauche"))).toBe(true)
     expect(emplacementsDessines(emplacements, "avant")).toHaveLength(1)
-    expect(emplacementsDessines(emplacements, "arriere")).toHaveLength(3)
+    expect(emplacementsDessines(emplacements, "arriere")).toHaveLength(2)
     expect(emplacementsDessines(emplacements, "dessus")).toHaveLength(2)
   })
 

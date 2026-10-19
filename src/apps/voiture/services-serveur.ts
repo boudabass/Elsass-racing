@@ -15,9 +15,12 @@ import { emettre } from "@/core/evenements/bus-serveur"
 import { newId } from "@/core/ids"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 
+import { lireEmplacementsLiesDans } from "@/apps/partenaires/lectures-partagees"
+
 import { chargeEmplacementModifie, chargeFicheModifiee, chargeLogoPose, chargePapierExpireBientot, cleRappelPapier } from "./charges"
 import { gabarit } from "./gabarits"
 import { ErreurVoiture, refus } from "./erreurs"
+import { bornesDu, formeAuCentre, type VuePlan } from "./plan"
 import {
   CHAMPS_REGLAGE,
   emplacementsDepuisGabarit,
@@ -218,8 +221,12 @@ export async function creerVehiculeDans(ctx: ContexteTeam, entree: EntreeVehicul
 // Complément d'un véhicule créé avant une vue ajoutée au gabarit : les emplacements du gabarit qu'il n'a pas
 // (même vue, même nom) sont ajoutés. Une ligne hors plan qui porte déjà le nom d'un emplacement du gabarit est reprise
 // dans la bonne vue, sans changer d'id. Lancé à la demande d'un membre ayant l'écriture sur Voiture, jamais au démarrage.
-// Renvoie le nombre de lignes créées ou reprises : une seconde passe ne fait rien.
-export async function completerGabaritDans(ctx: ContexteTeam, vehicleId: string): Promise<number> {
+// Résultat du complément : le nombre de lignes créées, reprises ou retirées, et les noms retirés du gabarit mais
+// gardés (occupés ou liés à une contrepartie), à signaler à l'utilisateur. Une seconde passe ne fait rien.
+export type BilanComplement = { modifications: number; conserves: string[] }
+
+// `vue` : la vue affichée au moment du complément. Les lignes hors plan sans équivalent y sont rangées, au centre.
+export async function completerGabaritDans(ctx: ContexteTeam, vehicleId: string, vue: VuePlan): Promise<BilanComplement> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const vehicule = await client.voitureVehicle.findFirst({
     where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
@@ -229,15 +236,40 @@ export async function completerGabaritDans(ctx: ContexteTeam, vehicleId: string)
   const modele = vehicule.gabaritCle ? gabarit(vehicule.gabaritCle) : null
   if (!modele) refus("Ce véhicule n'a pas de gabarit à compléter.")
 
-  const existants = await client.voitureSlot.findMany({
+  const lignes = await client.voitureSlot.findMany({
     where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
-    select: { id: true, vue: true, nom: true },
+    select: {
+      id: true,
+      vue: true,
+      nom: true,
+      statut: true,
+      occupations: { where: { deletedAt: null, statut: { not: "retire" } }, select: { id: true } },
+    },
   })
-  const plan = planComplement(existants, emplacementsDepuisGabarit(modele))
-  const modifications = plan.creer.length + plan.reprendre.length
-  if (modifications === 0) return 0
+  // Libre : statut « libre », aucune occupation active, aucune contrepartie qui l'attend.
+  const liees = await lireEmplacementsLiesDans(ctx, lignes.map((l) => l.id))
+  const existants = lignes.map((l) => ({
+    id: l.id,
+    vue: l.vue,
+    nom: l.nom,
+    libre: l.statut === "libre" && l.occupations.length === 0 && !liees.has(l.id),
+  }))
+  const plan = planComplement(existants, emplacementsDepuisGabarit(modele), {
+    nomsRetires: modele.nomsRetires ?? [],
+    vueAjout: vue,
+    formeAjout: formeAuCentre(bornesDu(modele.viewBox)),
+  })
+  const modifications = plan.creer.length + plan.reprendre.length + plan.retirer.length
+  if (modifications === 0) return { modifications: 0, conserves: plan.conserves }
 
   await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    // Retrait logique, seulement des lignes libres d'un nom retiré du gabarit. Rien n'est supprimé physiquement.
+    if (plan.retirer.length > 0) {
+      await tx.voitureSlot.updateMany({
+        where: { id: { in: plan.retirer }, teamId: ctx.teamId },
+        data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId },
+      })
+    }
     if (plan.creer.length > 0) {
       await tx.voitureSlot.createMany({
         data: plan.creer.map((e) => ({
@@ -269,12 +301,12 @@ export async function completerGabaritDans(ctx: ContexteTeam, vehicleId: string)
     }
   })
   await emettre(ctx, "voiture.emplacement_modifie", chargeEmplacementModifie.parse({ vehicleId }))
-  return modifications
+  return { modifications, conserves: plan.conserves }
 }
 
-export async function completerGabarit(vehicleId: string): Promise<number> {
+export async function completerGabarit(vehicleId: string, vue: VuePlan): Promise<BilanComplement> {
   const { ctx } = await accesVoiture("ecriture")
-  return completerGabaritDans(ctx, vehicleId)
+  return completerGabaritDans(ctx, vehicleId, vue)
 }
 
 // Ligne voiture_vehicle d'un véhicule du socle. Crée la ligne à la volée (véhicules créés par Saison à

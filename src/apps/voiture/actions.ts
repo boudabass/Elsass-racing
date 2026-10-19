@@ -160,12 +160,27 @@ export async function ajouterEmplacementAction(_etat: Resultat | null, donnees: 
   })
 }
 
-// Complément du gabarit : ajoute les emplacements des vues ajoutées au gabarit à un véhicule existant. Sans effet
-// si tout y est déjà.
-export async function completerGabaritAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executerVoiture(async () => {
-    await completerGabarit(texte(donnees, "vehicleId"))
+// Complément du gabarit : ajoute les emplacements des vues ajoutées au gabarit à un véhicule existant, reprend les
+// lignes hors plan, et retire les emplacements que le gabarit ne porte plus (sans toucher aux lignes occupées). Sans
+// effet si tout y est déjà. Le message `avis` signale les lignes gardées.
+export type ResultatComplement = { ok: true; avis?: string } | { ok: false; message: string }
+
+const VUES_DU_PLAN = ["droite", "gauche", "avant", "arriere", "dessus"] as const
+
+export async function completerGabaritAction(_etat: ResultatComplement | null, donnees: FormData): Promise<ResultatComplement> {
+  const bilan: { conserves: string[] } = { conserves: [] }
+  const resultat = await executerVoiture(async () => {
+    const vue = VUES_DU_PLAN.find((v) => v === texte(donnees, "vue"))
+    if (!vue) refus("Choisissez une vue du plan avant de compléter le gabarit.")
+    bilan.conserves = (await completerGabarit(texte(donnees, "vehicleId"), vue)).conserves
   })
+  if (!resultat.ok) return resultat
+  if (bilan.conserves.length === 0) return { ok: true }
+  const noms = bilan.conserves.map((nom) => `« ${nom} »`).join(", ")
+  return {
+    ok: true,
+    avis: `${noms} ${bilan.conserves.length > 1 ? "sont occupées ou liées à une contrepartie et restent" : "est occupée ou liée à une contrepartie et reste"} sur le plan. Libérez-la pour la retirer.`,
+  }
 }
 
 // Modification : nom, dimensions en cm et la symétrie (information : la paire est déjà dans le nom).

@@ -5,6 +5,17 @@
 import type { ContexteTeam } from "@/core/contexte"
 import { prismaPourTeam } from "@/lib/prisma"
 
+// Emplacements de Voiture que des contreparties logo utilisent encore (non supprimées). Voiture s'en sert pour ne pas
+// retirer un emplacement qu'une convention attend. Lecture seule.
+export async function lireEmplacementsLiesDans(ctx: ContexteTeam, slotIds: string[]): Promise<Set<string>> {
+  if (slotIds.length === 0) return new Set()
+  const contreparties = await prismaPourTeam(ctx.teamId, ctx.userId).partenairesBenefit.findMany({
+    where: { teamId: ctx.teamId, slotId: { in: slotIds }, deletedAt: null },
+    select: { slotId: true },
+  })
+  return new Set(contreparties.map((c) => c.slotId as string))
+}
+
 // Contrepartie logo d'une convention signée ou en cours, pour Voiture (réserver l'emplacement à la décision).
 // Null si la contrepartie n'existe plus, n'a plus d'emplacement, ou si sa convention est close.
 export type ContrepartieLogoPourVoiture = {

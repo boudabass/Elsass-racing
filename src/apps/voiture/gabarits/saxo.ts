@@ -5,6 +5,7 @@ import type { ElementDessin, Gabarit } from "./types"
 // les zones pointillées et la légende du SVG ne sont pas reprises. Les couleurs deviennent des rôles.
 // Vue gauche : le dessin droit, retourné à l'affichage. Vues avant, arrière et dessus : dessins schématiques
 // (validés par John) dans le même viewBox, à partir du profil. Version 2 : vues avant, arrière et dessus.
+// Version 3 : plus de lunette arrière (une vitre n'a pas d'emplacement).
 
 const DESSIN_DROIT: ElementDessin[] = [
   { type: "circle", role: "roue", attributs: { cx: 66.4, cy: 114.0, r: 28.0 } },
@@ -90,7 +91,7 @@ export const gabaritSaxo: Gabarit = {
   cle: "citadine_3p_saxo",
   nom: "Citadine 3 portes (Saxo)",
   categorie: "citadine_3p",
-  version: 2,
+  version: 3,
   viewBox: "0 -14 370 173",
   vuesDessinees: [
     { vue: "droite", dessin: DESSIN_DROIT },
@@ -122,9 +123,9 @@ export const gabaritSaxo: Gabarit = {
     { ordre: 6, nom: "Bas de caisse", vue: "droite", symetrique: true, forme: { type: "rect", x: 101.5, y: 91.5, l: 143.3, h: 18.0 } },
     { ordre: 7, nom: "Capot", vue: "dessus", symetrique: false, forme: { type: "rect", x: 300, y: 22, l: 44, h: 100 } },
     { ordre: 8, nom: "Hayon", vue: "arriere", symetrique: false, forme: { type: "rect", x: 112, y: 64, l: 146, h: 50 } },
-    { ordre: 9, nom: "Lunette arrière", vue: "arriere", symetrique: false, forme: { type: "rect", x: 118, y: 12, l: 134, h: 46 } },
-    { ordre: 10, nom: "Toit", vue: "dessus", symetrique: false, forme: { type: "rect", x: 100, y: 22, l: 150, h: 100 } },
-    { ordre: 11, nom: "Pare-chocs avant", vue: "avant", symetrique: false, forme: { type: "rect", x: 108, y: 118, l: 154, h: 22 } },
-    { ordre: 12, nom: "Pare-chocs arrière", vue: "arriere", symetrique: false, forme: { type: "rect", x: 108, y: 118, l: 154, h: 22 } },
+    { ordre: 9, nom: "Toit", vue: "dessus", symetrique: false, forme: { type: "rect", x: 100, y: 22, l: 150, h: 100 } },
+    { ordre: 10, nom: "Pare-chocs avant", vue: "avant", symetrique: false, forme: { type: "rect", x: 108, y: 118, l: 154, h: 22 } },
+    { ordre: 11, nom: "Pare-chocs arrière", vue: "arriere", symetrique: false, forme: { type: "rect", x: 108, y: 118, l: 154, h: 22 } },
   ],
+  nomsRetires: ["Lunette arrière"],
 }
