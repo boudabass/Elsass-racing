@@ -283,3 +283,6 @@ En attente :
 
 ### 3.14 Retours du test de John (19/10, soir)
 - Brief : `docs/briefs/3.14-retours-test-john-phase-b.md`. Retours en double (← Calendrier, ← Mouvements), interlocuteur toujours impossible à saisir, liste des recettes absente du Budget, apport du partenaire (ce qu'il doit à la team), Déco : toutes les vues, emplacements par vue, gauche et droite distincts. Après la 3.13b, avant la fusion dans main. Points 4 et 5 : point d'arrêt avec proposition.
+
+### 3.15 Déco : retours de John sur les nouvelles vues (19/10, soir)
+- Brief : `docs/briefs/3.15-deco-retours-john.md`. Vues avant, arrière, dessus à redessiner (pas des rectangles), pas d'emplacement sur la lunette arrière, retrait de « Autres emplacements » et « Ajouter sans forme », zone entière déplaçable au doigt, « Modifier l'emplacement » clarifié, véhicules sans gabarit (proposition d'un gabarit générique, point d'arrêt).
