@@ -3,6 +3,15 @@ import { describe, expect, it } from "vitest"
 import { GABARITS, gabarit } from "./index"
 import { gabaritSaxo } from "./saxo"
 
+// Un chemin droit à quatre sommets (M, L, L, L, Z) forme un rectangle s'il ne prend que deux abscisses et deux ordonnées.
+function estRectangle(d: string): boolean {
+  const nombres = d.match(/[\d.]+/g)?.map(Number) ?? []
+  if (nombres.length !== 8 || !/^M [\d.]+ [\d.]+ L [\d.]+ [\d.]+ L [\d.]+ [\d.]+ L [\d.]+ [\d.]+ Z$/.test(d)) return false
+  const xs = new Set(nombres.filter((_, i) => i % 2 === 0))
+  const ys = new Set(nombres.filter((_, i) => i % 2 === 1))
+  return xs.size === 2 && ys.size === 2
+}
+
 describe("catalogue des gabarits", () => {
   it("les clés sont uniques", () => {
     const cles = GABARITS.map((g) => g.cle)
@@ -67,7 +76,9 @@ describe("gabarit Saxo", () => {
       const dessin = gabaritSaxo.vuesDessinees.find((v) => v.vue === vue)?.dessin ?? []
       const courbes = dessin.filter((e) => e.type === "path" && /[QCA]/.test(String(e.attributs.d)))
       expect(courbes.length, vue).toBeGreaterThan(3)
-      expect(dessin.some((e) => e.type === "path" && !/[QCA]/.test(String(e.attributs.d)) && /^M [\d.]+ [\d.]+ L [\d.]+ [\d.]+ L [\d.]+ [\d.]+ L [\d.]+ [\d.]+ Z$/.test(String(e.attributs.d)))).toBe(false)
+      // Aucun rectangle aligné sur les axes (le bandeau de pare-brise, lui, est un trapèze voulu).
+      const rectangles = dessin.filter((e) => e.type === "path" && !/[QCA]/.test(String(e.attributs.d)) && estRectangle(String(e.attributs.d)))
+      expect(rectangles.map((e) => e.attributs.d), vue).toEqual([])
     }
   })
 

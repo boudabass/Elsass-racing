@@ -54,11 +54,12 @@ function rectArrondi(x: number, y: number, l: number, h: number, r: number): str
   return `M ${x + r} ${y} L ${x + l - r} ${y} Q ${x + l} ${y} ${x + l} ${y + r} L ${x + l} ${y + h - r} Q ${x + l} ${y + h} ${x + l - r} ${y + h} L ${x + r} ${y + h} Q ${x} ${y + h} ${x} ${y + h - r} L ${x} ${y + r} Q ${x} ${y} ${x + r} ${y} Z`
 }
 
-// Vues de face et de dos : même carrosserie, pare-brise ou lunette en haut, pare-chocs en bas, roues qui dépassent.
+// Vues de face et de dos : carrosserie à montants inclinés, toit plat plus étroit que la caisse, pare-brise et lunette
+// en trapèze. Les roues dépassent un peu sous la caisse.
 const CAISSE_FACE: ElementDessin = {
   type: "path",
   role: "caisse",
-  attributs: { d: "M 110 132 Q 105 132 105 124 L 105 84 Q 105 72 112 66 L 122 56 Q 132 22 185 16 Q 238 22 248 56 L 258 66 Q 265 72 265 84 L 265 124 Q 265 132 260 132 Z" },
+  attributs: { d: "M 110 132 Q 105 132 105 124 L 105 78 Q 105 70 110 66 L 124 60 L 132 22 Q 133 16 142 16 L 228 16 Q 237 16 238 22 L 246 60 L 260 66 Q 265 70 265 78 L 265 124 Q 265 132 260 132 Z" },
 }
 
 const ROUES_FACE: ElementDessin[] = [
@@ -69,34 +70,34 @@ const ROUES_FACE: ElementDessin[] = [
 const DESSIN_AVANT: ElementDessin[] = [
   ...ROUES_FACE,
   CAISSE_FACE,
-  { type: "path", role: "vitre", attributs: { d: "M 128 60 Q 140 32 185 29 Q 230 32 242 60 Z" } },
-  { type: "line", role: "detail", attributs: { x1: 110, y1: 68, x2: 260, y2: 68, "stroke-width": 1.5 } },
-  { type: "path", role: "detail", attributs: { d: "M 116 76 Q 126 68 142 70 L 144 86 Q 128 90 114 86 Z" } },
-  { type: "path", role: "detail", attributs: { d: "M 254 72 Q 244 68 228 70 L 226 86 Q 242 90 256 86 Z" } },
-  { type: "path", role: "detail", attributs: { d: "M 156 74 Q 185 69 214 74 L 216 98 Q 185 102 154 98 Z" } },
-  { type: "line", role: "detail", attributs: { x1: 160, y1: 83, x2: 210, y2: 83, "stroke-width": 1 } },
-  { type: "line", role: "detail", attributs: { x1: 160, y1: 90, x2: 210, y2: 90, "stroke-width": 1 } },
-  { type: "path", role: "detail", attributs: { d: rectArrondi(126, 108, 24, 14, 3) } },
-  { type: "path", role: "detail", attributs: { d: rectArrondi(220, 108, 24, 14, 3) } },
+  { type: "path", role: "vitre", attributs: { d: "M 137 27 L 233 27 L 243 58 L 127 58 Z" } },
+  { type: "line", role: "detail", attributs: { x1: 110, y1: 66, x2: 260, y2: 66, "stroke-width": 1.5 } },
+  { type: "path", role: "detail", attributs: { d: "M 110 72 L 148 70 L 150 90 Q 128 94 108 88 Z" } },
+  { type: "path", role: "detail", attributs: { d: "M 260 72 L 222 70 L 220 90 Q 242 94 262 88 Z" } },
+  { type: "path", role: "detail", attributs: { d: "M 156 74 L 214 74 L 212 100 L 158 100 Z" } },
+  { type: "line", role: "detail", attributs: { x1: 164, y1: 84, x2: 206, y2: 84, "stroke-width": 1 } },
+  { type: "line", role: "detail", attributs: { x1: 164, y1: 92, x2: 206, y2: 92, "stroke-width": 1 } },
+  { type: "path", role: "detail", attributs: { d: rectArrondi(124, 110, 26, 14, 3) } },
+  { type: "path", role: "detail", attributs: { d: rectArrondi(220, 110, 26, 14, 3) } },
   { type: "line", role: "detail", attributs: { x1: 110, y1: 126, x2: 260, y2: 126, "stroke-width": 1.2 } },
-  { type: "path", role: "caisse", attributs: { d: rectArrondi(92, 58, 13, 16, 4) } },
-  { type: "path", role: "caisse", attributs: { d: rectArrondi(265, 58, 13, 16, 4) } },
+  { type: "path", role: "caisse", attributs: { d: rectArrondi(91, 52, 14, 14, 4) } },
+  { type: "path", role: "caisse", attributs: { d: rectArrondi(265, 52, 14, 14, 4) } },
   { type: "line", role: "sol", attributs: { x1: 0, y1: 144.5, x2: 370, y2: 144.5, "stroke-width": 1.5 } },
 ]
 
 const DESSIN_ARRIERE: ElementDessin[] = [
   ...ROUES_FACE,
   CAISSE_FACE,
-  { type: "path", role: "vitre", attributs: { d: "M 126 58 Q 138 28 185 25 Q 232 28 244 58 Z" } },
-  { type: "path", role: "detail", attributs: { d: "M 150 52 Q 186 44 222 50", "stroke-width": 1.2 } },
-  { type: "line", role: "detail", attributs: { x1: 110, y1: 62, x2: 260, y2: 62, "stroke-width": 1.5 } },
-  { type: "path", role: "detail", attributs: { d: "M 108 68 Q 116 65 122 66 L 122 94 Q 116 96 108 96 Z" } },
-  { type: "path", role: "detail", attributs: { d: "M 262 68 Q 254 65 248 66 L 248 94 Q 254 96 262 96 Z" } },
+  { type: "path", role: "vitre", attributs: { d: "M 137 27 L 233 27 L 243 58 L 127 58 Z" } },
+  { type: "path", role: "detail", attributs: { d: "M 152 48 Q 185 40 218 46", "stroke-width": 1.2 } },
+  { type: "line", role: "detail", attributs: { x1: 110, y1: 64, x2: 260, y2: 64, "stroke-width": 1.5 } },
+  { type: "path", role: "detail", attributs: { d: "M 108 72 Q 116 69 122 70 L 122 98 Q 116 100 108 98 Z" } },
+  { type: "path", role: "detail", attributs: { d: "M 262 72 Q 254 69 248 70 L 248 98 Q 254 100 262 98 Z" } },
+  { type: "path", role: "detail", attributs: { d: rectArrondi(160, 88, 50, 16, 2), "stroke-width": 1 } },
   { type: "line", role: "detail", attributs: { x1: 110, y1: 114, x2: 260, y2: 114, "stroke-width": 1.2 } },
-  { type: "path", role: "detail", attributs: { d: rectArrondi(160, 90, 50, 16, 2), "stroke-width": 1 } },
   { type: "line", role: "detail", attributs: { x1: 110, y1: 126, x2: 260, y2: 126, "stroke-width": 1.2 } },
-  { type: "path", role: "detail", attributs: { d: rectArrondi(110, 119, 14, 8, 2) } },
-  { type: "path", role: "detail", attributs: { d: rectArrondi(246, 119, 14, 8, 2) } },
+  { type: "path", role: "detail", attributs: { d: rectArrondi(110, 118, 14, 7, 2) } },
+  { type: "path", role: "detail", attributs: { d: rectArrondi(246, 118, 14, 7, 2) } },
   { type: "line", role: "sol", attributs: { x1: 0, y1: 144.5, x2: 370, y2: 144.5, "stroke-width": 1.5 } },
 ]
 
@@ -156,10 +157,10 @@ export const gabaritSaxo: Gabarit = {
     },
     { ordre: 6, nom: "Bas de caisse", vue: "droite", symetrique: true, forme: { type: "rect", x: 101.5, y: 91.5, l: 143.3, h: 18.0 } },
     { ordre: 7, nom: "Capot", vue: "dessus", symetrique: false, forme: { type: "rect", x: 300, y: 22, l: 44, h: 100 } },
-    { ordre: 8, nom: "Hayon", vue: "arriere", symetrique: false, forme: { type: "rect", x: 112, y: 64, l: 146, h: 50 } },
+    { ordre: 8, nom: "Hayon", vue: "arriere", symetrique: false, forme: { type: "rect", x: 112, y: 66, l: 146, h: 46 } },
     { ordre: 9, nom: "Toit", vue: "dessus", symetrique: false, forme: { type: "rect", x: 100, y: 22, l: 150, h: 100 } },
-    { ordre: 10, nom: "Pare-chocs avant", vue: "avant", symetrique: false, forme: { type: "rect", x: 108, y: 118, l: 154, h: 22 } },
-    { ordre: 11, nom: "Pare-chocs arrière", vue: "arriere", symetrique: false, forme: { type: "rect", x: 108, y: 118, l: 154, h: 22 } },
+    { ordre: 10, nom: "Pare-chocs avant", vue: "avant", symetrique: false, forme: { type: "rect", x: 110, y: 110, l: 150, h: 22 } },
+    { ordre: 11, nom: "Pare-chocs arrière", vue: "arriere", symetrique: false, forme: { type: "rect", x: 110, y: 114, l: 150, h: 18 } },
   ],
   nomsRetires: ["Lunette arrière"],
 }
