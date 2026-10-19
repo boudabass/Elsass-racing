@@ -6,9 +6,6 @@ import { useState } from "react"
 
 import { CHAMP } from "@/lib/classes-formulaire"
 
-import { saisirAvancementAction } from "../actions"
-
-import { BoutonEnvoi, FormulaireAction } from "./formulaire"
 
 const BOUTON_PAS = "cible-tactile inline-flex min-w-11 items-center justify-center rounded-md border border-bordure text-lg hover:bg-surface-2 disabled:opacity-50"
 
@@ -17,7 +14,7 @@ export function SaisieAvancement({ benefitId, quantiteTenue, quantitePromise }: 
   const borner = (nombre: number) => Math.min(999, Math.max(0, nombre))
 
   return (
-    <FormulaireAction action={saisirAvancementAction} nom="Saisir l'avancement" className="flex flex-wrap items-end gap-3">
+    <div className="flex flex-wrap items-end gap-3">
       <input type="hidden" name="benefitId" value={benefitId} />
       <div className="flex flex-col gap-1">
         <label htmlFor={`avancement-${benefitId}`} className="text-sm font-medium">
@@ -42,7 +39,6 @@ export function SaisieAvancement({ benefitId, quantiteTenue, quantitePromise }: 
           </button>
         </div>
       </div>
-      <BoutonEnvoi libelle="Enregistrer l'avancement" secondaire />
-    </FormulaireAction>
+    </div>
   )
 }

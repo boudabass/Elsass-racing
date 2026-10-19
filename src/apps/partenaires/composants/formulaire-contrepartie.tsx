@@ -8,9 +8,7 @@ import { useState } from "react"
 import { CHAMP } from "@/lib/classes-formulaire"
 
 import { LIBELLE_EMPLACEMENT, LIBELLES_TYPE_CONTREPARTIE } from "../affichage"
-import { ajouterContrepartieAction, modifierContrepartieAction } from "../actions"
-
-import { BoutonEnvoi, Champ, FormulaireAction } from "./formulaire"
+import { Champ } from "./formulaire"
 
 export interface ContrepartieValeurs {
   libelle: string
@@ -64,11 +62,7 @@ export function FormulaireContrepartie({
   const cle = `${mode}-${benefitId ?? agreementId}`
 
   return (
-    <FormulaireAction
-      nom={mode === "creation" ? "Ajouter une contrepartie" : "Modifier la contrepartie"}
-      action={mode === "creation" ? ajouterContrepartieAction : modifierContrepartieAction}
-      className="flex flex-col gap-4"
-    >
+    <>
       {mode === "creation" ? (
         <>
           <input type="hidden" name="agreementId" value={agreementId} />
@@ -155,9 +149,6 @@ export function FormulaireContrepartie({
         )}
       </fieldset>
 
-      <div>
-        <BoutonEnvoi libelle={mode === "creation" ? "Ajouter la contrepartie" : "Enregistrer"} />
-      </div>
-    </FormulaireAction>
+    </>
   )
 }

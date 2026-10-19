@@ -1,11 +1,12 @@
 "use client"
 
-// Les deux actions d'une preuve, Masquer ou Afficher et Supprimer (brief 3.7, point 0) : le message de résultat
-// s'affiche sous la ligne, et non entre les deux boutons. Les deux formulaires partagent un seul message.
+// Les actions d'une preuve (brief 3.13, règle 5 et 6) : Masquer ou Afficher est un bouton en un clic, sans saisie.
+// Supprimer ouvre un tiroir de confirmation, qui dit ce qui va se passer.
 
 import { useActionState } from "react"
 
 import { Message } from "@/components/formulaire/message"
+import { TiroirAction } from "@/components/formulaire/tiroir"
 
 import { BoutonEnvoi, type ActionFormulaire } from "./formulaire"
 
@@ -21,7 +22,6 @@ export function ActionsPreuve({
   supprimer: ActionFormulaire
 }) {
   const [etatMasquer, envoyerMasquer] = useActionState(masquer, null)
-  const [etatSupprimer, envoyerSupprimer] = useActionState(supprimer, null)
 
   return (
     <div className="flex flex-col gap-2">
@@ -31,12 +31,19 @@ export function ActionsPreuve({
           <input type="hidden" name="visible" value={visiblePartenaire ? "non" : "oui"} />
           <BoutonEnvoi libelle={visiblePartenaire ? "Masquer" : "Afficher"} secondaire />
         </form>
-        <form action={envoyerSupprimer} aria-label="Supprimer la preuve">
+        <TiroirAction
+          libelle="Supprimer"
+          titre="Supprimer la preuve"
+          action={supprimer}
+          libelleBouton="Supprimer la preuve"
+          libelleEnCours="Suppression…"
+          danger
+          question="Supprimer cette preuve ? Elle disparaît de la contrepartie, pour la team comme pour le partenaire."
+        >
           <input type="hidden" name="proofId" value={preuveId} />
-          <BoutonEnvoi libelle="Supprimer" danger />
-        </form>
+        </TiroirAction>
       </div>
-      <Message resultat={etatMasquer ?? etatSupprimer} />
+      <Message resultat={etatMasquer} />
     </div>
   )
 }

@@ -38,9 +38,10 @@ interface Props {
   modeles: { id: string; nom: string; version: number }[]
   saisons: { id: string; nom: string; dateDebut: string; dateFin: string }[]
   valeurs: ValeursConvention
+  enTiroir?: boolean
 }
 
-export function FormulaireConvention({ mode, partnerId, agreementId, modeles, saisons, valeurs }: Props) {
+export function FormulaireConvention({ mode, partnerId, agreementId, modeles, saisons, valeurs, enTiroir = false }: Props) {
   const router = useRouter()
   const [saison, setSaison] = useState(valeurs.seasonId)
   const [dateDebut, setDateDebut] = useState(valeurs.dateDebut)
@@ -66,15 +67,9 @@ export function FormulaireConvention({ mode, partnerId, agreementId, modeles, sa
   const apportCentimes = centimesDeSaisie(apport) ?? 0
   const differe = lignes.some((ligne) => ligne.montant.trim() !== "") && totalCentimes !== apportCentimes
 
-  return (
-    <FormulaireAction
-      nom={mode === "creation" ? "Nouvelle convention" : "Modifier la convention"}
-      action={mode === "creation" ? creerConventionAction : modifierConventionAction}
-      auSucces={(resultat) => {
-        if (mode === "creation" && resultat.id) router.push(`/apps/partenaires/conventions/${resultat.id}?onglet=contreparties`)
-      }}
-      className="flex flex-col gap-8"
-    >
+  // Dans un tiroir (modification), le tiroir donne le formulaire et son bouton. À la création, la page le donne.
+  const champs = (
+    <>
       <input type="hidden" name={mode === "creation" ? "partnerId" : "agreementId"} value={mode === "creation" ? partnerId : agreementId} />
 
       <fieldset className="grid gap-4 sm:grid-cols-2">
@@ -173,6 +168,19 @@ export function FormulaireConvention({ mode, partnerId, agreementId, modeles, sa
         )}
       </fieldset>
 
+    </>
+  )
+  if (enTiroir) return champs
+  return (
+    <FormulaireAction
+      nom={mode === "creation" ? "Nouvelle convention" : "Modifier la convention"}
+      action={mode === "creation" ? creerConventionAction : modifierConventionAction}
+      auSucces={(resultat) => {
+        if (mode === "creation" && resultat.id) router.push(`/apps/partenaires/conventions/${resultat.id}?onglet=contreparties`)
+      }}
+      className="flex flex-col gap-8"
+    >
+      {champs}
       <div>
         <BoutonEnvoi libelle={mode === "creation" ? "Créer la convention" : "Enregistrer"} />
       </div>

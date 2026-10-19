@@ -504,11 +504,11 @@ test("14 · le compteur du message se lit et n'annonce la limite qu'à partir de
   })
 })
 
-// Ouvre « Saisir l'avancement » de la première contrepartie de la convention : une action ouverte à montrer (brief 3.10, §2).
+// Ouvre « Saisir l'avancement » de la première contrepartie de la convention : son tiroir (brief 3.13) est l'action ouverte à montrer.
 async function ouvrirPremiereAction(page: Page, conventionId: string): Promise<void> {
   await page.goto(`/apps/partenaires/conventions/${conventionId}?onglet=contreparties`)
   await page.getByRole("button", { name: "Saisir l'avancement", exact: true }).first().click()
-  await expect(page.getByRole("region", { name: "Saisir l'avancement", exact: true }).first()).toBeVisible()
+  await expect(page.getByRole("dialog", { name: "Saisir l'avancement", exact: true })).toBeVisible()
 }
 
 // 15. La vignette d'une preuve s'affiche chez le membre : son fichier est rattaché à la preuve (brief 3.10, §2).

@@ -150,23 +150,24 @@ async function creerConvention(page: Page, partenaireId: string, annee: number):
 // Logo sur la Portière, pris dans la liste de base.
 async function ajouterLogo(page: Page, conventionId: string): Promise<void> {
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
-  await page.getByText("Ajouter une contrepartie", { exact: true }).click()
-  await page.getByLabel("Dans la liste de base", { exact: true }).selectOption({ label: "Logo sur la voiture" })
-  const valeur = await page.getByLabel("Emplacement sur la voiture", { exact: true }).locator("option", { hasText: "Portière" }).first().getAttribute("value")
-  await page.getByLabel("Emplacement sur la voiture", { exact: true }).selectOption(valeur ?? "")
-  await page.locator("form").filter({ hasText: "Ajouter la contrepartie" }).getByRole("button", { name: "Ajouter la contrepartie" }).click()
+  await page.getByRole("button", { name: "Ajouter une contrepartie", exact: true }).click()
+  const tiroir = page.getByRole("dialog")
+  await tiroir.getByLabel("Dans la liste de base", { exact: true }).selectOption({ label: "Logo sur la voiture" })
+  const valeur = await tiroir.getByLabel("Emplacement sur la voiture", { exact: true }).locator("option", { hasText: "Portière" }).first().getAttribute("value")
+  await tiroir.getByLabel("Emplacement sur la voiture", { exact: true }).selectOption(valeur ?? "")
+  await tiroir.getByRole("button", { name: "Ajouter la contrepartie", exact: true }).click()
   await expect(ligneContrepartie(page, "Logo sur la voiture")).toBeVisible()
 }
 
 // Publications : quantité promise 2, pour l'épreuve passée, cochée dans « Épreuves concernées ».
 async function ajouterPublications(page: Page, conventionId: string): Promise<void> {
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
-  await page.getByText("Ajouter une contrepartie", { exact: true }).click()
-  await page.getByLabel("Dans la liste de base", { exact: true }).selectOption({ label: "Publications sur les réseaux" })
-  const formulaire = page.locator("form").filter({ hasText: "Ajouter la contrepartie" })
+  await page.getByRole("button", { name: "Ajouter une contrepartie", exact: true }).click()
+  await page.getByRole("dialog").getByLabel("Dans la liste de base", { exact: true }).selectOption({ label: "Publications sur les réseaux" })
+  const formulaire = page.getByRole("dialog")
   await formulaire.getByLabel("Quantité promise", { exact: true }).fill("2")
   await formulaire.getByRole("group", { name: "Épreuves concernées" }).getByRole("checkbox", { name: new RegExp(NOM_EPREUVE) }).check()
-  await formulaire.getByRole("button", { name: "Ajouter la contrepartie" }).click()
+  await formulaire.getByRole("button", { name: "Ajouter la contrepartie", exact: true }).click()
   await expect(ligneContrepartie(page, "Publications sur les réseaux")).toBeVisible()
 }
 
@@ -174,14 +175,15 @@ async function ajouterPublications(page: Page, conventionId: string): Promise<vo
 async function signerConvention(page: Page, conventionId: string): Promise<void> {
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   await page.getByRole("button", { name: "Marquer envoyée" }).click()
-  const actionSignee = page.locator("summary", { hasText: "Marquer signée" })
+  const actionSignee = page.getByRole("button", { name: "Marquer signée", exact: true })
   await expect(actionSignee).toBeVisible()
   await actionSignee.click()
-  await page.getByLabel("Signataires", { exact: true }).fill("Jeoffrey Koehling, Garage Muller")
+  const tiroir = page.getByRole("dialog")
+  await tiroir.getByLabel("Signataires", { exact: true }).fill("Jeoffrey Koehling, Garage Muller")
   const envoi = page.waitForResponse((reponse) => reponse.url().includes("/api/fichiers") && reponse.request().method() === "POST")
-  await page.getByLabel("Document signé", { exact: true }).setInputFiles(PDF_SIGNE)
+  await tiroir.getByLabel("Document signé", { exact: true }).setInputFiles(PDF_SIGNE)
   await envoi
-  await page.locator("form").filter({ hasText: "Date de signature" }).getByRole("button", { name: "Marquer signée" }).click()
+  await tiroir.getByRole("button", { name: "Marquer signée", exact: true }).click()
   await expect(page.getByText(/^Signée par Jeoffrey Koehling/)).toBeVisible()
 }
 
@@ -370,9 +372,10 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
 
   // 10. Résiliation : la boîte propose de libérer la Portière, et la décision la libère.
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
-  await page.locator("summary", { hasText: "Résilier la convention" }).click()
-  await page.locator("#motif-resiliation").fill("Fin de saison de test")
-  await page.locator("form").filter({ has: page.locator("#motif-resiliation") }).getByRole("button", { name: "Résilier la convention", exact: true }).click()
+  await page.getByRole("button", { name: "Résilier la convention", exact: true }).click()
+  const tiroirResiliation = page.getByRole("dialog")
+  await tiroirResiliation.locator("#motif-resiliation").fill("Fin de saison de test")
+  await tiroirResiliation.getByRole("button", { name: "Résilier la convention", exact: true }).click()
   await page.waitForLoadState("networkidle")
   await ouvrirBoite(page, "Libérer la Portière ? La convention de Garage Muller est terminée.")
   await decider(page, "Libérer")

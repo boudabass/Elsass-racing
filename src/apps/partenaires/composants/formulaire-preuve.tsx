@@ -9,13 +9,12 @@ import { ChampFichier } from "@/components/formulaire/champ-fichier"
 import { CHAMP } from "@/lib/classes-formulaire"
 
 import { LIBELLES_TYPE_PREUVE } from "../affichage"
-import { ajouterPreuveAction } from "../actions"
 
-import { BoutonEnvoi, Champ, FormulaireAction } from "./formulaire"
+import { Champ } from "./formulaire"
 
 const IMAGES = "image/jpeg,image/png,image/webp"
 
-export function FormulairePreuve({
+export function ChampsPreuve({
   benefitId,
   epreuves,
   aujourdhui,
@@ -29,7 +28,7 @@ export function FormulairePreuve({
   const identifiant = `preuve-${benefitId}`
 
   return (
-    <FormulaireAction action={ajouterPreuveAction} nom="Ajouter une preuve" className="flex flex-col gap-4">
+    <>
       <input type="hidden" name="benefitId" value={benefitId} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Champ id={`${identifiant}-date`} libelle="Date">
@@ -73,9 +72,6 @@ export function FormulairePreuve({
         Visible par le partenaire
       </label>
 
-      <div>
-        <BoutonEnvoi libelle="Ajouter la preuve" />
-      </div>
-    </FormulaireAction>
+    </>
   )
 }

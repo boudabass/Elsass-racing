@@ -96,13 +96,14 @@ function ligneContrepartie(page: Page, nom: string) {
 // Une contrepartie de la liste de base, par son nom. Un logo prend l'emplacement « Portière » de la voiture.
 async function ajouterContrepartie(page: Page, conventionId: string, nomListe: string, emplacement?: string): Promise<void> {
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
-  await page.getByText("Ajouter une contrepartie", { exact: true }).click()
-  await page.getByLabel("Dans la liste de base", { exact: true }).selectOption({ label: nomListe })
+  await page.getByRole("button", { name: "Ajouter une contrepartie", exact: true }).click()
+  const tiroir = page.getByRole("dialog")
+  await tiroir.getByLabel("Dans la liste de base", { exact: true }).selectOption({ label: nomListe })
   if (emplacement) {
-    const valeur = await page.getByLabel("Emplacement sur la voiture", { exact: true }).locator("option", { hasText: emplacement }).first().getAttribute("value")
-    await page.getByLabel("Emplacement sur la voiture", { exact: true }).selectOption(valeur ?? "")
+    const valeur = await tiroir.getByLabel("Emplacement sur la voiture", { exact: true }).locator("option", { hasText: emplacement }).first().getAttribute("value")
+    await tiroir.getByLabel("Emplacement sur la voiture", { exact: true }).selectOption(valeur ?? "")
   }
-  await page.locator("form").filter({ hasText: "Ajouter la contrepartie" }).getByRole("button", { name: "Ajouter la contrepartie" }).click()
+  await tiroir.getByRole("button", { name: "Ajouter la contrepartie", exact: true }).click()
   // Le libellé existe aussi comme option du menu de la liste de base : on vérifie la ligne de la contrepartie.
   await expect(ligneContrepartie(page, nomListe)).toBeVisible()
 }
@@ -125,14 +126,15 @@ async function signerConvention(page: Page, conventionId: string): Promise<void>
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   await page.getByRole("button", { name: "Marquer envoyée" }).click()
   // Le formulaire « Marquer envoyée » disparaît avec son message : c'est le bloc « Marquer signée » qui atteste le statut.
-  const actionSignee = page.locator("summary", { hasText: "Marquer signée" })
+  const actionSignee = page.getByRole("button", { name: "Marquer signée", exact: true })
   await expect(actionSignee).toBeVisible()
   await actionSignee.click()
-  await page.getByLabel("Signataires", { exact: true }).fill("Jeoffrey Koehling, Garage Muller")
+  const tiroir = page.getByRole("dialog")
+  await tiroir.getByLabel("Signataires", { exact: true }).fill("Jeoffrey Koehling, Garage Muller")
   const envoi = page.waitForResponse((reponse) => reponse.url().includes("/api/fichiers") && reponse.request().method() === "POST")
-  await page.getByLabel("Document signé", { exact: true }).setInputFiles(PDF_SIGNE)
+  await tiroir.getByLabel("Document signé", { exact: true }).setInputFiles(PDF_SIGNE)
   await envoi
-  await page.locator("form").filter({ hasText: "Date de signature" }).getByRole("button", { name: "Marquer signée" }).click()
+  await tiroir.getByRole("button", { name: "Marquer signée", exact: true }).click()
   await expect(page.getByText(/^Signée par Jeoffrey Koehling/)).toBeVisible()
 }
 
@@ -213,25 +215,26 @@ test("responsable : prospect, échange, convention, document, signature, avancem
   // 6. Avancement : 4 sur 4 publications, la contrepartie est tenue.
   await page.goto(`/apps/partenaires/conventions/${conventionId}`)
   const publications = ligneContrepartie(page, "Publications sur les réseaux")
-  // « Saisir l'avancement » est replié (details) dans la ligne : on l'ouvre avant de saisir.
-  await publications.getByText("Saisir l'avancement", { exact: true }).click()
-  await publications.getByLabel("Réalisé sur 4", { exact: true }).fill("4")
-  await publications.getByRole("button", { name: "Enregistrer l'avancement" }).click()
+  // « Saisir l'avancement » ouvre un tiroir : on y saisit, puis on enregistre dans le tiroir.
+  await publications.getByRole("button", { name: "Saisir l'avancement", exact: true }).click()
+  const tiroirAvancement = page.getByRole("dialog")
+  await tiroirAvancement.getByLabel("Réalisé sur 4", { exact: true }).fill("4")
+  await tiroirAvancement.getByRole("button", { name: "Enregistrer l'avancement", exact: true }).click()
   await expect(publications.getByText("Faite", { exact: true })).toBeVisible()
   await expect.poll(() => compterEvenements(equipe, "partenaires.contrepartie_tenue")).toBe(1)
 
   // 7. Preuves : un lien, puis une photo que l'on masque pour le partenaire.
   await page.reload()
-  await publications.getByText("Ajouter une preuve", { exact: true }).click()
-  const formulaireLien = publications.locator("form").filter({ hasText: "Ajouter la preuve" })
+  await publications.getByRole("button", { name: "Ajouter une preuve", exact: true }).click()
+  const formulaireLien = page.getByRole("dialog")
   await formulaireLien.getByLabel("Type", { exact: true }).selectOption("lien")
   await formulaireLien.getByLabel("Lien", { exact: true }).fill("https://www.exemple.test/publication")
   await formulaireLien.getByRole("button", { name: "Ajouter la preuve" }).click()
   await expect(publications.getByRole("link", { name: "Ouvrir le lien" })).toBeVisible()
 
   await page.reload()
-  await publications.getByText("Ajouter une preuve", { exact: true }).click()
-  const formulairePhoto = publications.locator("form").filter({ hasText: "Ajouter la preuve" })
+  await publications.getByRole("button", { name: "Ajouter une preuve", exact: true }).click()
+  const formulairePhoto = page.getByRole("dialog")
   const envoi = page.waitForResponse((reponse) => reponse.url().includes("/api/fichiers") && reponse.request().method() === "POST")
   await formulairePhoto.getByLabel("Photo", { exact: true }).setInputFiles(PHOTO)
   await envoi
@@ -280,8 +283,8 @@ test("droits : l'équipage ne voit pas les actions de gestion, l'assistance est 
   const pageEquipage = await contexteEquipage.newPage()
   await pageEquipage.goto(`/apps/partenaires/conventions/${conventionId}`)
   await expect(pageEquipage.getByText(/^Signée par Jeoffrey Koehling/)).toBeVisible()
-  await expect(pageEquipage.getByText("Résilier la convention", { exact: true })).toHaveCount(0)
-  await expect(pageEquipage.getByText("Ajouter un avenant", { exact: true })).toHaveCount(0)
+  await expect(pageEquipage.getByRole("button", { name: "Résilier la convention", exact: true })).toHaveCount(0)
+  await expect(pageEquipage.getByRole("button", { name: "Ajouter un avenant", exact: true })).toHaveCount(0)
   await pageEquipage.goto(`/apps/partenaires/${partenaireId}`)
   await expect(pageEquipage.getByRole("link", { name: "Page partenaire" })).toHaveCount(0)
   await contexteEquipage.close()

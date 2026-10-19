@@ -5,12 +5,12 @@ import { Lock } from "lucide-react"
 import { accesEcran } from "@/apps/partenaires/ecran"
 import { FormulaireConvention, type ValeursConvention } from "@/apps/partenaires/composants/formulaire-convention"
 import { FormulaireContrepartie } from "@/apps/partenaires/composants/formulaire-contrepartie"
-import { FormulaireAvenant, FormulaireSignature } from "@/apps/partenaires/composants/formulaire-documents"
-import { FormulairePreuve } from "@/apps/partenaires/composants/formulaire-preuve"
-import { ActionsContrepartie } from "@/apps/partenaires/composants/actions-contrepartie"
+import { ChampsAvenant, ChampsSignature } from "@/apps/partenaires/composants/formulaire-documents"
+import { ChampsPreuve } from "@/apps/partenaires/composants/formulaire-preuve"
 import { ActionsPreuve } from "@/apps/partenaires/composants/actions-preuve"
 import { SaisieAvancement } from "@/apps/partenaires/composants/saisie-avancement"
-import { BoutonEnvoi, FormulaireAction } from "@/apps/partenaires/composants/formulaire"
+import { BoutonEnvoi, Champ, FormulaireAction } from "@/apps/partenaires/composants/formulaire"
+import { TiroirAction } from "@/components/formulaire/tiroir"
 import {
   dateFrancaise,
   LIBELLES_APPORT_RECU,
@@ -22,12 +22,19 @@ import {
   couleurContrepartie,
 } from "@/apps/partenaires/affichage"
 import {
+  ajouterAvenantAction,
+  ajouterContrepartieAction,
+  ajouterPreuveAction,
   genererDocumentAction,
   marquerEnvoyeeAction,
+  marquerSigneeAction,
   masquerPreuveAction,
+  modifierContrepartieAction,
+  modifierConventionAction,
   renouvelerAction,
   reporterContrepartieAction,
   resilierAction,
+  saisirAvancementAction,
   supprimerPreuveAction,
 } from "@/apps/partenaires/actions"
 import { accesPartenaires, genererDocument, lireCatalogue, lireModeles } from "@/apps/partenaires/services-serveur"
@@ -37,7 +44,7 @@ import { enRetard, formaterMontant, jourParis, statutContrepartie } from "@/apps
 import { EcranVide } from "@/components/qg/ecran-vide"
 import { Onglets } from "@/components/qg/onglets-fiche"
 import { aAuMoins } from "@/core/droits/niveaux"
-import { BOUTON_DANGER, BOUTON_SECONDAIRE, CHAMP, LIEN } from "@/lib/classes-formulaire"
+import { CHAMP, LIEN } from "@/lib/classes-formulaire"
 
 const jour = (date: Date) => date.toISOString().slice(0, 10)
 
@@ -187,19 +194,22 @@ export default async function PageConvention({
       {actif === "contreparties" && (
         <div className="flex flex-col gap-6">
           {/* Un bouton à sa taille ; le formulaire ouvert prend toute la largeur (brief 3.10, §3). */}
-          <details className="self-start [&[open]]:w-full">
-            <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Ajouter une contrepartie</summary>
-            <div className={`${CLASSE_BLOC} mt-4`}>
-              <FormulaireContrepartie
-                mode="creation"
-                agreementId={convention.id}
-                catalogue={catalogueActif}
-                emplacements={emplacementsPourChoix}
-                epreuves={epreuvesPourChoix}
-                valeurs={{ libelle: "", type: "autre", quantitePromise: 1, unite: "", slotId: null, eventIds: [], echeance: null }}
-              />
-            </div>
-          </details>
+          <TiroirAction
+            libelle="Ajouter une contrepartie"
+            titre="Ajouter une contrepartie"
+            action={ajouterContrepartieAction}
+            libelleBouton="Ajouter la contrepartie"
+            libelleEnCours="Ajout…"
+          >
+            <FormulaireContrepartie
+                  mode="creation"
+                  agreementId={convention.id}
+                  catalogue={catalogueActif}
+                  emplacements={emplacementsPourChoix}
+                  epreuves={epreuvesPourChoix}
+                  valeurs={{ libelle: "", type: "autre", quantitePromise: 1, unite: "", slotId: null, eventIds: [], echeance: null }}
+            />
+          </TiroirAction>
 
           {convention.benefits.length === 0 ? (
             <p className="text-texte-discret">Aucune contrepartie pour l&apos;instant.</p>
@@ -244,92 +254,76 @@ export default async function PageConvention({
                       </p>
                     </div>
 
-                    <ActionsContrepartie
-                      actions={[
-                        {
-                          cle: "avancement",
-                          libelle: "Saisir l'avancement",
-                          contenu: <SaisieAvancement benefitId={benefice.id} quantiteTenue={benefice.quantiteTenue} quantitePromise={benefice.quantitePromise} />,
-                        },
-                        {
-                          cle: "report",
-                          libelle: "Reporter",
-                          contenu: (
-                            <FormulaireAction action={reporterContrepartieAction} nom="Reporter la contrepartie" className="flex flex-wrap items-end gap-3">
-                              <input type="hidden" name="benefitId" value={benefice.id} />
-                              <label className="flex flex-col gap-1 text-sm font-medium">
-                                Reporter à
-                                <input name="echeance" type="date" defaultValue={echeance ?? ""} className={CHAMP} />
-                              </label>
-                              <BoutonEnvoi libelle="Reporter" secondaire />
-                            </FormulaireAction>
-                          ),
-                        },
-                        {
-                          cle: "modification",
-                          libelle: "Modifier la contrepartie",
-                          contenu: (
-                            <FormulaireContrepartie
-                              mode="modification"
-                              agreementId={convention.id}
-                              benefitId={benefice.id}
-                              catalogue={[]}
-                              emplacements={emplacementsPourChoix}
-                              epreuves={epreuvesPourChoix}
-                              valeurs={{
-                                libelle: benefice.libelle,
-                                type: benefice.type,
-                                quantitePromise: benefice.quantitePromise,
-                                unite: "",
-                                slotId: benefice.slotId,
-                                eventIds: benefice.eventIds,
-                                echeance,
-                              }}
-                            />
-                          ),
-                        },
-                      ]}
-                      preuves={
-                        <>
-                          <h4 className="font-medium">Preuves</h4>
-                          {benefice.proofs.length === 0 ? (
-                            <p className="text-sm text-texte-discret">Aucune preuve pour l&apos;instant.</p>
-                          ) : (
-                            <ul className="flex flex-col gap-3">
-                              {benefice.proofs.map((preuve) => (
-                                <li key={preuve.id} className="flex flex-col gap-2">
-                                  <div className="flex flex-wrap items-start gap-3">
-                                    {preuve.fileId && (
-                                      // eslint-disable-next-line @next/next/no-img-element -- fichier de la team servi par /api/fichiers ; taille fixe et chargement paresseux
-                                      <img src={`/api/fichiers/${preuve.fileId}`} width={64} height={64} alt="Photo de la preuve" loading="lazy" decoding="async" className="h-16 w-16 rounded-md object-cover" />
+                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <TiroirAction libelle="Saisir l'avancement" titre="Saisir l'avancement" action={saisirAvancementAction} libelleBouton="Enregistrer l'avancement">
+                          <SaisieAvancement benefitId={benefice.id} quantiteTenue={benefice.quantiteTenue} quantitePromise={benefice.quantitePromise} />
+                        </TiroirAction>
+                        <TiroirAction libelle="Reporter" titre="Reporter la contrepartie" action={reporterContrepartieAction} libelleBouton="Reporter">
+                          <input type="hidden" name="benefitId" value={benefice.id} />
+                          <Champ id={`report-${benefice.id}`} libelle="Reporter à">
+                            <input id={`report-${benefice.id}`} name="echeance" type="date" defaultValue={echeance ?? ""} className={CHAMP} />
+                          </Champ>
+                        </TiroirAction>
+                        <TiroirAction libelle="Modifier la contrepartie" titre="Modifier la contrepartie" action={modifierContrepartieAction} libelleBouton="Enregistrer">
+                          <FormulaireContrepartie
+                            mode="modification"
+                            agreementId={convention.id}
+                            benefitId={benefice.id}
+                            catalogue={[]}
+                            emplacements={emplacementsPourChoix}
+                            epreuves={epreuvesPourChoix}
+                            valeurs={{
+                                  libelle: benefice.libelle,
+                                  type: benefice.type,
+                                  quantitePromise: benefice.quantitePromise,
+                                  unite: "",
+                                  slotId: benefice.slotId,
+                                  eventIds: benefice.eventIds,
+                                  echeance,
+                                }}
+                          />
+                        </TiroirAction>
+                      </div>
+                      <div className="flex flex-col gap-3 border-t border-bordure pt-4">
+                        <h4 className="font-medium">Preuves</h4>
+                        {benefice.proofs.length === 0 ? (
+                          <p className="text-sm text-texte-discret">Aucune preuve pour l&apos;instant.</p>
+                        ) : (
+                          <ul className="flex flex-col gap-3">
+                            {benefice.proofs.map((preuve) => (
+                              <li key={preuve.id} className="flex flex-col gap-2">
+                                <div className="flex flex-wrap items-start gap-3">
+                                  {preuve.fileId && (
+                                    // eslint-disable-next-line @next/next/no-img-element -- fichier de la team servi par /api/fichiers ; taille fixe et chargement paresseux
+                                    <img src={`/api/fichiers/${preuve.fileId}`} width={64} height={64} alt="Photo de la preuve" loading="lazy" decoding="async" className="h-16 w-16 rounded-md object-cover" />
+                                  )}
+                                  <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
+                                    <p className="font-medium">
+                                      {dateFrancaise(jour(preuve.date))} · {LIBELLES_TYPE_PREUVE[preuve.type] ?? preuve.type}
+                                      {preuve.event ? ` · ${preuve.event.nom}` : ""}
+                                    </p>
+                                    {preuve.commentaire && <p className="whitespace-pre-line">{preuve.commentaire}</p>}
+                                    {preuve.lien && (
+                                      <a href={preuve.lien} target="_blank" rel="noopener noreferrer" className={`${LIEN} break-all`}>
+                                        Ouvrir le lien
+                                      </a>
                                     )}
-                                    <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-                                      <p className="font-medium">
-                                        {dateFrancaise(jour(preuve.date))} · {LIBELLES_TYPE_PREUVE[preuve.type] ?? preuve.type}
-                                        {preuve.event ? ` · ${preuve.event.nom}` : ""}
-                                      </p>
-                                      {preuve.commentaire && <p className="whitespace-pre-line">{preuve.commentaire}</p>}
-                                      {preuve.lien && (
-                                        <a href={preuve.lien} target="_blank" rel="noopener noreferrer" className={`${LIEN} break-all`}>
-                                          Ouvrir le lien
-                                        </a>
-                                      )}
-                                      <p className="text-texte-discret">{preuve.visiblePartenaire ? "Visible par le partenaire" : "Masquée pour le partenaire"}</p>
-                                    </div>
+                                    <p className="text-texte-discret">{preuve.visiblePartenaire ? "Visible par le partenaire" : "Masquée pour le partenaire"}</p>
                                   </div>
-                                  <ActionsPreuve preuveId={preuve.id} visiblePartenaire={preuve.visiblePartenaire} masquer={masquerPreuveAction} supprimer={supprimerPreuveAction} />
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </>
-                      }
-                      ajoutPreuve={{
-                        cle: "preuve",
-                        libelle: "Ajouter une preuve",
-                        contenu: <FormulairePreuve benefitId={benefice.id} epreuves={epreuvesPourChoix} aujourdhui={aujourdhui} />,
-                      }}
-                    />
+                                </div>
+                                <ActionsPreuve preuveId={preuve.id} visiblePartenaire={preuve.visiblePartenaire} masquer={masquerPreuveAction} supprimer={supprimerPreuveAction} />
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <div className="flex flex-wrap items-center gap-3">
+                          <TiroirAction libelle="Ajouter une preuve" titre="Ajouter une preuve" action={ajouterPreuveAction} libelleBouton="Ajouter la preuve" libelleEnCours="Envoi de la preuve…">
+                            <ChampsPreuve benefitId={benefice.id} epreuves={epreuvesPourChoix} aujourdhui={aujourdhui} />
+                          </TiroirAction>
+                        </div>
+                      </div>
+                    </div>
                   </li>
                 )
               })}
@@ -458,19 +452,22 @@ export default async function PageConvention({
         </h2>
         {estBrouillon && (
           <div className="flex flex-col gap-4">
-            <details>
-              <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Modifier la convention</summary>
-              <div className="mt-4">
-                <FormulaireConvention
-                  mode="modification"
-                  partnerId={convention.partnerId}
-                  agreementId={convention.id}
-                  modeles={modelesActifs.map((m) => ({ id: m.id, nom: m.nom, version: m.version }))}
-                  saisons={saisons.map((s) => ({ id: s.id, nom: s.nom, dateDebut: jour(s.dateDebut), dateFin: jour(s.dateFin) }))}
-                  valeurs={valeursConvention}
-                />
-              </div>
-            </details>
+            <TiroirAction
+              libelle="Modifier la convention"
+              titre="Modifier la convention"
+              action={modifierConventionAction}
+              libelleBouton="Enregistrer"
+            >
+              <FormulaireConvention
+                enTiroir
+                    mode="modification"
+                    partnerId={convention.partnerId}
+                    agreementId={convention.id}
+                    modeles={modelesActifs.map((m) => ({ id: m.id, nom: m.nom, version: m.version }))}
+                    saisons={saisons.map((s) => ({ id: s.id, nom: s.nom, dateDebut: jour(s.dateDebut), dateFin: jour(s.dateFin) }))}
+                    valeurs={valeursConvention}
+              />
+            </TiroirAction>
             <div className="flex flex-wrap gap-3">
               <FormulaireAction action={genererDocumentAction} nom="Générer le document" ok="Document généré. Le téléchargement est dans l'onglet Document." className="flex">
                 <input type="hidden" name="agreementId" value={convention.id} />
@@ -484,12 +481,9 @@ export default async function PageConvention({
           </div>
         )}
         {estEnvoyee && gestion && (
-          <details>
-            <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Marquer signée</summary>
-            <div className="mt-4">
-              <FormulaireSignature agreementId={convention.id} aujourdhui={aujourdhui} />
-            </div>
-          </details>
+          <TiroirAction libelle="Marquer signée" titre="Marquer la convention signée" action={marquerSigneeAction} libelleBouton="Marquer signée">
+            <ChampsSignature agreementId={convention.id} aujourdhui={aujourdhui} />
+          </TiroirAction>
         )}
         {estEnvoyee && !gestion && <p className="text-sm text-texte-discret">Seule la gestion peut marquer la convention signée.</p>}
         {/* Une seule ligne d'actions, qui passe à la ligne sur téléphone (brief 3.9, §6). Les formulaires s'ouvrent
@@ -501,29 +495,27 @@ export default async function PageConvention({
               <BoutonEnvoi libelle="Renouveler" secondaire />
             </FormulaireAction>
             {estActive && gestion && (
-              <details className="[&[open]]:basis-full">
-                <summary className={`${BOUTON_SECONDAIRE} inline-flex cursor-pointer list-none`}>Ajouter un avenant</summary>
-                <div className="mt-4">
-                  <FormulaireAvenant agreementId={convention.id} aujourdhui={aujourdhui} />
-                </div>
-              </details>
+              <TiroirAction libelle="Ajouter un avenant" titre="Ajouter un avenant" action={ajouterAvenantAction} libelleBouton="Ajouter l'avenant">
+                <ChampsAvenant agreementId={convention.id} aujourdhui={aujourdhui} />
+              </TiroirAction>
             )}
             {estActive && gestion && (
-              <details className="ml-auto [&[open]]:basis-full">
-                <summary className={`${BOUTON_DANGER} inline-flex cursor-pointer list-none`}>Résilier la convention</summary>
-                <div className="mt-4">
-                  <FormulaireAction action={resilierAction} nom="Résilier" className="flex flex-col gap-3">
-                    <input type="hidden" name="agreementId" value={convention.id} />
-                    <label htmlFor="motif-resiliation" className="font-medium">
-                      Motif (obligatoire)
-                    </label>
+              <div className="ml-auto">
+                <TiroirAction
+                  libelle="Résilier la convention"
+                  titre="Résilier la convention"
+                  action={resilierAction}
+                  libelleBouton="Résilier la convention"
+                  libelleEnCours="Résiliation…"
+                  danger
+                  question="Résilier cette convention ? Elle s'arrête. Les emplacements de ses logos seront à libérer dans la boîte d'actions."
+                >
+                  <input type="hidden" name="agreementId" value={convention.id} />
+                  <Champ id="motif-resiliation" libelle="Motif (obligatoire)">
                     <textarea id="motif-resiliation" name="motif" required rows={2} maxLength={1000} className={CHAMP} />
-                    <div>
-                      <BoutonEnvoi libelle="Résilier la convention" danger />
-                    </div>
-                  </FormulaireAction>
-                </div>
-              </details>
+                  </Champ>
+                </TiroirAction>
+              </div>
             )}
           </div>
         )}
