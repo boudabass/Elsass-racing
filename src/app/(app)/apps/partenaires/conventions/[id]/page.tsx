@@ -50,7 +50,7 @@ const LIBELLES_CHAMP: Record<string, string> = {
   "team.representant": "le représentant de la team",
   "partenaire.entreprise": "le nom de l'entreprise",
   "partenaire.adresse": "l'adresse du partenaire",
-  "partenaire.representant": "le représentant du partenaire",
+  "partenaire.representant": "le nom de l'interlocuteur du partenaire",
   "partenaire.qualite": "la fonction de l'interlocuteur du partenaire",
   "convention.apport_financier": "l'apport financier",
   "convention.apport_nature": "l'apport en nature",
@@ -62,9 +62,13 @@ const LIBELLES_CHAMP: Record<string, string> = {
 }
 
 // Où remplir chaque champ : les données de la team dans Réglages, celles du partenaire dans sa fiche.
-function destinationChamp(cle: string, partnerId: string): { href: string; texte: string } | null {
-  if (cle.startsWith("team.")) return { href: "/apps/settings/association", texte: "Réglages, rubrique Association" }
-  if (cle.startsWith("partenaire.")) return { href: `/apps/partenaires/${partnerId}`, texte: "la fiche du partenaire" }
+// Où remplir chaque champ manquant : la ligne de l'encadré y mène directement (brief 3.11, §7).
+function destinationChamp(cle: string, partnerId: string, nomPartenaire: string): { href: string; texte: string } | null {
+  if (cle.startsWith("team.")) return { href: "/apps/settings/association", texte: "dans Réglages, rubrique Association" }
+  if (cle === "partenaire.representant" || cle === "partenaire.qualite") {
+    return { href: `/apps/partenaires/${partnerId}?onglet=fiche#interlocuteur`, texte: `dans la fiche de ${nomPartenaire}` }
+  }
+  if (cle.startsWith("partenaire.")) return { href: `/apps/partenaires/${partnerId}?onglet=fiche#coordonnees`, texte: `dans la fiche de ${nomPartenaire}` }
   return null
 }
 
@@ -347,13 +351,14 @@ export default async function PageConvention({
                 </p>
                 <ul className="flex list-inside list-disc flex-col gap-1">
                   {vides.map((cle) => {
-                    const destination = destinationChamp(cle, convention.partnerId)
+                    const destination = destinationChamp(cle, convention.partnerId, convention.partner.contact.nom)
+                    const libelle = LIBELLES_CHAMP[cle] ?? cle
                     return (
                       <li key={cle}>
-                        {LIBELLES_CHAMP[cle] ?? cle}
+                        {libelle.charAt(0).toUpperCase() + libelle.slice(1)} : à remplir
                         {destination && (
                           <>
-                            {" · "}
+                            {" "}
                             <Link href={destination.href} className={LIEN}>
                               {destination.texte}
                             </Link>
