@@ -24,10 +24,11 @@ import { LIEN } from "@/lib/classes-formulaire"
 const formatJour = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" })
 
 // « Encaissée le 18 octobre 2026 » pour une recette encaissée, le libellé de statut sinon (brief 3.9, §3).
+// Une recette prévue dit qu'elle n'est pas encore encaissée : « Prévue » seul ne suffisait pas (brief 3.11, §4).
 function libelleStatutRecette(mouvement: MouvementLu): string {
-  return mouvement.encaisseeLe
-    ? `Encaissée le ${jourEnFrancais(new Date(`${mouvement.encaisseeLe}T00:00:00Z`))}`
-    : libelle("BudgetStatutRecette", mouvement.statut)
+  if (mouvement.encaisseeLe) return `Encaissée le ${jourEnFrancais(new Date(`${mouvement.encaisseeLe}T00:00:00Z`))}`
+  if (mouvement.statut === "prevue") return "Prévue, pas encore encaissée"
+  return libelle("BudgetStatutRecette", mouvement.statut)
 }
 
 export default async function PageMouvements({
@@ -165,6 +166,9 @@ export default async function PageMouvements({
                     {formatJour.format(new Date(`${mouvement.date}T00:00:00Z`))} · {mouvement.categorieNom}
                     {mouvement.payeurNom ? ` · ${mouvement.payeurNom}` : ""}
                   </span>
+                  {mouvement.type === "recette" && mouvement.statut === "prevue" && (
+                    <span className="text-xs text-texte-discret">Prévue, pas encore encaissée</span>
+                  )}
                 </span>
                 <span className={`${MONTANT} shrink-0 ${mouvement.type === "recette" ? "text-etat-ok" : ""}`}>
                   {mouvement.type === "recette" ? "+" : "−"} {formatEuros(mouvement.montantCentimes)}
