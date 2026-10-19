@@ -1,12 +1,14 @@
 "use client"
 
-// Logo du partenaire (brief 3.7, point 0) : il s'enregistre dès que le fichier est envoyé, comme le logo de la team
+// Logo du partenaire (brief 3.7, point 0) : ouvert par « Changer le logo » dans un tiroir (brief 3.13b). Il s'enregistre dès que le fichier est envoyé, comme le logo de la team
 // dans Réglages, sans bouton. « Retirer le logo » enregistre aussi, sans logo. Le message de résultat est sous le champ.
 
 import { startTransition, useActionState, useState } from "react"
 
 import { ChampFichier, type FichierEnvoye } from "@/components/formulaire/champ-fichier"
 import { Message } from "@/components/formulaire/message"
+import { Tiroir } from "@/components/formulaire/tiroir"
+import { BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
 
 import { poserLogoAction } from "../actions"
 
@@ -37,5 +39,20 @@ export function FormulaireLogo({ partnerId, logoFileId }: { partnerId: string; l
       />
       <Message resultat={resultat} />
     </div>
+  )
+}
+
+// Le bouton de la fiche : il ouvre le tiroir qui contient le champ du logo. Le tiroir se ferme par « Fermer ».
+export function TiroirLogo({ partnerId, logoFileId }: { partnerId: string; logoFileId: string | null }) {
+  const [ouvert, setOuvert] = useState(false)
+  return (
+    <>
+      <button type="button" aria-haspopup="dialog" onClick={() => setOuvert(true)} className={BOUTON_SECONDAIRE}>
+        {logoFileId ? "Changer le logo" : "Ajouter un logo"}
+      </button>
+      <Tiroir ouvert={ouvert} onOuvertChange={setOuvert} titre="Logo du partenaire" libelleAnnuler="Fermer">
+        <FormulaireLogo partnerId={partnerId} logoFileId={logoFileId} />
+      </Tiroir>
+    </>
   )
 }

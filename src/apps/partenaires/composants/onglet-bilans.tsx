@@ -9,6 +9,8 @@ import { CHAMP, LIEN } from "@/lib/classes-formulaire"
 import { dateFrancaise, instantFrancais } from "../affichage"
 import { genererBilanAction, marquerBilanEnvoyeAction } from "../actions"
 
+import { TiroirAction } from "@/components/formulaire/tiroir"
+
 import { BoutonEnvoi, Champ, FormulaireAction } from "./formulaire"
 
 // Conventions proposées pour le bilan : seulement celles qui ont dépassé le brouillon et l'envoi.
@@ -55,30 +57,27 @@ export function OngletBilans({
             <p className="text-sm text-texte-discret">
               Le bilan rassemble les contreparties, les preuves visibles par le partenaire, les épreuves courues et les résultats publics de la période.
             </p>
-            <FormulaireAction action={genererBilanAction} nom="Générer un bilan" ok="Bilan généré. Il est dans la liste ci-dessous." className="flex flex-col gap-4">
-              <input type="hidden" name="partnerId" value={partenaireId} />
-              <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <TiroirAction libelle="Générer un bilan" titre="Générer un bilan" action={genererBilanAction} libelleBouton="Générer le bilan" libelleEnCours="Génération…" secondaire={false}>
+                <input type="hidden" name="partnerId" value={partenaireId} />
                 <Champ id="bilan-debut" libelle="Du">
                   <input id="bilan-debut" name="debut" type="date" required defaultValue={debutDefaut} className={CHAMP} />
                 </Champ>
                 <Champ id="bilan-fin" libelle="Au">
                   <input id="bilan-fin" name="fin" type="date" required defaultValue={finDefaut} className={CHAMP} />
                 </Champ>
-              </div>
-              <Champ id="bilan-convention" libelle="Convention" aide="Toutes les conventions du partenaire, ou une seule.">
-                <select id="bilan-convention" name="agreementId" defaultValue="" className={CHAMP}>
-                  <option value="">Toutes les conventions</option>
-                  {conventions.map((convention) => (
-                    <option key={convention.id} value={convention.id}>
-                      {convention.libelle}
-                    </option>
-                  ))}
-                </select>
-              </Champ>
-              <div>
-                <BoutonEnvoi libelle="Générer le bilan" />
-              </div>
-            </FormulaireAction>
+                <Champ id="bilan-convention" libelle="Convention" aide="Toutes les conventions du partenaire, ou une seule.">
+                  <select id="bilan-convention" name="agreementId" defaultValue="" className={CHAMP}>
+                    <option value="">Toutes les conventions</option>
+                    {conventions.map((convention) => (
+                      <option key={convention.id} value={convention.id}>
+                        {convention.libelle}
+                      </option>
+                    ))}
+                  </select>
+                </Champ>
+              </TiroirAction>
+            </div>
           </>
         )}
       </section>

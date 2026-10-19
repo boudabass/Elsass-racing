@@ -113,7 +113,7 @@ async function creerProspect(page: Page, entreprise: string): Promise<string> {
   await entreeAjouter(page, "Partenaire").click()
   await page.waitForURL(/\/apps\/partenaires\/nouveau$/)
   await page.getByLabel("Entreprise", { exact: true }).fill(entreprise)
-  await page.locator("form").getByRole("button", { name: "Ajouter" }).click()
+  await page.getByRole("button", { name: "Ajouter le prospect", exact: true }).click()
   await page.waitForURL(/\/apps\/partenaires\/[0-9a-f-]{36}$/)
   return new URL(page.url()).pathname.split("/")[3]
 }
@@ -199,23 +199,26 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   // 1. Prospect « Garage Muller », passé à « Intéressé », suivi par Jo (la proposition de publications en a besoin).
   const partenaireId = await creerProspect(page, "Garage Muller")
   await page.goto(`/apps/partenaires/${partenaireId}`)
-  await page.locator("summary", { hasText: "Changer le statut" }).click()
-  await page.locator("select[name=statut]").selectOption({ label: "Intéressé" })
-  await page.locator("form").filter({ has: page.locator("select[name=statut]") }).getByRole("button", { name: "Changer le statut" }).click()
+  await page.getByRole("button", { name: "Changer le statut", exact: true }).click()
+  await page.getByRole("dialog").locator("select[name=statut]").selectOption({ label: "Intéressé" })
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le statut", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
   await page.waitForLoadState("networkidle")
   await page.goto(`/apps/partenaires/${partenaireId}`)
   // Source et « Suivi par » : après « Enregistrer le suivi », la valeur enregistrée est la valeur par défaut des champs,
   // sans rechargement de la page (brief 3.11, §2). Le test lit l'attribut selected, pas la saisie de l'utilisateur.
+  await page.locator("section[aria-labelledby=suivi]").getByRole("button", { name: "Modifier", exact: true }).click()
   await page.locator("#source").selectOption({ index: 1 })
   const source = await page.locator("#source option:checked").textContent()
   await page.locator("#suivi-par").selectOption({ value: personneId })
   const suiviPar = await page.locator("#suivi-par option:checked").textContent()
-  await page.getByRole("button", { name: "Enregistrer le suivi", exact: true }).click()
-  await expect(page.locator("#source option[selected]")).toHaveText(source ?? "")
-  await expect(page.locator("#suivi-par option[selected]")).toHaveText(suiviPar ?? "")
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le suivi", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await expect(page.locator("section[aria-labelledby=suivi]")).toContainText(source ?? "")
+  await expect(page.locator("section[aria-labelledby=suivi]")).toContainText(suiviPar ?? "")
   await page.waitForLoadState("networkidle")
   await page.reload()
-  await expect(page.locator(`#statut-${partenaireId}`)).toHaveValue("interesse")
+  await expect(page.getByText("Intéressé", { exact: true }).first()).toBeVisible()
 
   // 2. Saxo 2, convention de 1 500 € en deux versements, logo sur la Portière, deux publications pour l'épreuve.
   const vehiculeId = await creerSaxoDeux(page)
@@ -239,10 +242,12 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await expect(page.getByRole("status").filter({ hasText: "1 champ à compléter" })).toBeVisible()
   // L'interlocuteur se saisit dans la fiche, à l'écran : la ligne « Interlocuteur » s'affiche sans recharger la page.
   await page.goto(`/apps/partenaires/${partenaireId}`)
+  await page.locator("#interlocuteur").getByRole("button", { name: "Modifier", exact: true }).click()
   await page.locator("#interlocuteur-nom").fill("Marc Dupont")
   await page.locator("#interlocuteur-qualite").fill("Gérant")
-  await page.getByRole("button", { name: "Enregistrer l'interlocuteur", exact: true }).click()
-  await expect(page.getByText("Interlocuteur : Marc Dupont", { exact: true })).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer l'interlocuteur", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await expect(page.locator("#interlocuteur")).toContainText("Marc Dupont")
   await capturer(page, "lot3-fiche-qualite-1440x900.png")
   await page.goto(`/apps/partenaires/conventions/${conventionId}?onglet=document`)
   await expect(page.getByRole("status").filter({ hasText: "champ à compléter" })).toHaveCount(0)

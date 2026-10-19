@@ -122,8 +122,9 @@ test("2 · décocher une section la retire de la page", async ({ page, equipe, b
     const jeton = await creerLien(page, donnees.partenaireA)
 
     await page.goto(`/apps/partenaires/${donnees.partenaireA}?onglet=page`)
+    await page.getByRole("button", { name: "Modifier les sections", exact: true }).click()
     await page.getByLabel("Résultats", { exact: true }).uncheck()
-    await page.getByRole("button", { name: "Enregistrer les sections", exact: true }).click()
+    await page.getByRole("dialog").getByRole("button", { name: "Enregistrer les sections", exact: true }).click()
     // Le rechargement lit l'état enregistré : il ne suffit pas que la case soit décochée à l'écran.
     await page.waitForLoadState("networkidle")
     await page.reload()
@@ -147,8 +148,9 @@ test("2 bis · la section Conventions décochée retire le document signé", asy
     const jeton = await creerLien(page, donnees.partenaireA)
 
     await page.goto(`/apps/partenaires/${donnees.partenaireA}?onglet=page`)
+    await page.getByRole("button", { name: "Modifier les sections", exact: true }).click()
     await page.getByLabel("Conventions", { exact: true }).uncheck()
-    await page.getByRole("button", { name: "Enregistrer les sections", exact: true }).click()
+    await page.getByRole("dialog").getByRole("button", { name: "Enregistrer les sections", exact: true }).click()
     await page.waitForLoadState("networkidle")
     await page.reload()
     await expect(page.getByLabel("Conventions", { exact: true })).not.toBeChecked()
@@ -195,8 +197,8 @@ test("4 · un lien révoqué, renouvelé ou expiré ne sert plus", async ({ page
     // Révoqué.
     const premier = await creerLien(page, donnees.partenaireA)
     await page.goto(`/apps/partenaires/${donnees.partenaireA}?onglet=page`)
-    await page.locator("summary", { hasText: "Révoquer le lien" }).click()
     await page.getByRole("button", { name: "Révoquer le lien", exact: true }).click()
+    await page.getByRole("dialog").getByRole("button", { name: "Révoquer le lien", exact: true }).click()
     await page.reload()
     const revoque = await visiteur.request.get(`/p/${premier}`)
     const invente = await visiteur.request.get(`/p/${JETON_INVENTE}`)
@@ -207,6 +209,7 @@ test("4 · un lien révoqué, renouvelé ou expiré ne sert plus", async ({ page
     // Renouvelé : l'ancien lien tombe, le nouveau marche.
     const second = await creerLien(page, donnees.partenaireA)
     await page.getByRole("button", { name: "Renouveler le lien", exact: true }).click()
+    await page.getByRole("dialog").getByRole("button", { name: "Renouveler le lien", exact: true }).click()
     // La zone garde l'ancien jeton le temps de la réponse : on attend qu'il change.
     await expect.poll(async () => lireJetonAffiche(page)).not.toBe(second)
     const troisieme = await lireJetonAffiche(page)

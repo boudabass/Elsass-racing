@@ -66,7 +66,7 @@ async function ouvrirNouveauProspect(page: Page): Promise<void> {
 async function creerProspect(page: Page, entreprise: string): Promise<string> {
   await ouvrirNouveauProspect(page)
   await page.getByLabel("Entreprise", { exact: true }).fill(entreprise)
-  await page.locator("form").getByRole("button", { name: "Ajouter" }).click()
+  await page.getByRole("button", { name: "Ajouter le prospect", exact: true }).click()
   await page.waitForURL(/\/apps\/partenaires\/[0-9a-f-]{36}$/)
   return new URL(page.url()).pathname.split("/")[3]
 }
@@ -166,12 +166,12 @@ test("responsable : prospect, échange, convention, document, signature, avancem
   await page.goto("/apps/partenaires/nouveau")
   await page.getByLabel("Entreprise", { exact: true }).fill("Garage Muller")
   await expect(page.getByRole("link", { name: "Ouvrir sa fiche" })).toBeVisible()
-  await page.locator("form").getByRole("button", { name: "Ajouter" }).click()
+  await page.getByRole("button", { name: "Ajouter le prospect", exact: true }).click()
   await expect(page.getByRole("alert").filter({ hasText: "Cette entreprise est déjà dans Partenaires." })).toBeVisible()
 
   // 2. Échange avec une prochaine action dans 3 jours : la relance de la Prospection l'affiche.
   await page.goto(`/apps/partenaires/${partenaireId}?onglet=echanges`)
-  await page.getByText("Ajouter un échange", { exact: true }).click()
+  await page.getByRole("button", { name: "Ajouter un échange", exact: true }).click()
   await page.getByLabel("Résumé", { exact: true }).fill("Appel de prise de contact")
   await page.getByLabel("Prochaine action", { exact: true }).fill("Rappeler")
   await page.getByLabel("Date de la prochaine action", { exact: true }).fill(jourDans(3))

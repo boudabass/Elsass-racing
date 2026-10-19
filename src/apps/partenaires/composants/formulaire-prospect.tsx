@@ -11,7 +11,9 @@ import { CHAMP, LIEN } from "@/lib/classes-formulaire"
 
 import { creerProspectAction, verifierEntrepriseAction } from "../actions"
 
-import { BoutonEnvoi, Champ, FormulaireAction } from "./formulaire"
+import { FormulairePage } from "@/components/formulaire/formulaire-page"
+
+import { Champ, FormulaireAction } from "./formulaire"
 
 interface Indice {
   contactExiste: boolean
@@ -37,7 +39,9 @@ export function FormulaireProspect() {
   }, [entreprise])
 
   return (
+    <FormulairePage formulaireId="prospect-formulaire" annulerHref="/apps/partenaires" libelleBouton="Ajouter le prospect">
     <FormulaireAction
+      id="prospect-formulaire"
       nom="Nouveau prospect"
       action={creerProspectAction}
       auSucces={(resultat) => {
@@ -71,9 +75,7 @@ export function FormulaireProspect() {
       <Champ id="contact" libelle="Contact" aide="Le nom de l'interlocuteur, si tu le connais. Facultatif.">
         <input id="contact" name="contact" autoComplete="off" maxLength={120} placeholder="Prénom Nom" className={CHAMP} aria-describedby="contact-aide" />
       </Champ>
-      <div>
-        <BoutonEnvoi libelle="Ajouter" />
-      </div>
     </FormulaireAction>
+    </FormulairePage>
   )
 }

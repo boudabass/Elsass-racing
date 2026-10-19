@@ -136,16 +136,16 @@ export default async function PageProspection({ searchParams }: { searchParams: 
               )
               if (cartes.length === 0) return null
               return (
-                <details key={colonne} className="rounded-md border border-bordure p-4">
-                  <summary className="cible-tactile cursor-pointer list-none font-medium">
+                <section key={colonne} className="flex flex-col gap-3">
+                  <h2 className="font-medium">
                     {LIBELLES_STATUT_PARTENAIRE[colonne]} ({cartes.length})
-                  </summary>
-                  <ul className="mt-3 grid grid-cols-3 gap-2">
+                  </h2>
+                  <ul className="grid grid-cols-3 gap-2">
                     {cartes.map((partenaire) => (
                       <CarteProspect key={partenaire.id} partenaire={partenaire} aujourdhui={aujourdhui} />
                     ))}
                   </ul>
-                </details>
+                </section>
               )
             })}
           </div>

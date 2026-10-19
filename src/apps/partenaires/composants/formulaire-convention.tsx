@@ -13,7 +13,9 @@ import { centimesDeSaisie } from "../affichage"
 import { creerConventionAction, modifierConventionAction } from "../actions"
 import { formaterMontant } from "../regles"
 
-import { BoutonEnvoi, Champ, FormulaireAction } from "./formulaire"
+import { FormulairePage } from "@/components/formulaire/formulaire-page"
+
+import { Champ, FormulaireAction } from "./formulaire"
 
 export interface LigneEcheancier {
   date: string
@@ -171,19 +173,24 @@ export function FormulaireConvention({ mode, partnerId, agreementId, modeles, sa
     </>
   )
   if (enTiroir) return champs
+  // Sur une page entière (création), la barre du bas porte « Annuler » et « Créer la convention » (brief 3.13b, décision 1).
   return (
-    <FormulaireAction
-      nom={mode === "creation" ? "Nouvelle convention" : "Modifier la convention"}
-      action={mode === "creation" ? creerConventionAction : modifierConventionAction}
-      auSucces={(resultat) => {
-        if (mode === "creation" && resultat.id) router.push(`/apps/partenaires/conventions/${resultat.id}?onglet=contreparties`)
-      }}
-      className="flex flex-col gap-8"
+    <FormulairePage
+      formulaireId="convention-formulaire"
+      annulerHref={`/apps/partenaires/${partnerId}`}
+      libelleBouton={mode === "creation" ? "Créer la convention" : "Enregistrer"}
     >
-      {champs}
-      <div>
-        <BoutonEnvoi libelle={mode === "creation" ? "Créer la convention" : "Enregistrer"} />
-      </div>
-    </FormulaireAction>
+      <FormulaireAction
+        id="convention-formulaire"
+        nom={mode === "creation" ? "Nouvelle convention" : "Modifier la convention"}
+        action={mode === "creation" ? creerConventionAction : modifierConventionAction}
+        auSucces={(resultat) => {
+          if (mode === "creation" && resultat.id) router.push(`/apps/partenaires/conventions/${resultat.id}?onglet=contreparties`)
+        }}
+        className="flex flex-col gap-8"
+      >
+        {champs}
+      </FormulaireAction>
+    </FormulairePage>
   )
 }

@@ -16,6 +16,7 @@ export function FormulaireAction({
   action,
   children,
   ok,
+  id,
   className = "flex flex-col gap-4",
   auSucces,
   nom,
@@ -23,6 +24,8 @@ export function FormulaireAction({
   action: ActionFormulaire
   children: ReactNode
   ok?: string
+  // Id du <form> : une barre de page (FormulairePage) le soumet par cet attribut.
+  id?: string
   className?: string
   auSucces?: (resultat: Extract<Resultat, { ok: true }>) => void
   nom: string
@@ -36,7 +39,7 @@ export function FormulaireAction({
   }, [resultat])
 
   return (
-    <form action={envoyer} className={className} aria-label={nom}>
+    <form id={id} action={envoyer} className={className} aria-label={nom}>
       {children}
       <Message resultat={resultat} ok={ok} />
     </form>

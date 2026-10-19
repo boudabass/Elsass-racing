@@ -5,6 +5,7 @@
 
 import { useMemo, useRef, useState } from "react"
 
+import { Tiroir } from "@/components/formulaire/tiroir"
 import { CHAMP, BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
 
 import { dupliquerModeleAction, changerActifModeleAction, modifierModeleAction } from "../actions"
@@ -108,11 +109,12 @@ export function EditeurModele({
           Aperçu
         </h2>
         <div>
-          <button type="button" aria-expanded={apercu} onClick={() => setApercu((ouvert) => !ouvert)} className={`${BOUTON_SECONDAIRE} inline-flex`}>
-            {apercu ? "Masquer l'aperçu" : "Aperçu"}
+          <button type="button" aria-haspopup="dialog" onClick={() => setApercu(true)} className={`${BOUTON_SECONDAIRE} inline-flex`}>
+            Aperçu
           </button>
         </div>
-        {apercu && (
+        {/* Lecture seule : le tiroir ne contient aucun champ, il se ferme par « Fermer ». */}
+        <Tiroir ouvert={apercu} onOuvertChange={setApercu} titre="Aperçu du modèle" libelleAnnuler="Fermer">
           <div className="flex flex-col gap-3">
             {rendu.inconnus.length > 0 && (
               <p role="status" className="text-sm text-etat-rouge">
@@ -122,7 +124,7 @@ export function EditeurModele({
             <p className="text-sm text-texte-discret">Aperçu avec des valeurs d&apos;exemple. Rien n&apos;est enregistré.</p>
             <pre className="whitespace-pre-wrap rounded-md border border-bordure bg-surface p-4 font-sans text-sm leading-relaxed">{rendu.texte}</pre>
           </div>
-        )}
+        </Tiroir>
       </section>
 
       <section aria-labelledby="actions-modele" className="flex flex-col gap-4">

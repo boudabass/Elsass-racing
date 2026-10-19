@@ -212,7 +212,7 @@ export async function creerLienAction(_etat: ResultatLien | null, donnees: FormD
   }
 }
 
-export async function renouvelerLienAction(_etat: ResultatLien | null, donnees: FormData): Promise<ResultatLien> {
+export async function renouvelerLienAction(_etat: Resultat | null, donnees: FormData): Promise<ResultatLien> {
   try {
     const { jeton } = await renouvelerLien(texte(donnees, "partnerId"))
     revalidatePath(CHEMIN, "layout")

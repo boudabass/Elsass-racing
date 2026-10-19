@@ -5,10 +5,11 @@
 
 import { useActionState, useState } from "react"
 
-import { BOUTON, BOUTON_SECONDAIRE, LIEN } from "@/lib/classes-formulaire"
+import { TiroirAction } from "@/components/formulaire/tiroir"
+import { BOUTON, BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
 
 import { creerLienAction, renouvelerLienAction, revoquerLienAction, modifierSectionsAction, type ResultatLien } from "../actions"
-import { BoutonEnvoi, FormulaireAction } from "./formulaire"
+import { BoutonEnvoi } from "./formulaire"
 
 export interface LienPourAffichage {
   id: string
@@ -29,12 +30,12 @@ export function LienPartenaire({
   libellesSections: Record<string, string>
 }) {
   const [creation, creer] = useActionState(creerLienAction, null)
-  const [renouvellement, renouveler] = useActionState(renouvelerLienAction, null)
   const [copie, setCopie] = useState(false)
+  // Le jeton renouvelé vient du tiroir de renouvellement. Le jeton le plus récent n'existe que dans cet état : un rechargement le fait disparaître.
+  const [jetonRenouvele, setJetonRenouvele] = useState<string | null>(null)
 
-  // Le jeton le plus récent n'existe que dans cet état. Un rechargement de la page le fait disparaître.
-  const reponse = renouvellement?.ok ? renouvellement : creation?.ok ? creation : null
-  const erreur = (renouvellement && !renouvellement.ok ? renouvellement : creation && !creation.ok ? creation : null)
+  const reponse = jetonRenouvele ? { ok: true as const, jeton: jetonRenouvele } : creation?.ok ? creation : null
+  const erreur = creation && !creation.ok ? creation : null
   const url = reponse ? `${window.location.origin}/p/${reponse.jeton}` : null
 
   async function copier() {
@@ -82,38 +83,43 @@ export function LienPartenaire({
 
       {lien ? (
         <div className="flex flex-col gap-4">
-          <form action={renouveler} className="flex flex-col gap-2">
-            <input type="hidden" name="partnerId" value={partnerId} />
-            <BoutonEnvoi libelle="Renouveler le lien" secondaire className={`${BOUTON_SECONDAIRE} w-full sm:w-auto sm:self-start`} />
-            <p className="text-sm text-texte-discret">Renouveler rend l&apos;ancien lien inutilisable et en crée un nouveau.</p>
-          </form>
-
-          <FormulaireAction action={modifierSectionsAction} nom="Sections visibles" className="flex flex-col gap-3">
-            <input type="hidden" name="lienId" value={lien.id} />
-            <fieldset className="flex flex-col gap-2">
-              <legend className="mb-1 font-medium">Sections visibles par le partenaire</legend>
-              {sectionsDisponibles.map((section) => (
-                <label key={section} className="cible-tactile flex items-center gap-3">
-                  <input type="checkbox" name="sections" value={section} defaultChecked={lien.sections.includes(section)} className="h-5 w-5 accent-marque" />
-                  {libellesSections[section] ?? section}
-                </label>
-              ))}
-            </fieldset>
-            <div>
-              <BoutonEnvoi libelle="Enregistrer les sections" secondaire />
-            </div>
-          </FormulaireAction>
-
-          <details>
-            <summary className={`${LIEN} cursor-pointer list-none text-sm`}>Révoquer le lien</summary>
-            <div className="mt-2 flex flex-col gap-2 rounded-md border border-bordure p-3">
-              <p className="text-sm">Le partenaire ne pourra plus ouvrir sa page avec ce lien.</p>
-              <FormulaireAction action={revoquerLienAction} nom="Révoquer le lien" className="flex flex-col gap-2">
-                <input type="hidden" name="lienId" value={lien.id} />
-                <BoutonEnvoi libelle="Révoquer le lien" secondaire />
-              </FormulaireAction>
-            </div>
-          </details>
+          <div className="flex flex-wrap gap-3">
+            <TiroirAction
+              libelle="Renouveler le lien"
+              titre="Renouveler le lien"
+              action={renouvelerLienAction}
+              libelleBouton="Renouveler le lien"
+              libelleEnCours="Renouvellement…"
+              danger
+              question="Renouveler rend l'ancien lien inutilisable et en crée un nouveau."
+              onSucces={(resultat) => setJetonRenouvele("jeton" in resultat ? String(resultat.jeton) : null)}
+            >
+              <input type="hidden" name="partnerId" value={partnerId} />
+            </TiroirAction>
+            <TiroirAction libelle="Modifier les sections" titre="Sections visibles" action={modifierSectionsAction} libelleBouton="Enregistrer les sections">
+              <input type="hidden" name="lienId" value={lien.id} />
+              <fieldset className="flex flex-col gap-2">
+                <legend className="mb-1 font-medium">Sections visibles par le partenaire</legend>
+                {sectionsDisponibles.map((section) => (
+                  <label key={section} className="cible-tactile flex items-center gap-3">
+                    <input type="checkbox" name="sections" value={section} defaultChecked={lien.sections.includes(section)} className="h-5 w-5 accent-marque" />
+                    {libellesSections[section] ?? section}
+                  </label>
+                ))}
+              </fieldset>
+            </TiroirAction>
+            <TiroirAction
+              libelle="Révoquer le lien"
+              titre="Révoquer le lien"
+              action={revoquerLienAction}
+              libelleBouton="Révoquer le lien"
+              libelleEnCours="Révocation…"
+              danger
+              question="Le partenaire ne pourra plus ouvrir sa page avec ce lien."
+            >
+              <input type="hidden" name="lienId" value={lien.id} />
+            </TiroirAction>
+          </div>
         </div>
       ) : (
         <form action={creer} className="flex flex-col gap-2">
