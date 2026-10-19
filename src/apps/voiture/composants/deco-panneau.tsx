@@ -344,8 +344,10 @@ function FormulaireReservation({ slotId, partenaires, onSucces }: { slotId: stri
 
 function FormulairePose({ assignmentId, onSucces }: { assignmentId: string; onSucces: () => void }) {
   const [photo, setPhoto] = useState<FichierEnvoye | null>(null)
+  // Tant que la photo part, on ne peut pas enregistrer : sans elle, la pose serait enregistrée sans photo.
+  const [envoiPhoto, setEnvoiPhoto] = useState(false)
   return (
-    <FormulaireAction action={poserLogoAction} libelleBouton="Enregistrer la pose" onSucces={onSucces}>
+    <FormulaireAction action={poserLogoAction} libelleBouton={envoiPhoto ? "Envoi de la photo…" : "Enregistrer la pose"} onSucces={onSucces} desactive={envoiPhoto}>
       <input type="hidden" name="assignmentId" value={assignmentId} />
       <Champ libelle="Date de pose">
         <input name="poseLe" type="date" required defaultValue={aujourdhui()} className={CHAMP} />
@@ -359,6 +361,7 @@ function FormulairePose({ assignmentId, onSucces }: { assignmentId: string; onSu
         typeValeur={photo?.mimeType ?? null}
         nomValeur={photo?.nom ?? null}
         onChange={setPhoto}
+        onEnvoi={setEnvoiPhoto}
         libelleRetirer="Retirer la photo"
       />
     </FormulaireAction>

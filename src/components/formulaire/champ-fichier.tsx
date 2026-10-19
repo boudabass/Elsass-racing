@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useRef, useState, type ChangeEvent } from "react"
+import { useEffect, useId, useRef, useState, type ChangeEvent } from "react"
 import { FileText } from "lucide-react"
 
 import { useEtatSynchro } from "@/core/synchro/client/react"
@@ -22,6 +22,8 @@ export const ACCEPT_PAR_DEFAUT = "image/jpeg,image/png,image/webp,application/pd
 
 export interface ChampFichierProps {
   app: string
+  // Signale le début et la fin de l'envoi du fichier au formulaire parent.
+  onEnvoi?: (enCours: boolean) => void
   accept?: string
   libelle: string
   valeur: string | null
@@ -47,6 +49,7 @@ export function ChampFichier({
   name,
   libelleRetirer = "Retirer",
   disabled = false,
+  onEnvoi,
 }: ChampFichierProps) {
   const identifiant = useId()
   const idLibelle = `${identifiant}-libelle`
@@ -54,6 +57,10 @@ export function ChampFichier({
   const etat = useEtatSynchro()
   const entree = useRef<HTMLInputElement>(null)
   const [envoi, setEnvoi] = useState(false)
+  // Le parent sait qu'un envoi est en cours : il peut attendre la photo avant d'enregistrer (brief 3.11, §12).
+  useEffect(() => {
+    onEnvoi?.(envoi)
+  }, [envoi, onEnvoi])
   const [erreur, setErreur] = useState<string | null>(null)
 
   // Hors ligne : /api/ n'est pas en cache, l'envoi est impossible. Le champ attend le retour du réseau.
