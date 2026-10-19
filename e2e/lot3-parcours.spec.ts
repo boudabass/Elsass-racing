@@ -202,8 +202,15 @@ test("lot 3 : prospect, convention, liaisons vers Voiture, Budget et Saison, app
   await page.locator("form").filter({ has: page.locator("select[name=statut]") }).getByRole("button", { name: "Changer le statut" }).click()
   await page.waitForLoadState("networkidle")
   await page.goto(`/apps/partenaires/${partenaireId}`)
+  // Source et « Suivi par » : après « Enregistrer le suivi », la valeur enregistrée est la valeur par défaut des champs,
+  // sans rechargement de la page (brief 3.11, §2). Le test lit l'attribut selected, pas la saisie de l'utilisateur.
+  await page.locator("#source").selectOption({ index: 1 })
+  const source = await page.locator("#source option:checked").textContent()
   await page.locator("#suivi-par").selectOption({ value: personneId })
+  const suiviPar = await page.locator("#suivi-par option:checked").textContent()
   await page.getByRole("button", { name: "Enregistrer le suivi", exact: true }).click()
+  await expect(page.locator("#source option[selected]")).toHaveText(source ?? "")
+  await expect(page.locator("#suivi-par option[selected]")).toHaveText(suiviPar ?? "")
   await page.waitForLoadState("networkidle")
   await page.reload()
   await expect(page.locator(`#statut-${partenaireId}`)).toHaveValue("interesse")

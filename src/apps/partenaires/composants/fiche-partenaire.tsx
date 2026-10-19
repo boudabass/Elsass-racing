@@ -108,7 +108,7 @@ export function OngletFiche({ partenaire, personnes }: { partenaire: PartenaireF
         <FormulaireAction action={modifierPartenaireAction} nom="Suivi" className="grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="partnerId" value={partenaire.id} />
           <Champ id="source" libelle="Source">
-            <select id="source" name="source" defaultValue={partenaire.source ?? ""} className={CHAMP}>
+            <select id="source" name="source" key={`source-${partenaire.source ?? ""}`} defaultValue={partenaire.source ?? ""} className={CHAMP}>
               <option value="">Non renseignée</option>
               {SOURCES.map((source) => (
                 <option key={source} value={source}>
@@ -118,7 +118,7 @@ export function OngletFiche({ partenaire, personnes }: { partenaire: PartenaireF
             </select>
           </Champ>
           <Champ id="suivi-par" libelle="Suivi par">
-            <select id="suivi-par" name="suiviParPersonId" defaultValue={partenaire.suiviParPersonId ?? ""} className={CHAMP}>
+            <select id="suivi-par" name="suiviParPersonId" key={`suivi-${partenaire.suiviParPersonId ?? ""}`} defaultValue={partenaire.suiviParPersonId ?? ""} className={CHAMP}>
               <option value="">Personne</option>
               {personnes.map((personne) => (
                 <option key={personne.id} value={personne.id}>
