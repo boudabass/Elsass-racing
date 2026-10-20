@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 import { TiroirAction } from "@/components/formulaire/tiroir"
-import { CHAMP, LIEN } from "@/lib/classes-formulaire"
+import { BOUTON_SECONDAIRE, CHAMP, LIEN } from "@/lib/classes-formulaire"
 
 import { remplacerPieceAction, reglerOrganeAction, retirerOrganeAction } from "../actions"
 import { LIBELLE_MODE_USURE, LIBELLE_MOTIF_DEPOSE, type MotifDepose } from "../libelles"
@@ -37,7 +37,7 @@ export function FormulaireRemplacer({ organeId, nom, pieceEnPlace, rechanges }: 
   if (rechanges.length === 0) {
     return (
       <div className="flex flex-col items-start gap-2">
-        <button type="button" disabled className="cible-tactile inline-flex items-center rounded-md border border-bordure px-4 opacity-60">
+        <button type="button" disabled className={`${BOUTON_SECONDAIRE} opacity-60`}>
           {libelle}
         </button>
         <p className="text-sm text-texte-discret">
@@ -160,7 +160,7 @@ export function FormulaireRetirer({ organeId, vehicleId, piece, peutEcrire }: { 
   if (!peutEcrire || piece) {
     return (
       <div className="flex flex-col items-start gap-2">
-        <button type="button" disabled className="cible-tactile inline-flex items-center rounded-md border border-bordure px-4 opacity-60">
+        <button type="button" disabled className={`${BOUTON_SECONDAIRE} opacity-60`}>
           Retirer l&apos;organe
         </button>
         <p className="text-sm text-texte-discret">
