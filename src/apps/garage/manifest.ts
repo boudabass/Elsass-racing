@@ -10,7 +10,10 @@ export const manifesteGarage: ManifesteApp = {
   icone: "wrench",
   version: "0.2.0",
   requiert: ["voiture"],
-  menu: [{ libelle: "Accueil", chemin: "/" }],
+  menu: [
+    { libelle: "Atelier", chemin: "/" },
+    { libelle: "Stock", chemin: "/stock" },
+  ],
   widgets: [...WIDGETS.garage],
   evenementsEmis: evenementsEmisPar("garage"),
   evenementsEcoutes: evenementsEcoutesPar("garage"),

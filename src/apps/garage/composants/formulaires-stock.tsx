@@ -23,19 +23,12 @@ interface FormulairePieceProps {
   organeDefaut?: string
 }
 
-// Ajouter une pièce au stock de la voiture. Sans durée de vie, la pièce prend celle de l'organe.
-export function FormulairePiece({ vehicleId, organes, fournisseurs, organeDefaut }: FormulairePieceProps) {
-  const router = useRouter()
+// Les champs d'un ajout de pièce : partagés par le tiroir du stock et la page « Pièce » du bouton +. Sans durée de vie,
+// la pièce prend celle de l'organe.
+export function ChampsPiece({ vehicleId, organes, fournisseurs, organeDefaut }: FormulairePieceProps) {
   const avecFinances = fournisseurs !== undefined
   return (
-    <TiroirAction
-      libelle="Ajouter une pièce"
-      titre="Ajouter une pièce"
-      action={creerPieceAction}
-      libelleBouton="Ajouter la pièce"
-      libelleEnCours="Enregistrement…"
-      onSucces={() => router.refresh()}
-    >
+    <>
       <input type="hidden" name="vehicleId" value={vehicleId} />
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">Organe</span>
@@ -108,6 +101,23 @@ export function FormulairePiece({ vehicleId, organes, fournisseurs, organeDefaut
         <span className="font-medium">Emplacement</span>
         <input name="emplacement" maxLength={120} placeholder="Atelier, remorque…" className={CHAMP} />
       </label>
+    </>
+  )
+}
+
+// Ajouter une pièce au stock, dans un tiroir.
+export function FormulairePiece(props: FormulairePieceProps) {
+  const router = useRouter()
+  return (
+    <TiroirAction
+      libelle="Ajouter une pièce"
+      titre="Ajouter une pièce"
+      action={creerPieceAction}
+      libelleBouton="Ajouter la pièce"
+      libelleEnCours="Enregistrement…"
+      onSucces={() => router.refresh()}
+    >
+      <ChampsPiece {...props} />
     </TiroirAction>
   )
 }

@@ -13,7 +13,7 @@ describe("menu « + » selon le rôle", () => {
 
   it("offre tout au responsable : Épreuve, Véhicule, Dépense, Réglage actives ; Photo désactivée avec sa raison ; Note active", () => {
     const entrees = entreesDuMenuPlus("responsable", false)
-    expect(entrees.map((e) => e.libelle)).toEqual(["Épreuve", "Véhicule", "Partenaire", "Dépense", "Réglage", "Photo", "Note"])
+    expect(entrees.map((e) => e.libelle)).toEqual(["Épreuve", "Véhicule", "Partenaire", "Pièce", "Roulage", "Dépense", "Réglage", "Photo", "Note"])
     expect(entrees.find((e) => e.libelle === "Partenaire")).toEqual({ libelle: "Partenaire", desactivee: false, href: "/apps/partenaires/nouveau" })
     expect(entrees.filter((e) => e.desactivee).every((e) => e.raison)).toBe(true)
     expect(entrees.find((e) => e.libelle === "Dépense")).toEqual({ libelle: "Dépense", desactivee: false, href: "/apps/budget/nouvelle" })
@@ -33,6 +33,20 @@ describe("menu « + » selon le rôle", () => {
   it("réduit aux entrées de terrain en mode terrain : Réglage reste, Épreuve et Véhicule partent", () => {
     expect(entreesDuMenuPlus("responsable", true).map((e) => e.libelle)).toEqual(["Dépense", "Réglage", "Photo", "Note"])
     expect(entreesDuMenuPlus("equipage", true).map((e) => e.libelle)).toEqual(["Dépense", "Réglage", "Photo", "Note"])
+  })
+
+  it("ouvre Pièce et Roulage à l'équipage et au responsable, hors terrain, jamais à l'assistance", () => {
+    const pour = (role: string, terrain: boolean) => entreesDuMenuPlus(role, terrain).map((e) => e.libelle)
+    expect(pour("equipage", false)).toEqual(expect.arrayContaining(["Pièce", "Roulage"]))
+    expect(pour("responsable", false)).toEqual(expect.arrayContaining(["Pièce", "Roulage"]))
+    expect(pour("equipage", true)).not.toContain("Pièce")
+    expect(pour("assistance", false)).not.toContain("Pièce")
+    expect(pour("assistance", false)).not.toContain("Roulage")
+    expect(entreesDuMenuPlus("equipage", false).find((e) => e.libelle === "Roulage")).toEqual({
+      libelle: "Roulage",
+      desactivee: false,
+      href: "/apps/garage/roulage",
+    })
   })
 
   it("ouvre Réglage à l'assistance en mode terrain, sans Véhicule", () => {

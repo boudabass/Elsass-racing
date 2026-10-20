@@ -8,6 +8,7 @@ import { executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-
 import { refus } from "./erreurs"
 import type { MotifDepose } from "./libelles"
 import {
+  ajouterUsureManuelle,
   changerStatutPiece,
   creerPiece,
   modifierOrgane,
@@ -15,6 +16,7 @@ import {
   retirerOrgane,
   type EntreeOrgane,
   type EntreePiece,
+  type EntreeUsureManuelle,
 } from "./services-serveur"
 
 export type { Resultat }
@@ -114,4 +116,16 @@ export async function changerStatutPieceAction(_etat: Resultat | null, donnees: 
   return executerGarage(() =>
     changerStatutPiece(texte(donnees, "partId"), texte(donnees, "statut") as Parameters<typeof changerStatutPiece>[1]),
   )
+}
+
+// Roulage : kilomètres roulés sur la voiture et épreuve comptée ou non. Les km vides valent 0 ; une épreuve seule suffit.
+export async function ajouterRoulageAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() => {
+    const brut = texteOuNull(donnees, "km")
+    if (brut !== null && (!/^\d+$/.test(brut) || Number(brut) > 100000)) {
+      refus("Les kilomètres doivent être un nombre entier, de 0 à 100 000.")
+    }
+    const entree: EntreeUsureManuelle = { km: brut === null ? 0 : Number(brut), epreuve: donnees.has("epreuve") }
+    return ajouterUsureManuelle(texte(donnees, "vehicleId"), entree)
+  })
 }
