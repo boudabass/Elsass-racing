@@ -50,6 +50,10 @@ async function main() {
   const adhesion = randomUUID()
   const vehicule = randomUUID()
   const ctx = { teamId: team.id, userId: utilisateur.id, membership: { id: adhesion, role: "responsable" as const } }
+  // Seconde team, sans types ni organes : sert à la course à l'initialisation (types copiés et organes créés à deux).
+  const equipe2 = { id: randomUUID(), nom: `Verif garage ${suffixe} B`, slug: `verif-garage-${suffixe}-b` }
+  const vehicule2 = randomUUID()
+  const equipes = [team.id, equipe2.id]
 
   try {
     await proprietaire.coreTeam.create({ data: { id: team.id, nom: team.nom, slug: team.slug } })
@@ -70,6 +74,19 @@ async function main() {
     await executerPourTeam(team.id, utilisateur.id, (tx) => services.initialiserGarageDans(tx, ctx, vehicule))
     const organesApres = await proprietaire.garageVehicleComponent.count({ where: { teamId: team.id, vehicleId: vehicule } })
     controle("une seconde initialisation ne double rien", organesApres === 7, `${organesApres}`)
+
+    // 1 bis. Course (correction E) : deux initialisations simultanées sur une team neuve et un véhicule neuf.
+    // Les types sont copiés une seule fois et chaque type n'a qu'un organe, sans erreur de clé étrangère.
+    await proprietaire.coreTeam.create({ data: { id: equipe2.id, nom: equipe2.nom, slug: equipe2.slug } })
+    await proprietaire.coreVehicle.create({
+      data: { id: vehicule2, teamId: equipe2.id, type: "course", nomCourt: `Saxo B ${suffixe}` },
+    })
+    const ctx2 = { teamId: equipe2.id, userId: utilisateur.id, membership: { id: adhesion, role: "responsable" as const } }
+    await Promise.all([1, 2].map(() => executerPourTeam(equipe2.id, utilisateur.id, (tx) => services.initialiserGarageDans(tx, ctx2, vehicule2))))
+    const typesCourse = await proprietaire.garageComponentType.count({ where: { teamId: equipe2.id } })
+    controle("deux initialisations simultanées copient sept types, pas plus", typesCourse === 7, `${typesCourse}`)
+    const organesCourse = await proprietaire.garageVehicleComponent.count({ where: { teamId: equipe2.id, vehicleId: vehicule2 } })
+    controle("deux initialisations simultanées donnent un organe par type", organesCourse === 7, `${organesCourse}`)
 
     const typeDe = (cle: string) => types.find((t) => t.cle === cle)!.id
     const organeDe = (cle: string) => organes.find((o) => o.componentTypeId === typeDe(cle))!.id
@@ -157,19 +174,19 @@ async function main() {
     )
     controle("la base refuse une dépose sans motif", depose !== null, "dépose acceptée")
   } finally {
-    // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
-    await proprietaire.garageWearLog.deleteMany({ where: { teamId: team.id } })
-    await proprietaire.garagePartMount.deleteMany({ where: { teamId: team.id } })
-    await proprietaire.garageTyreSet.deleteMany({ where: { teamId: team.id } })
-    await proprietaire.garagePart.deleteMany({ where: { teamId: team.id } })
-    await proprietaire.garageVehicleComponent.deleteMany({ where: { teamId: team.id } })
-    await proprietaire.garageComponentType.deleteMany({ where: { teamId: team.id } })
-    await proprietaire.coreVehicle.deleteMany({ where: { teamId: team.id } })
-    await proprietaire.coreEventDelivery.deleteMany({ where: { teamId: team.id } })
-    await proprietaire.coreDomainEvent.deleteMany({ where: { teamId: team.id } })
-    await proprietaire.coreMembership.deleteMany({ where: { teamId: team.id } })
+    // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères, pour les deux teams.
+    await proprietaire.garageWearLog.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garagePartMount.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageTyreSet.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garagePart.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageVehicleComponent.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageComponentType.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.coreVehicle.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.coreEventDelivery.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.coreDomainEvent.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.coreMembership.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreUser.deleteMany({ where: { email: { endsWith: `-${suffixe}@exemple.invalid` } } })
-    await proprietaire.coreTeam.deleteMany({ where: { id: team.id } })
+    await proprietaire.coreTeam.deleteMany({ where: { id: { in: equipes } } })
     await proprietaire.$disconnect()
   }
 }

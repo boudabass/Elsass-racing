@@ -99,10 +99,14 @@ export type EntreeUsureManuelle = z.input<typeof schemaUsureManuelle>
 
 // Copie les types par défaut dans la team (une fois, à la première écriture), puis crée un organe par type pour le
 // véhicule (une fois par véhicule). Une ligne supprimée n'est jamais recréée : les comptes incluent les lignes retirées.
+// Course entre deux initialisations (correction E) : les insertions passent par skipDuplicates (ON CONFLICT DO NOTHING).
+// L'autre écriture a déjà créé la ligne, la nôtre n'ajoute rien et la transaction n'échoue pas. Les index uniques
+// (types : team + nom et team + clé ; organes : véhicule + type + position) portent la garantie.
 export async function initialiserGarageDans(tx: Tx, ctx: ContexteTeam, vehicleId: string): Promise<void> {
   const typesExistants = await tx.garageComponentType.count({ where: { teamId: ctx.teamId } })
   if (typesExistants === 0) {
     await tx.garageComponentType.createMany({
+      skipDuplicates: true,
       data: TYPES_DEFAUT.map((t) => ({
         id: newId(),
         teamId: ctx.teamId,
@@ -128,6 +132,7 @@ export async function initialiserGarageDans(tx: Tx, ctx: ContexteTeam, vehicleId
   })
 
   await tx.garageVehicleComponent.createMany({
+    skipDuplicates: true,
     data: types.map((t) => ({
       id: newId(),
       teamId: ctx.teamId,
@@ -219,12 +224,29 @@ async function emettreChangements(ctx: ContexteTeam, vehicleId: string, avant: E
   }
 }
 
-// Exécute une écriture, puis émet les changements d'état qu'elle a produits. L'état « avant » est lu dans la même
-// requête, juste avant l'écriture.
-async function ecrireEtEmettre(ctx: ContexteTeam, vehicleId: string, ecriture: (tx: Tx) => Promise<void>): Promise<void> {
+// Exécute une écriture, puis émet les changements d'état qu'elle a produits. L'état « avant » est lu juste avant
+// l'écriture. Une écriture qui renvoie « faux » n'a rien ajouté (usure déjà comptée par une autre validation) : rien
+// n'est émis, pour qu'une course ne double pas un événement.
+async function ecrireEtEmettre(ctx: ContexteTeam, vehicleId: string, ecriture: (tx: Tx) => Promise<boolean | void>): Promise<void> {
   const avant = await executerPourTeam(ctx.teamId, ctx.userId, (tx) => etatsDuVehicule(tx, ctx.teamId, vehicleId))
-  await avecReprisePourConflit(() => executerPourTeam(ctx.teamId, ctx.userId, ecriture))
+  const aEcrit = await avecReprisePourConflit(() => executerPourTeam(ctx.teamId, ctx.userId, ecriture))
+  if (aEcrit === false) return
   await emettreChangements(ctx, vehicleId, avant)
+}
+
+// Violation d'unicité Prisma (P2002) : une autre écriture occupe déjà la place.
+function estDoublon(erreur: unknown): boolean {
+  return typeof erreur === "object" && erreur !== null && (erreur as { code?: unknown }).code === "P2002"
+}
+
+// Écriture d'un organe : une place déjà occupée (même type, même position, sur ce véhicule) est un refus.
+async function ecrireOrgane(ctx: ContexteTeam, vehicleId: string, ecriture: (tx: Tx) => Promise<void>): Promise<void> {
+  try {
+    await ecrireEtEmettre(ctx, vehicleId, ecriture)
+  } catch (erreur) {
+    if (estDoublon(erreur)) refus("Un organe de ce type existe déjà à cette position sur ce véhicule. Indiquez une autre position.")
+    throw erreur
+  }
 }
 
 // --- Vérifications communes -----------------------------------------------------------------
@@ -274,7 +296,7 @@ export async function ajouterOrganeDans(ctx: ContexteTeam, vehicleId: string, en
   verifierSeuils(orange, rouge)
   const id = newId()
 
-  await ecrireEtEmettre(ctx, vehicleId, async (tx) => {
+  await ecrireOrgane(ctx, vehicleId, async (tx) => {
     await vehiculeDans(tx, ctx.teamId, vehicleId)
     await initialiserGarageDans(tx, ctx, vehicleId)
     await typeDansTeam(tx, ctx.teamId, donnees.componentTypeId)
@@ -307,7 +329,7 @@ export async function modifierOrganeDans(ctx: ContexteTeam, id: string, entree: 
   const donnees = schemaModificationOrgane.parse(entree)
   const vehicleId = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => (await organeDans(tx, ctx.teamId, id)).vehicleId)
 
-  await ecrireEtEmettre(ctx, vehicleId, async (tx) => {
+  await ecrireOrgane(ctx, vehicleId, async (tx) => {
     const actuel = await organeDans(tx, ctx.teamId, id)
     const orange = donnees.seuilOrangePct ?? actuel.seuilOrangePct
     const rouge = donnees.seuilRougePct ?? actuel.seuilRougePct
