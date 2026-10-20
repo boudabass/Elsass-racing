@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation"
 
 import { MoteurSynchro, type EtatSynchro } from "./moteur"
 import { nomBase, type LigneLocale, type TableLocale } from "./base"
-import { journaliserRafraichissement, journaliserRequetesReseau } from "@/lib/diagnostic-rafraichissement"
 
 // Un moteur par compte et par team, pour tout l'onglet (les écrans partagent la même file).
 const moteurs = new Map<string, MoteurSynchro>()
@@ -31,7 +30,6 @@ export function SynchroProvider({ userId, teamId, children }: { userId: string; 
   const cheminPrecedent = useRef(chemin)
 
   useEffect(() => {
-    journaliserRequetesReseau()
     void moteur.demarrer()
     return () => moteur.arreter()
   }, [moteur])
@@ -42,7 +40,6 @@ export function SynchroProvider({ userId, teamId, children }: { userId: string; 
     () =>
       moteur.abonnerAuServeur(() => {
         perime.current = true
-        journaliserRafraichissement("synchro-serveur-applique")
         router.refresh()
       }),
     [moteur, router],
@@ -53,10 +50,7 @@ export function SynchroProvider({ userId, teamId, children }: { userId: string; 
   useEffect(() => {
     if (cheminPrecedent.current !== chemin) {
       cheminPrecedent.current = chemin
-      if (perime.current) {
-        journaliserRafraichissement("synchro-changement-chemin")
-        router.refresh()
-      }
+      if (perime.current) router.refresh()
       return
     }
     perime.current = false

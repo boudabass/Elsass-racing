@@ -4,7 +4,6 @@ import { useEffect, useState, type ReactNode } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { journaliserRafraichissement } from "@/lib/diagnostic-rafraichissement"
 
 // Panneau de la boîte d'actions : à droite sur PC, pleine largeur sur téléphone.
 // Le contenu est rendu côté serveur (BoiteActions) et passé en enfant.
@@ -32,10 +31,7 @@ export function ConteneurBoite({
   // À l'ouverture, le contenu serveur (actions, compteur) se relit : une synchro faite pendant que le
   // panneau était fermé n'a pas pu rafraîchir la boîte.
   useEffect(() => {
-    if (ouvert) {
-      journaliserRafraichissement("boite-ouverture")
-      router.refresh()
-    }
+    if (ouvert) router.refresh()
   }, [ouvert, router])
 
   // Le panneau est monté à l'ouverture : on attend une image avant de chercher l'action.
