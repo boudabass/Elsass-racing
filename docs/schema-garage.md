@@ -53,7 +53,8 @@ Contrainte : `0 <= seuil_rouge_pct < seuil_orange_pct <= 100`. Retrait logique (
 | `fournisseur_contact_id` | uuid → `core_contact` | facultative |
 | `statut` | enum `garage_statut_piece` | obligatoire, défaut `en_stock` |
 | `emplacement` | texte | facultatif (atelier, remorque…) |
-| `km_cumules`, `epreuves_cumulees` | entier | obligatoires, défaut 0, >= 0. Mis à jour dans la même transaction que `garage_wear_log` |
+| `km_cumules` | décimal(8,1) | obligatoire, défaut 0, >= 0 (correction A) |
+| `epreuves_cumulees` | entier | obligatoire, défaut 0, >= 0. `km_cumules` et `epreuves_cumulees` sont mis à jour dans la même transaction que `garage_wear_log` |
 
 ### garage_part_mount : pose et dépose
 
@@ -62,7 +63,7 @@ Contrainte : `0 <= seuil_rouge_pct < seuil_orange_pct <= 100`. Retrait logique (
 | `part_id` | uuid → `garage_part` | obligatoire |
 | `vehicle_component_id` | uuid → `garage_vehicle_component` | obligatoire |
 | `posee_le` | timestamptz | obligatoire |
-| `km_pose` | entier | obligatoire, défaut 0, >= 0 (km cumulés de la pièce à la pose) |
+| `km_pose` | décimal(8,1) | obligatoire, défaut 0, >= 0 (km cumulés de la pièce à la pose) |
 | `deposee_le` | timestamptz | facultative, >= `posee_le` |
 | `motif_depose` | enum `garage_motif_depose` | facultatif ; obligatoire si `deposee_le` est renseigné |
 
@@ -72,15 +73,19 @@ Contraintes : `(deposee_le IS NULL) = (motif_depose IS NULL)` ; `deposee_le >= p
 
 | Colonne | Type | Règle |
 |---|---|---|
-| `part_id` | uuid → `garage_part` | obligatoire |
+| `part_id` | uuid → `garage_part` | facultative (correction B) |
+| `tyre_set_id` | uuid → `garage_tyre_set` | facultative (correction B) |
 | `event_id` | uuid → `core_event` | facultative (l'épreuve) |
 | `event_entry_id` | uuid → `core_event_entry` | facultative (l'engagement) |
-| `km_ajoutes` | entier | obligatoire, défaut 0, >= 0 (0 si Saison n'a pas de km chronométrés) |
+| `km_ajoutes` | décimal(8,1) | obligatoire, défaut 0, >= 0 (0 si Saison n'a pas de km chronométrés) |
 | `epreuve_comptee` | booléen | obligatoire, défaut faux |
 | `date` | timestamptz | obligatoire |
 | `source` | enum `garage_source_usure` | obligatoire |
 
-**Index unique** sur `(part_id, event_entry_id, source)` quand `event_entry_id IS NOT NULL` (sans filtre `deleted_at`) : une validation de résultat n'ajoute l'usure qu'une fois.
+Contraintes :
+- **Exactement un des deux** : `(part_id IS NULL) <> (tyre_set_id IS NULL)`. Une ligne d'usure va à une pièce ou à un train de pneus, jamais aux deux.
+- **Index unique** `(part_id, event_entry_id, source)` quand `event_entry_id IS NOT NULL AND part_id IS NOT NULL` (sans filtre `deleted_at`) : une validation de résultat n'ajoute l'usure qu'une fois à une pièce.
+- **Second index unique** `(tyre_set_id, event_entry_id, source)` quand `event_entry_id IS NOT NULL AND tyre_set_id IS NOT NULL` : même garantie pour le train monté sur l'organe Pneus.
 
 ### garage_work_order : ordre de travail
 
@@ -122,7 +127,8 @@ Facture : `core_attachment` (rôle `document`, fiche `purchase`). Lignes : `gara
 | `marque`, `modele`, `gomme`, `dimensions` | texte | obligatoires `marque` ; les autres facultatifs |
 | `type` | enum `garage_type_pneus` | obligatoire |
 | `achete_le` | timestamptz | facultative |
-| `nombre_epreuves`, `km_speciale` | entier | obligatoires, défaut 0, >= 0 |
+| `nombre_epreuves` | entier | obligatoire, défaut 0, >= 0 |
+| `km_speciale` | décimal(8,1) | obligatoire, défaut 0, >= 0. Mis à jour, avec `nombre_epreuves`, dans la même transaction que `garage_wear_log` (correction B) |
 | `usure_estimee_pct` | entier | facultatif, entre 0 et 100 |
 | `statut` | enum `garage_statut_pneus` | obligatoire, défaut `neuf` |
 
@@ -134,7 +140,8 @@ Facture : `core_attachment` (rôle `document`, fiche `purchase`). Lignes : `gara
 | `event_id` | uuid → `core_event` | facultative |
 | `event_entry_id` | uuid → `core_event_entry` | facultative (engagement, issu de l'abandon déclaré) |
 | `date` | timestamptz | obligatoire |
-| `speciale_nom` | texte | facultatif (texte : Saison n'est pas lue) |
+| `speciale_nom` | texte | facultatif : copie du nom de la spéciale d'abandon (Saison n'est pas lue par la table) |
+| `stage_id` | uuid | facultatif, **sans clé étrangère** : la spéciale d'abandon de Saison (`stageAbandonId`), sur le modèle de `partenaire_id` dans Voiture (correction D) |
 | `type` | enum `garage_type_casse` | obligatoire |
 | `cause` | texte | facultatif |
 | `reparation_work_order_id` | uuid → `garage_work_order` | facultative |
@@ -200,6 +207,7 @@ Prisma ne les exprime pas : elles vont en SQL dans la migration.
 7. Commande reçue : `recue_le` renseigné si `statut = 'recue'`.
 8. Noms uniques parmi les types d'organes actifs de la team (index partiel), clé par défaut unique parmi les actifs.
 9. Index `team_id` et `(team_id, deleted_at)` sur les 15 tables, index sur chaque clé étrangère.
+10. `garage_wear_log` : exactement un de `part_id` et `tyre_set_id` ; second index unique partiel sur `(tyre_set_id, event_entry_id, source)` (correction B).
 
 Ce que le schéma ne contrôle pas, et que porte le service (dans la même transaction) : une pièce `montee` a une pose active, et une seule ; une pièce d'un autre véhicule ou d'un autre type d'organe ne se pose pas ; `km_cumules` et `epreuves_cumulees` suivent la somme des `garage_wear_log`.
 
@@ -220,6 +228,20 @@ Ces points ne sont pas tranchés par l'article, ou l'article les laisse ouverts.
 11. **Seuils** : défauts de base 30 et 10, égaux à la constante unique de `regles.ts`. Un test vérifie l'égalité.
 12. **Pièces jointes et notes** : factures en `core_attachment` (rôle `document`), photos (rôle `photo`), notes en `core_note` (fiches `work_order`, `incident`, `purchase`).
 13. **Unités** : durée estimée en minutes, coûts et prix en centimes, devise `EUR` par défaut.
+
+## Corrections validées le 20/10 (A à D)
+
+Le schéma ci-dessus intègre ces quatre corrections de l'orchestrateur. Les choix 1 à 13 sont validés tels quels ; la priorité d'un ordre de travail (2) arrive en 4.3 et l'état d'un équipement (3) en 4.6, avec leurs valeurs.
+
+**A. Km en décimal.** Saison stocke `km_chronometres` en `Decimal(6,1)` ; en entiers, l'arrondi s'accumulerait épreuve après épreuve. Passent en `décimal(8,1)` : `garage_wear_log.km_ajoutes`, `garage_part.km_cumules`, `garage_part_mount.km_pose`, `garage_tyre_set.km_speciale`. Les durées de vie en km restent entières. Les règles calculent sur ces décimaux, avec des tests sur des valeurs à virgule (par exemple 12,3 km sur 3 épreuves).
+
+**B. Usure des pneus sans double comptage.** Le train monté sur l'organe Pneus reçoit lui aussi les km et l'épreuve à la validation d'un résultat, avec la même garantie d'unicité que les pièces : `garage_wear_log.tyre_set_id` (facultatif), `part_id` devient facultatif, `CHECK` « exactement un des deux », second index unique partiel `(tyre_set_id, event_entry_id, source)`. `nombre_epreuves` et `km_speciale` du train sont mis à jour dans la même transaction que les cumuls d'une pièce.
+
+**C. État de l'organe Pneus.** Il se calcule sur le train monté : `état = 100 − usure_estimee_pct`, « À renseigner » si l'usure n'est pas saisie ou s'il n'y a pas de train monté. L'organe n'est pas critique : il n'entre pas dans l'indice. La règle est dans `src/apps/garage/regles.ts`, avec ses tests. Conséquence à connaître : `usure_estimee_pct` est saisie à la main ; les km et épreuves du train ne la modifient pas. Le train les enregistre pour l'historique.
+
+**D. Spéciale d'une casse.** `speciale_nom` (copie du nom) et `stage_id` (uuid, sans clé étrangère), sur le modèle de `partenaire_id` dans Voiture. Charges utiles réelles, vérifiées dans `src/apps/saison/services-serveur.ts` :
+- `saison.abandon_declare`, émis seulement quand `statutFinal = abandon` : `{ entryId, eventId, causeAbandon, stageAbandonId }`. C'est la source de `stage_id` (4.4).
+- `saison.resultat_valide` : `{ entryId, eventId, statutFinal, classementGeneral, tempsTotalMs, penalitesMs }`. **Elle ne porte pas les km chronométrés.** Garage les lit donc par une lecture partagée en lecture seule, `lireUsureEngagement(ctx, entryId)` dans `src/apps/saison/lectures-partagees.ts`, qui renvoie `km_chronometres` et l'épreuve de l'engagement. Garage n'écrit jamais dans les tables de Saison.
 
 ## Ce qui n'est pas fait
 
