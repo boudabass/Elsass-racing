@@ -142,8 +142,8 @@ test("liste de John : calendrier en vue mois et filtres sur téléphone, pastill
   await page.getByRole("link", { name: /retour au QG/ }).click()
   await page.locator('main a[href="/apps/saison"]').first().click()
 
-  // Retour au calendrier, vue mois par clic.
-  await page.getByRole("link", { name: "Mois", exact: true }).click()
+  // Retour au calendrier, vue mois par clic. Un seul clic, puis attente de la page d'arrivée (l'URL) :
+  // un second clic pendant la navigation annulerait la première.
   await page.getByRole("link", { name: "Mois", exact: true }).click()
   await expect(page).toHaveURL(/vue=mois/)
 
