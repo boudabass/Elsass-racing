@@ -85,6 +85,7 @@ Une nouvelle app importe ces éléments au lieu de les recopier :
 - `src/core/actions/actions-serveur.ts` : `rouvrirAction(client, ctx, cleUnicite, motif)`, qui remet une action de la boîte en attente avec son motif de refus.
 - `src/core/synchro/registre.ts` : `socleSynchro(ligne)` (champs communs, au format de la synchro) et `refusLectureSeule()` pour les tables lues seulement hors ligne.
 - `src/components/formulaire/message.tsx` : `Message`, le message affiché sous un formulaire après une Server Action (prop `ok` pour le texte de succès).
+- `src/components/silhouette/silhouette.tsx` : `Silhouette`, le dessin d'un gabarit de véhicule en SVG (types dans `silhouette/types.ts`), avec ses calques (emplacements, repères) passés en enfants. Voiture (plan) et Garage (atelier).
 - `src/lib/euros.ts` : `formatEuros(centimes)` (« 1 234,50 € ») et `enEuros(centimes)` (« 12,50 » pour un champ de saisie).
 - `src/core/fichiers/fichiers-serveur.ts` : `enregistrerFichier` (écriture et ligne `core_file`), `rattacherFichier` (lien à une fiche, dans la transaction de l'app), `remplacerFichier` (l'ancien fichier part à la corbeille). Règles et routes dans `docs/fichiers.md`.
 - `src/components/formulaire/champ-fichier.tsx` : `ChampFichier`, le champ d'envoi de fichier (photo compressée, hors ligne géré, vignette ou nom).

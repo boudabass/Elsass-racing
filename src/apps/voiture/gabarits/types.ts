@@ -1,14 +1,10 @@
 // Types des gabarits de véhicule (tâche 3.2). Un gabarit est un catalogue de la plateforme :
 // il vit dans le code, pas en base. Les coordonnées sont celles du viewBox du gabarit.
 
-// Rôles de couleur du dessin. Le thème les associe aux couleurs à l'affichage (tâche 3.4).
-export type RoleDessin = "caisse" | "vitre" | "roue" | "jante" | "detail" | "sol"
+// Le dessin d'un gabarit est partagé avec Garage : son type vit dans le socle (brief 4.2, point 0).
+import type { ElementDessin } from "@/components/silhouette/types"
 
-export type ElementDessin = {
-  type: "path" | "circle" | "line"
-  role: RoleDessin
-  attributs: Record<string, string | number>
-}
+export type { ElementDessin, RoleDessin } from "@/components/silhouette/types"
 
 // Vue d'un emplacement. `hors_plan` : l'emplacement existe, mais le plan ne le dessine pas.
 export type VueGabarit = "droite" | "gauche" | "avant" | "arriere" | "dessus" | "hors_plan"

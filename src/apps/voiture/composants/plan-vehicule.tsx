@@ -6,7 +6,9 @@
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react"
 
-import type { ElementDessin, FormeEmplacement, Gabarit, RoleDessin } from "../gabarits/types"
+import { Silhouette } from "@/components/silhouette/silhouette"
+
+import type { FormeEmplacement, Gabarit } from "../gabarits/types"
 import { LIBELLE_STATUT_EMPLACEMENT, TITRE_VUE } from "../libelles"
 import {
   COTE_POIGNEE,
@@ -20,8 +22,6 @@ import {
   type VuePlan,
 } from "../plan"
 
-// Épaisseur à partir de laquelle un trait « detail » est le filet rouge du dessin d'origine : il prend la couleur de la team.
-const EPAISSEUR_FILET = 4
 // Cible tactile minimale d'une poignée, en pixels à l'écran (règle du projet : 44 px).
 const CIBLE_TACTILE_PX = 44
 // La zone de contact de la poignée ne couvre jamais plus de cette part du côté le plus court de la forme : le milieu
@@ -29,15 +29,6 @@ const CIBLE_TACTILE_PX = 44
 const PART_CIBLE_POIGNEE = 0.35
 // Déplacement minimal, en unités du plan, avant qu'une forme bouge : un appui simple ne change rien.
 const SEUIL_GLISSEMENT = 1
-
-const STYLE_ROLE: Record<RoleDessin, CSSProperties> = {
-  caisse: { fill: "var(--surface-2)", stroke: "var(--bordure)", strokeWidth: 1 },
-  vitre: { fill: "color-mix(in srgb, var(--surface) 50%, var(--bordure))", stroke: "var(--bordure)", strokeWidth: 0.8 },
-  roue: { fill: "var(--fond)", stroke: "var(--texte-discret)", strokeWidth: 1 },
-  jante: { fill: "var(--texte-discret)", stroke: "none" },
-  detail: { fill: "none", stroke: "var(--bordure)", strokeWidth: 1 },
-  sol: { fill: "none", stroke: "var(--bordure)", strokeWidth: 1.5 },
-}
 
 // Déplacement en cours d'un emplacement (mode « Déplacer ou redimensionner »), dans la vue où il est dessiné.
 export interface DeplacementEnCours {
@@ -158,12 +149,13 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
   })
 
   return (
-    <svg
+    // Le dessin vient du socle : une vue en miroir (le côté gauche) le reprend retourné autour de l'axe vertical du viewBox.
+    <Silhouette
       ref={svg}
       viewBox={gabarit.viewBox}
-      role="group"
-      aria-label={`Plan de ${nomVehicule}, ${TITRE_VUE[vue].toLowerCase()}`}
-      className="block h-auto w-full"
+      elements={dessin?.elements ?? []}
+      retourne={dessin?.retourne ?? false}
+      nomAccessible={`Plan de ${nomVehicule}, ${TITRE_VUE[vue].toLowerCase()}`}
       style={{ touchAction: deplacement ? "none" : undefined }}
     >
       <defs>
@@ -171,15 +163,6 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
           <line x1={0} y1={0} x2={0} y2={5} style={{ stroke: "var(--texte-discret)", strokeWidth: 1.5 }} />
         </pattern>
       </defs>
-
-      {/* Une vue en miroir (le côté gauche) reprend le dessin droit, retourné autour de l'axe vertical du viewBox. */}
-      {dessin && (
-        <g transform={dessin.retourne ? `translate(${bornes.x + bornes.l} 0) scale(-1 1)` : undefined}>
-          {dessin.elements.map((element, index) => (
-            <TraitDessin key={index} element={element} />
-          ))}
-        </g>
-      )}
 
       {dessinees.map(({ emplacement, forme }) => {
         if (!forme) return null
@@ -216,7 +199,7 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
           </g>
         )
       })}
-    </svg>
+    </Silhouette>
   )
 }
 
@@ -224,19 +207,6 @@ export function PlanVehicule({ nomVehicule, gabarit, vue, emplacements, choisi, 
 export function libelleDuPlan(emplacement: EmplacementPlan): string {
   const partenaire = emplacement.occupation ? `, ${emplacement.occupation.partenaireNom}` : ""
   return `${emplacement.nom}, ${LIBELLE_STATUT_EMPLACEMENT[emplacement.statut]}${partenaire}`
-}
-
-function TraitDessin({ element }: { element: ElementDessin }) {
-  const { "stroke-width": epaisseurAttribut, ...geometrie } = element.attributs
-  const estFilet = element.role === "detail" && Number(epaisseurAttribut ?? 0) >= EPAISSEUR_FILET
-  const style: CSSProperties = {
-    ...STYLE_ROLE[element.role],
-    ...(estFilet ? { stroke: "var(--marque)" } : {}),
-    ...(epaisseurAttribut !== undefined ? { strokeWidth: Number(epaisseurAttribut) } : {}),
-  }
-  if (element.type === "circle") return <circle {...geometrie} style={style} />
-  if (element.type === "line") return <line {...geometrie} style={style} />
-  return <path {...geometrie} style={style} />
 }
 
 function styleStatut(statut: EmplacementPlan["statut"], avecLogo: boolean, motif: string): CSSProperties {
