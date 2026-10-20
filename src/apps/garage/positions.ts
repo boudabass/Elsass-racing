@@ -1,20 +1,27 @@
-// Positions des organes sur la silhouette (tâche 4.1, brief §1). Coordonnées de la viewBox de la vue droite du gabarit.
-// Par clé de gabarit, puis par clé d'organe par défaut (`cle`). Un organe ajouté par la team porte sa position en base
-// (garage_component_type.positions, même clé de gabarit). Sans position : l'organe n'a qu'une carte, sans point.
+// Positions des organes sur la silhouette (tâche 4.1, brief §1 ; corrigées en 4.2 après la validation de John sur les
+// captures). Coordonnées de la viewBox de la vue droite du gabarit. Par clé de gabarit, puis par clé d'organe par défaut
+// (`cle`). Un organe ajouté par la team porte sa position en base (garage_component_type.positions, même clé de gabarit).
+// Sans position : l'organe n'a qu'une carte, sans point.
 //
-// Choix provisoires, à valider sur l'écran en 4.2 : le profil de la Saxo est dessiné avec l'avant à droite (roue
-// avant en x = 282,7). Freins sur la roue avant, pneus sur la roue arrière : un seul point par organe par défaut.
+// Repères de la Saxo, d'avant en arrière : moteur dans le capot, boîte et embrayage sous l'habitacle avant, transmissions
+// entre les deux roues, amortisseurs au-dessus de la roue arrière, freins sur la roue avant, pneus sur la roue arrière.
 // Le gabarit générique reprend le dessin de la Saxo (même viewBox, mêmes vues) : mêmes positions.
+
+// Rayon de la zone de contact d'un repère, en unités du plan. Au bureau, 22. Sur téléphone, le repère est plus gros :
+// 25 unités, soit 44 px pour la Saxo affichée sur 328 px (370 unités). Les cercles de contact ne se coupent jamais,
+// à la taille téléphone : un test le vérifie.
+export const RAYON_CONTACT_BUREAU = 22
+export const RAYON_CONTACT_TELEPHONE = 25
 
 export type PointSilhouette = { x: number; y: number }
 
 const POSITIONS_SAXO: Record<string, PointSilhouette> = {
-  moteur: { x: 250, y: 84 },
-  boite: { x: 210, y: 100 },
-  embrayage: { x: 232, y: 104 },
-  transmissions: { x: 170, y: 112 },
+  moteur: { x: 306, y: 66 },
+  boite: { x: 230, y: 96 },
+  embrayage: { x: 146, y: 92 },
+  transmissions: { x: 186, y: 128 },
   freins: { x: 282.7, y: 114 },
-  amortisseurs: { x: 255, y: 78 },
+  amortisseurs: { x: 66, y: 62 },
   pneus: { x: 66.4, y: 114 },
 }
 

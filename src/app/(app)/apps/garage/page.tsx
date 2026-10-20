@@ -4,6 +4,7 @@ import { Lock, Wrench } from "lucide-react"
 import { accesEcran } from "@/apps/garage/ecran"
 import { CartesOrganes, ChoixVehicule, IndiceBloc, SilhouetteAtelier } from "@/apps/garage/composants/atelier"
 import { listerVehiculesAtelier, lireVehiculeAtelier } from "@/apps/garage/lectures-serveur"
+import { motIndice } from "@/apps/garage/mise-en-forme"
 import { EcranVide } from "@/components/qg/ecran-vide"
 
 // Atelier du Garage (tâche 4.2, brief §1) : la voiture choisie dans l'URL (la première par défaut), son indice, sa
@@ -32,6 +33,9 @@ export default async function PageAtelier({ searchParams }: { searchParams: Prom
   if (!atelier) notFound()
 
   const noms = atelier.organes.filter((o) => atelier.sansPiece.includes(o.id)).map((o) => o.nom)
+  const mot = motIndice(
+    atelier.organes.map((o) => ({ nom: o.nom, critique: o.critique, pieceMontee: Boolean(o.piece || o.trainMonte), zone: o.zone })),
+  )
 
   return (
     <section className="flex max-w-5xl flex-col gap-6">
@@ -40,7 +44,7 @@ export default async function PageAtelier({ searchParams }: { searchParams: Prom
         {vehicules.length > 1 && <ChoixVehicule vehicules={vehicules} choisi={choisi.id} />}
       </header>
 
-      <IndiceBloc indice={atelier.indice} manque={noms} />
+      <IndiceBloc indice={atelier.indice} mot={mot} manque={noms} />
 
       {atelier.silhouette ? (
         <SilhouetteAtelier vehicule={choisi.nomCourt} silhouette={atelier.silhouette} organes={atelier.organes} />

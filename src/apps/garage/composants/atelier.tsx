@@ -1,6 +1,6 @@
 // Atelier (tâche 4.2, brief §1) : le choix de la voiture, l'indice de fiabilité, la silhouette avec un repère par organe,
-// puis une carte par organe. Rendu serveur ; seul le tiroir de durée de vie est un composant client. Le mot et le
-// pourcentage portent l'état ; la forme du repère porte la zone : jamais la couleur seule.
+// puis une carte par organe. Rendu serveur ; seul le tiroir de durée de vie est un composant client. La forme du repère
+// porte la zone, le pourcentage (au bureau) et le mot portent l'état ; jamais la couleur seule.
 
 import Link from "next/link"
 
@@ -8,8 +8,8 @@ import { Silhouette } from "@/components/silhouette/silhouette"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 
 import type { OrganeAtelier, VehiculeAtelier, VehiculeChoisi } from "../lectures-serveur"
-import { libelleZone, ordreDesOrganes, phraseKmRestants, phraseManque, pourcentage, zoneIndice } from "../mise-en-forme"
-import type { PointSilhouette } from "../positions"
+import { libelleZone, ordreDesOrganes, phraseKmRestants, phraseManque, pourcentage } from "../mise-en-forme"
+import { RAYON_CONTACT_BUREAU, RAYON_CONTACT_TELEPHONE, type PointSilhouette } from "../positions"
 import type { Zone } from "../regles"
 
 import { FormulaireDuree } from "./formulaire-duree"
@@ -38,8 +38,8 @@ export function ChoixVehicule({ vehicules, choisi }: { vehicules: VehiculeChoisi
 
 // --- Indice de fiabilité -------------------------------------------------------------------
 
-export function IndiceBloc({ indice, manque }: { indice: number | null; manque: string[] }) {
-  const zone = zoneIndice(indice)
+// La moyenne se lit en grand ; le mot (le pire organe critique renseigné, calculé par la page) se lit à côté.
+export function IndiceBloc({ indice, mot, manque }: { indice: number | null; mot: string; manque: string[] }) {
   return (
     <section aria-labelledby="indice-fiabilite" className="flex flex-col gap-1">
       <h2 id="indice-fiabilite" className="text-sm text-texte-discret">
@@ -47,7 +47,7 @@ export function IndiceBloc({ indice, manque }: { indice: number | null; manque: 
       </h2>
       <p className="flex flex-wrap items-baseline gap-3">
         <span className="chiffre text-5xl font-semibold">{pourcentage(indice) ?? "—"}</span>
-        <span className="text-lg">{libelleZone(zone)}</span>
+        <span className="text-lg">{mot}</span>
       </p>
       <p className="text-sm text-texte-discret">
         {indice === null ? phraseManque(manque) : "Moyenne des organes critiques renseignés"}
@@ -58,11 +58,11 @@ export function IndiceBloc({ indice, manque }: { indice: number | null; manque: 
 
 // --- Silhouette et repères -----------------------------------------------------------------
 
-// Un repère par organe placé sur la silhouette. Sa forme donne la zone (rond, triangle, losange, rond pointillé), son
-// texte le pourcentage. Le repère est un lien vers la fiche organe, avec une zone de contact de 44 px au moins.
-const RAYON_REPERE = 12
-const RAYON_CONTACT = 22
+// Rayon visible du repère, en unités du plan : plus gros sur téléphone, où il ne porte que sa forme.
+const RAYON_REPERE_BUREAU = 12
+const RAYON_REPERE_TELEPHONE = 16
 
+// Forme de la zone : rond (vert), triangle (orange), losange (rouge), rond pointillé (à renseigner).
 function formeDuRepere(zone: Zone, x: number, y: number, r: number) {
   if (zone === "orange") {
     return <polygon points={`${x},${y - r} ${x + r},${y + r * 0.8} ${x - r},${y + r * 0.8}`} />
@@ -76,28 +76,37 @@ function formeDuRepere(zone: Zone, x: number, y: number, r: number) {
   return <circle cx={x} cy={y} r={r} />
 }
 
+// Un repère est un lien vers la fiche de l'organe. Le nom, le mot de la zone et le pourcentage sont dans son nom
+// accessible, à toutes les tailles. Deux variantes, une seule affichée : téléphone (plus gros, sans texte) et bureau.
 function RepereOrgane({ organe, point }: { organe: OrganeAtelier; point: PointSilhouette }) {
   const pct = organe.etat === null ? null : `${Math.round(organe.etat)}%`
   const libelle = `${organe.nom}, ${libelleZone(organe.zone)}${pct ? `, ${pct}` : ""}`
-  const rouge = organe.zone === "rouge"
-  const couleurTexte = rouge ? "var(--marque-texte)" : "var(--texte)"
+  const style = {
+    fill: organe.zone === "rouge" ? "var(--marque)" : "var(--surface)",
+    stroke: "var(--texte)",
+    strokeWidth: 1.6,
+  }
   return (
     <a href={`/apps/garage/organes/${organe.id}`} aria-label={libelle}>
-      <circle cx={point.x} cy={point.y} r={RAYON_CONTACT} fill="transparent" />
-      <g style={{ fill: rouge ? "var(--marque)" : "var(--surface)", stroke: "var(--texte)", strokeWidth: 1.6 }}>
-        {formeDuRepere(organe.zone, point.x, point.y, RAYON_REPERE)}
+      <g className="md:hidden">
+        <circle cx={point.x} cy={point.y} r={RAYON_CONTACT_TELEPHONE} fill="transparent" />
+        <g style={style}>{formeDuRepere(organe.zone, point.x, point.y, RAYON_REPERE_TELEPHONE)}</g>
       </g>
-      <text
-        x={point.x}
-        y={point.y}
-        textAnchor="middle"
-        dominantBaseline="central"
-        className="chiffre"
-        style={{ fontSize: 8, fontWeight: 600, fill: couleurTexte }}
-        aria-hidden="true"
-      >
-        {pct ?? "–"}
-      </text>
+      <g className="hidden md:block">
+        <circle cx={point.x} cy={point.y} r={RAYON_CONTACT_BUREAU} fill="transparent" />
+        <g style={style}>{formeDuRepere(organe.zone, point.x, point.y, RAYON_REPERE_BUREAU)}</g>
+        <text
+          x={point.x}
+          y={point.y}
+          textAnchor="middle"
+          dominantBaseline="central"
+          className="chiffre"
+          style={{ fontSize: 8, fontWeight: 600, fill: organe.zone === "rouge" ? "var(--marque-texte)" : "var(--texte)" }}
+          aria-hidden="true"
+        >
+          {pct ?? "–"}
+        </text>
+      </g>
     </a>
   )
 }
@@ -113,6 +122,13 @@ export function SilhouetteAtelier({ vehicule, silhouette, organes }: { vehicule:
 }
 
 // --- Cartes des organes --------------------------------------------------------------------
+
+// Couleur de la jauge : celle de la zone, dans les deux thèmes (jetons du socle, contraste ≥ 3:1 sur la surface).
+const COULEUR_ZONE: Partial<Record<Zone, string>> = {
+  vert: "var(--etat-ok)",
+  orange: "var(--etat-orange)",
+  rouge: "var(--etat-rouge)",
+}
 
 function Montage({ organe }: { organe: OrganeAtelier }) {
   if (organe.trainMonte) {
@@ -149,7 +165,10 @@ function CarteOrgane({ organe, peutEcrire }: { organe: OrganeAtelier; peutEcrire
 
       {organe.etat !== null && (
         <div role="img" aria-label={`État : ${pct}`} className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
-          <div className="h-full rounded-full bg-marque" style={{ width: `${Math.min(100, Math.max(0, organe.etat))}%` }} />
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${Math.min(100, Math.max(0, organe.etat))}%`, backgroundColor: COULEUR_ZONE[organe.zone] }}
+          />
         </div>
       )}
 

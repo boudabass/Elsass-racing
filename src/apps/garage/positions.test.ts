@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { pointPourOrgane, pointValide } from "./positions"
+import { pointPourOrgane, pointValide, RAYON_CONTACT_TELEPHONE } from "./positions"
 import { TYPES_DEFAUT } from "./types-defaut"
 
 // viewBox de la vue droite de la Saxo : « 0 -14 370 173 ». Les gabarits partagent ce dessin.
@@ -51,7 +51,21 @@ describe("position enregistrée par la team", () => {
 
   it("une valeur invalide est ignorée, et la position par défaut prend le relais", () => {
     const invalide = { citadine_3p_saxo: { x: "cent", y: 50 } }
-    expect(pointPourOrgane("citadine_3p_saxo", { cle: "moteur", positions: invalide })).toEqual({ x: 250, y: 84 })
+    expect(pointPourOrgane("citadine_3p_saxo", { cle: "moteur", positions: invalide })).toEqual({ x: 306, y: 66 })
+  })
+
+  // À la taille téléphone (le plus gros des deux rayons de contact), deux cercles de contact ne se coupent pas.
+  it("à la taille du repère, les cercles de contact ne se coupent pas, pour la Saxo et la voiture générique", () => {
+    for (const gabarit of ["citadine_3p_saxo", "voiture_generique"]) {
+      const points = TYPES_DEFAUT.map((type) => pointPourOrgane(gabarit, { cle: type.cle, positions: null }))
+      expect(points.every((point) => point !== null)).toBe(true)
+      for (let i = 0; i < points.length; i++) {
+        for (let j = i + 1; j < points.length; j++) {
+          const distance = Math.hypot(points[i]!.x - points[j]!.x, points[i]!.y - points[j]!.y)
+          expect(distance, `${gabarit} : ${TYPES_DEFAUT[i].cle} et ${TYPES_DEFAUT[j].cle}`).toBeGreaterThan(2 * RAYON_CONTACT_TELEPHONE)
+        }
+      }
+    }
   })
 })
 

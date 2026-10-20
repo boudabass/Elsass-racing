@@ -34,10 +34,18 @@ test("captures · l'atelier de la Saxo, à 1440 et à 360 px", async ({ page, eq
   await page.goto(`/apps/garage?vehicule=${vehicleId}`)
   await expect(page.getByRole("heading", { name: "Atelier", exact: true })).toBeVisible()
   await expect(page.getByRole("group", { name: /^Silhouette de Saxo 2, vue droite/ })).toBeVisible()
+  await expect(page.getByText("À changer : embrayage", { exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Embrayage, À changer, 2%" })).toBeVisible()
   await capturer(page, "garage-atelier-1440.png")
 
   await page.setViewportSize(TELEPHONE)
   await expect(page.getByRole("heading", { name: "Atelier", exact: true })).toBeVisible()
+  // Téléphone : le repère porte la forme seule, et sa zone de contact fait au moins 44 px.
+  const repere = page.getByRole("link", { name: "Embrayage, À changer, 2%" })
+  await expect(repere).toBeVisible()
+  const cible = await repere.boundingBox()
+  expect(cible?.width ?? 0, "cible du repère à 360 px").toBeGreaterThanOrEqual(44)
+  expect(cible?.height ?? 0, "cible du repère à 360 px").toBeGreaterThanOrEqual(44)
   const deborde = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
   expect(deborde, "défilement horizontal sur la page").toBe(false)
   await capturer(page, "garage-atelier-360.png")
