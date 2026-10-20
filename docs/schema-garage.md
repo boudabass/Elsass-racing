@@ -309,7 +309,7 @@ Constat : `contribution.ts` ne sait qu'un critère, `created_by`. Le registre ne
 - `garage.intervention_facturee` : à la fin d'un ordre avec coût de main-d'œuvre. Charge : `{ workOrderId, vehicleId, coutCents, devise, prestataireContactId }`.
 - Côté Budget, `liaisons-serveur.ts` reçoit ces deux événements et propose la dépense par `budget_suggestion` (forme de `proposerDepenseEngagementDans`), puis `budget.action_requise` ; la décision revient par `core.action_decidee`. Budget écrit ses tables, Garage n'écrit jamais dans Budget.
 - **Idempotence** : une proposition par commande (`actionCle = garage_purchase:<id>`) et par ordre (`garage_work_order:<id>`), avec contrôle d'existence avant création. Un événement peut arriver deux fois ; on ne compte pas sur une livraison unique.
-- **Catégorie et payeur** : le code ne connaît que la catégorie `engagement`. Aucune catégorie « pièces » ni « main-d'œuvre » n'existe. Je n'en invente pas : choix D8 (une catégorie existante, ou une catégorie à ajouter dans Budget par migration additive). Payeur : caisse de la team, comme l'engagement.
+- **Catégorie et payeur** (D8, corrigé) : les catégories `Pièces` et `Main-d'œuvre` existent dans `src/apps/budget/categories-defaut.ts`. Budget s'appuie sur une clé stable, jamais sur le nom : `pieces` et `main_oeuvre` s'ajoutent à `CLE_CATEGORIE`, comme `engagement`, dans la tâche 4.3. Le gestionnaire de Budget choisit sa catégorie par cette clé. Payeur : caisse de la team, comme l'engagement.
 
 ### Commandes (`/apps/garage/commandes`, choix D6)
 
@@ -340,6 +340,19 @@ Constat : `contribution.ts` ne sait qu'un critère, `created_by`. Le registre ne
 | D5 | Intervention rapide hors ligne avec pièce | Refus hors ligne, avec la consigne de revenir en ligne |
 | D6 | Schéma des commandes : `component_type_id` et `qualite` sur la ligne, `commande_ligne_id` sur la pièce | Oui, migration additive |
 | D7 | `garage.travail_termine` émis après la transaction (échec journalisé) | Oui |
-| D8 | Catégorie Budget pour pièces et main-d'œuvre : existante ou à ajouter | À trancher avec John |
+| D8 | Catégorie Budget pour pièces et main-d'œuvre : existante ou à ajouter | Existante (`Pièces`, `Main-d'œuvre`), clés `pieces` et `main_oeuvre` |
 
 Priorité : livrée (point 1), basse, normale par défaut, haute. Tri et affichage en point 3.
+
+### Décisions de l'orchestrateur (20/10, après le point d'arrêt)
+
+Le point d'arrêt est tranché. La 4.3 reprend avec ces choix, à appliquer tels quels :
+
+- **D1 : oui.** Prédicat de périmètre par table dans le socle (`src/core/synchro/contribution.ts`), avec tests. La règle `created_by` reste celle par défaut ; un prédicat s'ajoute seulement pour une table qui en a besoin (`garage_work_order`, sur les ordres affectés).
+- **D2 : oui.** Terminer un ordre avec une pièce demande le niveau écriture ; sans pièce, l'assistance peut terminer.
+- **D3 : oui.** Un ordre terminé ne revient pas en cours.
+- **D4 : photos en ligne seulement en 4.3.** Avancement, statut et notes restent hors ligne. La synchro de `core_attachment` devient un chantier du socle, à noter au plan (`docs/plan-developpement.md`).
+- **D5 : oui.** Intervention rapide hors ligne avec pièce refusée, avec la consigne de revenir en ligne.
+- **D6 : oui.** Migration additive des commandes : `component_type_id` et `qualite` sur `garage_purchase_line`, `commande_ligne_id` sur `garage_part`.
+- **D7 : oui.** `garage.travail_termine` émis après la transaction ; un échec est journalisé sans annuler la fin.
+- **D8 : corrigé.** Budget reçoit `pieces` et `main_oeuvre` dans `CLE_CATEGORIE` (4.3), et le gestionnaire choisit sa catégorie par clé, jamais par nom.
