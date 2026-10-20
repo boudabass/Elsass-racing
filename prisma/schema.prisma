@@ -2985,6 +2985,7 @@ model GarageComponentType {
   team              CoreTeam                 @relation(fields: [teamId], references: [id], onDelete: Restrict)
   vehicleComponents GarageVehicleComponent[]
   parts             GaragePart[]
+  purchaseLines     GaragePurchaseLine[]
 
   @@index([teamId])
   @@index([teamId, deletedAt])
@@ -3047,6 +3048,7 @@ model GaragePart {
   emplacement          String?
   kmCumules            Decimal            @default(0) @map("km_cumules") @db.Decimal(8, 1)
   epreuvesCumulees     Int                @default(0) @map("epreuves_cumulees")
+  commandeLigneId      String?            @map("commande_ligne_id") @db.Uuid
 
   createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
   updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
@@ -3059,11 +3061,12 @@ model GaragePart {
   vehicle        CoreVehicle         @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   componentType  GarageComponentType @relation(fields: [componentTypeId], references: [id], onDelete: Restrict)
   fournisseur    CoreContact?        @relation(fields: [fournisseurContactId], references: [id], onDelete: SetNull)
+  commandeLigne  GaragePurchaseLine? @relation("PieceCommandee", fields: [commandeLigneId], references: [id], onDelete: SetNull)
   mounts         GaragePartMount[]
   wearLogs       GarageWearLog[]
   workOrderParts GarageWorkOrderPart[]
   incidentParts  GarageIncidentPart[]
-  purchaseLines  GaragePurchaseLine[]
+  purchaseLines  GaragePurchaseLine[] @relation("PieceAchetee")
 
   @@index([teamId])
   @@index([teamId, deletedAt])
@@ -3322,6 +3325,8 @@ model GaragePurchaseLine {
   quantite          Int           @default(1)
   prixUnitaireCents Int           @default(0) @map("prix_unitaire_cents")
   devise            String        @default("EUR")
+  componentTypeId   String?       @map("component_type_id") @db.Uuid
+  qualite           GarageQualitePiece @default(origine)
 
   createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
   updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
@@ -3330,13 +3335,17 @@ model GaragePurchaseLine {
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
   rev       Int       @default(1)
 
-  team     CoreTeam      @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  purchase GaragePurchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
-  part     GaragePart?   @relation(fields: [partId], references: [id], onDelete: SetNull)
+  team          CoreTeam            @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  purchase      GaragePurchase      @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  part          GaragePart?         @relation("PieceAchetee", fields: [partId], references: [id], onDelete: SetNull)
+  componentType GarageComponentType? @relation(fields: [componentTypeId], references: [id], onDelete: Restrict)
+  // Pièces créées à la réception de cette ligne (une par unité).
+  piecesCreees  GaragePart[]        @relation("PieceCommandee")
 
   @@index([teamId])
   @@index([purchaseId])
   @@index([partId])
+  @@index([componentTypeId])
   @@map("garage_purchase_line")
 }
 
