@@ -2,6 +2,31 @@
 
 Trois niveaux : unitaires, vérifications en base, bout en bout. Chacun se lance séparément.
 
+## Où tournent les vérifications (tâche 4.0b)
+
+Depuis la 4.0b, les vérifications lourdes tournent sur GitHub Actions, pas sur le poste : son poste ne supporte plus Docker, les builds et les passes e2e en plus du travail. Sur le poste, il ne reste que `pnpm typecheck` et `pnpm test`. Plus de `db:up`, de `db:verifier-*`, de build ni d'e2e en local.
+
+Le workflow est `.github/workflows/verifications.yml`, en deux jobs :
+- `rapide` (environ 3 min) : installation, typecheck, tests unitaires.
+- `complet` (après `rapide`) : PostgreSQL 18 en service, rôle applicatif créé comme `docker/init/01-role-app.sql`, `db:deploy`, `db:seed`, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, `db:verifier-garage`, puis `pnpm test:e2e` sur le build de production (port 3101), comme en local.
+
+Déclenchement : push sur `verif`, `dev` et `main`, ou à la main (onglet Actions, « Vérifications », Run workflow). Pour un seul spec à la main, renseigner le champ `e2e` (par exemple `e2e/garage.spec.ts`).
+
+La branche `verif` est le contrôle avant `dev`. Coolify ne déploie que `dev` et `main` : pousser sur `verif` ne touche pas à l'app dev. On ne pousse sur `dev` qu'une fois `verif` vert, avec le feu vert de l'orchestrateur.
+
+Lire un résultat avec `gh` :
+- `gh run list --workflow verifications.yml --branch verif` : les dernières exécutions ;
+- `gh run watch <id>` : suivre une exécution ; `gh run view <id> --log-failed` : les lignes en échec ;
+- le résumé du job (en haut de la page de l'exécution) donne le nombre de lignes `ECONNRESET` et `uncaughtException` du journal serveur, le bilan Playwright et les captures modifiées.
+
+Traces d'un échec : artefact `traces-echec` (rapport Playwright, `test-results/`, `journal-serveur.log`), gardé 7 jours. Téléchargement : `gh run download <id> -n traces-echec -D traces-ci`.
+
+Captures : artefact `captures`, généré par le même build que la suite. Le dépôt n'est pas modifié par la CI. Pour les garder : `gh run download <id> -n captures -D captures-ci`, relire les images, les copier dans `docs/captures/`, puis committer à la main.
+
+Secrets : aucun secret de production ni de dev dans GitHub. La base est un service jetable du runner, `SESSION_SECRET` est tiré au sort à chaque exécution.
+
+Les consignes de passes locales plus bas dans ce fichier datent d'avant la 4.0b. Elles restent en historique et ne s'appliquent plus sur le poste.
+
 ## Unitaires (Vitest)
 
 - Commande : `pnpm test` (`vitest run`). Fichiers `src/**/*.test.ts`, environnement node, aucune base.

@@ -154,6 +154,8 @@ Elsass_dico/
 
 ## 5. Docker
 
+**Intégration continue (tâche 4.0b)** : les vérifications lourdes tournent sur GitHub Actions (`.github/workflows/verifications.yml`), avec PostgreSQL 18 en service (même version que la production), Node 22 et pnpm 11.21.0. Le poste ne lance plus de base ni de build d'e2e. `docker-compose.yml` (PostgreSQL 16) est facultatif : il reste utile pour une base locale, mais la CI n'en dépend pas.
+
 Fichier `Dockerfile` en **deux étages**, tous deux sur `node:22-alpine`.
 
 **Étage 1, `builder`**
