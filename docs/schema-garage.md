@@ -275,3 +275,71 @@ Ces choix ne sont pas dans l'article. Ils sont en code, testés, et à relire à
 - **Priorité d'ordre de travail** : livrée en 4.3 (basse, normale, haute ; décision de John). Reste **état d'un équipement** (4.6) : valeurs à donner.
 - **Saison, abandon** : `saison.abandon_declare` n'est pas traité (4.4). Le schéma porte déjà `stage_id` et `speciale_nom`.
 - **Pas d'écran, pas d'e2e** : 4.2 apporte l'atelier.
+
+## Travaux et commandes (4.3, point d'arrêt : conception)
+
+Statut : **conception, avant le code**. Livrés : point 0 (`c11169f`, boutons de la fiche organe) et point 1 (`6634901`, priorité `garage_priorite_travail`). Rien d'autre n'est écrit avant le feu vert de l'orchestrateur sur les choix ci-dessous (**choix D1 à D8**).
+
+### Fin d'un ordre de travail (choix D1, D2, D3, D7)
+
+- Une seule transaction, dans `terminerOrdreDans` : passage à `termine` par `updateMany` où `statut <> 'termine'`. Zéro ligne touchée = refus « Cet ordre est déjà terminé. » : une seconde fin ne pose rien.
+- Si le type est `remplacement` et qu'une pièce est utilisée sur son organe : `poserPieceDans` (4.1) dans la même transaction, avec le motif de dépose de la pièce en place. Le motif est demandé dans le tiroir de fin **seulement** s'il y a une pièce en place ; aucun motif par défaut.
+- Sans pièce, ou pour un autre type : rien n'est posé. Une pièce utilisée sur une réparation est enregistrée dans `garage_work_order_part` sans pose (la pose reste un acte de la fiche organe).
+- Pièce d'un autre véhicule ou d'un autre organe : refusée avant écriture (le service de pose le fait déjà).
+- Émission après la transaction, comme `apresApplication` de la synchro : `garage.travail_termine` ; `garage.intervention_facturee` seulement si `cout_main_oeuvre_cents > 0`. Un échec d'émission est journalisé, il n'annule pas la fin (D7).
+- Un ordre terminé ne revient pas en cours : la pose ne se défait pas toute seule. Refus, avec la consigne de déposer la pièce à la main (D3).
+- Terminer un ordre avec une pièce demande le niveau écriture (la pose en dépend). L'assistance peut terminer un ordre sans pièce (D2).
+
+### Hors ligne de l'assistance (choix D1, D4, D5, D6)
+
+Constat : `contribution.ts` ne sait qu'un critère, `created_by`. Le registre ne porte que `core_note` et les tables de Saison. Les tables du Garage ne sont donc pas synchronisées.
+
+- **Périmètre propre au Garage** (D1) : `garage_work_order` est en contribution sur les ordres où le membre est affecté, c'est-à-dire ayant une ligne `garage_work_order_person` dont `person_id` est sa fiche personne. Changement dans le socle : `perimetreLecture` et la règle d'écriture acceptent un prédicat par table, au lieu de `created_by` seul. Testé dans `contribution.test.ts`.
+- **Champs écrits hors ligne** : `statut` et `avancement_pct`, et rien d'autre. Le schéma zod de la déclaration refuse tout autre champ. Le statut `termine` passe par les règles de la section précédente (avec pièce : refus hors ligne, D2).
+- **Ce qui ne part jamais dans le paquet de l'assistance** : `cout_main_oeuvre_cents`, `devise`, `prestataire_contact_id`. Projection dans `lirePaquet` selon le niveau, avec un test « aucun prix dans les objets de l'assistance ».
+- **Notes** : `core_note` (fiche `work_order`), déjà synchronisée et contribution par `created_by`. Rien à changer au registre, seulement à déclarer la nouvelle fiche.
+- **Affectations** : `garage_work_order_person` en lecture seule, périmètre = ses propres lignes et celles des ordres où il est. Les autres membres s'affichent « Un membre », comme les notes.
+- **Photos** : `core_attachment` n'est pas synchronisée et le socle ne transporte pas de fichier. Deux options (**D4**) : (a) photos hors ligne gardées dans IndexedDB, une par photo, taille bornée après compression, envoi au retour du réseau ; (b) photos en ligne seulement en 4.3, hors ligne reporté. Recommandation : (b) pour 4.3, car c'est un chantier du socle, pas du Garage. Tu as demandé les photos hors ligne : c'est à trancher.
+- **Intervention rapide hors ligne** (D5) : crée un ordre `termine`, la ligne d'affectation pour soi-même, et la note. Création en une seule opération : `creer` porte aussi les personnes, et le serveur écrit les deux lignes dans une transaction. Identifiants `newId()`. **Avec une pièce : refusée hors ligne**, « Pour utiliser une pièce, reviens en ligne. », car la pose est un acte d'écriture que l'assistance n'a pas. Recommandation : refus.
+- **Restent en ligne** : création d'un ordre hors intervention rapide, affectations (sauf soi-même), coût, prestataire, pièces, pose, commandes, Budget.
+
+### Vers Budget (choix D8)
+
+- `garage.piece_achetee` : une fois par commande reçue, dans la transaction de réception. Charge validée par zod : `{ purchaseId, vehicleId, supplierContactId, totalCents, devise, recueLe }`, total = somme des `quantite × prix_unitaire_cents`.
+- `garage.intervention_facturee` : à la fin d'un ordre avec coût de main-d'œuvre. Charge : `{ workOrderId, vehicleId, coutCents, devise, prestataireContactId }`.
+- Côté Budget, `liaisons-serveur.ts` reçoit ces deux événements et propose la dépense par `budget_suggestion` (forme de `proposerDepenseEngagementDans`), puis `budget.action_requise` ; la décision revient par `core.action_decidee`. Budget écrit ses tables, Garage n'écrit jamais dans Budget.
+- **Idempotence** : une proposition par commande (`actionCle = garage_purchase:<id>`) et par ordre (`garage_work_order:<id>`), avec contrôle d'existence avant création. Un événement peut arriver deux fois ; on ne compte pas sur une livraison unique.
+- **Catégorie et payeur** : le code ne connaît que la catégorie `engagement`. Aucune catégorie « pièces » ni « main-d'œuvre » n'existe. Je n'en invente pas : choix D8 (une catégorie existante, ou une catégorie à ajouter dans Budget par migration additive). Payeur : caisse de la team, comme l'engagement.
+
+### Commandes (`/apps/garage/commandes`, choix D6)
+
+- **Écart de schéma à trancher** : `garage_purchase_line` n'a ni `component_type_id` (l'organe est obligatoire sur une pièce) ni `qualite`, alors que le brief les demande. De plus `garage_purchase_line.part_id` est un seul lien, et une ligne de quantité 2 donne deux pièces. Proposition (**D6**) : migration additive avec `garage_purchase_line.component_type_id` (obligatoire à la réception) et `qualite`, et `garage_part.commande_ligne_id` (facultatif, FK vers la ligne) ; `garage_purchase_line.part_id` ne sert plus.
+- **Réception** : une transaction. `updateMany` de `garage_purchase` où `statut <> 'recue'` (zéro ligne = « Cette commande est déjà reçue. », rien ne se crée) ; puis une pièce par unité (`en_stock`, `prix_cents` = prix unitaire, `fournisseur_contact_id`, `achetee_le` = `recue_le`, `commande_ligne_id`) ; puis `garage.piece_achetee`. Course à deux réceptions : `avecReprisePourConflit`, comme le brief le demande.
+- **Livraisons attendues** : tri par `livraison_prevue_le` croissante (sans date en dernier), commandes non reçues seulement. Barre = part du temps écoulé entre `commandee_le` et `livraison_prevue_le`, bornée à 0-100. En retard : « En retard de N jours », en mots, calculé en date de Paris. Fonction pure dans `regles.ts`, testée.
+- **Écriture seulement** : pages et actions gardées par `accesGarage("ecriture")`. Pas d'entrée de commande pour l'assistance, ni dans le menu ni dans les données.
+
+### Travaux (`/apps/garage/travaux`)
+
+- Trois colonnes ou sections : en cours, prévus, terminés. Tri : priorité (haute, normale, basse, en mots), puis « à faire avant » (épreuve, date croissante, sans date en dernier).
+- Fiche d'un ordre : titre, organe, type, priorité, affectations (`core_person`), avancement, statut, pièces (stock du véhicule), coût et prestataire (écriture seulement), notes, photos (selon D4).
+- Carte d'organe de l'atelier : « 1 travail en cours » avec le lien, quand `statut = 'en_cours'` existe pour l'organe.
+
+### Menu et bouton +
+
+- Menu : Atelier, Travaux, Stock, Commandes (commandes et travaux visibles selon le niveau).
+- Bouton + : Pièce, Roulage (responsable, équipage), Intervention (responsable, équipage, et assistance). `entreesDuMenuPlus` et son test sont mis à jour en même temps.
+
+### Choix à trancher (D1 à D8)
+
+| # | Question | Recommandation |
+|---|---|---|
+| D1 | Périmètre de contribution par prédicat dans le socle (`contribution.ts`) | Oui |
+| D2 | Fin avec pièce : niveau écriture seulement ; sans pièce, l'assistance peut terminer | Oui |
+| D3 | Ordre terminé : pas de réouverture automatique, refus avec consigne | Oui |
+| D4 | Photos hors ligne : (a) IndexedDB bornée, ou (b) en ligne seulement en 4.3 | (b), reporter (a) |
+| D5 | Intervention rapide hors ligne avec pièce | Refus hors ligne, avec la consigne de revenir en ligne |
+| D6 | Schéma des commandes : `component_type_id` et `qualite` sur la ligne, `commande_ligne_id` sur la pièce | Oui, migration additive |
+| D7 | `garage.travail_termine` émis après la transaction (échec journalisé) | Oui |
+| D8 | Catégorie Budget pour pièces et main-d'œuvre : existante ou à ajouter | À trancher avec John |
+
+Priorité : livrée (point 1), basse, normale par défaut, haute. Tri et affichage en point 3.
