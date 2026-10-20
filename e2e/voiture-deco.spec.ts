@@ -56,12 +56,13 @@ async function ouvrirDeco(page: Page, vehiculeId: string): Promise<void> {
   await expect(page.getByRole("group", { name: /^Plan de Saxo 2/ })).toBeVisible()
 }
 
-// Le plan et la liste de la vue (les emplacements dessinés). La liste se lit par rôle : après le chargement de la page,
-// le streaming React (frontière Suspense du plan, « S:0 ») peut laisser une copie cachée de la liste dans le DOM. Un
-// sélecteur CSS la compte (strict mode), un sélecteur par rôle ne voit que la liste affichée.
+// Le plan et la liste de la vue (les emplacements dessinés). Après le chargement de la page, le streaming React
+// (frontière Suspense du plan, « S:0 ») peut laisser une copie cachée de la liste dans le DOM : un sélecteur CSS nu la
+// compte (strict mode). `:visible` l'écarte sans passer par l'arbre d'accessibilité : un sélecteur par rôle perd la
+// liste pendant qu'un tiroir modal est ouvert (la page reçoit aria-hidden), ce qui casse les vérifications après une étape.
 const plan = (page: Page) => page.getByRole("group", { name: /^Plan de Saxo 2/ })
 const listePlan = (page: Page) => page.locator('section[aria-labelledby="liste-emplacements"]')
-const ligne = (page: Page, nom: string) => listePlan(page).getByRole("button", { name: nom })
+const ligne = (page: Page, nom: string) => listePlan(page).locator("button:visible", { hasText: nom })
 // Le sélecteur de vues : « Côté droit », « Côté gauche », « Avant », « Arrière », « Dessus ».
 const boutonVue = (page: Page, titre: string) =>
   page.getByRole("group", { name: "Vue du véhicule" }).getByRole("button", { name: titre, exact: true })
@@ -106,7 +107,7 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   // propres emplacements : arrière 2 (la lunette arrière est une vitre, sans emplacement), avant 1, dessus 2. Il n'y a aucun emplacement hors plan.
   await expect(plan(page)).toBeVisible()
   await expect(formesDuPlan(page)).toHaveCount(6)
-  await expect(listePlan(page).getByRole("listitem")).toHaveCount(6)
+  await expect(listePlan(page).locator("li:visible")).toHaveCount(6)
   await boutonVue(page, "Côté gauche").click()
   await expect(page).toHaveURL(/vue=gauche/)
   await expect(formesDuPlan(page)).toHaveCount(5)
@@ -114,7 +115,7 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   await boutonVue(page, "Arrière").click()
   await expect(page).toHaveURL(/vue=arriere/)
   await expect(formesDuPlan(page)).toHaveCount(2)
-  await expect(listePlan(page).getByRole("listitem")).toHaveCount(2)
+  await expect(listePlan(page).locator("li:visible")).toHaveCount(2)
   await boutonVue(page, "Avant").click()
   await expect(formesDuPlan(page)).toHaveCount(1)
   await boutonVue(page, "Dessus").click()
@@ -170,7 +171,7 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   const xAvant = Number(await forme(page, "Aile arrière").getAttribute("x"))
   await page.getByRole("button", { name: "Déplacer ou redimensionner" }).click()
   // Pendant « Déplacer », un autre emplacement ne se choisit pas : la liste est inerte, la fiche reste la même.
-  await listePlan(page).getByRole("button", { name: "Portière", includeHidden: true }).first().click({ force: true })
+  await ligne(page, "Portière").click({ force: true })
   await expect(page.getByRole("dialog", { name: "Déplacer ou redimensionner", exact: true })).toContainText("Aile arrière")
   await forme(page, "Aile arrière").focus()
   await page.keyboard.press("Shift+ArrowRight")
@@ -238,7 +239,7 @@ test("responsable, téléphone 360 px : la liste ouvre le tiroir, sans défileme
   await sansDefilementHorizontal(page)
 
   // Chaque ligne de la liste mesure au moins 44 px de haut.
-  const lignes = listePlan(page).getByRole("button")
+  const lignes = listePlan(page).locator("button:visible")
   await expect(lignes).toHaveCount(6)
   for (let i = 0; i < 6; i++) {
     const boiteLigne = await lignes.nth(i).boundingBox()
@@ -523,7 +524,7 @@ test("assistance : le plan et le panneau en lecture seule, sans aucun bouton d'a
 
   await ouvrirDeco(page, vehiculeId)
   await expect(formesDuPlan(page)).toHaveCount(6)
-  await expect(listePlan(page).getByRole("listitem")).toHaveCount(6)
+  await expect(listePlan(page).locator("li:visible")).toHaveCount(6)
   await ligne(page, "Portière").click()
   await expect(page.getByRole("heading", { name: "Portière droite", exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Réserver", exact: true })).toHaveCount(0)
@@ -630,7 +631,7 @@ test("responsable : un véhicule sans plan propose un modèle, et la création p
   await page.getByRole("button", { name: "Choisir ce modèle", exact: true }).click()
   await expect(page.getByText("Ce véhicule n'a pas encore de plan.")).toHaveCount(0)
   await expect(page.getByRole("group", { name: /^Plan de Sans plan/ })).toBeVisible()
-  await expect(listePlan(page).getByRole("button")).toHaveCount(6)
+  await expect(listePlan(page).locator("button:visible")).toHaveCount(6)
 
   // Création sans toucher au choix : le modèle proposé est la voiture générique, avec son plan.
   await page.goto("/apps/voiture")
@@ -644,7 +645,7 @@ test("responsable : un véhicule sans plan propose un modèle, et la création p
   const parDefaut = new URL(page.url()).pathname.split("/")[4]
   await page.goto(`/apps/voiture/vehicules/${parDefaut}?onglet=deco`)
   await expect(page.getByRole("group", { name: /^Plan de Voiture par défaut/ })).toBeVisible()
-  await expect(listePlan(page).getByRole("button")).toHaveCount(6)
+  await expect(listePlan(page).locator("button:visible")).toHaveCount(6)
   // Créé avec le gabarit actuel, rien à mettre à jour : le bouton « Mettre le plan à jour » n'apparaît pas.
   await expect(page.getByRole("button", { name: "Mettre le plan à jour" })).toHaveCount(0)
 })

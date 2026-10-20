@@ -135,9 +135,10 @@ La team des captures reçoit les données de démonstration Koehling (`e2e/aide/
 
 ### Pièges de sélection : copie cachée du streaming
 
-- Après le chargement d'une page, React peut laisser une copie cachée d'une liste dans le DOM : le streaming de la frontière Suspense ajoute `<div hidden id="S:0">` avec une seconde copie du contenu. Un sélecteur CSS (`section > ul > button`, `locator("button")`) la compte : « strict mode violation … resolved to 2 elements ». Un sélecteur par rôle (`getByRole("button", { name })`) ne voit que l'élément affiché.
-- Règle : lire une liste de l'interface par rôle, jamais par CSS. Exception volontaire : un test qui vérifie qu'un élément inerte ne réagit pas (`includeHidden`, première occurrence, voir `e2e/voiture-deco.spec.ts`, « Déplacer »).
-- Cas vécus, sans doublon de données (la fiche et le plan avaient le bon nombre d'emplacements) : `e2e/voiture-deco.spec.ts` lignes 406 et 437 (run 39487952792), 334 (run 39492136999), 536 (run 39495850178). Corrigé par sélecteurs par rôle.
+- Après le chargement d'une page, React peut laisser une copie cachée d'une liste dans le DOM : le streaming de la frontière Suspense ajoute `<div hidden id="S:0">` avec une seconde copie du contenu. Un sélecteur CSS nu (`section > ul > button`, `locator("button")`) la compte : « strict mode violation … resolved to 2 elements ».
+- Règle : pour une liste de l'interface, `:visible` dans le sélecteur CSS (`locator("button:visible", { hasText })`). Ne pas passer par le rôle : pendant qu'un tiroir modal est ouvert, la page reçoit `aria-hidden` et `getByRole` ne voit plus la liste, alors que la vérification doit encore la voir (cas de `voiture-deco.spec.ts` lignes 134 et 559, premier essai par rôle, run a0c40ef).
+- Exception volontaire : un test qui vérifie qu'un élément inerte ne réagit pas (`voiture-deco.spec.ts`, « Déplacer ») garde le même sélecteur ; l'inertie ne le masque pas.
+- Cas vécus, sans doublon de données (la fiche et le plan avaient le bon nombre d'emplacements) : `e2e/voiture-deco.spec.ts` lignes 406 et 437 (run 39487952792), 334 (run 39492136999), 536 (run 39495850178).
 - Le piège `getByText` qui trouve aussi les `<option>` d'un `<select>` est dans `CLAUDE.md` (pièges du lot 2).
 
 ## Enchaînement recommandé
