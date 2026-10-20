@@ -26,6 +26,7 @@ function textesDuBody(html: string): string[] {
   return textes
 }
 
+// Exécutée dans la page (page.evaluate) : DOMParser n'existe pas côté Node.
 function attributs(html: string): { html: string; body: string } {
   const doc = new DOMParser().parseFromString(html, "text/html")
   const liste = (el: Element | null) => (el ? Array.from(el.attributes).map((a) => `${a.name}=${a.value}`).join(" ") : "")
@@ -55,6 +56,7 @@ async function capter(browser: Browser, etat: EtatSession) {
   }))
   const textesServeur = await page.evaluate(textesDuBody, serveur)
   const textesClient = await page.evaluate(textesDuBody, client)
+  const attributsServeur = await page.evaluate(attributs, serveur)
 
   // Premier écart de texte entre le HTML serveur et le DOM client, avec deux mots de contexte.
   let ecart: { index: number; serveur: string; client: string } | null = null
@@ -69,7 +71,7 @@ async function capter(browser: Browser, etat: EtatSession) {
   await contexte.close()
   return {
     erreurs,
-    attributsServeur: attributs(serveur),
+    attributsServeur,
     attributsClient,
     ecartTexte: ecart,
     longueurServeur: serveur.length,
