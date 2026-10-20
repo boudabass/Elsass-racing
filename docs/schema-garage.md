@@ -1,6 +1,6 @@
 # Garage : schéma (tâche 4.1, point d'arrêt)
 
-Statut : **proposition, aucune migration écrite**. Le schéma sera écrit dans `prisma/schema.prisma` et `prisma/migrations/<date>_garage_schema/` après le feu vert de l'orchestrateur sur ce document. Spécification : article Odoo 954 (Garage v1.1, 15/10/2026), catalogue 962, brief `docs/briefs/4.1-garage-schema-services.md`. Modèle : `docs/schema-voiture.md`.
+Statut : **livré en 4.1** (schéma validé le 20/10 avec les corrections A à D). Migration `20261020163919_garage_schema`, catalogue `20261020164900_core_catalogue` (Garage 0.2.0). Spécification : article Odoo 954 (Garage v1.1, 15/10/2026), catalogue 962, brief `docs/briefs/4.1-garage-schema-services.md`. Modèle : `docs/schema-voiture.md`.
 
 ## Décisions d'architecture (reprises du brief)
 
@@ -243,8 +243,33 @@ Le schéma ci-dessus intègre ces quatre corrections de l'orchestrateur. Les cho
 - `saison.abandon_declare`, émis seulement quand `statutFinal = abandon` : `{ entryId, eventId, causeAbandon, stageAbandonId }`. C'est la source de `stage_id` (4.4).
 - `saison.resultat_valide` : `{ entryId, eventId, statutFinal, classementGeneral, tempsTotalMs, penalitesMs }`. **Elle ne porte pas les km chronométrés.** Garage les lit donc par une lecture partagée en lecture seule, `lireUsureEngagement(ctx, entryId)` dans `src/apps/saison/lectures-partagees.ts`, qui renvoie `km_chronometres` et l'épreuve de l'engagement. Garage n'écrit jamais dans les tables de Saison.
 
-## Ce qui n'est pas fait
+## Décisions d'implémentation (4.1)
 
-- Aucune migration, aucune modification de `prisma/schema.prisma`, aucun service, aucune règle. Ce document est le seul livrable de ce point.
-- Pas de table de synchro (4.3 traitera le parc d'assistance).
-- Pas de table de check-lists (lot 5).
+Ces choix ne sont pas dans l'article. Ils sont en code, testés, et à relire à l'écran (4.2).
+
+- **Organe créé par défaut** : mode « les deux », sans durée. Il affiche « À renseigner » et n'entre pas dans l'indice tant que la team n'a pas saisi ses durées. Aucune valeur n'est inventée (décision de John).
+- **Mode « les deux »** : les deux durées sont requises. Une seule ne suffit pas, l'état reste « À renseigner ». Le plus bas des deux états est retenu (`regles.ts`).
+- **Dépose et statut de la pièce** : motif usure → « usée » ; casse → « cassée » ; préventif → « en stock » ; révision → « en révision ».
+- **Pose sur un organe occupé** : le motif de la dépose de la pièce en place est obligatoire. La base refuse aussi une seconde pose active (index partiel).
+- **Organe Pneus** : son état vient du train monté (correction C). L'usure estimée est saisie à la main ; les km et épreuves du train s'ajoutent à l'historique sans la modifier.
+- **Usure manuelle** : s'applique aux pièces montées du véhicule et aux trains montés sur l'organe Pneus. Source « saisie manuelle », sans engagement.
+- **Usure sur résultat validé** (`saison.resultat_valide`) : une épreuve et les km chronométrés (lus par `lireUsureEngagement` chez Saison) à chaque pièce et train montés. Une ligne par cible et par engagement : une seconde validation ne double rien. Sans km, l'épreuve compte et les km valent 0 (la ligne le montre).
+- **Positions** (`positions.ts`) : provisoires, à valider à l'écran. La Saxo et le générique ont l'avant à droite (roue avant en x = 282,7). Freins sur la roue avant, pneus sur la roue arrière, un point par organe par défaut.
+- **Événements émis** : `garage.piece_zone_rouge` (une fois par franchissement, charge : `partId`, `vehicleComponentId`, `vehicleId`, `etat`) et `garage.fiabilite_changee` (indice arrondi avant et après, `vehicleId`). Chaque charge est validée par zod avant émission.
+- **Prix** : `prixCents` n'existe dans les objets renvoyés qu'à partir du niveau écriture. `vues.test.ts` le vérifie.
+- **Initialisation** : types et organes par défaut créés à la première écriture ; une ligne retirée n'est jamais recréée.
+
+## Vérifications
+
+- `pnpm test` : 691 tests verts, dont 49 pour le Garage (`regles.test.ts`, `positions.test.ts`, `vues.test.ts`).
+- `pnpm db:verifier-garage` : 21 contrôles sur la base locale (initialisation, pose et refus, dépose, usure manuelle, zone rouge émise une fois, train de pneus, index uniques, CHECK de dépose). Données créées et supprimées dans un `finally`.
+- `pnpm db:verifier-rls`, `pnpm db:verifier-bus`, `pnpm db:verifier-synchro` : verts. Aucune table du Garage n'est dans le registre de synchro.
+- `pnpm typecheck` vert ; dérive du schéma Prisma vide.
+
+## Ce qui reste ouvert
+
+- **Concurrence à l'initialisation** : deux premières écritures simultanées sur un même véhicule peuvent créer deux organes par type. L'index unique ne couvre que les types. À traiter si le cas se présente (aucune table n'a d'index unique sur les organes).
+- **Gestionnaire d'usure** : la présence d'une ligne est vérifiée avant l'écriture ; sans index unique sur ce chemin, une course entre deux validations ferait échouer le second traitement. L'index unique de la base l'empêche de doubler, mais le traitement échoue alors.
+- **Priorité d'ordre de travail** (4.3) et **état d'un équipement** (4.6) : valeurs à donner.
+- **Saison, abandon** : `saison.abandon_declare` n'est pas traité (4.4). Le schéma porte déjà `stage_id` et `speciale_nom`.
+- **Pas d'écran, pas d'e2e** : 4.2 apporte l'atelier.

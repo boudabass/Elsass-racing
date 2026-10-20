@@ -442,3 +442,11 @@
 - Point 2, `voiture.spec.ts` (test « assurance qui expire ») : vert seul sur la passe 8. Pas de trace de l'échec en suite complète. Mécanisme repéré à confirmer : la boîte du QG est rendue par le layout avant le recalcul de la page (`recalculerQg`), donc périmée à l'arrivée, et ne se relit qu'à l'ouverture (`router.refresh()`). Non modifié : il faut la trace de l'échec pour trancher.
 - Point 3, `liste-john.spec.ts` (lien « Mois ») : le test cliquait deux fois sans attendre entre les deux clics. Remplacé par un clic, puis attente de l'URL `vue=mois`. Passe 10 verte (commit ce64eab).
 - Le point 2 reste ouvert jusqu'à réception d'une trace d'échec en suite complète.
+
+## 20/10/2026 : Garage, schéma et services (brief 4.1)
+
+- Schéma validé par l'orchestrateur avec quatre corrections : km en décimal (8,1), usure des trains de pneus sans double comptage, état de l'organe Pneus calculé sur le train monté, spéciale d'abandon portée par `stage_id` sans clé étrangère. Détail dans `docs/schema-garage.md`.
+- Migrations `garage_schema` (quinze tables, RLS forcée, index et CHECK à la main) et `core_catalogue` (Garage 0.2.0).
+- Règles pures (`regles.ts`) : état, zones, km restants, indice, franchissement du seuil rouge, état des pneus. Services d'organes, de pièces, de pose, de dépose et d'usure ; usure sur `saison.resultat_valide` (une fois par engagement). Lectures de l'atelier, sans prix sous le niveau écriture.
+- Vérifications : 691 tests unitaires verts ; `pnpm db:verifier-garage` (21 contrôles) ; cloisonnement, bus et synchro verts.
+- Ouvert : positions sur la silhouette à valider à l'écran (4.2), priorité des ordres de travail (4.3), état des équipements (4.6), abandon de Saison (4.4).
