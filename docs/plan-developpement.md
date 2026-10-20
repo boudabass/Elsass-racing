@@ -253,8 +253,10 @@ Décisions de John (20/10) :
 
 ### 4.0 Stabilité avant le Garage
 - Brief : `docs/briefs/4.0-stabilite-avant-garage.md`. ECONNRESET du journal e2e (point d'arrêt avant de toucher au moteur de synchro), `voiture.spec.ts:86` et `liste-john.spec.ts` instables.
+- Acceptée le 20/10 (f30ceab..abf87ab) : ECONNRESET expliqués et documentés dans `docs/tests.md` (tirages de synchro coupés au changement de page, sans effet sur les données, aucun AbortController ajouté), double clic sur « Mois » corrigé. Suite complète chez l'orchestrateur : 133/133, voiture.spec.ts:86 vert ; s'il retombe, on lira sa trace avant toute correction. Ouvert : les server actions coupées par une navigation (3.9).
 
 ### 4.1 Garage : schéma et services
+- Brief : `docs/briefs/4.1-garage-schema-services.md`. Point d'arrêt sur le schéma avant la migration.
 - Les dix tables `garage_` de l'article 954, RLS, organes par défaut (moteur, boîte, embrayage, transmissions, freins, amortisseurs, pneus) posés à l'ouverture du Garage sur un véhicule. Calcul de l'état (km, épreuves, le plus bas des deux, zones orange et rouge), indice de fiabilité (moyenne pondérée des organes critiques), km restants : fonctions pures, tests Vitest.
 - Pose et dépose avec historique ; usure sur `saison.resultat_valide` (km chronométrés et une épreuve à toutes les pièces montées, une seule fois par engagement, non retirée par une annulation) et saisie manuelle d'un roulage. Assistance : contribution sans prix (colonnes de prix jamais servies).
 - Événements émis : `garage.piece_zone_rouge` (au franchissement du seuil, une fois), `garage.fiabilite_changee`.
