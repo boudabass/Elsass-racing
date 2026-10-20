@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 
 import { MoteurSynchro, type EtatSynchro } from "./moteur"
 import { nomBase, type LigneLocale, type TableLocale } from "./base"
-import { journaliserRafraichissement } from "@/lib/diagnostic-rafraichissement"
+import { journaliserRafraichissement, journaliserRequetesReseau } from "@/lib/diagnostic-rafraichissement"
 
 // Un moteur par compte et par team, pour tout l'onglet (les écrans partagent la même file).
 const moteurs = new Map<string, MoteurSynchro>()
@@ -31,6 +31,7 @@ export function SynchroProvider({ userId, teamId, children }: { userId: string; 
   const cheminPrecedent = useRef(chemin)
 
   useEffect(() => {
+    journaliserRequetesReseau()
     void moteur.demarrer()
     return () => moteur.arreter()
   }, [moteur])
