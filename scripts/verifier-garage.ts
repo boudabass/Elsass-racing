@@ -173,6 +173,59 @@ async function main() {
       }),
     )
     controle("la base refuse une dépose sans motif", depose !== null, "dépose acceptée")
+
+    // 9. Course (correction F) : deux validations simultanées du même engagement ne comptent qu'une fois.
+    // Chaque cible reçoit une seule ligne d'usure, et ses cumuls progressent d'une seule fois.
+    const saison = await proprietaire.coreSeason.create({
+      data: { id: randomUUID(), teamId: team.id, annee: 2026, nom: `Saison ${suffixe}`, dateDebut: new Date("2026-01-01"), dateFin: new Date("2026-12-31") },
+    })
+    const evenement = await proprietaire.coreEvent.create({
+      data: {
+        id: randomUUID(),
+        teamId: team.id,
+        seasonId: saison.id,
+        type: "rallye",
+        nom: `Rallye ${suffixe}`,
+        dateDebut: new Date("2026-06-01"),
+        dateFin: new Date("2026-06-02"),
+      },
+    })
+    const engagement = randomUUID()
+    await proprietaire.coreEventEntry.create({ data: { id: engagement, teamId: team.id, eventId: evenement.id, vehicleId: vehicule } })
+    const avantPiece = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: piece2 } })
+    const avantTrain = await proprietaire.garageTyreSet.findUniqueOrThrow({ where: { id: train.id } })
+
+    await Promise.all([1, 2].map(() => services.appliquerUsureResultatDans(ctx, engagement, evenement.id, 40)))
+    const apresPiece = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: piece2 } })
+    const apresTrain = await proprietaire.garageTyreSet.findUniqueOrThrow({ where: { id: train.id } })
+    const lignesCourse = await proprietaire.garageWearLog.count({ where: { eventEntryId: engagement } })
+    controle("deux validations simultanées donnent une ligne par cible", lignesCourse === 2, `${lignesCourse}`)
+    controle(
+      "les km de la validation ne sont comptés qu'une fois sur la pièce",
+      Number(apresPiece.kmCumules) - Number(avantPiece.kmCumules) === 40,
+      `${Number(apresPiece.kmCumules) - Number(avantPiece.kmCumules)}`,
+    )
+    controle(
+      "l'épreuve de la validation n'est comptée qu'une fois sur la pièce",
+      apresPiece.epreuvesCumulees - avantPiece.epreuvesCumulees === 1,
+      `${apresPiece.epreuvesCumulees - avantPiece.epreuvesCumulees}`,
+    )
+    controle(
+      "les km de la validation ne sont comptés qu'une fois sur le train",
+      Number(apresTrain.kmSpeciale) - Number(avantTrain.kmSpeciale) === 40,
+      `${Number(apresTrain.kmSpeciale) - Number(avantTrain.kmSpeciale)}`,
+    )
+    controle(
+      "l'épreuve de la validation n'est comptée qu'une fois sur le train",
+      apresTrain.nombreEpreuves - avantTrain.nombreEpreuves === 1,
+      `${apresTrain.nombreEpreuves - avantTrain.nombreEpreuves}`,
+    )
+
+    // Un troisième traitement, séquentiel, ne compte plus rien.
+    await services.appliquerUsureResultatDans(ctx, engagement, evenement.id, 40)
+    const relecturePiece = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: piece2 } })
+    const lignesApres = await proprietaire.garageWearLog.count({ where: { eventEntryId: engagement } })
+    controle("un traitement de plus, après coup, n'ajoute ni ligne ni km", lignesApres === 2 && Number(relecturePiece.kmCumules) === Number(apresPiece.kmCumules), `${lignesApres}`)
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères, pour les deux teams.
     await proprietaire.garageWearLog.deleteMany({ where: { teamId: { in: equipes } } })
@@ -181,6 +234,9 @@ async function main() {
     await proprietaire.garagePart.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageVehicleComponent.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageComponentType.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.coreEventEntry.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.coreEvent.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.coreSeason.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreVehicle.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreEventDelivery.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreDomainEvent.deleteMany({ where: { teamId: { in: equipes } } })

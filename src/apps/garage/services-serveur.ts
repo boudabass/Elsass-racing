@@ -591,39 +591,35 @@ async function ciblesUsure(tx: Tx, teamId: string, vehicleId: string) {
   return { partIds: montees.map((m) => m.partId), tyreSetIds: trains.map((t) => t.id) }
 }
 
-// Ajoute une usure (km et/ou une épreuve) à chaque cible. Une validation de résultat n'ajoute rien deux fois :
-// la présence d'une ligne (cible, engagement, source) est vérifiée avant l'ajout, et l'index unique la garantit.
+// Ajoute une usure (km et/ou une épreuve) à chaque cible. Renvoie vrai si au moins une ligne a été écrite.
+// Une validation de résultat ne compte qu'une fois : l'index unique (cible, engagement, source) refuse la seconde ligne.
+// skipDuplicates (ON CONFLICT DO NOTHING) remplace le P2002 : un doublon donne count 0, « déjà compté », et les cumuls
+// de cette cible ne bougent pas. Une cible pas encore comptée l'est, même si une autre l'était déjà. Deux traitements
+// simultanés sur le même engagement donnent une ligne par cible : le second attend le premier, puis n'ajoute rien.
 export async function appliquerUsureDans(
   tx: Tx,
   ctx: ContexteTeam,
   cibles: { partIds: string[]; tyreSetIds: string[] },
   usure: { km: number; epreuve: boolean; date: Date; source: "resultat_saison" | "saisie_manuelle"; eventId: string | null; entryId: string | null },
-): Promise<void> {
+): Promise<boolean> {
   const epreuves = usure.epreuve ? 1 : 0
+  const ligne = {
+    teamId: ctx.teamId,
+    eventId: usure.eventId,
+    eventEntryId: usure.entryId,
+    kmAjoutes: usure.km,
+    epreuveComptee: usure.epreuve,
+    date: usure.date,
+    source: usure.source,
+    createdBy: ctx.userId,
+    updatedBy: ctx.userId,
+  }
+  let ecrit = false
 
   for (const partId of cibles.partIds) {
-    if (usure.entryId) {
-      const deja = await tx.garageWearLog.findFirst({
-        where: { partId, eventEntryId: usure.entryId, source: usure.source, teamId: ctx.teamId },
-        select: { id: true },
-      })
-      if (deja) continue
-    }
-    await tx.garageWearLog.create({
-      data: {
-        id: newId(),
-        teamId: ctx.teamId,
-        partId,
-        eventId: usure.eventId,
-        eventEntryId: usure.entryId,
-        kmAjoutes: usure.km,
-        epreuveComptee: usure.epreuve,
-        date: usure.date,
-        source: usure.source,
-        createdBy: ctx.userId,
-        updatedBy: ctx.userId,
-      },
-    })
+    const { count } = await tx.garageWearLog.createMany({ data: [{ ...ligne, id: newId(), partId }], skipDuplicates: true })
+    if (count === 0) continue
+    ecrit = true
     await tx.garagePart.updateMany({
       where: { id: partId, teamId: ctx.teamId },
       data: { kmCumules: { increment: usure.km }, epreuvesCumulees: { increment: epreuves }, rev: { increment: 1 }, updatedBy: ctx.userId },
@@ -631,33 +627,16 @@ export async function appliquerUsureDans(
   }
 
   for (const tyreSetId of cibles.tyreSetIds) {
-    if (usure.entryId) {
-      const deja = await tx.garageWearLog.findFirst({
-        where: { tyreSetId, eventEntryId: usure.entryId, source: usure.source, teamId: ctx.teamId },
-        select: { id: true },
-      })
-      if (deja) continue
-    }
-    await tx.garageWearLog.create({
-      data: {
-        id: newId(),
-        teamId: ctx.teamId,
-        tyreSetId,
-        eventId: usure.eventId,
-        eventEntryId: usure.entryId,
-        kmAjoutes: usure.km,
-        epreuveComptee: usure.epreuve,
-        date: usure.date,
-        source: usure.source,
-        createdBy: ctx.userId,
-        updatedBy: ctx.userId,
-      },
-    })
+    const { count } = await tx.garageWearLog.createMany({ data: [{ ...ligne, id: newId(), tyreSetId }], skipDuplicates: true })
+    if (count === 0) continue
+    ecrit = true
     await tx.garageTyreSet.updateMany({
       where: { id: tyreSetId, teamId: ctx.teamId },
       data: { kmSpeciale: { increment: usure.km }, nombreEpreuves: { increment: epreuves }, rev: { increment: 1 }, updatedBy: ctx.userId },
     })
   }
+
+  return ecrit
 }
 
 // Usure saisie à la main (roulage ou essai) sur les pièces montées du véhicule. Source « saisie manuelle », sans engagement.
@@ -674,7 +653,7 @@ export async function ajouterUsureManuelleDans(ctx: ContexteTeam, vehicleId: str
   await ecrireEtEmettre(ctx, vehicleId, async (tx) => {
     await vehiculeDans(tx, ctx.teamId, vehicleId)
     const cibles = await ciblesUsure(tx, ctx.teamId, vehicleId)
-    await appliquerUsureDans(tx, ctx, cibles, {
+    return appliquerUsureDans(tx, ctx, cibles, {
       km: donnees.km,
       epreuve: donnees.epreuve,
       date,
@@ -702,7 +681,7 @@ export async function appliquerUsureResultatDans(
 
   await ecrireEtEmettre(ctx, vehicleId, async (tx) => {
     const cibles = await ciblesUsure(tx, ctx.teamId, vehicleId)
-    await appliquerUsureDans(tx, ctx, cibles, {
+    return appliquerUsureDans(tx, ctx, cibles, {
       km: kmChronometres,
       epreuve: true,
       date: new Date(),
