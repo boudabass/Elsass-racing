@@ -296,6 +296,22 @@ model CoreTeam {
   voitureSetupTemplates  VoitureSetupTemplate[]
   voitureTeamPrefs       VoitureTeamPref[]
 
+  garageComponentTypes     GarageComponentType[]
+  garageVehicleComponents  GarageVehicleComponent[]
+  garageParts              GaragePart[]
+  garagePartMounts         GaragePartMount[]
+  garageWearLogs           GarageWearLog[]
+  garageWorkOrders         GarageWorkOrder[]
+  garageWorkOrderParts     GarageWorkOrderPart[]
+  garageWorkOrderPersons   GarageWorkOrderPerson[]
+  garagePurchases          GaragePurchase[]
+  garagePurchaseLines      GaragePurchaseLine[]
+  garageTyreSets           GarageTyreSet[]
+  garageIncidents          GarageIncident[]
+  garageIncidentComponents GarageIncidentComponent[]
+  garageIncidentParts      GarageIncidentPart[]
+  garageEquipments         GarageEquipment[]
+
   partenairesPartners         PartenairesPartner[]
   partenairesInteractions     PartenairesInteraction[]
   partenairesTemplates        PartenairesTemplate[]
@@ -578,6 +594,8 @@ model CorePerson {
   partenairesInteractions    PartenairesInteraction[]
   partenairesMessagesTraites PartenairesPortalMessage[] @relation("PartenaireMessageTraitePar")
 
+  garageWorkOrderPersons GarageWorkOrderPerson[]
+
   @@index([teamId])
   @@index([userId])
   @@index([contactId])
@@ -657,6 +675,9 @@ model CoreEvent {
   budgetSuggestions   BudgetSuggestion[]
   voitureSetups       VoitureSetup[]
   partenairesProofs   PartenairesProof[]
+  garageWearLogs      GarageWearLog[]
+  garageWorkOrders    GarageWorkOrder[]
+  garageIncidents     GarageIncident[]
 
   @@index([teamId])
   @@index([seasonId])
@@ -701,6 +722,8 @@ model CoreEventEntry {
   budgetDepenses    BudgetExpense[]
   budgetSuggestions BudgetSuggestion[]
   voitureSetups     VoitureSetup[]
+  garageWearLogs    GarageWearLog[]
+  garageIncidents   GarageIncident[]
 
   @@index([teamId])
   @@index([eventId])
@@ -739,6 +762,13 @@ model CoreVehicle {
   voitureSetups         VoitureSetup[]
   voitureSetupTemplates VoitureSetupTemplate[]
 
+  garageComponents GarageVehicleComponent[]
+  garageParts      GaragePart[]
+  garageWorkOrders GarageWorkOrder[]
+  garagePurchases  GaragePurchase[]
+  garageTyreSets   GarageTyreSet[]
+  garageIncidents  GarageIncident[]
+
   @@index([teamId])
   @@index([photoFileId])
   @@map("core_vehicle")
@@ -756,6 +786,9 @@ model CoreContact {
   siret      String?
   categories CoreContactCategorie[] @default([])
   partenairesPartners PartenairesPartner[]
+  garageParts         GaragePart[]
+  garagePurchases     GaragePurchase[]
+  garageWorkOrders    GarageWorkOrder[]
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2807,4 +2840,589 @@ model PartenairesPortalMessage {
   @@index([teamId, deletedAt])
   @@index([partnerId])
   @@map("partenaires_portal_message")
+}
+
+// ─── Garage (lot 4, tâche 4.1) ───────────────────────────────────────────────
+// Spécification : article Odoo 954. Schéma et choix : docs/schema-garage.md.
+// Km en décimal (8,1) : correction A. Contraintes CHECK et index partiels : dans la migration.
+
+enum GarageQualitePiece {
+  origine
+  renforcee
+  competition
+
+  @@map("garage_qualite_piece")
+}
+
+enum GarageStatutPiece {
+  en_stock
+  montee
+  en_revision
+  usee
+  cassee
+  vendue
+
+  @@map("garage_statut_piece")
+}
+
+enum GarageMotifDepose {
+  usure
+  casse
+  preventif
+  revision
+
+  @@map("garage_motif_depose")
+}
+
+enum GarageModeUsure {
+  km
+  epreuves
+  les_deux
+
+  @@map("garage_mode_usure")
+}
+
+enum GarageSourceUsure {
+  resultat_saison
+  saisie_manuelle
+
+  @@map("garage_source_usure")
+}
+
+enum GarageTypeOrdre {
+  revision
+  reparation
+  remplacement
+  controle
+
+  @@map("garage_type_ordre")
+}
+
+enum GarageStatutOrdre {
+  prevu
+  en_cours
+  termine
+
+  @@map("garage_statut_ordre")
+}
+
+enum GarageOrigineOrdre {
+  saisie
+  point_checklist
+
+  @@map("garage_origine_ordre")
+}
+
+enum GarageStatutCommande {
+  commandee
+  expediee
+  recue
+
+  @@map("garage_statut_commande")
+}
+
+enum GarageTypePneus {
+  asphalte
+  terre
+  pluie
+  neige
+
+  @@map("garage_type_pneus")
+}
+
+enum GarageStatutPneus {
+  neuf
+  utilise
+  use
+
+  @@map("garage_statut_pneus")
+}
+
+enum GarageTypeCasse {
+  casse_mecanique
+  sortie
+  accident
+
+  @@map("garage_type_casse")
+}
+
+enum GarageCategorieEquipement {
+  remorque
+  outillage
+  levage
+  assistance
+  stand
+
+  @@map("garage_categorie_equipement")
+}
+
+// Types d'organes de la team. Copiés depuis les défauts du code au premier besoin (cle = clé du défaut).
+model GarageComponentType {
+  id        String   @id @db.Uuid
+  teamId    String   @map("team_id") @db.Uuid
+  nom       String
+  cle       String?
+  icone     String
+  critique  Boolean  @default(true)
+  ordre     Int
+  positions Json?
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team              CoreTeam                 @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  vehicleComponents GarageVehicleComponent[]
+  parts             GaragePart[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("garage_component_type")
+}
+
+// Un organe sur une voiture. Une team peut en avoir plusieurs du même type (avant gauche, arrière droit).
+model GarageVehicleComponent {
+  id                        String          @id @db.Uuid
+  teamId                    String          @map("team_id") @db.Uuid
+  vehicleId                 String          @map("vehicle_id") @db.Uuid
+  componentTypeId           String          @map("component_type_id") @db.Uuid
+  position                  String?
+  modeUsure                 GarageModeUsure @map("mode_usure")
+  dureeVieReferenceKm       Int?            @map("duree_vie_reference_km")
+  dureeVieReferenceEpreuves Int?            @map("duree_vie_reference_epreuves")
+  seuilOrangePct            Int             @default(30) @map("seuil_orange_pct")
+  seuilRougePct             Int             @default(10) @map("seuil_rouge_pct")
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team          CoreTeam            @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  vehicle       CoreVehicle         @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  componentType GarageComponentType @relation(fields: [componentTypeId], references: [id], onDelete: Restrict)
+  mounts        GaragePartMount[]
+  workOrders    GarageWorkOrder[]
+  incidents     GarageIncidentComponent[]
+  tyreSets      GarageTyreSet[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([vehicleId])
+  @@index([componentTypeId])
+  @@map("garage_vehicle_component")
+}
+
+// Une pièce physique. Stock propre à chaque voiture (vehicle_id).
+model GaragePart {
+  id                   String             @id @db.Uuid
+  teamId               String             @map("team_id") @db.Uuid
+  vehicleId            String             @map("vehicle_id") @db.Uuid
+  componentTypeId      String             @map("component_type_id") @db.Uuid
+  designation          String
+  marque               String?
+  reference            String?
+  numeroSerie          String?            @map("numero_serie")
+  qualite              GarageQualitePiece @default(origine)
+  dureeVieKm           Int?               @map("duree_vie_km")
+  dureeVieEpreuves     Int?               @map("duree_vie_epreuves")
+  acheteeLe            DateTime?          @map("achetee_le") @db.Timestamptz(3)
+  prixCents            Int?               @map("prix_cents")
+  devise               String             @default("EUR")
+  fournisseurContactId String?            @map("fournisseur_contact_id") @db.Uuid
+  statut               GarageStatutPiece  @default(en_stock)
+  emplacement          String?
+  kmCumules            Decimal            @default(0) @map("km_cumules") @db.Decimal(8, 1)
+  epreuvesCumulees     Int                @default(0) @map("epreuves_cumulees")
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team           CoreTeam            @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  vehicle        CoreVehicle         @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  componentType  GarageComponentType @relation(fields: [componentTypeId], references: [id], onDelete: Restrict)
+  fournisseur    CoreContact?        @relation(fields: [fournisseurContactId], references: [id], onDelete: SetNull)
+  mounts         GaragePartMount[]
+  wearLogs       GarageWearLog[]
+  workOrderParts GarageWorkOrderPart[]
+  incidentParts  GarageIncidentPart[]
+  purchaseLines  GaragePurchaseLine[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([vehicleId])
+  @@index([componentTypeId])
+  @@index([fournisseurContactId])
+  @@map("garage_part")
+}
+
+// Pose et dépose d'une pièce sur un organe. Une seule pose active par organe et par pièce (index partiels, migration).
+model GaragePartMount {
+  id                 String             @id @db.Uuid
+  teamId             String             @map("team_id") @db.Uuid
+  partId             String             @map("part_id") @db.Uuid
+  vehicleComponentId String             @map("vehicle_component_id") @db.Uuid
+  poseLe             DateTime           @map("posee_le") @db.Timestamptz(3)
+  kmPose             Decimal            @default(0) @map("km_pose") @db.Decimal(8, 1)
+  deposeeLe          DateTime?          @map("deposee_le") @db.Timestamptz(3)
+  motifDepose        GarageMotifDepose? @map("motif_depose")
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team             CoreTeam               @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  part             GaragePart             @relation(fields: [partId], references: [id], onDelete: Restrict)
+  vehicleComponent GarageVehicleComponent @relation(fields: [vehicleComponentId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([partId])
+  @@index([vehicleComponentId])
+  @@map("garage_part_mount")
+}
+
+// Usure ajoutée à une pièce ou à un train de pneus (exactement un des deux : CHECK en migration).
+model GarageWearLog {
+  id             String            @id @db.Uuid
+  teamId         String            @map("team_id") @db.Uuid
+  partId         String?           @map("part_id") @db.Uuid
+  tyreSetId      String?           @map("tyre_set_id") @db.Uuid
+  eventId        String?           @map("event_id") @db.Uuid
+  eventEntryId   String?           @map("event_entry_id") @db.Uuid
+  kmAjoutes      Decimal           @default(0) @map("km_ajoutes") @db.Decimal(8, 1)
+  epreuveComptee Boolean           @default(false) @map("epreuve_comptee")
+  date           DateTime          @db.Timestamptz(3)
+  source         GarageSourceUsure
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team       CoreTeam        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  part       GaragePart?     @relation(fields: [partId], references: [id], onDelete: Restrict)
+  tyreSet    GarageTyreSet?  @relation(fields: [tyreSetId], references: [id], onDelete: Restrict)
+  event      CoreEvent?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  eventEntry CoreEventEntry? @relation(fields: [eventEntryId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([partId])
+  @@index([tyreSetId])
+  @@index([eventId])
+  @@index([eventEntryId])
+  @@map("garage_wear_log")
+}
+
+// Ordre de travail. Priorité : ajoutée en 4.3 avec ses valeurs (choix 2).
+model GarageWorkOrder {
+  id                   String             @id @db.Uuid
+  teamId               String             @map("team_id") @db.Uuid
+  vehicleId            String             @map("vehicle_id") @db.Uuid
+  vehicleComponentId   String?            @map("vehicle_component_id") @db.Uuid
+  type                 GarageTypeOrdre
+  titre                String
+  aFaireAvantEventId   String?            @map("a_faire_avant_event_id") @db.Uuid
+  dureeEstimeeMinutes  Int?               @map("duree_estimee_minutes")
+  statut               GarageStatutOrdre  @default(prevu)
+  avancementPct        Int                @default(0) @map("avancement_pct")
+  coutMainOeuvreCents  Int?               @map("cout_main_oeuvre_cents")
+  devise               String             @default("EUR")
+  prestataireContactId String?            @map("prestataire_contact_id") @db.Uuid
+  origine              GarageOrigineOrdre @default(saisie)
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team             CoreTeam                @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  vehicle          CoreVehicle             @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  vehicleComponent GarageVehicleComponent? @relation(fields: [vehicleComponentId], references: [id], onDelete: SetNull)
+  aFaireAvantEvent CoreEvent?              @relation(fields: [aFaireAvantEventId], references: [id], onDelete: SetNull)
+  prestataire      CoreContact?            @relation(fields: [prestataireContactId], references: [id], onDelete: SetNull)
+  parts            GarageWorkOrderPart[]
+  persons          GarageWorkOrderPerson[]
+  incidents        GarageIncident[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([vehicleId])
+  @@index([vehicleComponentId])
+  @@index([aFaireAvantEventId])
+  @@index([prestataireContactId])
+  @@map("garage_work_order")
+}
+
+// Commande de pièces. La réception crée les pièces en stock (4.3).
+model GaragePurchase {
+  id                String               @id @db.Uuid
+  teamId            String               @map("team_id") @db.Uuid
+  vehicleId         String               @map("vehicle_id") @db.Uuid
+  supplierContactId String               @map("supplier_contact_id") @db.Uuid
+  statut            GarageStatutCommande @default(commandee)
+  commandeeLe       DateTime             @map("commandee_le") @db.Timestamptz(3)
+  livraisonPrevueLe DateTime?            @map("livraison_prevue_le") @db.Date
+  recueLe           DateTime?            @map("recue_le") @db.Timestamptz(3)
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team     CoreTeam             @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  vehicle  CoreVehicle          @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  supplier CoreContact          @relation(fields: [supplierContactId], references: [id], onDelete: Restrict)
+  lines    GaragePurchaseLine[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([vehicleId])
+  @@index([supplierContactId])
+  @@map("garage_purchase")
+}
+
+// Train de pneus. Monté sur l'organe Pneus (vehicle_component_id) quand il l'est.
+model GarageTyreSet {
+  id                 String            @id @db.Uuid
+  teamId             String            @map("team_id") @db.Uuid
+  vehicleId          String            @map("vehicle_id") @db.Uuid
+  vehicleComponentId String?           @map("vehicle_component_id") @db.Uuid
+  marque             String
+  modele             String?
+  gomme              String?
+  type               GarageTypePneus
+  dimensions         String?
+  acheteLe           DateTime?         @map("achete_le") @db.Timestamptz(3)
+  nombreEpreuves     Int               @default(0) @map("nombre_epreuves")
+  kmSpeciale         Decimal           @default(0) @map("km_speciale") @db.Decimal(8, 1)
+  usureEstimeePct    Int?              @map("usure_estimee_pct")
+  statut             GarageStatutPneus @default(neuf)
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team             CoreTeam                @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  vehicle          CoreVehicle             @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  vehicleComponent GarageVehicleComponent? @relation(fields: [vehicleComponentId], references: [id], onDelete: SetNull)
+  wearLogs         GarageWearLog[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([vehicleId])
+  @@index([vehicleComponentId])
+  @@map("garage_tyre_set")
+}
+
+// Casse ou sortie de route. speciale_nom : copie du nom ; stage_id : spéciale d'abandon de Saison, sans clé étrangère (correction D).
+model GarageIncident {
+  id                    String          @id @db.Uuid
+  teamId                String          @map("team_id") @db.Uuid
+  vehicleId             String          @map("vehicle_id") @db.Uuid
+  eventId               String?         @map("event_id") @db.Uuid
+  eventEntryId          String?         @map("event_entry_id") @db.Uuid
+  date                  DateTime        @db.Timestamptz(3)
+  specialeNom           String?         @map("speciale_nom")
+  stageId               String?         @map("stage_id") @db.Uuid
+  type                  GarageTypeCasse
+  cause                 String?
+  reparationWorkOrderId String?         @map("reparation_work_order_id") @db.Uuid
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team                CoreTeam                  @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  vehicle             CoreVehicle               @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  event               CoreEvent?                @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  eventEntry          CoreEventEntry?           @relation(fields: [eventEntryId], references: [id], onDelete: SetNull)
+  reparationWorkOrder GarageWorkOrder?          @relation(fields: [reparationWorkOrderId], references: [id], onDelete: SetNull)
+  components          GarageIncidentComponent[]
+  parts               GarageIncidentPart[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([vehicleId])
+  @@index([eventId])
+  @@index([eventEntryId])
+  @@index([reparationWorkOrderId])
+  @@map("garage_incident")
+}
+
+// Équipement de la team (remorque, outillage…). Pas de véhicule.
+model GarageEquipment {
+  id                 String                    @id @db.Uuid
+  teamId             String                    @map("team_id") @db.Uuid
+  nom                String
+  categorie          GarageCategorieEquipement
+  etat               String?
+  acheteLe           DateTime?                 @map("achete_le") @db.Timestamptz(3)
+  valeurCents        Int?                      @map("valeur_cents")
+  devise             String                    @default("EUR")
+  prochainControleLe DateTime?                 @map("prochain_controle_le") @db.Date
+  emplacement        String?
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team CoreTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("garage_equipment")
+}
+
+// Ligne de commande. part_id est rempli à la réception, qui crée la pièce.
+model GaragePurchaseLine {
+  id                String        @id @db.Uuid
+  teamId            String        @map("team_id") @db.Uuid
+  purchaseId        String        @map("purchase_id") @db.Uuid
+  partId            String?       @map("part_id") @db.Uuid
+  designation       String
+  reference         String?
+  quantite          Int           @default(1)
+  prixUnitaireCents Int           @default(0) @map("prix_unitaire_cents")
+  devise            String        @default("EUR")
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team     CoreTeam      @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  purchase GaragePurchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  part     GaragePart?   @relation(fields: [partId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([purchaseId])
+  @@index([partId])
+  @@map("garage_purchase_line")
+}
+
+// Pièces utilisées par un ordre de travail.
+model GarageWorkOrderPart {
+  id          String @id @db.Uuid
+  teamId      String @map("team_id") @db.Uuid
+  workOrderId String @map("work_order_id") @db.Uuid
+  partId      String @map("part_id") @db.Uuid
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team      CoreTeam        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  workOrder GarageWorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+  part      GaragePart      @relation(fields: [partId], references: [id], onDelete: Restrict)
+
+  @@unique([workOrderId, partId])
+  @@index([teamId])
+  @@index([partId])
+  @@map("garage_work_order_part")
+}
+
+// Personnes affectées à un ordre de travail.
+model GarageWorkOrderPerson {
+  id          String @id @db.Uuid
+  teamId      String @map("team_id") @db.Uuid
+  workOrderId String @map("work_order_id") @db.Uuid
+  personId    String @map("person_id") @db.Uuid
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team      CoreTeam        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  workOrder GarageWorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+  person    CorePerson      @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@unique([workOrderId, personId])
+  @@index([teamId])
+  @@index([personId])
+  @@map("garage_work_order_person")
+}
+
+// Organes touchés par une casse.
+model GarageIncidentComponent {
+  id                 String @id @db.Uuid
+  teamId             String @map("team_id") @db.Uuid
+  incidentId         String @map("incident_id") @db.Uuid
+  vehicleComponentId String @map("vehicle_component_id") @db.Uuid
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team             CoreTeam               @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  incident         GarageIncident         @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+  vehicleComponent GarageVehicleComponent @relation(fields: [vehicleComponentId], references: [id], onDelete: Restrict)
+
+  @@unique([incidentId, vehicleComponentId])
+  @@index([teamId])
+  @@index([vehicleComponentId])
+  @@map("garage_incident_component")
+}
+
+// Pièces cassées lors d'une casse.
+model GarageIncidentPart {
+  id         String @id @db.Uuid
+  teamId     String @map("team_id") @db.Uuid
+  incidentId String @map("incident_id") @db.Uuid
+  partId     String @map("part_id") @db.Uuid
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team     CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  incident GarageIncident @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+  part     GaragePart     @relation(fields: [partId], references: [id], onDelete: Restrict)
+
+  @@unique([incidentId, partId])
+  @@index([teamId])
+  @@index([partId])
+  @@map("garage_incident_part")
 }
