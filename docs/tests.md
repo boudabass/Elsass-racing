@@ -39,7 +39,9 @@ Les consignes de passes locales plus bas dans ce fichier datent d'avant la 4.0b.
 
 - Test : « hors ligne : une app jamais visitée affiche la page de repli, sans écran d'erreur ».
 - Échec sur le run 39480825378 (commit bf1e6d3, documentation seule ; code `src` et `e2e` identique au run vert 39474476309) : erreur React #418, relevée au premier chargement en ligne de `/qg`, comme pour `hors-ligne.spec.ts:87`. Même cause présumée, non établie.
-- Deuxième apparition du 418 : décision (2) de l'Orchestrateur. Le diagnostic (HTML serveur et DOM client de `/qg`) suit dans un commit séparé, hors des tests.
+- Deuxième apparition du 418 : décision (2) de l'Orchestrateur. Diagnostic (HTML serveur et DOM client de `/qg`) dans un commit séparé, hors des tests (`efa08d6`, corrigé en `311962b`).
+- Résultat (run 39495850178, 5 chargements de `/qg` dans des contextes neufs) : aucune erreur de page ni de console, donc 418 non reproduit. Attributs de `<html>` identiques (seule la sérialisation de `style` diffère) ; `<body>` sans attribut. Premier écart de texte : « En ligne » côté serveur, « Synchronisé à l'instant » côté client, libellé de l'indicateur de synchro, donc après hydratation. Limite : seule la première différence était relevée, pas l'état au moment de l'hydratation.
+- Cause non établie. Parqué (décision 3 de l'Orchestrateur) : le spec de diagnostic est retiré de la suite ; il reste dans l'historique (`efa08d6`, `311962b`) pour être rejoué.
 
 ### Intermittent suivi : `e2e/liste-john.spec.ts:134`
 
@@ -131,14 +133,14 @@ La team des captures reçoit les données de démonstration Koehling (`e2e/aide/
 
 `ajouterEquipier` (équipage, sans lien de connexion) et `ajouterMembreConnectable` (équipage ou assistance, avec un lien de connexion) ajoutent un membre à la team de test. Ils sont nettoyés avec elle. `compterSuppressions` lit les demandes de suppression en base.
 
-## Enchaînement recommandé
-
 ### Pièges de sélection : copie cachée du streaming
 
 - Après le chargement d'une page, React peut laisser une copie cachée d'une liste dans le DOM : le streaming de la frontière Suspense ajoute `<div hidden id="S:0">` avec une seconde copie du contenu. Un sélecteur CSS (`section > ul > button`, `locator("button")`) la compte : « strict mode violation … resolved to 2 elements ». Un sélecteur par rôle (`getByRole("button", { name })`) ne voit que l'élément affiché.
 - Règle : lire une liste de l'interface par rôle, jamais par CSS. Exception volontaire : un test qui vérifie qu'un élément inerte ne réagit pas (`includeHidden`, première occurrence, voir `e2e/voiture-deco.spec.ts`, « Déplacer »).
 - Cas vécus, sans doublon de données (la fiche et le plan avaient le bon nombre d'emplacements) : `e2e/voiture-deco.spec.ts` lignes 406 et 437 (run 39487952792), 334 (run 39492136999), 536 (run 39495850178). Corrigé par sélecteurs par rôle.
 - Le piège `getByText` qui trouve aussi les `<option>` d'un `<select>` est dans `CLAUDE.md` (pièges du lot 2).
+
+## Enchaînement recommandé
 
 ```
 pnpm typecheck
