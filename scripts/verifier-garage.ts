@@ -49,7 +49,7 @@ async function main() {
   const utilisateur = { id: randomUUID(), email: `verif-garage-${suffixe}@exemple.invalid` }
   const adhesion = randomUUID()
   const vehicule = randomUUID()
-  const ctx = { teamId: team.id, userId: utilisateur.id, membership: { id: adhesion, role: "responsable" } }
+  const ctx = { teamId: team.id, userId: utilisateur.id, membership: { id: adhesion, role: "responsable" as const } }
 
   try {
     await proprietaire.coreTeam.create({ data: { id: team.id, nom: team.nom, slug: team.slug } })
