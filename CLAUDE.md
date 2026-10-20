@@ -83,11 +83,11 @@ Exploitation :
 - Flux de mise en production : push sur dev, test par John sur l'app dev, relecture de l'orchestrateur, fusion dans main par l'orchestrateur, vérification de la production.
 - Vérifications en base : `pnpm db:verifier-rls` et `pnpm db:verifier-bus` après toute migration.
 - Tests de bout en bout : `pnpm test:e2e` (Playwright, son propre Chromium, build de production sur le port 3101, `.next-e2e-prod`, `E2E=1`, mail en console, données de test créées et supprimées par `e2e/aide`). Environ 5 minutes. Captures dans `docs/captures/`, produites par ce build.
-- Le serveur dev de John (port 3000) ne s'arrête jamais pendant une tâche. Build de vérification : `NEXT_DIST_DIR=.next-build pnpm build`.
+- John ne fait tourner aucun serveur sur son poste : il teste sur l'app dev de Coolify. Son poste a peu de mémoire : une seule chose lourde à la fois (un build ou une passe e2e), suite e2e complète seulement avant une fusion dans main et au moment choisi par John. Si Docker est arrêté, c'est John qui l'a coupé : on ne le relance pas sans lui. Build de vérification : `NEXT_DIST_DIR=.next-build pnpm build`.
 - Briefs de l'orchestrateur dans `docs/briefs/`, un fichier par tâche.
 - Hors ligne : une table n'est synchronisée que si son app la déclare dans `src/core/synchro/registre.ts` (voir `docs/synchro.md`). Vérification : `pnpm db:verifier-synchro`. Toute la suite e2e, hors ligne compris, tourne sur ce serveur de production local (port 3101).
 - Deux rôles PostgreSQL : propriétaire (DATABASE_URL_MIGRATION, migrations, seed, scripts) et applicatif restreint soumis au RLS (DATABASE_URL, l'app).
 - Base locale : `pnpm db:up` puis `pnpm db:deploy` puis `pnpm db:seed`. Port 5433. Première team : `pnpm team:creer --nom … --slug … --email …`.
 - Migrations : `pnpm db:migrate` ne fait que créer le SQL (`--create-only`), relire, compléter à la main si besoin, puis `pnpm db:deploy`.
 - Mails : SMTP OVH (port 587, STARTTLS), expéditeur info@theelsassisch.com. Sans SMTP_HOST hors production, le mail s'affiche en console.
-- Chrome piloté ne charge pas localhost:3000 sur ce poste (même limite que le Dico) : les parcours se vérifient en HTTP ou par John dans son navigateur.
+- Chrome piloté ne charge pas localhost sur ce poste (même limite que le Dico) : les parcours se vérifient en HTTP ou par John sur l'app dev.
