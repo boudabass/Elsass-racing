@@ -242,6 +242,43 @@ Décisions de John (18/10) :
 - Brief : `docs/briefs/3.10-finitions-audit-lot-3.md`. Audit Impeccable des écrans 3.6 à 3.9 (16/20), corrigé à la demande de John avant son test : structure et logo du partenaire sur la page partenaire, actions des contreparties sur une ligne, une seule règle pour boutons et liens, compteur du message.
 - Acceptée le 19/10 (f165936, retouches 8991559) : suites vertes chez l'orchestrateur (tsc, 594 tests, rls, bus, synchro, build, e2e 123/123), détecteur Impeccable sans constat, captures sombre et clair vérifiées. Lot 3 prêt pour le test de John sur dev.
 
+## 5 quater. Lot 4, Garage, découpé en tâches opérateur (validé par John le 20/10)
+
+Spécifications : article Odoo 954 (Garage v1.1), catalogue 962, UI 953. Garage requiert Voiture : la silhouette et la liste des véhicules viennent de Voiture par une lecture partagée, jamais par une écriture. Les événements écoutés de Check-lists (`checklist.probleme_signale`) attendent le lot 5 : le gestionnaire sera branché à ce moment-là.
+
+Décisions de John (20/10) :
+- durées de vie saisies par la team, aucune valeur inventée : sans durée de vie, l'organe affiche « À renseigner » et ne compte pas dans l'indice ;
+- hors ligne : avancement, notes et photos des ordres de travail, et intervention rapide ; commandes et stock en ligne seulement ;
+- équipements de la team dans le lot 4, en dernier (4.6).
+
+### 4.0 Stabilité avant le Garage
+- Brief : `docs/briefs/4.0-stabilite-avant-garage.md`. ECONNRESET du journal e2e (point d'arrêt avant de toucher au moteur de synchro), `voiture.spec.ts:86` et `liste-john.spec.ts` instables.
+
+### 4.1 Garage : schéma et services
+- Les dix tables `garage_` de l'article 954, RLS, organes par défaut (moteur, boîte, embrayage, transmissions, freins, amortisseurs, pneus) posés à l'ouverture du Garage sur un véhicule. Calcul de l'état (km, épreuves, le plus bas des deux, zones orange et rouge), indice de fiabilité (moyenne pondérée des organes critiques), km restants : fonctions pures, tests Vitest.
+- Pose et dépose avec historique ; usure sur `saison.resultat_valide` (km chronométrés et une épreuve à toutes les pièces montées, une seule fois par engagement, non retirée par une annulation) et saisie manuelle d'un roulage. Assistance : contribution sans prix (colonnes de prix jamais servies).
+- Événements émis : `garage.piece_zone_rouge` (au franchissement du seuil, une fois), `garage.fiabilite_changee`.
+
+### 4.2 Garage : voiture en atelier
+- Écran principal façon Motorsport Manager : silhouette du gabarit (lue de Voiture), organes posés et colorés selon leur état (couleur, mot et pourcentage, jamais la couleur seule), indice en grand, une carte par organe. Passage d'une voiture à l'autre.
+- Fiche organe : pièce montée, rechanges, historique, « Remplacer ». Stock par voiture (quantité, emplacement atelier ou remorque). Bouton + : intervention rapide en 3 champs. Formulaires en tiroirs.
+
+### 4.3 Atelier et commandes
+- Ordres de travail (révision, réparation, remplacement, contrôle), avancement, personnes affectées, notes et photos ; l'assistance voit et fait avancer les siens. Hors ligne pour le parc d'assistance (registre de synchro).
+- Commandes et réception (la réception crée les pièces en stock). `garage.piece_achetee` et `garage.intervention_facturee` vers Budget, qui propose la dépense. `garage.travail_termine`.
+
+### 4.4 Pneus et casses
+- Trains de pneus (gomme, type, épreuves, km, usure, statut), montés sur l'organe Pneus. Fiche casse ouverte sur `saison.abandon_declare`, liée à un ordre de travail de réparation.
+
+### 4.5 Plan avant épreuve et liaisons Saison
+- Plan avant épreuve préparé sur `saison.engagement_cree` : ce qu'il faut faire pour qu'aucune pièce ne soit en zone rouge, avec coût et temps. Saison reçoit la zone rouge comme point bloquant de l'indice de préparation et la fiabilité dans le panneau « Prêt pour l'épreuve » (Saison écrit chez elle). Widgets Garage déclarés : fiabilité, pièces en zone rouge, travaux et livraisons.
+
+### 4.6 Équipements de la team
+- Remorque, outillage, levage, assistance, stand : état, valeur, prochain contrôle, emplacement.
+
+### 4.7 Vérification du lot 4
+- Parcours e2e complet (de l'achat à l'usure validée, à la zone rouge, au plan avant épreuve et à l'indice de Saison), audit Impeccable des écrans, corrections. Puis test de John sur dev.
+
 ## 6. Méthode de travail
 
 - L'orchestrateur rédige un brief par tâche, l'opérateur exécute, l'orchestrateur relit et teste avant de passer à la suivante.
