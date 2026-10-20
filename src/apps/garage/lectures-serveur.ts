@@ -33,6 +33,9 @@ export type OrganeAtelier = {
   zone: Zone
   seuilOrange: number
   seuilRouge: number
+  // Durées de vie de référence de l'organe (le tiroir « Renseigner la durée de vie » les montre).
+  dureeReferenceKm: number | null
+  dureeReferenceEpreuves: number | null
   kmRestants: number | null
   // Pièce montée (organes autres que Pneus).
   piece: (PieceAtelier & { poseLe: Date; kmPose: number }) | null
@@ -103,6 +106,8 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
         zone: zoneDeEtat(etat, { orange: organe.seuilOrangePct, rouge: organe.seuilRougePct }),
         seuilOrange: organe.seuilOrangePct,
         seuilRouge: organe.seuilRougePct,
+        dureeReferenceKm: organe.dureeVieReferenceKm,
+        dureeReferenceEpreuves: organe.dureeVieReferenceEpreuves,
         kmRestants: null,
         piece: null,
         trainMonte: train ? { id: train.id, marque: train.marque, usureEstimeePct: train.usureEstimeePct } : null,
@@ -134,7 +139,9 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
       zone: zoneDeEtat(etat, { orange: organe.seuilOrangePct, rouge: organe.seuilRougePct }),
       seuilOrange: organe.seuilOrangePct,
       seuilRouge: organe.seuilRougePct,
-      kmRestants: piece && durees && usure ? kmRestantsAvantRouge(mode, durees, usure, organe.seuilRougePct) : null,
+      dureeReferenceKm: organe.dureeVieReferenceKm,
+      dureeReferenceEpreuves: organe.dureeVieReferenceEpreuves,
+      kmRestants: piece && durees && usure ?kmRestantsAvantRouge(mode, durees, usure, organe.seuilRougePct) : null,
       piece:
         piece && montage
           ? { ...versPiece(piece, avecPrix), poseLe: montage.poseLe, kmPose: Number(montage.kmPose) }
@@ -159,6 +166,20 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
 export async function lireVehiculeAtelier(vehicleId: string): Promise<VehiculeAtelier | null> {
   const { ctx, niveau } = await accesGarage("lecture")
   return lireVehiculeDans(ctx, vehicleId, aAuMoins(niveau, "ecriture"))
+}
+
+// Véhicules de la team pour le choix de l'atelier (le nom court, comme dans le reste de la plateforme).
+export type VehiculeChoisi = { id: string; nomCourt: string }
+
+export async function listerVehiculesAtelier(): Promise<VehiculeChoisi[]> {
+  const { ctx } = await accesGarage("lecture")
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const vehicules = await client.coreVehicle.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null },
+    select: { id: true, nomCourt: true },
+    orderBy: { nomCourt: "asc" },
+  })
+  return vehicules.map((v) => ({ id: v.id, nomCourt: v.nomCourt }))
 }
 
 export type HistoriquePiece = {
