@@ -13,6 +13,7 @@ import type { ContexteTeam } from "@/core/contexte"
 import { prisma, prismaPourTeam } from "@/lib/prisma"
 
 import type { PositionCurseur } from "./curseur"
+import type { RegleContribution } from "./contribution"
 import { RefusSynchro } from "./erreurs"
 import { apresPosition } from "./position"
 import { declarationsSaisonSynchro } from "@/apps/saison/synchro-serveur"
@@ -65,6 +66,10 @@ export interface DeclarationSynchro {
   app: AppCle
   niveauLecture: NiveauAcces
   contributionPropre: boolean
+  // Règle du niveau contribution (voir contribution.ts). Absent vaut « createur » : la ligne est de son auteur.
+  regleContribution?: RegleContribution
+  // Pour la règle « affectation » : le membre est-il affecté à la ligne ? Absent vaut « non ».
+  affecte?(tx: Tx, teamId: string, userId: string, id: string): Promise<boolean>
   // Lecture seule depuis l'appareil : reçue hors ligne, jamais écrite par la synchro.
   lectureSeule: boolean
   schemaChamps: z.ZodType<Record<string, unknown>>

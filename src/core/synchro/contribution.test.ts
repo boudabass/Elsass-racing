@@ -43,3 +43,27 @@ describe("règle de contribution", () => {
     expect(peutEcrire({ niveau: "contribution", contributionPropre: false, auteurId: autre, userId: moi, creation: false })).toEqual({ ok: true })
   })
 })
+
+describe("règle de contribution par affectation", () => {
+  it("au niveau contribution, n'écrit que les lignes qui lui sont affectées, même si un autre les a créées", () => {
+    expect(peutEcrire({ niveau: "contribution", contributionPropre: true, regle: "affectation", affecte: true, auteurId: autre, userId: moi, creation: false })).toEqual({ ok: true })
+    const refus = peutEcrire({ niveau: "contribution", contributionPropre: true, regle: "affectation", affecte: false, auteurId: moi, userId: moi, creation: false })
+    expect(refus).toEqual({ ok: false, raison: "Tu ne peux modifier que les éléments qui te sont affectés." })
+  })
+
+  it("sans indication d'affectation, refuse : le défaut est non affecté", () => {
+    expect(peutEcrire({ niveau: "contribution", contributionPropre: true, regle: "affectation", auteurId: moi, userId: moi, creation: false }).ok).toBe(false)
+  })
+
+  it("garde la création libre au niveau contribution, l'auteur devient le membre", () => {
+    expect(peutEcrire({ niveau: "contribution", contributionPropre: true, regle: "affectation", affecte: false, auteurId: null, userId: moi, creation: true })).toEqual({ ok: true })
+  })
+
+  it("au niveau écriture, n'impose pas l'affectation", () => {
+    expect(peutEcrire({ niveau: "ecriture", contributionPropre: true, regle: "affectation", affecte: false, auteurId: autre, userId: moi, creation: false })).toEqual({ ok: true })
+  })
+
+  it("la règle par défaut reste celle de l'auteur, affectation ignorée", () => {
+    expect(peutEcrire({ niveau: "contribution", contributionPropre: true, regle: "createur", affecte: true, auteurId: autre, userId: moi, creation: false }).ok).toBe(false)
+  })
+})

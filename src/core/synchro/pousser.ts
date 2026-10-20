@@ -97,6 +97,7 @@ async function decider(
     const verdict = peutEcrire({
       niveau,
       contributionPropre: declaration.contributionPropre,
+      regle: declaration.regleContribution,
       auteurId: null,
       userId: ctx.userId,
       creation: true,
@@ -112,6 +113,8 @@ async function decider(
   const verdict = peutEcrire({
     niveau,
     contributionPropre: declaration.contributionPropre,
+    regle: declaration.regleContribution,
+    affecte: await estAffecte(tx, ctx, declaration, operation.id),
     auteurId: etat.auteurId,
     userId: ctx.userId,
     creation: false,
@@ -144,6 +147,13 @@ async function decider(
     await journaliser(tx, ctx, declaration, operation.id, { motif: "supprimee_apres_modification", version_remplacee: etat.contenu })
   }
   return decision === "supprimer" ? { idOperation, statut: "appliquee" } : { idOperation, statut: "conflit_resolu" }
+}
+
+// Seulement pour la règle « affectation » : la table dit si le membre est affecté à la ligne. Sans
+// fonction d'affectation, la ligne est refusée au niveau contribution (défaut sûr).
+async function estAffecte(tx: Tx, ctx: ContexteTeam, declaration: DeclarationSynchro, id: string): Promise<boolean> {
+  if (declaration.regleContribution !== "affectation" || !declaration.affecte) return false
+  return declaration.affecte(tx, ctx.teamId, ctx.userId, id)
 }
 
 function validerChamps(

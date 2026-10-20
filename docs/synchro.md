@@ -30,6 +30,8 @@ Une table synchronisable est déclarée dans `registre.ts`. Aujourd'hui : `core_
 
 Règle de contribution (`src/core/synchro/contribution.ts`) : au niveau contribution, on n'écrit que les lignes dont `created_by` est le compte courant. Au niveau écriture ou plus, toutes les lignes de la table.
 
+Règle par affectation (tâche 4.3, D1) : une déclaration peut porter `regleContribution: "affectation"` et une fonction `affecte(tx, teamId, userId, id)`. Au niveau contribution, on n'écrit alors que les lignes où le membre est affecté (par exemple un ordre de travail, article 954), quel que soit leur auteur. La table répond à `affecte` ; le prédicat `peutEcrire` ne lit jamais la base. Sans fonction `affecte`, le niveau contribution est refusé (défaut sûr). Absente, la règle vaut `createur` : comportement inchangé pour `core_note` et les tables existantes. La création reste libre au niveau contribution, et l'auteur devient le membre.
+
 Les champs de `creer` ne suffisent pas à poser la fiche : le serveur pose l'auteur, la team et la fiche (pour une note : `app = core`, `ficheType = team`, `ficheId = teamId`).
 
 ## Conflits, en pratique
