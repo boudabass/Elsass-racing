@@ -19,6 +19,7 @@ import {
   type Zone,
 } from "./regles"
 import { accesGarage } from "./services-serveur"
+import { pointPourOrgane, type PointSilhouette } from "./positions"
 import { type PieceAtelier, versPiece } from "./vues"
 
 export type OrganeAtelier = {
@@ -39,6 +40,8 @@ export type OrganeAtelier = {
   trainMonte: { id: string; marque: string; usureEstimeePct: number | null } | null
   // Pièces de rechange en stock sur ce véhicule, du même type.
   rechanges: PieceAtelier[]
+  // Point sur la silhouette (null sans gabarit, ou sans position pour cet organe).
+  pointSilhouette: PointSilhouette | null
 }
 
 export type VehiculeAtelier = {
@@ -75,6 +78,7 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
     orderBy: { designation: "asc" },
   })
 
+  const silhouette = await silhouetteDuVehicule(ctx, vehicleId)
   const organesIndice: OrganeIndice[] = []
   const lignes: OrganeAtelier[] = organes.map((organe) => {
     const critique = organe.componentType.critique
@@ -103,6 +107,7 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
         piece: null,
         trainMonte: train ? { id: train.id, marque: train.marque, usureEstimeePct: train.usureEstimeePct } : null,
         rechanges,
+        pointSilhouette: pointPourOrgane(silhouette?.gabaritCle ?? null, organe.componentType),
       }
     }
 
@@ -136,13 +141,14 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
           : null,
       trainMonte: null,
       rechanges,
+      pointSilhouette: pointPourOrgane(silhouette?.gabaritCle ?? null, organe.componentType),
     }
   })
 
   const indice = indiceFiabilite(organesIndice)
   return {
     vehicleId,
-    silhouette: await silhouetteDuVehicule(ctx, vehicleId),
+    silhouette,
     organes: lignes,
     indice: indice.indice,
     sansPiece: indice.sansPiece,

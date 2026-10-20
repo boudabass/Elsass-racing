@@ -8,7 +8,7 @@ export const manifesteGarage: ManifesteApp = {
   cle: "garage",
   nom: "Garage",
   icone: "wrench",
-  version: "0.1.0",
+  version: "0.2.0",
   requiert: ["voiture"],
   menu: [{ libelle: "Accueil", chemin: "/" }],
   widgets: [...WIDGETS.garage],
