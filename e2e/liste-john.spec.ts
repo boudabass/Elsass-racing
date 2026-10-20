@@ -138,8 +138,14 @@ test("liste de John : calendrier en vue mois et filtres sur téléphone, pastill
   await saisonEtEpreuveAuClic(page, "Rallye filtres John")
 
   // Téléphone : la barre latérale est masquée, on passe par le QG (lien de la barre haute, puis la tuile Saison).
+  // Diagnostic (point 2 de la relecture) : relève les rafraîchissements du QG journalisés par le build de test, et le
+  // moment du clic sur la tuile, pour dater chacun. Une fois la cause trouvée, ces lignes partent avec le diagnostic.
+  page.on("console", (message) => {
+    if (message.text().startsWith("REFRESH_DIAG")) console.log(message.text())
+  })
   await page.setViewportSize({ width: 360, height: 740 })
   await page.getByRole("link", { name: /retour au QG/ }).click()
+  console.log(`DIAG_CLIC_SAISON t=${Date.now()}`)
   await page.locator('main a[href="/apps/saison"]').first().click()
 
   // Retour au calendrier, vue mois par clic. Un seul clic, puis attente de la page d'arrivée (l'URL) :

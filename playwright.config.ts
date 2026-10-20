@@ -52,6 +52,8 @@ export default defineConfig({
         STOCKAGE_DIR: ".e2e-stockage",
         // Build de test : mails en console et page /erreur-test ouverte (voir mail-serveur.ts).
         E2E: "1",
+        // Même drapeau côté navigateur (journal des rafraîchissements du QG, src/lib/diagnostic-rafraichissement.ts).
+        NEXT_PUBLIC_E2E: "1",
       },
     },
   ],
