@@ -27,6 +27,14 @@ Secrets : aucun secret de production ni de dev dans GitHub. La base est un servi
 
 Les consignes de passes locales plus bas dans ce fichier datent d'avant la 4.0b. Elles restent en historique et ne s'appliquent plus sur le poste.
 
+### Intermittent suivi : `e2e/hors-ligne.spec.ts:87`
+
+- Test : « hors ligne : + puis Note depuis le QG ouvre les notes sans erreur ».
+- Échec sur le run 39471174537 (commit 9fbead9) : erreur React #418 (hydratation, HTML). Elle arrive au **premier chargement en ligne de `/qg`**, avant la phase hors ligne : le test collecte les erreurs de page depuis son début, d'où un nom trompeur.
+- Référence verte : run 39474476309 (commit 8b7d693), 136 tests passés sur 136.
+- Cause non établie. Le HTML serveur de `/qg` et le DOM client ont la même séquence de textes : la différence est ailleurs (attribut, nœud non textuel).
+- Suivi sur les prochains runs. Si le 418 revient : étape de diagnostic dans un commit séparé, hors du test, qui capte le HTML serveur et le DOM client de `/qg` (attributs de `<html>` et `<body>`, thème, indicateur « il y a N min »). Renommage ou séparation des erreurs « en ligne » et « hors ligne » : après la cause.
+
 ## Unitaires (Vitest)
 
 - Commande : `pnpm test` (`vitest run`). Fichiers `src/**/*.test.ts`, environnement node, aucune base.
