@@ -262,10 +262,12 @@ Décisions de John (20/10) :
 - Événements émis : `garage.piece_zone_rouge` (au franchissement du seuil, une fois), `garage.fiabilite_changee`.
 
 ### 4.2 Garage : voiture en atelier
+- Brief : `docs/briefs/4.2-garage-voiture-en-atelier.md`. Point 0 : silhouette sortie dans le socle (`src/components/silhouette/`), utilisée par Voiture et Garage. Point d'arrêt sur les captures de l'atelier (positions des repères à valider par John).
 - Écran principal façon Motorsport Manager : silhouette du gabarit (lue de Voiture), organes posés et colorés selon leur état (couleur, mot et pourcentage, jamais la couleur seule), indice en grand, une carte par organe. Passage d'une voiture à l'autre.
-- Fiche organe : pièce montée, rechanges, historique, « Remplacer ». Stock par voiture (quantité, emplacement atelier ou remorque). Bouton + : intervention rapide en 3 champs. Formulaires en tiroirs.
+- Fiche organe : pièce montée, rechanges, historique, « Remplacer ». Stock par voiture (quantité, emplacement atelier ou remorque). Bouton + : Pièce et Roulage. Formulaires en tiroirs.
 
 ### 4.3 Atelier et commandes
+- Intervention rapide du bouton + (organe, ce qui a été fait, pièce utilisée), qui crée un ordre de travail terminé.
 - Ordres de travail (révision, réparation, remplacement, contrôle), avancement, personnes affectées, notes et photos ; l'assistance voit et fait avancer les siens. Hors ligne pour le parc d'assistance (registre de synchro).
 - Commandes et réception (la réception crée les pièces en stock). `garage.piece_achetee` et `garage.intervention_facturee` vers Budget, qui propose la dépense. `garage.travail_termine`.
 
