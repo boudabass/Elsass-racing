@@ -10,6 +10,7 @@ const piece = {
   designation: "Disque avant",
   marque: "Brembo",
   reference: "09.1234",
+  qualite: "origine" as const,
   statut: "montee" as const,
   kmCumules: new Prisma.Decimal("12.3"),
   epreuvesCumulees: 3,

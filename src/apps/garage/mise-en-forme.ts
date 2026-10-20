@@ -70,3 +70,79 @@ export function phraseManque(noms: string[]): string {
   if (noms.length === 0) return "Aucun organe critique sans pièce montée."
   return `Il manque une pièce montée sur : ${noms.join(", ")}.`
 }
+
+const FORMAT_JOUR = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Paris" })
+
+// Date d'un événement de l'atelier, à la française et à l'heure de Paris (le stockage est en UTC).
+export function dateAtelier(date: Date): string {
+  return FORMAT_JOUR.format(date)
+}
+
+// Kilomètres entiers, séparés par milliers : « 105 000 km ».
+export function kmAtelier(km: number): string {
+  return `${new Intl.NumberFormat("fr-FR").format(Math.round(km))} km`
+}
+
+// --- Stock (tâche 4.2, §3) --------------------------------------------------------------------
+
+// Pièce vue par le stock : une ligne de garage_part, avec le nom et l'ordre de son type d'organe.
+export type PieceStock = {
+  id: string
+  designation: string
+  marque: string | null
+  reference: string | null
+  qualite: string
+  statut: string
+  emplacement: string | null
+  componentTypeId: string
+  organeNom: string
+  organeOrdre: number
+}
+
+// Pièces identiques (même désignation, marque, référence, qualité) : une ligne, avec leur quantité. Chaque pièce reste
+// ouvrable : la ligne garde la liste.
+export type GroupePieces = {
+  cle: string
+  designation: string
+  marque: string | null
+  reference: string | null
+  qualite: string
+  pieces: PieceStock[]
+}
+
+export type GroupeOrgane = {
+  componentTypeId: string
+  organeNom: string
+  groupes: GroupePieces[]
+}
+
+// Stock groupé par organe, dans l'ordre des types, puis par désignation à l'intérieur d'un organe.
+export function regrouperStock(pieces: PieceStock[]): GroupeOrgane[] {
+  const parOrgane = new Map<string, { nom: string; ordre: number; pieces: PieceStock[] }>()
+  for (const piece of pieces) {
+    const organe = parOrgane.get(piece.componentTypeId) ?? { nom: piece.organeNom, ordre: piece.organeOrdre, pieces: [] }
+    organe.pieces.push(piece)
+    parOrgane.set(piece.componentTypeId, organe)
+  }
+
+  return Array.from(parOrgane.entries())
+    .sort(([, a], [, b]) => a.ordre - b.ordre)
+    .map(([componentTypeId, organe]) => {
+      const parCle = new Map<string, GroupePieces>()
+      for (const piece of organe.pieces) {
+        const cle = [piece.designation, piece.marque ?? "", piece.reference ?? "", piece.qualite].join("|")
+        const groupe = parCle.get(cle) ?? {
+          cle,
+          designation: piece.designation,
+          marque: piece.marque,
+          reference: piece.reference,
+          qualite: piece.qualite,
+          pieces: [],
+        }
+        groupe.pieces.push(piece)
+        parCle.set(cle, groupe)
+      }
+      const groupes = Array.from(parCle.values()).sort((a, b) => a.designation.localeCompare(b.designation, "fr"))
+      return { componentTypeId, organeNom: organe.nom, groupes }
+    })
+}

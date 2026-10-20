@@ -20,10 +20,13 @@ import {
 } from "./regles"
 import { accesGarage } from "./services-serveur"
 import { pointPourOrgane, type PointSilhouette } from "./positions"
+import type { PieceStock } from "./mise-en-forme"
 import { type PieceAtelier, versPiece } from "./vues"
 
 export type OrganeAtelier = {
   id: string
+  // Type d'organe : c'est lui qu'une pièce de stock porte.
+  componentTypeId: string
   nom: string
   icone: string
   position: string | null
@@ -97,6 +100,7 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
       organesIndice.push({ id: organe.id, critique, pieceMontee: Boolean(train), etat })
       return {
         id: organe.id,
+        componentTypeId: organe.componentTypeId,
         nom: organe.componentType.nom,
         icone: organe.componentType.icone,
         position: organe.position,
@@ -130,6 +134,7 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
 
     return {
       id: organe.id,
+      componentTypeId: organe.componentTypeId,
       nom: organe.componentType.nom,
       icone: organe.componentType.icone,
       position: organe.position,
@@ -182,6 +187,94 @@ export async function listerVehiculesAtelier(): Promise<VehiculeChoisi[]> {
   return vehicules.map((v) => ({ id: v.id, nomCourt: v.nomCourt }))
 }
 
+// --- Fiche organe (tâche 4.2, §2) -----------------------------------------------------------
+
+export type PoseOrgane = {
+  id: string
+  designation: string
+  marque: string | null
+  poseLe: Date
+  kmPose: number
+  deposeeLe: Date | null
+  motifDepose: string | null
+}
+
+export type UsureOrgane = {
+  id: string
+  date: Date
+  kmAjoutes: number
+  epreuveComptee: boolean
+  source: string
+  designation: string
+}
+
+export type FicheOrgane = {
+  organe: OrganeAtelier
+  vehicleId: string
+  vehiculeNomCourt: string
+  // Poses et déposes de toutes les pièces passées sur cet organe, la plus récente d'abord.
+  poses: PoseOrgane[]
+  // Usures ajoutées aux pièces de cet organe, la plus récente d'abord.
+  usures: UsureOrgane[]
+}
+
+// Fiche d'un organe : l'état tel que l'atelier le calcule, puis l'historique. Null si l'organe n'existe pas dans la team.
+export async function lireFicheOrgane(organeId: string): Promise<FicheOrgane | null> {
+  const { ctx, niveau } = await accesGarage("lecture")
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const ligne = await client.garageVehicleComponent.findFirst({
+    where: { id: organeId, teamId: ctx.teamId, deletedAt: null },
+    select: { vehicleId: true, componentTypeId: true },
+  })
+  if (!ligne) return null
+
+  const vehicule = await lireVehiculeDans(ctx, ligne.vehicleId, aAuMoins(niveau, "ecriture"))
+  const organe = vehicule?.organes.find((o) => o.id === organeId)
+  if (!vehicule || !organe) return null
+  const voiture = await client.coreVehicle.findFirst({ where: { id: ligne.vehicleId, teamId: ctx.teamId }, select: { nomCourt: true } })
+
+  const montages = await client.garagePartMount.findMany({
+    where: { vehicleComponentId: organeId, teamId: ctx.teamId, deletedAt: null },
+    include: { part: { select: { designation: true, marque: true } } },
+    orderBy: { poseLe: "desc" },
+  })
+  // Les pièces de ce type sur cette voiture : leur usure est celle de l'organe.
+  const pieces = await client.garagePart.findMany({
+    where: { teamId: ctx.teamId, vehicleId: ligne.vehicleId, componentTypeId: ligne.componentTypeId, deletedAt: null },
+    select: { id: true, designation: true },
+  })
+  const usures = pieces.length === 0
+    ? []
+    : await client.garageWearLog.findMany({
+        where: { teamId: ctx.teamId, deletedAt: null, partId: { in: pieces.map((p) => p.id) } },
+        orderBy: { date: "desc" },
+      })
+  const designation = new Map(pieces.map((p) => [p.id, p.designation]))
+
+  return {
+    organe,
+    vehicleId: ligne.vehicleId,
+    vehiculeNomCourt: voiture?.nomCourt ?? "",
+    poses: montages.map((m) => ({
+      id: m.id,
+      designation: m.part.designation,
+      marque: m.part.marque,
+      poseLe: m.poseLe,
+      kmPose: Number(m.kmPose),
+      deposeeLe: m.deposeeLe,
+      motifDepose: m.motifDepose,
+    })),
+    usures: usures.map((u) => ({
+      id: u.id,
+      date: u.date,
+      kmAjoutes: Number(u.kmAjoutes),
+      epreuveComptee: u.epreuveComptee,
+      source: u.source,
+      designation: designation.get(u.partId ?? "") ?? "",
+    })),
+  }
+}
+
 export type HistoriquePiece = {
   piece: PieceAtelier
   montages: Array<{ id: string; vehicleComponentId: string; poseLe: Date; kmPose: number; deposeeLe: Date | null; motifDepose: string | null }>
@@ -222,4 +315,104 @@ export async function lireHistoriquePiece(partId: string): Promise<HistoriquePie
       source: u.source,
     })),
   }
+}
+
+// --- Stock et fiche pièce (tâche 4.2, §3) ----------------------------------------------------
+
+// Pièces de la voiture qui ne sont pas montées : le stock disponible, en révision, usé, cassé ou vendu. Null si la
+// voiture n'existe pas dans la team.
+export async function lireStock(vehicleId: string): Promise<PieceStock[] | null> {
+  const { ctx } = await accesGarage("lecture")
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const voiture = await client.coreVehicle.findFirst({ where: { id: vehicleId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!voiture) return null
+  const pieces = await client.garagePart.findMany({
+    where: { teamId: ctx.teamId, vehicleId, deletedAt: null, statut: { not: "montee" } },
+    include: { componentType: { select: { nom: true, ordre: true } } },
+    orderBy: { designation: "asc" },
+  })
+  return pieces.map((p) => ({
+    id: p.id,
+    designation: p.designation,
+    marque: p.marque,
+    reference: p.reference,
+    qualite: p.qualite,
+    statut: p.statut,
+    emplacement: p.emplacement,
+    componentTypeId: p.componentTypeId,
+    organeNom: p.componentType.nom,
+    organeOrdre: p.componentType.ordre,
+  }))
+}
+
+export type FichePiece = {
+  historique: HistoriquePiece
+  vehicleId: string
+  vehiculeNomCourt: string
+  organeId: string
+  organeNom: string
+  // Montée sur un organe : elle ne change pas de statut à la main.
+  montee: boolean
+  numeroSerie: string | null
+  emplacement: string | null
+  dureeVieKm: number | null
+  dureeVieEpreuves: number | null
+  acheteeLe: Date | null
+  // Fournisseur et prix : seulement au niveau écriture (null sinon).
+  fournisseurNom: string | null
+}
+
+// Fiche d'une pièce : son historique (lecture 4.1) et ses informations. Null si la pièce n'existe pas dans la team.
+export async function lireFichePiece(partId: string): Promise<FichePiece | null> {
+  const { ctx, niveau } = await accesGarage("lecture")
+  const historique = await lireHistoriquePiece(partId)
+  if (!historique) return null
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const piece = await client.garagePart.findFirst({
+    where: { id: partId, teamId: ctx.teamId, deletedAt: null },
+    select: {
+      vehicleId: true,
+      componentTypeId: true,
+      numeroSerie: true,
+      emplacement: true,
+      dureeVieKm: true,
+      dureeVieEpreuves: true,
+      acheteeLe: true,
+      componentType: { select: { nom: true } },
+      fournisseur: { select: { nom: true } },
+    },
+  })
+  if (!piece) return null
+  const voiture = await client.coreVehicle.findFirst({ where: { id: piece.vehicleId, teamId: ctx.teamId }, select: { nomCourt: true } })
+  const organe = await client.garageVehicleComponent.findFirst({
+    where: { teamId: ctx.teamId, vehicleId: piece.vehicleId, componentTypeId: piece.componentTypeId, deletedAt: null },
+    select: { id: true },
+  })
+  const montee = historique.piece.statut === "montee"
+  return {
+    historique,
+    vehicleId: piece.vehicleId,
+    vehiculeNomCourt: voiture?.nomCourt ?? "",
+    organeId: organe?.id ?? "",
+    organeNom: piece.componentType.nom,
+    montee,
+    numeroSerie: piece.numeroSerie,
+    emplacement: piece.emplacement,
+    dureeVieKm: piece.dureeVieKm,
+    dureeVieEpreuves: piece.dureeVieEpreuves,
+    acheteeLe: piece.acheteeLe,
+    fournisseurNom: aAuMoins(niveau, "ecriture") ? piece.fournisseur?.nom ?? null : null,
+  }
+}
+
+// Fournisseurs possibles d'une pièce : les contacts de la team. Réservé au niveau écriture (le choix ne sert qu'à lui).
+export async function listerFournisseurs(): Promise<Array<{ id: string; nom: string }>> {
+  const { ctx } = await accesGarage("ecriture")
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const contacts = await client.coreContact.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null },
+    select: { id: true, nom: true },
+    orderBy: { nom: "asc" },
+  })
+  return contacts
 }

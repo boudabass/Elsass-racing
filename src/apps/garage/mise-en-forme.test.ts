@@ -8,8 +8,10 @@ import {
   phraseKmRestants,
   phraseManque,
   pourcentage,
+  regrouperStock,
   zoneIndice,
   type OrganeMot,
+  type PieceStock,
 } from "./mise-en-forme"
 
 const organe = (nom: string, zone: OrganeMot["zone"], extra: Partial<OrganeMot> = {}): OrganeMot => ({
@@ -132,5 +134,53 @@ describe("phrases de l'atelier", () => {
   it("nomme ce qui manque à l'indice", () => {
     expect(phraseManque([])).toBe("Aucun organe critique sans pièce montée.")
     expect(phraseManque(["Freins", "Moteur"])).toBe("Il manque une pièce montée sur : Freins, Moteur.")
+  })
+})
+
+describe("regroupement du stock", () => {
+  const piece = (id: string, extra: Partial<PieceStock> = {}): PieceStock => ({
+    id,
+    designation: "Plaquettes avant",
+    marque: "Brembo",
+    reference: "P85",
+    qualite: "origine",
+    statut: "en_stock",
+    emplacement: "Atelier",
+    componentTypeId: "freins",
+    organeNom: "Freins",
+    organeOrdre: 5,
+    ...extra,
+  })
+
+  it("regroupe les pièces identiques, avec leur quantité, et garde chacune ouvrable", () => {
+    const [organe] = regrouperStock([piece("a"), piece("b"), piece("c")])
+    expect(organe.groupes).toHaveLength(1)
+    expect(organe.groupes[0].pieces.map((p) => p.id)).toEqual(["a", "b", "c"])
+  })
+
+  it("sépare ce qui diffère par la qualité, la référence ou la marque", () => {
+    const groupes = regrouperStock([
+      piece("a"),
+      piece("b", { qualite: "competition" }),
+      piece("c", { reference: "P86" }),
+      piece("d", { marque: "Ferodo" }),
+    ])[0].groupes
+    expect(groupes).toHaveLength(4)
+  })
+
+  it("range les organes dans l'ordre des types, puis les désignations", () => {
+    const pieces = [
+      piece("1", { componentTypeId: "pneus", organeNom: "Pneus", organeOrdre: 7, designation: "Pneu" }),
+      piece("2", { designation: "Disque" }),
+      piece("3", { designation: "Coupelle" }),
+      piece("4", { componentTypeId: "moteur", organeNom: "Moteur", organeOrdre: 1, designation: "Joint" }),
+    ]
+    const organes = regrouperStock(pieces)
+    expect(organes.map((o) => o.organeNom)).toEqual(["Moteur", "Freins", "Pneus"])
+    expect(organes[1].groupes.map((g) => g.designation)).toEqual(["Coupelle", "Disque"])
+  })
+
+  it("sans pièce, pas de groupe", () => {
+    expect(regrouperStock([])).toEqual([])
   })
 })

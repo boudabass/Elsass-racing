@@ -8,6 +8,7 @@ export type PieceAtelier = {
   designation: string
   marque: string | null
   reference: string | null
+  qualite: string
   statut: string
   kmCumules: number
   epreuvesCumulees: number
@@ -16,7 +17,7 @@ export type PieceAtelier = {
 }
 
 export function versPiece(
-  piece: Pick<GaragePart, "id" | "designation" | "marque" | "reference" | "statut" | "kmCumules" | "epreuvesCumulees" | "prixCents">,
+  piece: Pick<GaragePart, "id" | "designation" | "marque" | "reference" | "qualite" | "statut" | "kmCumules" | "epreuvesCumulees" | "prixCents">,
   avecPrix: boolean,
 ): PieceAtelier {
   const base: PieceAtelier = {
@@ -24,6 +25,7 @@ export function versPiece(
     designation: piece.designation,
     marque: piece.marque,
     reference: piece.reference,
+    qualite: piece.qualite,
     statut: piece.statut,
     kmCumules: Number(piece.kmCumules),
     epreuvesCumulees: piece.epreuvesCumulees,

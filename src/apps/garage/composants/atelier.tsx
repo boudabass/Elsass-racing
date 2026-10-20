@@ -16,7 +16,8 @@ import { FormulaireDuree } from "./formulaire-duree"
 
 // --- Choix de la voiture -------------------------------------------------------------------
 
-export function ChoixVehicule({ vehicules, choisi }: { vehicules: VehiculeChoisi[]; choisi: string }) {
+// Le choix garde la page courante : l'atelier ou le stock.
+export function ChoixVehicule({ vehicules, choisi, chemin = "/apps/garage" }: { vehicules: VehiculeChoisi[]; choisi: string; chemin?: string }) {
   return (
     <nav aria-label="Voiture de l'atelier" className="flex flex-wrap gap-2">
       {vehicules.map((vehicule) => {
@@ -24,7 +25,7 @@ export function ChoixVehicule({ vehicules, choisi }: { vehicules: VehiculeChoisi
         return (
           <Link
             key={vehicule.id}
-            href={`/apps/garage?vehicule=${vehicule.id}`}
+            href={`${chemin}?vehicule=${vehicule.id}`}
             aria-current={actif ? "page" : undefined}
             className={`cible-tactile inline-flex items-center rounded-md border px-4 ${actif ? "border-texte bg-surface-2 font-semibold" : "border-bordure"}`}
           >
