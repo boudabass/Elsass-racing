@@ -80,6 +80,21 @@ export async function lireResultatsValidesParVehicule(ctx: ContexteTeam, vehicle
   })
 }
 
+// Usure d'un engagement pour Garage (tâche 4.1, correction D) : les km chronométrés saisis dans le résultat. La
+// charge utile de saison.resultat_valide ne les porte pas, d'où cette lecture. Lecture seule, sans garde : le
+// gestionnaire de Garage contrôle son propre accès. Renvoie null si l'engagement n'a pas de résultat.
+export type UsureEngagement = { entryId: string; kmChronometres: number }
+
+export async function lireUsureEngagement(ctx: ContexteTeam, entryId: string): Promise<UsureEngagement | null> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const resultat = await client.saisonResult.findFirst({
+    where: { entryId, teamId: ctx.teamId, deletedAt: null },
+    select: { entryId: true, kmChronometres: true },
+  })
+  if (!resultat) return null
+  return { entryId: resultat.entryId, kmChronometres: Number(resultat.kmChronometres ?? 0) }
+}
+
 // Lectures pour la page partenaire (brief 3.7, §3) : elles prennent le client de la transaction publique, sans
 // contexte d'utilisateur. Une seule team, et seulement les saisons données par l'appelant (celles des conventions
 // du partenaire). Lecture seule : rien ici n'expose les fiches d'écriture de Saison.
