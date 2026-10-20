@@ -5,7 +5,30 @@
 import type { ContexteTeam } from "@/core/contexte"
 import { prismaPourTeam } from "@/lib/prisma"
 
+import { gabarit } from "./gabarits"
+import type { ElementDessin } from "./gabarits/types"
 import { statutEmplacement, type StatutEmplacement } from "./regles"
+
+// Silhouette d'un véhicule pour Garage (tâche 4.1, brief §1) : la clé du gabarit, sa viewBox et le dessin de la vue
+// droite. Rien d'autre : aucune donnée de déco. Un véhicule sans gabarit renvoie null.
+export type SilhouetteVehicule = {
+  gabaritCle: string
+  viewBox: string
+  dessin: ElementDessin[]
+}
+
+export async function silhouetteDuVehicule(ctx: ContexteTeam, vehicleId: string): Promise<SilhouetteVehicule | null> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const fiche = await client.voitureVehicle.findFirst({
+    where: { vehicleId, teamId: ctx.teamId, deletedAt: null },
+    select: { gabaritCle: true },
+  })
+  if (!fiche?.gabaritCle) return null
+  const modele = gabarit(fiche.gabaritCle)
+  if (!modele) return null
+  const droite = modele.vuesDessinees.find((v) => v.vue === "droite")
+  return { gabaritCle: modele.cle, viewBox: modele.viewBox, dessin: droite?.dessin ?? [] }
+}
 
 export type EmplacementPourPartenaire = {
   id: string
