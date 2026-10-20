@@ -23,5 +23,9 @@ export const CATEGORIES_RECETTE = ["Partenaire", "Don", "Apport personnel", "Pri
 
 export const NOM_CAISSE_TEAM = "Caisse de la team"
 
-// Clé stable de certaines catégories (les liaisons avec Saison s'appuient sur elle, jamais sur le nom).
-export const CLE_CATEGORIE: Record<string, string> = { Engagement: "engagement" }
+// Clé stable de certaines catégories (les liaisons avec Saison et Garage s'appuient sur elle, jamais sur le nom).
+export const CLE_CATEGORIE: Record<string, string> = {
+  Engagement: "engagement",
+  Pièces: "pieces",
+  "Main-d'œuvre": "main_oeuvre",
+}

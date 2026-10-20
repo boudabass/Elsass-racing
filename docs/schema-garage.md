@@ -310,6 +310,7 @@ Constat : `contribution.ts` ne sait qu'un critère, `created_by`. Le registre ne
 - Côté Budget, `liaisons-serveur.ts` reçoit ces deux événements et propose la dépense par `budget_suggestion` (forme de `proposerDepenseEngagementDans`), puis `budget.action_requise` ; la décision revient par `core.action_decidee`. Budget écrit ses tables, Garage n'écrit jamais dans Budget.
 - **Idempotence** : une proposition par commande (`actionCle = garage_purchase:<id>`) et par ordre (`garage_work_order:<id>`), avec contrôle d'existence avant création. Un événement peut arriver deux fois ; on ne compte pas sur une livraison unique.
 - **Catégorie et payeur** (D8, corrigé) : les catégories `Pièces` et `Main-d'œuvre` existent dans `src/apps/budget/categories-defaut.ts`. Budget s'appuie sur une clé stable, jamais sur le nom : `pieces` et `main_oeuvre` s'ajoutent à `CLE_CATEGORIE`, comme `engagement`, dans la tâche 4.3. Le gestionnaire de Budget choisit sa catégorie par cette clé. Payeur : caisse de la team, comme l'engagement.
+- **Fait (groupe 3 de la 4.3)** : clés posées dans `categories-defaut.ts`, avec test de cohérence (`categories-defaut.test.ts`). Les teams déjà initialisées reçoivent la clé par la reprise de `services-serveur.ts` (catégories `cle: null` seulement).
 
 ### Commandes (`/apps/garage/commandes`, choix D6)
 
