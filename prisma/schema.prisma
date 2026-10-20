@@ -2913,6 +2913,14 @@ enum GarageOrigineOrdre {
   @@map("garage_origine_ordre")
 }
 
+enum GaragePrioriteTravail {
+  basse
+  normale
+  haute
+
+  @@map("garage_priorite_travail")
+}
+
 enum GarageStatutCommande {
   commandee
   expediee
@@ -3145,6 +3153,7 @@ model GarageWorkOrder {
   devise               String             @default("EUR")
   prestataireContactId String?            @map("prestataire_contact_id") @db.Uuid
   origine              GarageOrigineOrdre @default(saisie)
+  priorite             GaragePrioriteTravail @default(normale)
 
   createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
   updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt

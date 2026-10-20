@@ -190,6 +190,7 @@ Valeurs en minuscules, sans accent, pour rester en snake_case. Les libellés fra
 | `garage_type_ordre` | `revision`, `reparation`, `remplacement`, `controle` |
 | `garage_statut_ordre` | `prevu`, `en_cours`, `termine` |
 | `garage_origine_ordre` | `saisie`, `point_checklist` |
+| `garage_priorite_travail` | `basse`, `normale`, `haute` (4.3, défaut `normale`, colonne `priorite` de `garage_work_order`, migration `20261020170000_garage_priorite_travail`) |
 | `garage_statut_commande` | `commandee`, `expediee`, `recue` |
 | `garage_type_pneus` | `asphalte`, `terre`, `pluie`, `neige` |
 | `garage_statut_pneus` | `neuf`, `utilise`, `use` |
@@ -271,6 +272,6 @@ Ces choix ne sont pas dans l'article. Ils sont en code, testés, et à relire à
 
 ## Ce qui reste ouvert
 
-- **Priorité d'ordre de travail** (4.3) et **état d'un équipement** (4.6) : valeurs à donner.
+- **Priorité d'ordre de travail** : livrée en 4.3 (basse, normale, haute ; décision de John). Reste **état d'un équipement** (4.6) : valeurs à donner.
 - **Saison, abandon** : `saison.abandon_declare` n'est pas traité (4.4). Le schéma porte déjà `stage_id` et `speciale_nom`.
 - **Pas d'écran, pas d'e2e** : 4.2 apporte l'atelier.
