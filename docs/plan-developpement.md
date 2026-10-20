@@ -255,6 +255,9 @@ Décisions de John (20/10) :
 - Brief : `docs/briefs/4.0-stabilite-avant-garage.md`. ECONNRESET du journal e2e (point d'arrêt avant de toucher au moteur de synchro), `voiture.spec.ts:86` et `liste-john.spec.ts` instables.
 - Acceptée le 20/10 (f30ceab..abf87ab) : ECONNRESET expliqués et documentés dans `docs/tests.md` (tirages de synchro coupés au changement de page, sans effet sur les données, aucun AbortController ajouté), double clic sur « Mois » corrigé. Suite complète chez l'orchestrateur : 133/133, voiture.spec.ts:86 vert ; s'il retombe, on lira sa trace avant toute correction. Ouvert : les server actions coupées par une navigation (3.9).
 
+### 4.0b Vérifications sur GitHub Actions
+- Brief : `docs/briefs/4.0b-verifications-sur-github.md`. Décision de John (20/10) : son poste ne supporte plus Docker, builds et e2e. Typecheck, tests, vérifications en base, build et e2e tournent sur GitHub Actions (PostgreSQL 18), sur une branche `verif` non déployée ; `dev` ne reçoit que du vert. La 4.3 attend la fin de cette tâche.
+
 ### 4.1 Garage : schéma et services
 - Brief : `docs/briefs/4.1-garage-schema-services.md`. Point d'arrêt sur le schéma avant la migration.
 - Les dix tables `garage_` de l'article 954, RLS, organes par défaut (moteur, boîte, embrayage, transmissions, freins, amortisseurs, pneus) posés à l'ouverture du Garage sur un véhicule. Calcul de l'état (km, épreuves, le plus bas des deux, zones orange et rouge), indice de fiabilité (moyenne pondérée des organes critiques), km restants : fonctions pures, tests Vitest.
