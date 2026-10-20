@@ -263,10 +263,12 @@ Décisions de John (20/10) :
 
 ### 4.2 Garage : voiture en atelier
 - Brief : `docs/briefs/4.2-garage-voiture-en-atelier.md`. Point 0 : silhouette sortie dans le socle (`src/components/silhouette/`), utilisée par Voiture et Garage. Point d'arrêt sur les captures de l'atelier (positions des repères à valider par John).
+- Livrée le 20/10 (ca02ccd..1175ce4) : repères écartés, mot de l'indice sur le pire organe critique, jauges de zone (retours de John). e2e ciblés verts ; suite complète interrompue par l'arrêt de Docker (mémoire du poste de John), 75/75 verts avant l'arrêt. Désormais, suite complète seulement avant une fusion dans main, au moment choisi par John.
 - Écran principal façon Motorsport Manager : silhouette du gabarit (lue de Voiture), organes posés et colorés selon leur état (couleur, mot et pourcentage, jamais la couleur seule), indice en grand, une carte par organe. Passage d'une voiture à l'autre.
 - Fiche organe : pièce montée, rechanges, historique, « Remplacer ». Stock par voiture (quantité, emplacement atelier ou remorque). Bouton + : Pièce et Roulage. Formulaires en tiroirs.
 
 ### 4.3 Atelier et commandes
+- Brief : `docs/briefs/4.3-garage-atelier-commandes.md`. Priorité d'un ordre de travail : basse, normale, haute (décision de John, 20/10). Point d'arrêt sur la conception (fin d'un ordre, hors ligne de l'assistance, propositions vers Budget).
 - Intervention rapide du bouton + (organe, ce qui a été fait, pièce utilisée), qui crée un ordre de travail terminé.
 - Ordres de travail (révision, réparation, remplacement, contrôle), avancement, personnes affectées, notes et photos ; l'assistance voit et fait avancer les siens. Hors ligne pour le parc d'assistance (registre de synchro).
 - Commandes et réception (la réception crée les pièces en stock). `garage.piece_achetee` et `garage.intervention_facturee` vers Budget, qui propose la dépense. `garage.travail_termine`.
