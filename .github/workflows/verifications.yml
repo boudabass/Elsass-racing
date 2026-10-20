@@ -1,0 +1,150 @@
+# Vérifications d'Elsass Racing (tâche 4.0b). Tout ce qui est lourd tourne ici, jamais sur le poste.
+# Branche `verif` : vérification avant dev (non déployée par Coolify). `dev` et `main` : filet de sécurité.
+# Aucun secret de production ni de dev : la base est un service jetable, le SESSION_SECRET est tiré au sort.
+name: Vérifications
+
+on:
+  push:
+    branches: [verif, dev, main]
+  workflow_dispatch:
+    inputs:
+      e2e:
+        description: "Un seul spec e2e (ex. e2e/garage.spec.ts). Vide : toute la suite."
+        required: false
+        default: ""
+
+# Une exécution par branche : un nouveau push annule l'ancienne.
+concurrency:
+  group: verifications-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  rapide:
+    name: Typecheck et tests unitaires
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # Version lue dans package.json (packageManager : pnpm@11.21.0).
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      # postinstall lance prisma generate.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  complet:
+    name: Base, build et e2e
+    needs: rapide
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      # Même version que la production. Identifiants jetables, ceux de docker-compose.yml.
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: elsass_racing
+          POSTGRES_USER: elsass_racing
+          POSTGRES_PASSWORD: elsass_racing_dev
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U elsass_racing -d elsass_racing"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL_MIGRATION: postgresql://elsass_racing:elsass_racing_dev@localhost:5433/elsass_racing
+      DATABASE_URL: postgresql://elsass_racing_app_dev:elsass_racing_app_dev@localhost:5433/elsass_racing
+      APP_URL: http://localhost:3101
+      SMTP_HOST: ""
+      JOURNAL: ${{ github.workspace }}/journal-serveur.log
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: SESSION_SECRET de test
+        run: |
+          secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$secret"
+          echo "SESSION_SECRET=$secret" >> "$GITHUB_ENV"
+
+      # Rôle applicatif soumis au RLS, comme docker/init/01-role-app.sql sur le poste.
+      - name: Rôle applicatif
+        run: psql "$DATABASE_URL_MIGRATION" -v ON_ERROR_STOP=1 -f docker/init/01-role-app.sql
+
+      - run: pnpm db:deploy
+      - run: pnpm db:seed
+      - run: pnpm db:verifier-rls
+      - run: pnpm db:verifier-bus
+      - run: pnpm db:verifier-synchro
+      - run: pnpm db:verifier-garage
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # La config Playwright construit elle-même le build de test (port 3101, E2E=1).
+      # DEBUG=pw:webserver : le journal du serveur part dans le fichier JOURNAL.
+      - name: Tests de bout en bout
+        env:
+          SPEC: ${{ inputs.e2e }}
+          DEBUG: pw:webserver
+        run: |
+          set -o pipefail
+          pnpm test:e2e $SPEC 2>&1 | tee "$JOURNAL"
+
+      - name: Résumé du journal et des captures
+        if: always()
+        run: |
+          {
+            echo "## Journal du serveur"
+            if [ -f "$JOURNAL" ]; then
+              echo "- ECONNRESET : $(grep -c 'ECONNRESET' "$JOURNAL" || true)"
+              echo "- uncaughtException : $(grep -c 'uncaughtException' "$JOURNAL" || true)"
+              echo "- Bilan Playwright : $(grep -E '^\s*[0-9]+ (passed|failed|flaky|skipped)' "$JOURNAL" | tr -s ' ' | paste -sd ',' - || true)"
+            else
+              echo "Pas de journal : les e2e n'ont pas tourné."
+            fi
+            echo
+            echo "## Captures (docs/captures, artefact « captures »)"
+            changees="$(git status --porcelain -- docs/captures)"
+            if [ -n "$changees" ]; then
+              echo "$(echo "$changees" | wc -l) captures nouvelles ou modifiées :"
+              echo '```'
+              echo "$changees"
+              echo '```'
+            else
+              echo "Aucune capture modifiée."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Captures régénérées
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: captures
+          path: docs/captures/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Traces de l'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces-echec
+          path: |
+            playwright-report/
+            test-results/
+            journal-serveur.log
+          retention-days: 7
+          if-no-files-found: ignore
