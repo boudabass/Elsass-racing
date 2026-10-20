@@ -89,3 +89,14 @@ export async function preparerAtelierSaxo(equipe: Equipe, vehicleId: string): Pr
     client.release()
   }
 }
+
+// Kilomètres cumulés de la pièce montée sur un organe, en base (pose en cours uniquement).
+export async function kmPieceMonteeEnBase(organeId: string): Promise<number | null> {
+  const { rows } = await bd().query<{ km_cumules: number | string }>(
+    `SELECT p.km_cumules FROM garage_part_mount m
+       JOIN garage_part p ON p.id = m.part_id
+      WHERE m.vehicle_component_id = $1 AND m.deposee_le IS NULL AND m.deleted_at IS NULL AND p.deleted_at IS NULL`,
+    [organeId],
+  )
+  return rows[0] ? Number(rows[0].km_cumules) : null
+}

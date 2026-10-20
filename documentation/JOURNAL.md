@@ -451,3 +451,15 @@
 - Courses fermées avant le push (validées par l'orchestrateur). Organes en double : migration `garage_organes_uniques` (index unique partiel, `NULLS NOT DISTINCT`, un organe actif par type et position), initialisation en `skipDuplicates`, refus métier sur un doublon. Usure d'un résultat en course : `skipDuplicates` par cible, cumuls seulement sur une ligne nouvelle, aucune erreur pour une validation déjà comptée.
 - Vérifications : 691 tests unitaires verts ; `pnpm db:verifier-garage` (25 contrôles, dont deux courses) ; cloisonnement, bus et synchro verts. Le compte de 21 contrôles annoncé plus haut était faux.
 - Ouvert : positions sur la silhouette à valider à l'écran (4.2), priorité des ordres de travail (4.3), état des équipements (4.6), abandon de Saison (4.4).
+
+## 20/10/2026 : Garage, atelier, stock et roulage (brief 4.2)
+
+- Commits : atelier et corrections de John (ca02ccd, f7c8052, b0b17db), fiche organe, stock et fiche pièce (e78533a, points 2 et 3 dans un seul commit, car `actions.ts` et `lectures-serveur.ts` mêlaient les deux), menu, bouton + Pièce et Roulage (9fb2c70), parcours e2e et captures (commit suivant).
+- Atelier : repères sans chevauchement (test sur les cercles de contact, Saxo et générique), mot de l'indice (pire organe critique renseigné, règle pure et tests), jauges aux couleurs de zone des jetons du thème. Téléphone : repères plus gros, sans pourcentage, cible de 44 px à 360 px.
+- Fiche de l'organe : pièce montée, rechanges, « Remplacer » (tiroir : rechange, motif de dépose), réglages, historique, retrait refusé s'il reste une pièce montée. Sans rechange, « Remplacer » reste visible, désactivé, avec la raison et le lien vers le stock.
+- Stock : pièces identiques regroupées avec leur quantité, chacune ouvrable ; « Usées, cassées, vendues » dans un filtre à part. Aucun prix à aucun niveau sur la fiche organe comme sur le stock ; prix et fournisseur seulement au niveau écriture sur la fiche pièce et sur le formulaire d'ajout.
+- Bouton +, responsable et équipage, hors terrain : « Pièce » (page entière, organe, désignation, emplacement, durées facultatives) et « Roulage » (kilomètres et épreuve comptée, pour l'usure des organes de la voiture choisie). Le menu du Garage pointe vers l'atelier et le stock. L'intervention rapide (4.3) n'est pas faite.
+- Droits : assistance, lecture seule ; invité, garde d'écran.
+- Vérifications : typecheck propre ; 714 tests unitaires verts ; build de vérification vert ; e2e `garage.spec.ts` passe 4 : 2/2 (responsable : tuile, durée des freins, deux pièces, remplacement de l'embrayage, roulage de 16 000 km qui fait passer la boîte à 7 % en zone rouge, km vérifiés en base ; assistance : aucun bouton d'écriture actif, aucun prix). `garage-atelier` vert en passe précédente.
+- Captures (docs/captures/) : garage-atelier-1440 et -360, garage-stock-1440, garage-stock-vide-1440, garage-remplacer-1440, garage-fiche-organe-1440 et -360.
+- Ouvert : intervention rapide (4.3) ; priorité d'ordre de travail (4.3) ; état d'équipement (4.6) ; abandon de Saison (4.4) ; positions de la silhouette à revoir si John le demande.
