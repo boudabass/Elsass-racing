@@ -38,6 +38,8 @@ Statut : **livré en 4.1** (schéma validé le 20/10 avec les corrections A à D
 
 Contrainte : `0 <= seuil_rouge_pct < seuil_orange_pct <= 100`. Retrait logique (`deleted_at`), refusé par le service si une pièce est montée.
 
+**Index unique partiel** `garage_vehicle_component_organe_actif_key` sur `(vehicle_id, component_type_id, position)` `NULLS NOT DISTINCT` quand `deleted_at IS NULL` (correction E, migration `garage_organes_uniques`) : un seul organe actif par type et par position sur un véhicule. Deux « Freins » à des positions différentes restent possibles. Exige PostgreSQL 15 ou plus.
+
 ### garage_part : une pièce physique
 
 | Colonne | Type | Règle |
@@ -253,23 +255,22 @@ Ces choix ne sont pas dans l'article. Ils sont en code, testés, et à relire à
 - **Pose sur un organe occupé** : le motif de la dépose de la pièce en place est obligatoire. La base refuse aussi une seconde pose active (index partiel).
 - **Organe Pneus** : son état vient du train monté (correction C). L'usure estimée est saisie à la main ; les km et épreuves du train s'ajoutent à l'historique sans la modifier.
 - **Usure manuelle** : s'applique aux pièces montées du véhicule et aux trains montés sur l'organe Pneus. Source « saisie manuelle », sans engagement.
-- **Usure sur résultat validé** (`saison.resultat_valide`) : une épreuve et les km chronométrés (lus par `lireUsureEngagement` chez Saison) à chaque pièce et train montés. Une ligne par cible et par engagement : une seconde validation ne double rien. Sans km, l'épreuve compte et les km valent 0 (la ligne le montre).
+- **Usure sur résultat validé** (`saison.resultat_valide`) : une épreuve et les km chronométrés (lus par `lireUsureEngagement` chez Saison) à chaque pièce et train montés. Une ligne par cible et par engagement : une seconde validation ne double rien. Sans km, l'épreuve compte et les km valent 0 (la ligne le montre). En course (correction F) : chaque insertion passe par `createMany` avec `skipDuplicates` ; un doublon donne `count = 0` (« déjà compté »), sans erreur, et les cumuls de cette cible ne bougent pas. Une cible pas encore comptée l'est.
 - **Positions** (`positions.ts`) : provisoires, à valider à l'écran. La Saxo et le générique ont l'avant à droite (roue avant en x = 282,7). Freins sur la roue avant, pneus sur la roue arrière, un point par organe par défaut.
 - **Événements émis** : `garage.piece_zone_rouge` (une fois par franchissement, charge : `partId`, `vehicleComponentId`, `vehicleId`, `etat`) et `garage.fiabilite_changee` (indice arrondi avant et après, `vehicleId`). Chaque charge est validée par zod avant émission.
 - **Prix** : `prixCents` n'existe dans les objets renvoyés qu'à partir du niveau écriture. `vues.test.ts` le vérifie.
-- **Initialisation** : types et organes par défaut créés à la première écriture ; une ligne retirée n'est jamais recréée.
+- **Initialisation** : types et organes par défaut créés à la première écriture ; une ligne retirée n'est jamais recréée. En course (correction E) : `skipDuplicates` sur les deux insertions ; deux initialisations simultanées donnent sept types et un organe par type, sans erreur. La seconde transaction attend le premier conflit d'index, puis relit les types commités.
+- **Refus d'un organe en double** : `ajouterOrganeDans` et `modifierOrganeDans` traduisent le P2002 de l'index unique en refus métier (« Un organe de ce type existe déjà à cette position… »).
 
 ## Vérifications
 
 - `pnpm test` : 691 tests verts, dont 49 pour le Garage (`regles.test.ts`, `positions.test.ts`, `vues.test.ts`).
-- `pnpm db:verifier-garage` : 21 contrôles sur la base locale (initialisation, pose et refus, dépose, usure manuelle, zone rouge émise une fois, train de pneus, index uniques, CHECK de dépose). Données créées et supprimées dans un `finally`.
+- `pnpm db:verifier-garage` : 25 contrôles sur la base locale (initialisation, course à l'initialisation sur une seconde team, pose et refus, dépose, usure manuelle, zone rouge émise une fois, train de pneus, index uniques, CHECK de dépose, course de l'usure d'un résultat). Données créées et supprimées dans un `finally`, pour les deux teams de test.
 - `pnpm db:verifier-rls`, `pnpm db:verifier-bus`, `pnpm db:verifier-synchro` : verts. Aucune table du Garage n'est dans le registre de synchro.
 - `pnpm typecheck` vert ; dérive du schéma Prisma vide.
 
 ## Ce qui reste ouvert
 
-- **Concurrence à l'initialisation** : deux premières écritures simultanées sur un même véhicule peuvent créer deux organes par type. L'index unique ne couvre que les types. À traiter si le cas se présente (aucune table n'a d'index unique sur les organes).
-- **Gestionnaire d'usure** : la présence d'une ligne est vérifiée avant l'écriture ; sans index unique sur ce chemin, une course entre deux validations ferait échouer le second traitement. L'index unique de la base l'empêche de doubler, mais le traitement échoue alors.
 - **Priorité d'ordre de travail** (4.3) et **état d'un équipement** (4.6) : valeurs à donner.
 - **Saison, abandon** : `saison.abandon_declare` n'est pas traité (4.4). Le schéma porte déjà `stage_id` et `speciale_nom`.
 - **Pas d'écran, pas d'e2e** : 4.2 apporte l'atelier.
