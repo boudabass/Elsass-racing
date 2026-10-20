@@ -10,7 +10,12 @@ export const manifestePartenaires: ManifesteApp = {
   icone: "handshake",
   version: "0.1.0",
   requiert: ["budget"],
-  menu: [{ libelle: "Accueil", chemin: "/" }],
+  menu: [
+    { libelle: "Prospection", chemin: "/" },
+    { libelle: "Contreparties", chemin: "/contreparties" },
+    // Les modèles de convention ne se modifient qu'à la gestion.
+    { libelle: "Modèles", chemin: "/modeles", niveauMinimum: "gestion" },
+  ],
   widgets: [...WIDGETS.partenaires],
   evenementsEmis: evenementsEmisPar("partenaires"),
   evenementsEcoutes: evenementsEcoutesPar("partenaires"),

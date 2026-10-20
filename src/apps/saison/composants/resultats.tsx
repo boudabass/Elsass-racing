@@ -2,6 +2,9 @@
 
 import { useActionState, useState } from "react"
 
+import { ChampFichier, type FichierEnvoye } from "@/components/formulaire/champ-fichier"
+import { Message } from "@/components/formulaire/message"
+import { TiroirAction } from "@/components/formulaire/tiroir"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,9 +18,8 @@ import {
 } from "../actions"
 import { formaterDuree } from "../regles-resultats"
 import { CHAMP, LIEN } from "@/lib/classes-formulaire"
-import { Message } from "./formulaires"
 
-// Onglet Résultats : la saisie tient en peu de champs ; « Plus de détails » déplie le reste.
+// Onglet Résultats : la saisie s'ouvre dans un tiroir (brief 3.13b). Dans le tiroir, « Plus de détails » déplie le reste.
 // Les décisions (valider, contester) passent par les mêmes règles que la boîte d'actions.
 
 import { LIBELLE_STATUT_RESULTAT } from "@/apps/saison/libelles"
@@ -52,11 +54,16 @@ export function FormulaireResultat({
   speciales: Array<{ id: string; numero: number; nom: string }>
   valeurs: ValeursResultat | null
 }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(saisirResultatAction, null)
   const [details, setDetails] = useState(false)
   const v = valeurs
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-3">
+    <TiroirAction
+      libelle={v ? "Modifier le résultat" : "Saisir le résultat"}
+      titre="Résultat de l'épreuve"
+      action={saisirResultatAction}
+      libelleBouton="Enregistrer le résultat"
+      libelleEnCours="Enregistrement…"
+    >
       <input type="hidden" name="entryId" value={entryId} />
       <div className="flex flex-col gap-1">
         <Label htmlFor={`statut-${entryId}`}>Statut final</Label>
@@ -81,7 +88,7 @@ export function FormulaireResultat({
         type="button"
         onClick={() => setDetails((ouvert) => !ouvert)}
         aria-expanded={details}
-        className={`${LIEN} justify-self-start text-sm sm:col-span-3`}
+        className={`${LIEN} justify-self-start text-sm`}
       >
         {details ? "Moins de détails" : "Plus de détails"}
       </button>
@@ -130,35 +137,41 @@ export function FormulaireResultat({
         </>
       )}
 
-      <label className="flex min-h-11 items-center gap-2 sm:col-span-3">
+      <label className="flex min-h-11 items-center gap-2">
         <input type="checkbox" name="public" defaultChecked={v?.public ?? true} className="h-5 w-5" />
         Afficher le classement dans les documents publics
       </label>
-      <div className="sm:col-span-3">
-        <Message resultat={resultat} />
-      </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-3 sm:justify-self-start">
-        Enregistrer le résultat
-      </Button>
-    </form>
+    </TiroirAction>
   )
 }
 
-// Preuve facultative : un lien. La capture attend l'envoi de fichiers (lot 5).
+// Preuve facultative : un lien, ou un fichier (brief 3.3). L'un des deux suffit ; joindrePreuve le vérifie.
 export function FormulairePreuve({ entryId, lienActuel }: { entryId: string; lienActuel: string | null }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(joindrePreuveAction, null)
+  const [fichier, setFichier] = useState<FichierEnvoye | null>(null)
   return (
-    <form action={action} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+    <TiroirAction
+      libelle={lienActuel ? "Modifier la preuve" : "Joindre une preuve"}
+      titre="Joindre une preuve"
+      sousTitre="Un lien ou un fichier : l'un des deux suffit"
+      action={joindrePreuveAction}
+      libelleBouton="Joindre la preuve"
+      libelleEnCours="Envoi…"
+    >
       <input type="hidden" name="entryId" value={entryId} />
-      <div className="flex flex-1 flex-col gap-1">
-        <Label htmlFor={`preuve-${entryId}`}>Preuve (lien)</Label>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor={`preuve-${entryId}`}>Lien de la preuve</Label>
         <Input id={`preuve-${entryId}`} name="preuveLien" type="url" defaultValue={lienActuel ?? ""} className={CHAMP} />
       </div>
-      <Button type="submit" disabled={enCours} className="min-h-11">
-        Joindre la preuve
-      </Button>
-      <Message resultat={resultat} />
-    </form>
+      <ChampFichier
+        app="saison"
+        libelle="ou un fichier"
+        valeur={fichier?.id ?? null}
+        typeValeur={fichier?.mimeType ?? null}
+        nomValeur={fichier?.nom ?? null}
+        onChange={setFichier}
+        name="preuveFileId"
+      />
+    </TiroirAction>
   )
 }
 
@@ -175,20 +188,22 @@ export function BoutonValider({ entryId }: { entryId: string }) {
   )
 }
 
-// Contester un résultat validé : le commentaire est obligatoire.
+// Contester un résultat validé : le commentaire est obligatoire. La saisie se fait dans un tiroir.
 export function FormulaireContester({ entryId }: { entryId: string }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(contesterResultatAction, null)
   return (
-    <form action={action} className="flex flex-col gap-2">
+    <TiroirAction
+      libelle="Contester"
+      titre="Contester ce résultat"
+      action={contesterResultatAction}
+      libelleBouton="Envoyer la contestation"
+      libelleEnCours="Envoi…"
+      secondaire={false}
+    >
       <input type="hidden" name="entryId" value={entryId} />
       <div className="flex flex-col gap-1">
         <Label htmlFor={`contestation-${entryId}`}>Pourquoi contester ce résultat</Label>
         <Input id={`contestation-${entryId}`} name="commentaire" required maxLength={1000} className={CHAMP} />
       </div>
-      <Button type="submit" disabled={enCours} variant="outline" className="min-h-11 self-start">
-        Contester
-      </Button>
-      <Message resultat={resultat} />
-    </form>
+    </TiroirAction>
   )
 }

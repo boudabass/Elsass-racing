@@ -1,13 +1,15 @@
 "use client"
 
-import { useActionState, useState, type ReactNode } from "react"
+import { useActionState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 
+import { FormulairePage } from "@/components/formulaire/formulaire-page"
 import { Message } from "@/components/formulaire/message"
-import { Button } from "@/components/ui/button"
+import { TiroirAction } from "@/components/formulaire/tiroir"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LIBELLE_MODE_PAIEMENT, LIBELLE_TYPE_EPREUVE, LIBELLE_TYPE_PROGRAMME } from "@/apps/saison/libelles"
+import { formatEuros } from "@/lib/euros"
 
 import {
   ajouterProgrammeAction,
@@ -21,8 +23,9 @@ import {
   type Resultat,
 } from "../actions"
 
-// Formulaires de la fiche et du calendrier. Chacun appelle une Server Action et affiche le
-// message français de la garde ou de la règle. Aucun écran ne compte sur une vérification CSS.
+// Formulaires de la fiche et du calendrier (brief 3.13b). Une saisie ouvre un tiroir ; la création d'épreuve reste sur sa
+// page, qui finit comme un tiroir (barre du bas). Chaque écriture passe par une Server Action, et affiche le message
+// français de la garde ou de la règle.
 
 export { CHAMP } from "@/lib/classes-formulaire"
 import { CHAMP } from "@/lib/classes-formulaire"
@@ -52,32 +55,29 @@ export function FormulaireNouvelleEpreuve() {
     null,
   )
   return (
-    <form action={action} className="flex flex-col gap-4">
-      <Champ id="nom" libelle="Nom de l'épreuve">
-        <Input id="nom" name="nom" required maxLength={200} className={CHAMP} />
-      </Champ>
-      <div className="grid gap-4 sm:grid-cols-2">
+    <FormulairePage formulaireId="epreuve-formulaire" annulerHref="/apps/saison" libelleBouton="Ajouter l'épreuve" enCours={enCours}>
+      <form id="epreuve-formulaire" action={action} className="flex flex-col gap-4">
+        <Champ id="nom" libelle="Nom de l'épreuve">
+          <Input id="nom" name="nom" required maxLength={200} className={CHAMP} />
+        </Champ>
         <Champ id="dateDebut" libelle="Premier jour">
           <Input id="dateDebut" name="dateDebut" type="date" required className={CHAMP} />
         </Champ>
         <Champ id="dateFin" libelle="Dernier jour">
           <Input id="dateFin" name="dateFin" type="date" required className={CHAMP} />
         </Champ>
-      </div>
-      <Champ id="type" libelle="Type">
-        <select id="type" name="type" required className={CHAMP} defaultValue="rallye">
-          {TYPES.map((type) => (
-            <option key={type.valeur} value={type.valeur}>
-              {type.libelle}
-            </option>
-          ))}
-        </select>
-      </Champ>
-      <Message resultat={resultat} />
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:self-start">
-        Ajouter l'épreuve
-      </Button>
-    </form>
+        <Champ id="type" libelle="Type">
+          <select id="type" name="type" required className={CHAMP} defaultValue="rallye">
+            {TYPES.map((type) => (
+              <option key={type.valeur} value={type.valeur}>
+                {type.libelle}
+              </option>
+            ))}
+          </select>
+        </Champ>
+        <Message resultat={resultat} />
+      </form>
+    </FormulairePage>
   )
 }
 
@@ -89,8 +89,9 @@ interface InfosEpreuve {
   lienResultats: string | null
   engagementsOuverture: string | null
   engagementsCloture: string | null
-  tarifNormal: number | null
-  tarifLicencieAsa: number | null
+  // Absents hors écriture (masquerMontants) : la fiche ne les affiche alors pas.
+  tarifNormal?: number | null
+  tarifLicencieAsa?: number | null
   geolocalisationIncluse: boolean
   nbSpeciales: number | null
   kmChronometresPrevus: string | null
@@ -101,7 +102,56 @@ interface InfosEpreuve {
 
 const euros = (centimes: number | null) => (centimes === null ? "" : String(centimes / 100))
 
-// Infos de la fiche épreuve (modifiables au niveau écriture). Les tarifs sont en euros à l'écran.
+const texte = (valeur: string | number | null | undefined) => (valeur === null || valeur === undefined || valeur === "" ? "—" : String(valeur))
+const montant = (centimes: number | null | undefined) => (centimes === null || centimes === undefined ? "—" : formatEuros(centimes))
+
+// Fiche en lecture des infos : tout ce que le formulaire porte, sans le formulaire. Les tarifs n'apparaissent que sous écriture.
+export function FicheInfos({ valeurs }: { valeurs: InfosEpreuve }) {
+  return (
+    <dl className="grid gap-2 text-sm sm:grid-cols-2">
+      <dt className="text-texte-discret">Lieu</dt>
+      <dd>{texte(valeurs.lieu)}</dd>
+      <dt className="text-texte-discret">Département</dt>
+      <dd>{texte(valeurs.departement)}</dd>
+      <dt className="text-texte-discret">Lien officiel</dt>
+      <dd className="break-all">{texte(valeurs.lienOfficiel)}</dd>
+      <dt className="text-texte-discret">Championnat</dt>
+      <dd>{texte(valeurs.championnat)}</dd>
+      <dt className="text-texte-discret">Engagements : ouverture</dt>
+      <dd>{texte(valeurs.engagementsOuverture)}</dd>
+      <dt className="text-texte-discret">Engagements : clôture</dt>
+      <dd>{texte(valeurs.engagementsCloture)}</dd>
+      {valeurs.tarifNormal !== undefined && (
+        <>
+          <dt className="text-texte-discret">Tarif normal</dt>
+          <dd>{montant(valeurs.tarifNormal)}</dd>
+        </>
+      )}
+      {valeurs.tarifLicencieAsa !== undefined && (
+        <>
+          <dt className="text-texte-discret">Tarif licencié ASA</dt>
+          <dd>{montant(valeurs.tarifLicencieAsa)}</dd>
+        </>
+      )}
+      <dt className="text-texte-discret">Nombre de spéciales</dt>
+      <dd>{texte(valeurs.nbSpeciales)}</dd>
+      <dt className="text-texte-discret">Km chronométrés prévus</dt>
+      <dd>{texte(valeurs.kmChronometresPrevus)}</dd>
+      <dt className="text-texte-discret">Km total</dt>
+      <dd>{texte(valeurs.kmTotal)}</dd>
+      <dt className="text-texte-discret">Parc d'assistance</dt>
+      <dd>{texte(valeurs.lieuParcAssistance)}</dd>
+      <dt className="text-texte-discret">Adresse d'envoi du dossier</dt>
+      <dd>{texte(valeurs.adresseEnvoiDossier)}</dd>
+      <dt className="text-texte-discret">Lien des résultats</dt>
+      <dd className="break-all">{texte(valeurs.lienResultats)}</dd>
+      <dt className="text-texte-discret">Géolocalisation incluse</dt>
+      <dd>{valeurs.geolocalisationIncluse ? "Oui" : "Non"}</dd>
+    </dl>
+  )
+}
+
+// Infos de la fiche épreuve : la fiche se lit sur la page (FicheInfos), « Modifier les infos » ouvre ce tiroir (brief 3.13b).
 export function FormulaireInfos({
   eventId,
   valeurs,
@@ -115,10 +165,15 @@ export function FormulaireInfos({
   organisateurId: string | null
   asaId: string | null
 }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(modifierInfosAction, null)
   const v = valeurs
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-2">
+    <TiroirAction
+      libelle="Modifier les infos"
+      titre="Modifier les infos de l'épreuve"
+      action={modifierInfosAction}
+      libelleBouton="Enregistrer les infos"
+      libelleEnCours="Enregistrement…"
+    >
       <input type="hidden" name="eventId" value={eventId} />
       <Champ id="organisateurContactId" libelle="Organisateur">
         <select id="organisateurContactId" name="organisateurContactId" defaultValue={organisateurId ?? ""} className={CHAMP}>
@@ -182,47 +237,28 @@ export function FormulaireInfos({
       <Champ id="lienResultats" libelle="Lien des résultats">
         <Input id="lienResultats" name="lienResultats" defaultValue={v?.lienResultats ?? ""} className={CHAMP} />
       </Champ>
-      <label className="flex min-h-11 items-center gap-2 sm:col-span-2">
+      <label className="flex min-h-11 items-center gap-2">
         <input type="checkbox" name="geolocalisationIncluse" defaultChecked={v?.geolocalisationIncluse ?? false} className="h-5 w-5" />
         Géolocalisation incluse
       </label>
-      <div className="sm:col-span-2">
-        <Message resultat={resultat} />
-      </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2 sm:justify-self-start">
-        Enregistrer les infos
-      </Button>
-    </form>
+    </TiroirAction>
   )
 }
 
-// Annulation : en deux temps, pour ne pas la déclencher par erreur.
+// Annulation : un tiroir de confirmation, pour ne pas la déclencher par erreur.
 export function BoutonAnnulerEpreuve({ eventId }: { eventId: string }) {
-  const [confirmer, setConfirmer] = useState(false)
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(annulerEpreuveAction, null)
-  if (resultat?.ok) return <p role="status" className="text-sm text-texte-discret">Épreuve annulée.</p>
   return (
-    <form action={action} className="flex flex-col gap-2">
+    <TiroirAction
+      libelle="Annuler l'épreuve"
+      titre="Annuler l'épreuve"
+      action={annulerEpreuveAction}
+      libelleBouton="Confirmer l'annulation"
+      libelleEnCours="Annulation…"
+      danger
+      question="L'épreuve passera en annulée. Les engagements restent visibles."
+    >
       <input type="hidden" name="eventId" value={eventId} />
-      {!confirmer ? (
-        <Button type="button" variant="outline" className="min-h-11" onClick={() => setConfirmer(true)}>
-          Annuler l'épreuve
-        </Button>
-      ) : (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm">L'épreuve passera en annulée. Les engagements restent visibles.</p>
-          <div className="flex gap-2">
-            <Button type="submit" disabled={enCours} className="min-h-11 bg-etat-rouge text-etat-rouge-texte">
-              Confirmer l'annulation
-            </Button>
-            <Button type="button" variant="outline" className="min-h-11" onClick={() => setConfirmer(false)}>
-              Garder l'épreuve
-            </Button>
-          </div>
-        </div>
-      )}
-      <Message resultat={resultat} />
-    </form>
+    </TiroirAction>
   )
 }
 
@@ -233,7 +269,6 @@ interface Choix {
 
 // Engager une voiture : voiture de course active, pilote et copilote parmi les personnes de la team.
 export function FormulaireEngagement({ eventId, choix }: { eventId: string; choix: Choix }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(engagerVoitureAction, null)
   if (choix.voitures.length === 0) {
     return (
       <p className="text-sm text-texte-discret">
@@ -242,7 +277,7 @@ export function FormulaireEngagement({ eventId, choix }: { eventId: string; choi
     )
   }
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-3">
+    <TiroirAction libelle="Engager une voiture" titre="Engager une voiture" action={engagerVoitureAction} libelleBouton="Engager la voiture" libelleEnCours="Engagement…">
       <input type="hidden" name="eventId" value={eventId} />
       <Champ id="vehicleId" libelle="Voiture">
         <select id="vehicleId" name="vehicleId" required className={CHAMP}>
@@ -273,13 +308,7 @@ export function FormulaireEngagement({ eventId, choix }: { eventId: string; choi
           ))}
         </select>
       </Champ>
-      <div className="sm:col-span-3">
-        <Message resultat={resultat} />
-      </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-3 sm:justify-self-start">
-        Engager la voiture
-      </Button>
-    </form>
+    </TiroirAction>
   )
 }
 
@@ -287,10 +316,9 @@ const MODES = Object.entries(LIBELLE_MODE_PAIEMENT).map(([valeur, libelle]) => (
 
 // Paiement : montant prérempli avec le montant dû (en euros). Le statut se met à jour seul.
 export function FormulairePaiement({ entryId, montantDu, personnes }: { entryId: string; montantDu: number | null; personnes: Choix["personnes"] }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(enregistrerPaiementAction, null)
   const aujourdhui = new Date().toISOString().slice(0, 10)
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-2">
+    <TiroirAction libelle="Enregistrer un paiement" titre="Enregistrer un paiement" action={enregistrerPaiementAction} libelleBouton="Enregistrer le paiement" libelleEnCours="Enregistrement…">
       <input type="hidden" name="entryId" value={entryId} />
       <Champ id="payeLe" libelle="Date du paiement">
         <Input id="payeLe" name="payeLe" type="date" required defaultValue={aujourdhui} className={CHAMP} />
@@ -317,13 +345,7 @@ export function FormulairePaiement({ entryId, montantDu, personnes }: { entryId:
           ))}
         </select>
       </Champ>
-      <div className="sm:col-span-2">
-        <Message resultat={resultat} />
-      </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2 sm:justify-self-start">
-        Enregistrer le paiement
-      </Button>
-    </form>
+    </TiroirAction>
   )
 }
 
@@ -334,11 +356,32 @@ interface Inscription {
   remarques: string | null
 }
 
-// Inscription de l'engagement : seulement les champs que le formulaire porte (montants inclus).
-export function FormulaireInscription({ entryId, inscription }: { entryId: string; inscription: Inscription }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(modifierInscriptionAction, null)
+// Fiche en lecture de l'inscription (montants inclus, sous écriture seulement).
+export function FicheInscription({ inscription }: { inscription: Inscription }) {
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-2">
+    <dl className="grid gap-2 text-sm sm:grid-cols-2">
+      <dt className="text-texte-discret">Concurrent</dt>
+      <dd>{texte(inscription.concurrentNom)}</dd>
+      <dt className="text-texte-discret">Montant dû</dt>
+      <dd>{montant(inscription.montantDu)}</dd>
+      <dt className="text-texte-discret">Liste des engagés publiée</dt>
+      <dd>{inscription.listeEngagesPubliee ? "Oui" : "Non"}</dd>
+      <dt className="text-texte-discret">Remarques</dt>
+      <dd>{texte(inscription.remarques)}</dd>
+    </dl>
+  )
+}
+
+// Inscription de l'engagement : seulement les champs que le formulaire porte (montants inclus). La fiche se lit sur la page (FicheInscription).
+export function FormulaireInscription({ entryId, inscription }: { entryId: string; inscription: Inscription }) {
+  return (
+    <TiroirAction
+      libelle="Modifier l'inscription"
+      titre="Modifier l'inscription"
+      action={modifierInscriptionAction}
+      libelleBouton="Enregistrer l'inscription"
+      libelleEnCours="Enregistrement…"
+    >
       <input type="hidden" name="entryId" value={entryId} />
       <Champ id="concurrentNom" libelle="Concurrent (association)">
         <Input id="concurrentNom" name="concurrentNom" defaultValue={inscription.concurrentNom ?? ""} className={CHAMP} />
@@ -346,27 +389,20 @@ export function FormulaireInscription({ entryId, inscription }: { entryId: strin
       <Champ id="montantDu" libelle="Montant dû (€)">
         <Input id="montantDu" name="montantDu" inputMode="decimal" defaultValue={euros(inscription.montantDu)} className={CHAMP} />
       </Champ>
-      <label className="flex min-h-11 items-center gap-2 sm:col-span-2">
+      <label className="flex min-h-11 items-center gap-2">
         <input type="checkbox" name="listeEngagesPubliee" defaultChecked={inscription.listeEngagesPubliee} className="h-5 w-5" />
         Liste des engagés publiée
       </label>
       <Champ id="remarques" libelle="Remarques">
         <Input id="remarques" name="remarques" defaultValue={inscription.remarques ?? ""} className={CHAMP} />
       </Champ>
-      <div className="sm:col-span-2">
-        <Message resultat={resultat} />
-      </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2 sm:justify-self-start">
-        Enregistrer l'inscription
-      </Button>
-    </form>
+    </TiroirAction>
   )
 }
 
 export function FormulaireSpeciale({ eventId }: { eventId: string }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(ajouterSpecialeAction, null)
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-4">
+    <TiroirAction libelle="Ajouter une spéciale" titre="Ajouter une spéciale" action={ajouterSpecialeAction} libelleBouton="Ajouter la spéciale" libelleEnCours="Ajout…">
       <input type="hidden" name="eventId" value={eventId} />
       <Champ id="numero" libelle="N°">
         <Input id="numero" name="numero" inputMode="numeric" required className={CHAMP} />
@@ -380,20 +416,13 @@ export function FormulaireSpeciale({ eventId }: { eventId: string }) {
       <Champ id="nbPassages" libelle="Passages">
         <Input id="nbPassages" name="nbPassages" inputMode="numeric" className={CHAMP} />
       </Champ>
-      <div className="sm:col-span-4">
-        <Message resultat={resultat} />
-      </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-4 sm:justify-self-start">
-        Ajouter la spéciale
-      </Button>
-    </form>
+    </TiroirAction>
   )
 }
 
 export function FormulaireProgramme({ eventId, specialesIds }: { eventId: string; specialesIds: Array<{ id: string; nom: string }> }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(ajouterProgrammeAction, null)
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-2">
+    <TiroirAction libelle="Ajouter au programme" titre="Ajouter au programme" action={ajouterProgrammeAction} libelleBouton="Ajouter au programme" libelleEnCours="Ajout…">
       <input type="hidden" name="eventId" value={eventId} />
       <Champ id="type" libelle="Étape">
         <select id="type" name="type" required className={CHAMP} defaultValue="depart">
@@ -420,12 +449,6 @@ export function FormulaireProgramme({ eventId, specialesIds }: { eventId: string
       <Champ id="lieu" libelle="Lieu">
         <Input id="lieu" name="lieu" className={CHAMP} />
       </Champ>
-      <div className="sm:col-span-2">
-        <Message resultat={resultat} />
-      </div>
-      <Button type="submit" disabled={enCours} className="min-h-11 sm:col-span-2 sm:justify-self-start">
-        Ajouter au programme
-      </Button>
-    </form>
+    </TiroirAction>
   )
 }

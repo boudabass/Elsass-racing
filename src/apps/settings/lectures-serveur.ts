@@ -10,12 +10,16 @@ export async function lireEquipe(ctx: ContexteTeam) {
       nom: true,
       couleurPrincipale: true,
       couleurSecondaire: true,
+      logoFileId: true,
       disciplinePrincipale: true,
       fuseau: true,
       langue: true,
       associationNom: true,
+      formeJuridique: true,
       associationRna: true,
       associationSiege: true,
+      signataireNom: true,
+      signataireQualite: true,
     },
   })
 }

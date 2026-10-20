@@ -1,22 +1,23 @@
 "use client"
 
 import { useState } from "react"
-import { House } from "lucide-react"
 
+import { LogoTeam } from "@/components/qg/logo-team"
 import { variablesDeTeam } from "@/core/theme/variables"
 
 // Deux sélecteurs de couleur et un aperçu en direct : une barre haute et une tuile, calculées
 // avec le contraste de la team (variablesDeTeam). Les sélecteurs restent dans le formulaire.
+// Le logo enregistré remplace l'icône QG dans l'aperçu, comme dans la barre haute.
 export function ApercuCouleurs({
   couleurPrincipale,
   couleurSecondaire,
   nomTeam,
-  disabled,
+  logoFileId,
 }: {
   couleurPrincipale: string
   couleurSecondaire: string
   nomTeam: string
-  disabled: boolean
+  logoFileId: string | null
 }) {
   const [principale, setPrincipale] = useState(couleurPrincipale)
   const [secondaire, setSecondaire] = useState(couleurSecondaire)
@@ -36,7 +37,6 @@ export function ApercuCouleurs({
             type="color"
             value={principale}
             onChange={(e) => setPrincipale(e.target.value)}
-            disabled={disabled}
             className="cible-tactile h-11 w-full rounded-md border border-bordure bg-surface"
           />
         </div>
@@ -48,7 +48,6 @@ export function ApercuCouleurs({
             type="color"
             value={secondaire}
             onChange={(e) => setSecondaire(e.target.value)}
-            disabled={disabled}
             className="cible-tactile h-11 w-full rounded-md border border-bordure bg-surface"
           />
         </div>
@@ -59,7 +58,7 @@ export function ApercuCouleurs({
           <p className="mb-2 text-xs text-[#A1A1AA]">Thème sombre</p>
           <div className="flex items-center gap-2 rounded-md bg-[#151518] px-3 py-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold text-marque-texte" style={{ background: "var(--marque)" }}>
-              <House className="h-5 w-5" aria-hidden />
+              <LogoTeam logoFileId={logoFileId} />
             </span>
             <span className="text-sm">{nomTeam}</span>
           </div>
@@ -72,7 +71,7 @@ export function ApercuCouleurs({
           <p className="mb-2 text-xs text-[#52525B]">Thème clair</p>
           <div className="flex items-center gap-2 rounded-md bg-[#F4F4F5] px-3 py-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold text-marque-texte" style={{ background: "var(--marque)" }}>
-              <House className="h-5 w-5" aria-hidden />
+              <LogoTeam logoFileId={logoFileId} />
             </span>
             <span className="text-sm">{nomTeam}</span>
           </div>

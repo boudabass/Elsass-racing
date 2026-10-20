@@ -7,8 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 
 // Panneau de la boîte d'actions : à droite sur PC, pleine largeur sur téléphone.
 // Le contenu est rendu côté serveur (BoiteActions) et passé en enfant.
-// Paramètre d'URL « boite=<id> » : le panneau s'ouvre, le groupe de l'action se déplie, et la
-// liste fait défiler jusqu'à elle. Seule l'instance « écoute » lit le paramètre (il y a deux
+// Paramètre d'URL « boite=<id> » : le panneau s'ouvre, et la liste fait défiler jusqu'à l'action. Seule l'instance « écoute » lit le paramètre (il y a deux
 // instances sur téléphone : la barre haute et la barre basse).
 export function ConteneurBoite({
   declencheur,
@@ -41,7 +40,6 @@ export function ConteneurBoite({
     const image = window.requestAnimationFrame(() => {
       const action = document.getElementById(`action-${cible}`)
       if (!action) return
-      action.closest("details")?.setAttribute("open", "")
       action.scrollIntoView({ block: "center" })
     })
     return () => window.cancelAnimationFrame(image)

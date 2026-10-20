@@ -33,4 +33,29 @@ describe("conventions de prisma/schema.prisma", () => {
     const avecDefaut = schema.replace(/@id @db\.Uuid/, "@id @db.Uuid @default(uuid())")
     expect(verifierConventions(avecDefaut).join(" ")).toContain("@default(uuid())")
   })
+
+  it("le schéma porte les onze tables de Partenaires", () => {
+    const modeles = Array.from(schema.matchAll(/^model\s+\w+\s*\{([\s\S]*?)^\}/gm), ([, corps]) => corps)
+    const tables = modeles.map((corps) => corps.match(/@@map\("(partenaires_\w+)"\)/)?.[1]).filter((nom) => nom !== undefined)
+    expect(tables.sort()).toEqual([
+      "partenaires_agreement",
+      "partenaires_amendment",
+      "partenaires_benefit",
+      "partenaires_benefit_catalog",
+      "partenaires_interaction",
+      "partenaires_partner",
+      "partenaires_portal_link",
+      "partenaires_portal_message",
+      "partenaires_proof",
+      "partenaires_report",
+      "partenaires_template",
+    ])
+  })
+
+  it("core_team porte les trois colonnes d'identité juridique", () => {
+    const equipe = schema.match(/^model CoreTeam \{([\s\S]*?)^\}/m)?.[1] ?? ""
+    expect(equipe).toMatch(/^\s+formeJuridique\s+String\?\s+@map\("forme_juridique"\)/m)
+    expect(equipe).toMatch(/^\s+signataireNom\s+String\?\s+@map\("signataire_nom"\)/m)
+    expect(equipe).toMatch(/^\s+signataireQualite\s+String\?\s+@map\("signataire_qualite"\)/m)
+  })
 })

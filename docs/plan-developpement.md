@@ -2,7 +2,14 @@
 
 Version 0.2, 16/10/2026 au soir. Rédigé par l'orchestrateur à partir des articles Odoo Knowledge 946 (cahier des charges), 947 (architecture), 948 (socle v1.3), 953 (UI), 960 (enveloppe du QG) et 962 (catalogue). En cas d'écart avec ces articles, les articles font foi.
 
-## 0. État au 16/10/2026
+## 0. État au 18/10/2026
+
+- **Lot 2 terminé et en production** (Saison et Budget : tâches 2.1 à 2.11, fusion 308be05 le 17/10).
+- **Tâches 2.12 à 2.17 en production** (dcf301a, 18/10) : audit technique, navigation allégée, nettoyage du code et socle commun des apps, finitions visuelles, boutons et liens communs, erreurs serveur.
+- **Tests** : 392 unitaires, 74 de bout en bout sur le build de production, plus les trois vérifications en base.
+- **Suite** : lot 3 (Voiture et Partenaires), puis les lots 4 à 6, puis l'app de démarrage, puis la création de la Koehling Racing Team et les invitations.
+
+### État au 16/10/2026 (historique)
 
 - **Lot 1 terminé.** Toutes les tâches de la section 5 sont faites, testées et fusionnées dans main (dernier merge c0a3292).
 - **En production** sur https://elsass-racing.theelsassisch.com (Coolify, health check actif). Team en production : « The Elsassisch Racing Team », team de test, John responsable. Connexion et changement de couleur vérifiés par John sur mobile.
@@ -41,7 +48,7 @@ elsass-racing/
   src/core/sdk/             contrat d'une app : manifeste, widgets, événements, routes
   src/apps/<clé>/           une app = un dossier : manifest.ts, écrans, widgets, événements, services
   src/components/ui/        shadcn/ui copié du Dico
-  src/components/qg/        enveloppe du QG : barre haute, grille, boîte d'actions, Prochaine étape, bouton +
+  src/components/qg/        enveloppe du QG : barre haute, grille, boîte d'actions, bouton +
   src/lib/                  utilitaires, prisma.ts
   prisma/                   schema.prisma (tables core_ puis <clé>_), migrations
   docs/                     ce plan, le relevé de stack, les décisions
@@ -184,6 +191,57 @@ Spécifications : articles Odoo 949 (Saison v1.3) et 950 (Budget v1.1), catalogu
 ### 2.8 Corrections du lot 2
 - Brief : `docs/briefs/2.8-corrections-lot-2.md`. Issu de la vérification complète du lot 2 : caisse de la team en double, prévu visible par l'assistance, synchro des dépenses alignée sur le payeur, espèces dans Saison, filtres du calendrier en tiroir, solde sur téléphone. Fin du lot 2.
 
+## 5 ter. Lot 3, Voiture et Partenaires, découpé en tâches opérateur
+
+Spécifications : articles Odoo 952 (Voiture v1.2) et 951 (Partenaires v1.2), catalogue 962, UI 953. Découpage validé par John le 18/10. Voiture passe avant Partenaires, parce que les contreparties de logo désignent un emplacement sur la voiture.
+
+Décisions de John (18/10) :
+- un seul gabarit livré au lot 3, celui de la Saxo (citadine 3 portes, plan `saxo_plan_emplacements.svg` du dossier Koehling) ; les six autres silhouettes viendront plus tard ;
+- modèle de convention de base rédigé par l'orchestrateur : `docs/modele-convention.md`, à relire par John avant la tâche 3.5.
+
+### 3.1 Socle : envoi et lecture des fichiers
+- Brief : `docs/briefs/3.1-envoi-fichiers.md`. Envoi, stockage (volume `STOCKAGE_DIR`), lecture protégée par team et par droits, compression des photos. Premiers usages : logo de la team (remplace l'icône QG), photo du ticket d'une dépense, fichier de preuve d'un résultat. Fait le 18/10 (15fb8e5 à 36ac8e3), relu et accepté.
+
+### 3.1b Socle : outil PDF
+- Brief : `docs/briefs/3.1b-outil-pdf.md`. Outil PDF commun (@react-pdf/renderer, polices Barlow), premier usage : le bilan de saison de Budget. Fait le 18/10 (e7773fa à dbc0410), relu et accepté.
+
+### 3.2 Voiture : schéma et services
+- Brief : `docs/briefs/3.2-voiture-schema-services.md`. Gabarits dans le code (Saxo seule, vues droite et gauche en miroir, autres emplacements hors plan), pas de clé étrangère vers Partenaires, historique calculé via une lecture partagée de Saison. Fait le 18/10 (cfd4f8e à 9dc78d6, migration voiture_schema), relu et accepté.
+- Tables `voiture_` (fiche, papiers et statut calculé, emplacements et occupations, fiches et réglages de référence), gabarit Saxo dans le catalogue plateforme, événements émis.
+
+### 3.3 Voiture : écrans
+- Brief : `docs/briefs/3.3-voiture-ecrans.md`. Déco en liste en attendant le plan (3.4), fiches de réglage hors ligne pour l'assistance au parc, entrées Réglage et Véhicule du bouton +. Fait le 18/10 (5f8bfd9 à 018c4e0), relu et accepté.
+- Mes véhicules, fiche en onglets (Identité, Papiers, Réglages, Historique), bouton + en 3 champs, fiches de réglage pré-remplies et comparaison côte à côte.
+
+### 3.4 Voiture : plan de déco
+- Brief : `docs/briefs/3.4-voiture-plan-deco.md`. Plan SVG aux couleurs du thème, miroir pour le côté gauche, liste des emplacements comme commande principale sur téléphone, réservation, pose et retrait, déplacement au pointeur et au clavier. Fait le 18/10 (bd4eb00 à d989c20), relu et accepté.
+- Silhouette Saxo par vue, emplacements cliquables (libre, réservé, occupé, indisponible), édition des emplacements.
+
+### 3.5 Partenaires : schéma et services
+- Brief : `docs/briefs/3.5-partenaires-schema-services.md`. Point 0 : trois retouches du plan de déco. Entreprise en `core_contact`, interlocuteur en `core_person`, jeton de la page partenaire stocké en empreinte, modèle de convention par défaut dans le code et copié par team, recalculs à l'ouverture du QG. Fait le 18/10 (a598624 à 403ed1b), relu et accepté.
+- Tables `partenaires_` (partenaires, échanges, modèles, conventions, avenants, contreparties et liste de base, preuves, bilans, lien et messages de la page partenaire), modèle de convention par défaut, champs d'identité manquants dans Réglages (forme juridique, signataire).
+
+### 3.6 Partenaires : écrans
+- Brief : `docs/briefs/3.6-partenaires-ecrans.md`. Point 0 : corrections de la relecture 3.5 (index source_cle, dates en jours, jeton côté serveur) et de l'audit Impeccable des écrans du lot 3 (16/20). PDF de la convention, lien de la page partenaire montré une seule fois, choix d'emplacement par une lecture partagée de Voiture. Fait le 18/10 (4a5ccdd à 8017ece), relu et accepté.
+- Prospection par statut avec relances, fiche partenaire, fiche convention et document généré, vue globale des contreparties, bouton + en 2 champs.
+
+### 3.7 Page partenaire et bilans
+- Brief : `docs/briefs/3.7-page-partenaire-bilans.md`. Point 0 : retouches de la 3.6 (saison en double, PDF, fiche convention), erreurs journalisées dans executer. Page /p/<jeton> hors session (fonction SQL SECURITY DEFINER, contexte public, 404 identique, en-têtes no-referrer/noindex/no-store, exclue du service worker), fichiers revalidés par jeton, bilans PDF, message du partenaire, ipClient() fiable, document de sécurité. Fait le 18/10 (bf59407 à da88d7c), relu et accepté : sécurité relue, limite par IP vérifiée sur dev (en-têtes falsifiés sans effet, 429 au 31e jeton). Reste pour le point 0 de la 3.8 : vouvoiement de la page, résultats du bilan limités à la période, alerte QG du message, puces du PDF, ECONNRESET du journal e2e à expliquer.
+- Page sans compte par lien secret révocable (relecture de sécurité dédiée), message du partenaire, bilans PDF.
+
+### 3.8 Liaisons et vérification du lot
+- Brief : `docs/briefs/3.8-liaisons-verification-lot-3.md`. Point 0 : retouches de la 3.7 (vouvoiement, bilan par période, alerte du message par un contexte système, document signé et section, PDF, ECONNRESET). Rattachement de fichier entre apps, réservation et libération d'emplacement, recettes prévues et apport reçu, preuve de pose, publications promises, parcours e2e complet du lot.
+- Convention signée vers Budget (recette prévue) et Voiture (réservation d'emplacement), logo posé vers preuve, papier qui expire vers l'indice de Saison, épreuve terminée vers l'historique du véhicule et les publications promises. Puis vérification complète du lot 3.
+- Fait le 18/10 (5c0e6af à 9786a20, migration budget_suggestion_date_origine), relu et accepté sous réserve de la 3.9.
+
+### 3.9 Corrections du lot 3
+- Brief : `docs/briefs/3.9-corrections-lot-3.md`. Issu de la relecture de la 3.8 : contexte système limité à son propre événement (une livraison d'un membre pouvait être perdue), titres de groupe de la boîte d'actions, bouton Encaisser dans Budget, qualité de l'interlocuteur dans la convention, trois vérifications e2e manquantes, bloc Actions de la convention, source des ECONNRESET. Fin du lot 3, avant le test de John.
+- Fait le 18/10 (afa2f90 à ec7519b, migration interlocuteur_qualite), relu et accepté. Suites vertes chez l'orchestrateur, sauf un test instable (voiture.spec.ts:86, boîte vide au QG dans le run complet, vert seul) à reprendre au point 0 du lot 4, avec l'AbortController du tirage de synchro (source des ECONNRESET) et les actions serveur coupées. Jeton du mail de connexion dans la console : build de test seulement, accepté.
+
+### 3.10 Finitions de l'audit du lot 3
+- Brief : `docs/briefs/3.10-finitions-audit-lot-3.md`. Audit Impeccable des écrans 3.6 à 3.9 (16/20), corrigé à la demande de John avant son test : structure et logo du partenaire sur la page partenaire, actions des contreparties sur une ligne, une seule règle pour boutons et liens, compteur du message.
+- Acceptée le 19/10 (f165936, retouches 8991559) : suites vertes chez l'orchestrateur (tsc, 594 tests, rls, bus, synchro, build, e2e 123/123), détecteur Impeccable sans constat, captures sombre et clair vérifiées. Lot 3 prêt pour le test de John sur dev.
+
 ## 6. Méthode de travail
 
 - L'orchestrateur rédige un brief par tâche, l'opérateur exécute, l'orchestrateur relit et teste avant de passer à la suivante.
@@ -209,3 +267,22 @@ Prises le 16/10/2026 :
 
 En attente :
 - Création de la Koehling Racing Team en production et invitation de Jeoffrey et Aurélie.
+
+### 3.11 Retours du test de John sur le lot 3
+- Brief : `docs/briefs/3.11-retours-test-john-lot-3.md`. Test de John sur dev le 19/10 : interlocuteur impossible à saisir (PDF bloqué), fiches non rafraîchies, réservation et encaissement non remontés, retour arrière, fiche convention réorganisée, message du PDF, « Tenue » devient « Faite », encadré rouge des notifications retiré, texte blanc sur les boutons rouges. À finir avant la fusion dans main.
+
+- Acceptée le 19/10 (9b350d3) : suites vertes chez l'orchestrateur (tsc, 594 tests, rls, bus, synchro, build, e2e 126/126). Bouton flottant « Prochaine étape » retiré sur ordinateur. Suite : 3.13 phase A, puis 3.12.
+
+### 3.12 On décide dans l'app, pas dans les notifications
+- Brief : `docs/briefs/3.12-decider-dans-l-app.md`. Décision de John du 19/10 : la boîte d'actions informe et emmène (« Ouvrir ») ; les décisions se prennent dans l'app concernée, par le même service de décision. Inventaire des 18 types validé avant le code. Après la 3.11, avant la fusion dans main.
+
+### 3.13 Tous les formulaires en tiroirs
+- Brief : `docs/briefs/3.13-formulaires-en-tiroirs.md`. Décision de John du 19/10 : chaque saisie s'ouvre dans un tiroir (bas sur téléphone, droite sur ordinateur) avec Enregistrer et Annuler, le reste de la page inactif ; plus de formulaires dépliés les uns sous les autres. Phase A (composant, fiche convention, Déco) validée par John sur dev, puis phase B (toute l'app, après inventaire). Ordre : 3.11, 3.13, puis 3.12.
+- Phase A validée par John sur dev le 19/10. Phase B : `docs/briefs/3.13b-formulaires-en-tiroirs-phase-b.md` (inventaire d'abord, puis conversion app par app, vérification légère sans serveur).
+- Phase A livrée le 19/10 (f5d395e..befa50e) : composant Tiroir, fiche convention et Déco en tiroirs ; modal sur téléphone et ordinateur, sauf l'étape « Déplacer ou redimensionner ». En attente de la validation de John sur dev avant la phase B. Point 0 du lot 4 : liste-john.spec.ts (calendrier, lien « Mois ») instable sous charge, comme voiture.spec.ts:86.
+
+### 3.14 Retours du test de John (19/10, soir)
+- Brief : `docs/briefs/3.14-retours-test-john-phase-b.md`. Retours en double (← Calendrier, ← Mouvements), interlocuteur toujours impossible à saisir, liste des recettes absente du Budget, apport du partenaire (ce qu'il doit à la team), Déco : toutes les vues, emplacements par vue, gauche et droite distincts. Après la 3.13b, avant la fusion dans main. Points 4 et 5 : point d'arrêt avec proposition.
+
+### 3.15 Déco : retours de John sur les nouvelles vues (19/10, soir)
+- Brief : `docs/briefs/3.15-deco-retours-john.md`. Vues avant, arrière, dessus à redessiner (pas des rectangles), pas d'emplacement sur la lunette arrière, retrait de « Autres emplacements » et « Ajouter sans forme », zone entière déplaçable au doigt, « Modifier l'emplacement » clarifié, véhicules sans gabarit (proposition d'un gabarit générique, point d'arrêt).

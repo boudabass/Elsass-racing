@@ -20,8 +20,8 @@
     /* Couleur de team, pour ce thème (injectée par le layout). */
     --marque: var(--marque-clair, #b91c1c);
     --marque-2: var(--marque-2-clair, #f4f3f1);
-    /* Texte posé sur la marque, choisi par la team (blanc ou quasi-noir). */
-    --marque-texte: var(--marque-texte-clair, #ffffff);
+    /* Texte et icônes posés sur la marque : blancs dans les deux thèmes (brief 3.11, §10). */
+    --marque-texte: #ffffff;
 
     /* États : jamais remplacés par une couleur de team. */
     --etat-ok: #15803d;
@@ -39,9 +39,10 @@
     --bordure: #2a2a30;
     --bordure-champ: #6b6b73;
 
-    --marque: var(--marque-sombre, #f87171);
+    /* Rouge assez foncé pour 4,5:1 avec le blanc (brief 3.11, §10). */
+    --marque: var(--marque-sombre, #dc2626);
     --marque-2: var(--marque-2-sombre, #f4f3f1);
-    --marque-texte: var(--marque-texte-sombre, #111113);
+    --marque-texte: #ffffff;
 
     --etat-ok: #4ade80;
     --etat-orange: #fb923c;

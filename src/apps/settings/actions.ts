@@ -1,17 +1,17 @@
 "use server"
 
-import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 
 import { exigerAcces } from "@/core/droits/garde-serveur"
 import { ErreurAcces, libelleErreurAcces } from "@/core/droits/erreurs"
-import { prismaPourTeam } from "@/lib/prisma"
+import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 import { newId } from "@/core/ids"
 import { emettre } from "@/core/evenements/bus-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 import { annulerInvitation, creerInvitation, renvoyerInvitation } from "@/core/invitations/invitations-serveur"
 import { schemaEmail } from "@/core/auth/jetons"
-import { texte } from "@/core/sdk/actions-serveur"
+import { texte, texteOuNull, type Resultat } from "@/core/sdk/actions-serveur"
+import { rattacherFichier, remplacerFichier } from "@/core/fichiers/fichiers-serveur"
 
 import { APPS } from "@/core/catalogue"
 import { NIVEAUX, type Niveau } from "@/core/droits/niveaux"
@@ -25,12 +25,11 @@ const ROLES = ["responsable", "equipage", "assistance", "invite"] as const
 const DISCIPLINES = ["rallye", "slalom", "course_de_cote", "circuit", "autre"] as const
 const FUSEAUX = ["Europe/Paris", "Europe/Berlin", "Europe/Brussels", "Europe/Madrid", "Europe/Rome", "Europe/London"] as const
 const HEX = /^#[0-9A-Fa-f]{6}$/
-const RNA = /^W\d{9}$/
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-// Toute action de Réglages passe par la garde. Une erreur revient à la rubrique, en clair.
-function retour(rubrique: string, erreur?: string): never {
-  const base = `${RUBRIQUE}/${rubrique}`
-  redirect(erreur ? `${base}?erreur=${encodeURIComponent(erreur)}` : `${base}?ok=1`)
+// Toute action de Réglages passe par la garde. Une erreur s'affiche dans le tiroir, en clair.
+function retour(erreur?: string): Resultat {
+  return erreur ? { ok: false, message: erreur } : { ok: true }
 }
 
 async function ctxGestion(): Promise<{ ctx: ContexteTeam; nomTeam: string }> {
@@ -46,7 +45,7 @@ function messageErreur(erreur: unknown): string {
   return erreur instanceof Error ? erreur.message : "L'enregistrement n'a pas pu être fait."
 }
 
-export async function sauverIdentite(formData: FormData): Promise<void> {
+export async function sauverIdentite(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -60,41 +59,53 @@ export async function sauverIdentite(formData: FormData): Promise<void> {
     if (!HEX.test(principale) || !HEX.test(secondaire)) throw new Error("Les couleurs doivent être au format #RRGGBB.")
     if (!(DISCIPLINES as readonly string[]).includes(discipline)) throw new Error("Discipline inconnue.")
     if (!(FUSEAUX as readonly string[]).includes(fuseau)) throw new Error("Fuseau inconnu.")
+    const logoId = texteOuNull(formData, "logoFileId")
+    if (logoId && !UUID.test(logoId)) throw new Error("Logo introuvable dans cette team.")
 
-    await prismaPourTeam(ctx.teamId, ctx.userId).coreTeam.update({
-      where: { id: ctx.teamId },
-      data: {
-        nom,
-        couleurPrincipale: principale.toUpperCase(),
-        couleurSecondaire: secondaire.toUpperCase(),
-        disciplinePrincipale: discipline,
-        fuseau,
-      },
+    // Logo, team et rattachement dans une seule transaction : un échec ne laisse ni logo à moitié posé.
+    await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+      const actuelle = await tx.coreTeam.findUnique({ where: { id: ctx.teamId }, select: { logoFileId: true } })
+      await tx.coreTeam.update({
+        where: { id: ctx.teamId },
+        data: {
+          nom,
+          couleurPrincipale: principale.toUpperCase(),
+          couleurSecondaire: secondaire.toUpperCase(),
+          disciplinePrincipale: discipline,
+          fuseau,
+          logoFileId: logoId,
+        },
+      })
+      if (logoId) {
+        await rattacherFichier(tx, ctx, { fileId: logoId, app: "settings", ficheType: "team", ficheId: ctx.teamId, role: "photo" })
+      }
+      await remplacerFichier(tx, ctx, { ancienId: actuelle?.logoFileId ?? null, nouveauId: logoId })
     })
     await emettre(ctx, "settings.identite_modifiee", { rubrique: "identite" })
   } catch (cause) {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("identite", erreur)
+  return retour(erreur)
 }
 
-export async function sauverAssociation(formData: FormData): Promise<void> {
+export async function sauverAssociation(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
     const nom = texte(formData, "associationNom")
-    const rna = texte(formData, "associationRna").toUpperCase()
     const siege = texte(formData, "associationSiege")
 
-    if (rna && !RNA.test(rna)) throw new Error("Le numéro RNA doit être au format W suivi de 9 chiffres.")
-
+    // Pas de validation de format : une association de droit local n'a pas de numéro RNA.
     await prismaPourTeam(ctx.teamId, ctx.userId).coreTeam.update({
       where: { id: ctx.teamId },
       data: {
         associationNom: nom || null,
-        associationRna: rna || null,
+        formeJuridique: texteOuNull(formData, "formeJuridique"),
+        associationRna: texteOuNull(formData, "associationRna"),
         associationSiege: siege || null,
+        signataireNom: texteOuNull(formData, "signataireNom"),
+        signataireQualite: texteOuNull(formData, "signataireQualite"),
       },
     })
     await emettre(ctx, "settings.identite_modifiee", { rubrique: "association" })
@@ -102,11 +113,11 @@ export async function sauverAssociation(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("association", erreur)
+  return retour(erreur)
 }
 
 // Invitation : e-mail obligatoire. Le téléphone n'a pas encore d'invitation par SMS.
-export async function inviterMembre(formData: FormData): Promise<void> {
+export async function inviterMembre(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx, nomTeam } = await ctxGestion()
@@ -137,10 +148,10 @@ export async function inviterMembre(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("membres", erreur)
+  return retour(erreur)
 }
 
-export async function renvoyerInvitationAction(formData: FormData): Promise<void> {
+export async function renvoyerInvitationAction(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx, nomTeam } = await ctxGestion()
@@ -149,10 +160,10 @@ export async function renvoyerInvitationAction(formData: FormData): Promise<void
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("membres", erreur)
+  return retour(erreur)
 }
 
-export async function annulerInvitationAction(formData: FormData): Promise<void> {
+export async function annulerInvitationAction(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -161,11 +172,11 @@ export async function annulerInvitationAction(formData: FormData): Promise<void>
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("membres", erreur)
+  return retour(erreur)
 }
 
 // Changer le rôle, ou retirer un membre : règle du dernier responsable appliquée.
-export async function changerRole(formData: FormData): Promise<void> {
+export async function changerRole(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -187,10 +198,10 @@ export async function changerRole(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("membres", erreur)
+  return retour(erreur)
 }
 
-export async function retirerMembre(formData: FormData): Promise<void> {
+export async function retirerMembre(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -210,12 +221,12 @@ export async function retirerMembre(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("membres", erreur)
+  return retour(erreur)
 }
 
 // Droits par app : une case à la valeur du défaut du rôle ne laisse aucune ligne
 // core_app_access ; une case différente en crée ou met à jour une.
-export async function sauverDroitsMembre(formData: FormData): Promise<void> {
+export async function sauverDroitsMembre(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -254,11 +265,11 @@ export async function sauverDroitsMembre(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("droits", erreur)
+  return retour(erreur)
 }
 
 // Revenir aux droits du rôle : supprime toutes les lignes core_app_access du membre.
-export async function revenirAuxDroitsDuRole(formData: FormData): Promise<void> {
+export async function revenirAuxDroitsDuRole(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -269,10 +280,10 @@ export async function revenirAuxDroitsDuRole(formData: FormData): Promise<void> 
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("droits", erreur)
+  return retour(erreur)
 }
 
-export async function basculerApp(formData: FormData): Promise<void> {
+export async function basculerApp(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -296,11 +307,11 @@ export async function basculerApp(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("apps", erreur)
+  return retour(erreur)
 }
 
 // Ordre des apps : monter ou descendre d'un cran. Le glisser-déposer viendra plus tard.
-export async function deplacerApp(formData: FormData): Promise<void> {
+export async function deplacerApp(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -323,11 +334,11 @@ export async function deplacerApp(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("apps", erreur)
+  return retour(erreur)
 }
 
 // Proposition de passer en mode terrain le jour d'une épreuve : réglage de la team.
-export async function sauverJourEpreuve(formData: FormData): Promise<void> {
+export async function sauverJourEpreuve(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { ctx } = await ctxGestion()
@@ -343,5 +354,5 @@ export async function sauverJourEpreuve(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   revalidatePath(RUBRIQUE, "layout")
-  retour("identite", erreur)
+  return retour(erreur)
 }

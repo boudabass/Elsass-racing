@@ -286,6 +286,20 @@ async function main(): Promise<void> {
     const supprHL = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "supprimer", id: idDepenseHL, revLue: revAvantSuppr })])
     controle("la suppression hors ligne est appliquée", supprHL[0]?.statut === "appliquee" && (await bd.budgetExpense.findUnique({ where: { id: idDepenseHL } }))?.deletedAt != null)
 
+    // Photo du ticket (tâche 3.1, brief 3.2) : rattachée à la création hors ligne, et refusée si le fichier
+    // a été envoyé par une autre personne.
+    const ticketEquipier = newId()
+    await bd.coreFile.create({ data: { id: ticketEquipier, teamId, storageKey: `verif/${ticketEquipier}`, nom: "ticket.jpg", mimeType: "image/jpeg", taille: 10, empreinte: "0".repeat(64), createdBy: eqUserId, updatedBy: eqUserId } })
+    const idDepenseTicket = newId()
+    const creationTicket = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "creer", id: idDepenseTicket, champs: { ...champsDepense, libelle: "Ticket synchro", justificatifFileId: ticketEquipier } })])
+    const rattachementTicket = await bd.coreAttachment.findFirst({ where: { teamId, fileId: ticketEquipier, ficheType: "expense", ficheId: idDepenseTicket, role: "ticket" } })
+    controle("un ticket envoyé par l'équipier est rattaché à sa dépense créée hors ligne", creationTicket[0]?.statut === "appliquee" && rattachementTicket !== null)
+
+    const ticketAssistance = newId()
+    await bd.coreFile.create({ data: { id: ticketAssistance, teamId, storageKey: `verif/${ticketAssistance}`, nom: "ticket-assistance.jpg", mimeType: "image/jpeg", taille: 10, empreinte: "0".repeat(64), createdBy: assUserId, updatedBy: assUserId } })
+    const refusTicket = await appliquerOperations(ctxEquipage, devA, [operation({ table: "budget_expense", type: "creer", id: newId(), champs: { ...champsDepense, libelle: "Ticket d'un autre", justificatifFileId: ticketAssistance } })])
+    controle("un ticket envoyé par une autre personne est refusé à la création hors ligne", refusTicket[0]?.statut === "refusee")
+
     // Périmètre du payeur, comme en ligne (correction 2.8, point 3) : au niveau contribution, l'appareil suit la
     // personne qui paie, pas le créateur de la ligne.
     const personneAssistance = newId()
@@ -307,6 +321,40 @@ async function main(): Promise<void> {
     const revSaisieResp = (await bd.budgetExpense.findUnique({ where: { id: saisieParLeResponsable } }))?.rev ?? 1
     const modifPayeeParElle = await appliquerOperations(ctxB, devB, [operation({ table: "budget_expense", type: "modifier", id: saisieParLeResponsable, revLue: revSaisieResp, champs: { ...champsDepense, montant: 2100, payerId: payeurAssistance?.id ?? "" } })])
     controle("l'assistance modifie hors ligne une dépense qu'elle paie, même saisie par le responsable", modifPayeeParElle[0]?.statut === "appliquee")
+
+    // Fiches de réglage hors ligne (brief 3.3, section 7). L'assistance crée une fiche sur le véhicule de la team,
+    // ne modifie pas celle du responsable, ne reçoit que les siennes, et une pression hors bornes est refusée.
+    const idReglageAss = newId()
+    const creationReglage = await appliquerOperations(ctxB, devB, [
+      operation({ table: "voiture_setup", type: "creer", id: idReglageAss, champs: { vehicleId: vehiculeSync, date: "2032-06-04", valeurs: { pression_froid_avg: 2.1 }, remarques: "Pression relevée au parc", note: 3 } }),
+    ])
+    controle("l'assistance crée une fiche de réglage hors ligne : appliquée", creationReglage[0]?.statut === "appliquee")
+    const ficheAss = await bd.voitureSetup.findUnique({ where: { id: idReglageAss }, select: { createdBy: true, valeurs: true, note: true } })
+    controle("la fiche est en base, à l'auteur de la synchro, avec sa note", ficheAss?.createdBy === assUserId && ficheAss?.note === 3 && (ficheAss?.valeurs as Record<string, unknown>)?.pression_froid_avg === 2.1)
+
+    const idReglageRespo = newId()
+    await appliquerOperations(ctxA, devA, [
+      operation({ table: "voiture_setup", type: "creer", id: idReglageRespo, champs: { vehicleId: vehiculeSync, date: "2032-06-05", valeurs: { pression_froid_avg: 2 }, remarques: "" } }),
+    ])
+    const modifReglageAutre = await appliquerOperations(ctxB, devB, [
+      operation({ table: "voiture_setup", type: "modifier", id: idReglageRespo, revLue: 1, champs: { vehicleId: vehiculeSync, date: "2032-06-05", valeurs: { pression_froid_avg: 2.4 }, remarques: "" } }),
+    ])
+    controle("l'assistance ne modifie pas la fiche de réglage d'un autre", modifReglageAutre[0]?.statut === "refusee")
+    const tirageReglagesAss = await tirerPaquets(ctxB, {})
+    const lignesReglagesAss = tirageReglagesAss.tables["voiture_setup"]?.lignes ?? []
+    controle("l'assistance ne reçoit que ses fiches de réglage", lignesReglagesAss.some((l) => l.id === idReglageAss) && !lignesReglagesAss.some((l) => l.id === idReglageRespo))
+
+    const pressionHorsBornes = await appliquerOperations(ctxB, devB, [
+      operation({ table: "voiture_setup", type: "creer", id: newId(), champs: { vehicleId: vehiculeSync, date: "2032-06-04", valeurs: { pression_froid_avg: 9 }, remarques: "" } }),
+    ])
+    controle("une pression hors bornes est refusée depuis l'appareil", pressionHorsBornes[0]?.statut === "refusee")
+
+    const ecritureVehicule = await appliquerOperations(ctxA, devA, [
+      operation({ table: "core_vehicle", type: "modifier", id: vehiculeSync, revLue: 1, champs: { nomCourt: "Écrit depuis l'appareil" } }),
+    ])
+    controle("core_vehicle se lit hors ligne seulement : écriture refusée", ecritureVehicule[0]?.statut === "refusee" && (ecritureVehicule[0]?.raison ?? "").includes("se lit seulement"))
+    const tirageVehiculeA = await tirerPaquets(ctxA, {})
+    controle("le responsable reçoit le véhicule hors ligne", (tirageVehiculeA.tables["core_vehicle"]?.lignes ?? []).some((l) => l.id === vehiculeSync))
   } finally {
     await nettoyer([teamId, teamAutreId], [respUserId, assUserId, eqUserId], [devA, devB])
     console.log("Nettoyage fait.")

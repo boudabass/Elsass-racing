@@ -11,6 +11,7 @@ import {
   preparerSaison,
   preverEpreuveEnBase,
   rattacherPersonne,
+  montantPayeEnBase,
   statutAction,
 } from "./aide/session"
 
@@ -31,8 +32,9 @@ async function engagerLaVoiture(page: Page): Promise<{ fiche: string; engagement
   await expect(page).toHaveURL(/\/apps\/saison\/epreuves\/[0-9a-f-]+/)
   const fiche = page.url().split("?")[0]
   await page.goto(`${fiche}?onglet=engagements`)
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo test e2e" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo test e2e" })
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await expect(page.getByText("Saxo test e2e").first()).toBeVisible()
   await page.getByRole("link", { name: /Saxo test e2e/ }).first().click()
   // Attendre la page de l'engagement : sinon l'URL lue est encore celle de l'épreuve.
@@ -50,16 +52,18 @@ test("liaison : un paiement d'engagement propose une dépense, confirmée depuis
   await page.setViewportSize({ width: 1440, height: 900 })
 
   const { engagement } = await engagerLaVoiture(page)
+  await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
   await page.getByLabel("Montant payé (€)").fill("450")
   await page.getByLabel("Payeur").selectOption({ index: 1 })
-  await page.getByRole("button", { name: "Enregistrer le paiement" }).click()
-  await expect(page.getByText("Enregistré.")).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 
   // Une seule proposition dans À confirmer, de 450 €.
   await page.goto("/apps/budget/a-confirmer")
   await expect(page.getByRole("heading", { name: /Engagement Rallye liaison e2e/ })).toBeVisible()
   await expect(page.getByRole("heading", { name: /Engagement Rallye liaison e2e/ })).toHaveCount(1)
-  await page.getByRole("button", { name: "Confirmer" }).click()
+  await page.getByRole("button", { name: "Confirmer", exact: true }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Confirmer le mouvement" }).click()
   await expect(page.getByRole("heading", { name: /Engagement Rallye liaison e2e/ })).toHaveCount(0)
   await expect.poll(async () => (await depensesBudgetEnBase(equipe)).some((d) => d.libelle.startsWith("Engagement Rallye") && d.montant === 45_000)).toBe(true)
 
@@ -83,7 +87,6 @@ test("liaison : une dépense d'engagement saisie dans Budget demande « marquer 
   await page.goto(`/apps/budget/nouvelle?epreuve=${eventId}`)
   await page.getByLabel("Montant (€)").fill("450")
   await page.getByLabel("Catégorie", { exact: true }).selectOption({ label: "Engagement" })
-  await page.getByText("Plus de détails").click()
   await page.getByLabel(/Engagement concerné/).selectOption({ index: 1 })
   await page.getByRole("button", { name: "Ajouter la dépense" }).click()
   await expect(page.getByText("Enregistré. La dépense part")).toBeVisible()
@@ -106,8 +109,9 @@ test("liaison : une dépense d'engagement saisie dans Budget demande « marquer 
   }).toPass({ timeout: 30_000 })
   await expect(boite.getByText("Marquer l'engagement comme payé ?").first()).toBeVisible()
   await boite.getByRole("button", { name: "Marquer payé" }).first().click()
-  await page.goto(engagement)
-  await expect(page.getByText("Payé").first()).toBeVisible()
+  // La décision part en serveur : l'engagement est réglé à 450 € (45 000 centimes). Épreuve commencée,
+  // la fiche affiche « Parti » : le paiement se lit en base.
+  await expect.poll(() => montantPayeEnBase(equipe, entryId), { timeout: 30_000 }).toBe(45_000)
 
   // Le paiement qui suit ne propose rien à Budget : aucune proposition pour cet engagement.
   await page.goto("/apps/budget/a-confirmer")
@@ -154,12 +158,14 @@ test("budget : tiroir de filtres et pastilles sur téléphone, onglet Dépenses,
   // Modification puis suppression de la dépense (case de confirmation).
   const depense = await depenseBudgetParLibelle(equipe, "Péages")
   await page.goto(`/apps/budget/mouvement/${depense?.id ?? ""}`)
-  await page.getByLabel("Montant (€)").fill("35,00")
+  await page.getByRole("button", { name: "Modifier", exact: true }).click()
+  await page.getByRole("dialog").getByLabel("Montant (€)").fill("35,00")
   await page.getByRole("button", { name: "Enregistrer les modifications" }).click()
-  await expect(page.getByText("Enregistré.")).toBeVisible()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
   await expect.poll(async () => (await depenseBudgetParLibelle(equipe, "Péages"))?.montant).toBe(3500)
-  await page.getByLabel("Je confirme la suppression de ce mouvement.").check()
-  await page.getByRole("button", { name: "Supprimer" }).click()
+  await page.getByRole("button", { name: "Supprimer", exact: true }).click()
+  await page.getByRole("dialog").getByLabel("Je confirme la suppression de ce mouvement.").check()
+  await page.getByRole("dialog").getByRole("button", { name: "Supprimer", exact: true }).click()
   await expect.poll(async () => depenseBudgetParLibelle(equipe, "Péages")).toBeNull()
 })
 

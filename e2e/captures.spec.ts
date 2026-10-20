@@ -1,6 +1,6 @@
 // Captures commitées dans docs/captures/ pour la documentation. La team de test reçoit les
 // données de Koehling Racing, une alerte et une action en attente, pour que les écrans soient
-// représentatifs (compte à rebours, bouton Prochaine étape, badge, pastille).
+// représentatifs (compte à rebours, badge, pastille).
 import path from "node:path"
 
 import type { Page } from "@playwright/test"
@@ -18,7 +18,7 @@ async function masquerIndicateur(page: Page): Promise<void> {
 
 // Une capture pleine page place les éléments fixes à leur position d'écran : la barre basse
 // se retrouverait au milieu de la page. Elle est posée en absolu, au bas du document. Les
-// autres éléments fixes (bouton « Prochaine étape » flottant) et l'indicateur de développement
+// autres éléments fixes et l'indicateur de développement
 // de Next sont masqués. Seul le rendu de la capture change, pas la page testée.
 async function preparerCapture(page: Page): Promise<void> {
   await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" })
@@ -45,7 +45,7 @@ test("captures : QG, Identité et boîte d'actions", async ({ page, equipe }) =>
   await preparerCapture(page)
   await page.screenshot({ path: path.join(DOSSIER, "qg-1440x900.png"), fullPage: true })
 
-  // Fenêtre seule, sans préparation : le bouton Prochaine étape reste visible à sa place.
+  // Fenêtre seule, sans préparation : ce que voit la personne, sans masquage.
   await page.goto("/qg")
   await masquerIndicateur(page)
   await page.screenshot({ path: path.join(DOSSIER, "qg-ecran-1440x900.png"), fullPage: false })
@@ -62,9 +62,15 @@ test("captures : QG, Identité et boîte d'actions", async ({ page, equipe }) =>
   await page.keyboard.press("Escape")
 
   await page.goto("/apps/settings/identite")
-  await expect(page.locator("#couleurPrincipale")).toBeVisible()
+  await expect(page.getByRole("heading", { name: "La team", exact: true })).toBeVisible()
   await preparerCapture(page)
   await page.screenshot({ path: path.join(DOSSIER, "identite-1440x900.png"), fullPage: true })
+
+  // Brief 3.5, point 2 : la rubrique Association, telle que la team la voit (identité juridique non renseignée).
+  await page.goto("/apps/settings/association")
+  await expect(page.getByRole("heading", { name: "L'association", exact: true })).toBeVisible()
+  await preparerCapture(page)
+  await page.screenshot({ path: path.join(DOSSIER, "reglages-association-1440x900.png"), fullPage: true })
 
   await page.setViewportSize({ width: 360, height: 740 })
   await page.goto("/qg")

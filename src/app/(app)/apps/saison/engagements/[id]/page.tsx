@@ -4,7 +4,7 @@ import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/saison/ecran"
 import { lireDebriefs, lireEngagement, lireFinDEpreuve, listerChoixEngagement } from "@/apps/saison/lectures-serveur"
-import { FormulaireInscription, FormulairePaiement } from "@/apps/saison/composants/formulaires"
+import { FicheInscription, FormulaireInscription, FormulairePaiement } from "@/apps/saison/composants/formulaires"
 import { FormulaireDebrief } from "@/apps/saison/composants/debrief"
 import { FinEpreuve } from "@/apps/saison/composants/fin-epreuve"
 import { STATUTS_PARTIS } from "@/apps/saison/regles-resultats"
@@ -75,6 +75,7 @@ export default async function PageEngagement({ params }: { params: Promise<{ id:
           aDebrief={fin.aDebrief}
           peutDebriefer={peutEcrire}
           sansPreuve={fin.sansPreuve}
+          preuveFileId={fin.preuveFileId}
           coutEpreuve={coutEpreuve}
         />
       )}
@@ -95,6 +96,7 @@ export default async function PageEngagement({ params }: { params: Promise<{ id:
           <h2 className="font-medium">Inscription</h2>
           {peutEcrire ? (
             <>
+              <FicheInscription inscription={inscriptionEcriture} />
               <FormulaireInscription entryId={id} inscription={inscriptionEcriture} />
               <div className="flex flex-col gap-2 border-t border-bordure pt-4">
                 <h3 className="font-medium">Paiement</h3>

@@ -18,7 +18,7 @@ import { prismaPourTeam } from "@/lib/prisma"
 
 import { aRembourser, confirmeeDOffice } from "./regles"
 import { emettreDepenseSynchronisee, emettreSoldeDepenseSynchronise } from "./services-serveur"
-import { modifierDepenseTx, supprimerDepenseTx } from "./depenses-tx"
+import { modifierDepenseTx, poserJustificatif, supprimerDepenseTx } from "./depenses-tx"
 
 const DATE_CIVILE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -44,6 +44,8 @@ const schemaDepense = z
     eventId: z.string().uuid().nullable().optional(),
     entryId: z.string().uuid().nullable().optional(),
     moyen: z.enum(["carte", "especes", "cheque", "virement"]).nullable().optional(),
+    // Photo du ticket (brief 3.2) : absent = inchangé à la modification.
+    justificatifFileId: z.string().uuid().nullable().optional(),
   })
   .strict()
 
@@ -79,6 +81,7 @@ const budgetExpenseSynchro: DeclarationSynchro = {
       payerId: l.payerId,
       eventId: l.eventId,
       moyen: l.moyen,
+      justificatifFileId: l.justificatifFileId,
       confirmee: l.confirmee,
       aRembourser: l.aRembourser,
       remboursement: l.remboursement,
@@ -99,7 +102,7 @@ const budgetExpenseSynchro: DeclarationSynchro = {
       rev: ligne.rev,
       auteurId,
       supprimee: ligne.deletedAt !== null,
-      contenu: { date: ligne.date.toISOString().slice(0, 10), montant: ligne.montant, categoryId: ligne.categoryId, libelle: ligne.libelle, payerId: ligne.payerId, eventId: ligne.eventId, moyen: ligne.moyen },
+      contenu: { date: ligne.date.toISOString().slice(0, 10), montant: ligne.montant, categoryId: ligne.categoryId, libelle: ligne.libelle, payerId: ligne.payerId, eventId: ligne.eventId, moyen: ligne.moyen, justificatifFileId: ligne.justificatifFileId },
     }
   },
   async creer(tx: Tx, ctx: ContexteTeam, id, champs) {
@@ -149,6 +152,7 @@ const budgetExpenseSynchro: DeclarationSynchro = {
         eventId: donnees.eventId ?? null,
         entryId: donnees.entryId ?? null,
         seasonId,
+        justificatifFileId: donnees.justificatifFileId ?? null,
         confirmee: confirmeeDOffice("saisie"),
         aRembourser: rembourse,
         remboursement: rembourse ? "a_rembourser" : "non_concerne",
@@ -157,6 +161,8 @@ const budgetExpenseSynchro: DeclarationSynchro = {
         updatedBy: ctx.userId,
       },
     })
+    // Même transaction : le ticket est rattaché à la dépense qu'on vient de créer.
+    await poserJustificatif(tx, ctx, id, null, donnees.justificatifFileId ?? null)
   },
   async modifier(tx: Tx, ctx: ContexteTeam, id, champs) {
     const donnees = schemaDepense.parse(champs)
@@ -177,6 +183,7 @@ const budgetExpenseSynchro: DeclarationSynchro = {
         entryId: donnees.entryId ?? null,
         seasonId,
         moyen: donnees.moyen ?? null,
+        justificatifFileId: donnees.justificatifFileId,
       },
       niveau,
     )

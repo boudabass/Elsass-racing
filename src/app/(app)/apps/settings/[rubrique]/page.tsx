@@ -11,16 +11,10 @@ import { lireSession } from "@/core/auth/session-serveur"
 import { EcranVide } from "@/components/qg/ecran-vide"
 
 // Une rubrique de Réglages. Les rubriques de la team demandent le niveau lecture sur Réglages ;
-// les rubriques personnelles sont ouvertes à tout membre de la team.
-export default async function PageRubrique({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ rubrique: string }>
-  searchParams: Promise<{ ok?: string; erreur?: string }>
-}) {
+// les rubriques personnelles sont ouvertes à tout membre de la team. Les actions s'ouvrent dans un tiroir :
+// la page ne porte plus de message d'état dans l'URL.
+export default async function PageRubrique({ params }: { params: Promise<{ rubrique: string }> }) {
   const { rubrique } = await params
-  const { ok, erreur } = await searchParams
   const { contexte } = await contexteQg().catch((erreur: unknown) => {
     redirigerSiSansContexte(erreur)
     throw erreur
@@ -37,7 +31,7 @@ export default async function PageRubrique({
         />
       )
     }
-    return <RubriqueEquipe chemin={rubrique} messageOk={ok === "1"} erreur={erreur} />
+    return <RubriqueEquipe chemin={rubrique} />
   }
 
   if (!RUBRIQUES_PERSONNELLES.some((r) => r.chemin === rubrique)) notFound()
@@ -45,15 +39,7 @@ export default async function PageRubrique({
   const session = await lireSession()
   const contenu = await rubriquePersonnelle(rubrique, contexte, session?.deviceId ?? "")
   return (
-    <div className="flex flex-col gap-6">
-      {ok === "1" && <p role="status" className="max-w-2xl rounded-md border border-bordure bg-surface px-4 py-2">Enregistré.</p>}
-      {erreur && (
-        <p role="alert" className="max-w-2xl rounded-md border border-etat-rouge bg-surface px-4 py-2 text-etat-rouge">
-          {erreur}
-        </p>
-      )}
-      {contenu}
-    </div>
+    <div className="flex flex-col gap-6">{contenu}</div>
   )
 }
 

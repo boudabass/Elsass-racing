@@ -5,9 +5,19 @@ import { useEffect, useRef } from "react"
 
 import { styleFondu, useFonduDefilement } from "@/components/qg/fondu-defilement"
 
-// Onglets de la fiche épreuve. Sur téléphone, ils défilent horizontalement sans couper l'écran ;
-// l'onglet actif est ramené dans la vue à l'affichage (sans effet sur la page elle-même).
-export function Onglets({ base, onglets, actif }: { base: string; onglets: ReadonlyArray<{ cle: string; libelle: string }>; actif: string }) {
+// Onglets d'une fiche (épreuve de Saison, véhicule de Voiture). Sur téléphone, ils défilent horizontalement
+// sans couper l'écran ; l'onglet actif est ramené dans la vue à l'affichage (sans effet sur la page elle-même).
+export function Onglets({
+  base,
+  onglets,
+  actif,
+  nom = "Onglets de l'épreuve",
+}: {
+  base: string
+  onglets: ReadonlyArray<{ cle: string; libelle: string }>
+  actif: string
+  nom?: string
+}) {
   const barre = useRef<HTMLElement>(null)
   const fondu = useFonduDefilement(barre)
 
@@ -21,7 +31,7 @@ export function Onglets({ base, onglets, actif }: { base: string; onglets: Reado
   }, [actif])
 
   return (
-    <nav ref={barre} style={styleFondu(fondu)} className="-mx-4 flex gap-2 overflow-x-auto border-b border-bordure px-4 md:mx-0 md:px-0 [scrollbar-width:thin]" aria-label="Onglets de l'épreuve">
+    <nav ref={barre} style={styleFondu(fondu)} className="-mx-4 flex gap-2 overflow-x-auto border-b border-bordure px-4 md:mx-0 md:px-0 [scrollbar-width:thin]" aria-label={nom}>
       {onglets.map((tab) => (
         <Link
           key={tab.cle}

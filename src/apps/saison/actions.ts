@@ -203,7 +203,7 @@ export async function saisirResultatAction(_etat: Resultat | null, donnees: Form
 
 export async function joindrePreuveAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerSaison(() =>
-    joindrePreuve(texte(donnees, "entryId"), { preuveLien: texteOuNull(donnees, "preuveLien") }),
+    joindrePreuve(texte(donnees, "entryId"), { preuveLien: texteOuNull(donnees, "preuveLien"), preuveFileId: texteOuNull(donnees, "preuveFileId") }),
   )
 }
 

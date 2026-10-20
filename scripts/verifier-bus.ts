@@ -34,6 +34,7 @@ async function main() {
   // Import dynamique : .env.local doit être chargé avant la création du client applicatif.
   const { emettre, ErreurEvenement } = await import("../src/core/evenements/bus-serveur")
   const { prisma: applicatif } = await import("../src/lib/prisma")
+  const { contexteSysteme } = await import("../src/core/contexte-systeme-serveur")
 
   const suffixe = randomUUID().slice(0, 8)
   const team = { id: randomUUID(), nom: `Verif bus ${suffixe}`, slug: `verif-bus-${suffixe}` }
@@ -505,6 +506,360 @@ async function main() {
     const supprimee = await proprietaire.budgetExpense.findUnique({ where: { id: idSaison } })
     controle("une dépense supprimée reste en base, marquée supprimée", supprimee?.deletedAt != null)
 
+    // 14. Voiture (tâche 3.2) : création d'un véhicule (un seul événement), pose d'un logo, échéances des papiers
+    //     (un rappel par papier et par échéance, rien pour un papier sans échéance).
+    const voiture = await import("../src/apps/voiture/services-serveur")
+    const { jourDeParis } = await import("../src/core/dates")
+    const { recalculerPapiersDans } = voiture
+
+    const avantEmplacements = await compter("voiture.emplacement_modifie")
+    const vehiculeVoiture = await voiture.creerVehiculeDans(ctx, { nom: "Saxo bus", type: "course", gabaritCle: "citadine_3p_saxo" })
+    const apresEmplacements = await compter("voiture.emplacement_modifie")
+    controle("la création d'un véhicule émet un seul voiture.emplacement_modifie", apresEmplacements - avantEmplacements === 1, `${apresEmplacements - avantEmplacements}`)
+    const nbSlots = await proprietaire.voitureSlot.count({ where: { teamId: team.id, vehicleId: vehiculeVoiture, deletedAt: null } })
+    controle("le véhicule reçoit les seize emplacements de la Saxo (paires droite et gauche, avant, arrière, dessus)", nbSlots === 16, `${nbSlots}`)
+
+    // Sans gabarit (« Aucun gabarit ») : pas d'emplacement, donc pas d'événement d'emplacement.
+    const avantSansGabarit = await compter("voiture.emplacement_modifie")
+    const vehiculeNu = await voiture.creerVehiculeDans(ctx, { nom: "Nu bus", type: "reco", gabaritCle: null })
+    const slotsNu = await proprietaire.voitureSlot.count({ where: { teamId: team.id, vehicleId: vehiculeNu, deletedAt: null } })
+    controle("un véhicule sans gabarit n'a aucun emplacement et n'émet rien sur les emplacements", slotsNu === 0 && (await compter("voiture.emplacement_modifie")) === avantSansGabarit, `${slotsNu}`)
+
+    const slotPortiere = await proprietaire.voitureSlot.findFirst({ where: { teamId: team.id, vehicleId: vehiculeVoiture, vue: "droite", nom: "Portière droite" } })
+    const reservation = await voiture.reserverEmplacementDans(ctx, slotPortiere?.id ?? "", { partenaireNom: "Partenaire bus" })
+    const avantPose = await compter("voiture.logo_pose")
+    await voiture.poserLogoDans(ctx, reservation, { poseLe: jourDeParis(new Date()) })
+    controle("poserLogo émet voiture.logo_pose", (await compter("voiture.logo_pose")) - avantPose === 1)
+
+    const echeanceProche = jourDeParis(new Date(Date.now() + 10 * 86_400_000))
+    const papierProche = await voiture.creerPapierDans(ctx, vehiculeVoiture, { type: "assurance", valableJusquAu: echeanceProche })
+    const compterRappel = (paperId: string) =>
+      proprietaire.coreDomainEvent.count({
+        where: { teamId: team.id, nom: "voiture.papier_expire_bientot", AND: [{ donnees: { path: ["paperId"], equals: paperId } }] },
+      })
+    await recalculerPapiersDans(ctx)
+    await recalculerPapiersDans(ctx)
+    const rappelsProche = await compterRappel(papierProche)
+    controle("un papier qui expire dans dix jours émet voiture.papier_expire_bientot une seule fois, même après deux ouvertures du QG", rappelsProche === 1, `${rappelsProche}`)
+
+    const papierSansEcheance = await voiture.creerPapierDans(ctx, vehiculeVoiture, { type: "carte_grise", valableJusquAu: null })
+    await recalculerPapiersDans(ctx)
+    const rappelsSansEcheance = await compterRappel(papierSansEcheance)
+    controle("un papier sans échéance n'émet rien", rappelsSansEcheance === 0, `${rappelsSansEcheance}`)
+
+    // Un papier créé déjà expiré lève aussi le rappel, une seule fois, avec un titre qui dit la date passée.
+    const echeancePassee = jourDeParis(new Date(Date.now() - 3 * 86_400_000))
+    const papierExpire = await voiture.creerPapierDans(ctx, vehiculeVoiture, { type: "controle_technique", valableJusquAu: echeancePassee })
+    await recalculerPapiersDans(ctx)
+    await recalculerPapiersDans(ctx)
+    const rappelsExpire = await compterRappel(papierExpire)
+    controle("un papier déjà expiré émet voiture.papier_expire_bientot une seule fois, même après deux ouvertures du QG", rappelsExpire === 1, `${rappelsExpire}`)
+    const actionsExpire = await proprietaire.coreAction.findMany({ where: { teamId: team.id, cleUnicite: `papier:${papierExpire}:${echeancePassee}` } })
+    controle("un papier déjà expiré lève une seule action, titrée « expiré depuis le »", actionsExpire.length === 1 && actionsExpire[0].titre.includes("expiré depuis le"), `${actionsExpire.length}`)
+
+    // Fiches de réglage (brief 3.3) : un champ essentiel ne se masque pas ; une fiche se crée, et sert de départ.
+    const essentielRefuse = await voiture.masquerChampsDans(ctx, ["pression_froid_avg"]).then(
+      () => false,
+      () => true,
+    )
+    controle("un champ essentiel ne peut pas être masqué", essentielRefuse)
+    await voiture.masquerChampsDans(ctx, ["rapport_pont"])
+    const fichePont = await voiture.creerReglageDans(ctx, vehiculeVoiture, { date: jourDeParis(new Date()), valeurs: { pression_froid_avg: 2.1, rapport_pont: 4.3 }, note: 4 })
+    const relueFiche = await proprietaire.voitureSetup.findFirst({ where: { id: fichePont } })
+    controle("la fiche de réglage garde sa note et ses valeurs", relueFiche?.note === 4 && (relueFiche?.valeurs as Record<string, unknown>)?.pression_froid_avg === 2.1)
+    const depart = await voiture.valeursDeDepartDans(ctx, vehiculeVoiture, null)
+    controle("la dernière fiche sert de départ à la suivante", depart.pression_froid_avg === 2.1)
+    await voiture.masquerChampsDans(ctx, [])
+
+    // Widgets de Voiture (brief 3.3, section 8) : lus en base. Le premier papier à traiter est expiré (il passe
+    // avant les papiers à renouveler) ; les emplacements libres se comptent sur les véhicules actifs.
+    const widgetsVoiture = await import("../src/apps/voiture/widgets-serveur")
+    const { SEUIL_RENOUVELLEMENT_JOURS } = await import("../src/apps/voiture/regles")
+    const maintenantWidget = new Date()
+    const seuilPapiers = new Date(`${jourDeParis(maintenantWidget)}T00:00:00Z`)
+    seuilPapiers.setUTCDate(seuilPapiers.getUTCDate() + SEUIL_RENOUVELLEMENT_JOURS)
+    const attendusPapiers = await proprietaire.voiturePaper.count({
+      where: { teamId: team.id, deletedAt: null, vehicle: { actif: true, deletedAt: null }, valableJusquAu: { not: null, lte: seuilPapiers } },
+    })
+    const widgetPapiers = await widgetsVoiture.widgetPapiersARenouvelerDans(ctx, maintenantWidget)
+    controle("le widget papiers compte les papiers à renouveler ou expirés en base", widgetPapiers.nombre === attendusPapiers && attendusPapiers >= 1, `${widgetPapiers.nombre}/${attendusPapiers}`)
+    controle("le widget papiers désigne d'abord un papier expiré", widgetPapiers.premier?.statut === "expire")
+    const widgetEmplacements = await widgetsVoiture.widgetEmplacementsLibresDans(ctx)
+    const attendusLibres = await proprietaire.voitureSlot.count({ where: { teamId: team.id, deletedAt: null, statut: "libre", vehicle: { actif: true, deletedAt: null } } })
+    controle("le widget emplacements libres compte tous les véhicules actifs", widgetEmplacements.nombre === attendusLibres && attendusLibres > 0, `${widgetEmplacements.nombre}/${attendusLibres}`)
+
+    // 12. Partenaires (tâche 3.5) : signature, avancement, fin de convention, retard et relance, un seul
+    //     événement ou une seule tâche à chaque fois, même après deux ouvertures du QG.
+    const partenaires = await import("../src/apps/partenaires/services-serveur")
+    const { cleContrepartieEnRetard } = await import("../src/apps/partenaires/charges")
+    const { jourParis } = await import("../src/apps/partenaires/regles")
+    const saisonPartenaires = randomUUID()
+    await proprietaire.coreSeason.create({
+      data: { id: saisonPartenaires, teamId: team.id, annee: 2041, nom: "Saison 2041", dateDebut: new Date("2041-01-01"), dateFin: new Date("2041-12-31") },
+    })
+    const compterEvenements = async (nom: string, champ: string, valeur: string) =>
+      (await proprietaire.coreDomainEvent.findMany({ where: { teamId: team.id, nom } })).filter(
+        (e) => (e.donnees as Record<string, unknown>)[champ] === valeur,
+      ).length
+
+    // Deux lectures simultanées sur une team neuve (brief 3.6, point 0.1.1) : une seule copie du modèle,
+    // une seule ligne par clé dans la liste de base.
+    // Le modèle copié est le modèle par défaut courant (version 2, brief 3.7 point 0) : sa clé suit la constante.
+    const { CATALOGUE_DEFAUT_V1 } = await import("../src/apps/partenaires/catalogue-defaut")
+    const { MODELE_DEFAUT_V2 } = await import("../src/apps/partenaires/modele-defaut")
+    await Promise.all([partenaires.lireModelesDans(ctx), partenaires.lireModelesDans(ctx), partenaires.lireCatalogueDans(ctx), partenaires.lireCatalogueDans(ctx)])
+    const copiesModele = await proprietaire.partenairesTemplate.count({ where: { teamId: team.id, sourceCle: MODELE_DEFAUT_V2.sourceCle } })
+    const copiesCatalogue = await proprietaire.partenairesBenefitCatalog.count({ where: { teamId: team.id, sourceCle: { startsWith: "defaut_v1:" } } })
+    controle("copie à la volée : un seul modèle après deux lectures simultanées", copiesModele === 1, `${copiesModele}`)
+    controle("copie à la volée : une seule liste de base après deux lectures simultanées", copiesCatalogue === CATALOGUE_DEFAUT_V1.length, `${copiesCatalogue}`)
+
+    const partenaireId = await partenaires.creerProspectDans(ctx, { entreprise: `Garage Verif ${suffixe}`, contact: { prenom: "Ana", nom: "Verif" } })
+    const [modele] = await partenaires.lireModelesDans(ctx)
+    const conventionId = await partenaires.creerConventionDans(ctx, {
+      partnerId: partenaireId,
+      templateId: modele.id,
+      seasonId: saisonPartenaires,
+      dateDebut: "2041-01-01",
+      dateFin: "2041-12-31",
+    })
+    const logoId = await partenaires.ajouterContrepartieDans(ctx, conventionId, { libelle: "Logo sur la voiture", type: "logo_voiture", quantitePromise: 1 })
+    await partenaires.modifierContrepartieDans(ctx, logoId, { slotId: randomUUID(), slotNom: "Portière droite" })
+    const publicationId = await partenaires.ajouterContrepartieDans(ctx, conventionId, { libelle: "Publication", type: "publication_reseaux", quantitePromise: 2 })
+    await partenaires.modifierContrepartieDans(ctx, publicationId, { echeance: "2026-01-15" })
+
+    await partenaires.marquerEnvoyeeDans(ctx, conventionId)
+    await partenaires.marquerSigneeDans(ctx, conventionId, { signeeLe: "2041-01-01", signataires: "Jo Koehling ; Ana Verif" })
+    const signees = await proprietaire.coreDomainEvent.findMany({ where: { teamId: team.id, nom: "partenaires.convention_signee" } })
+    const signee = signees.find((e) => (e.donnees as Record<string, unknown>).agreementId === conventionId)
+    const contrepartiesSignee = (signee?.donnees as { contreparties?: Array<{ slotNom: string | null }> } | undefined)?.contreparties ?? []
+    controle(
+      "marquer signée émet convention_signee avec la contrepartie logo et son emplacement",
+      contrepartiesSignee.length === 1 && contrepartiesSignee[0].slotNom === "Portière droite",
+      `contreparties : ${contrepartiesSignee.length}`,
+    )
+    const partenaireSigne = await proprietaire.partenairesPartner.findUnique({ where: { id: partenaireId } })
+    controle("la signature fait passer le partenaire au statut partenaire", partenaireSigne?.statut === "partenaire", partenaireSigne?.statut)
+
+    // Dates en jours (brief 3.6, point 0.1.2) : l'avenant et la preuve relisent le jour saisi, à minuit UTC.
+    await partenaires.ajouterAvenantDans(ctx, conventionId, { date: "2041-03-01", motif: "Test de date", changements: "Aucun" })
+    const avenant = await proprietaire.partenairesAmendment.findFirst({ where: { agreementId: conventionId, deletedAt: null } })
+    controle("avenant : la date est un jour, lue sans heure", avenant?.date.toISOString().slice(0, 10) === "2041-03-01", avenant?.date.toISOString())
+    await partenaires.ajouterPreuveDans(ctx, logoId, { date: "2041-03-02", type: "lien", lien: "https://exemple.invalid/preuve", commentaire: "Test", visiblePartenaire: true })
+    const preuve = await proprietaire.partenairesProof.findFirst({ where: { benefitId: logoId, deletedAt: null } })
+    controle("preuve : la date est un jour, lue sans heure", preuve?.date.toISOString().slice(0, 10) === "2041-03-02", preuve?.date.toISOString())
+
+    await partenaires.saisirAvancementDans(ctx, logoId, 1)
+    await partenaires.saisirAvancementDans(ctx, logoId, 1)
+    controle(
+      "saisir la quantité promise émet contrepartie_tenue une seule fois",
+      (await compterEvenements("partenaires.contrepartie_tenue", "benefitId", logoId)) === 1,
+    )
+
+    // Dates passées : signée → en cours → terminée au recalcul, en une fois ; l'événement part une seule fois.
+    await proprietaire.partenairesAgreement.update({ where: { id: conventionId }, data: { dateDebut: new Date("2026-01-01"), dateFin: new Date("2026-06-30") } })
+    await partenaires.recalculerPourQg(ctx, "gestion")
+    await partenaires.recalculerPourQg(ctx, "gestion")
+    const conventionTerminee = await proprietaire.partenairesAgreement.findUnique({ where: { id: conventionId } })
+    controle("le recalcul fait passer la convention à terminée", conventionTerminee?.statut === "terminee", conventionTerminee?.statut)
+    controle(
+      "convention_terminee est émis une seule fois, malgré deux ouvertures du QG",
+      (await compterEvenements("partenaires.convention_terminee", "agreementId", conventionId)) === 1,
+    )
+
+    // Contrepartie en retard (échéance passée, non tenue) : un événement et une action, une seule fois.
+    controle(
+      "contrepartie en retard : un seul événement après deux ouvertures du QG",
+      (await compterEvenements("partenaires.contrepartie_en_retard", "benefitId", publicationId)) === 1,
+    )
+    const actionsRetard = await proprietaire.coreAction.count({ where: { teamId: team.id, cleUnicite: cleContrepartieEnRetard(publicationId, "2026-01-15") } })
+    controle("contrepartie en retard : une seule action levée", actionsRetard === 1, String(actionsRetard))
+
+    // Relance due aujourd'hui : un événement et une seule tâche, même après deux ouvertures du QG.
+    const prospectRelance = await partenaires.creerProspectDans(ctx, { entreprise: `Relance Verif ${suffixe}` })
+    await partenaires.modifierPartenaireDans(ctx, prospectRelance, { prochaineRelance: jourParis(new Date()) })
+    await partenaires.recalculerPourQg(ctx, "gestion")
+    await partenaires.recalculerPourQg(ctx, "gestion")
+    controle("relance due : un seul événement relance_due", (await compterEvenements("partenaires.relance_due", "partnerId", prospectRelance)) === 1)
+    const taches = await proprietaire.coreTask.count({ where: { teamId: team.id, app: "partenaires", ficheId: prospectRelance } })
+    controle("relance due : une seule tâche core_task", taches === 1, String(taches))
+
+    // 13. Liaisons du lot 3 (brief 3.8, §2 à §7). Chaque liaison : une seule proposition ou action par clé, et un
+    //     événement rejoué deux fois ne crée rien de plus. L'ordre suit la vie d'une convention : signée, pose, épreuve,
+    //     encaissement, puis résiliation.
+    const budgetLiaison = await import("../src/apps/budget/services-serveur")
+    const voitureLiaison = await import("../src/apps/voiture/services-serveur")
+    const compterActions = (cle: string) => proprietaire.coreAction.count({ where: { teamId: team.id, cleUnicite: cle } })
+    const evenementsDe = async (nom: string, champ: string, valeur: string) =>
+      (await proprietaire.coreDomainEvent.findMany({ where: { teamId: team.id, nom } })).filter((e) => (e.donnees as Record<string, unknown>)[champ] === valeur)
+
+    const vehiculeLiaison = await voitureLiaison.creerVehiculeDans(ctx, { nom: `Liaison ${suffixe}`, type: "course" })
+    const emplacementLiaison = await voitureLiaison.ajouterEmplacementDans(ctx, vehiculeLiaison, { nom: "Portière", vue: "droite", largeurCm: 20, hauteurCm: 10 })
+    const prospectLiaison = await partenaires.creerProspectDans(ctx, { entreprise: `Liaison Verif ${suffixe}`, contact: { prenom: "Lia", nom: "Verif" } })
+    const conventionLiaison = await partenaires.creerConventionDans(ctx, {
+      partnerId: prospectLiaison,
+      templateId: (await partenaires.lireModelesDans(ctx))[0].id,
+      seasonId: saisonPartenaires,
+      dateDebut: "2041-01-01",
+      dateFin: "2041-12-31",
+    })
+    await partenaires.modifierConventionDans(ctx, conventionLiaison, {
+      apportFinancierCentimes: 150000,
+      echeancier: [
+        { date: "2041-02-01", montantCentimes: 75000 },
+        { date: "2041-06-01", montantCentimes: 75000 },
+      ],
+    })
+    const logoLiaison = await partenaires.ajouterContrepartieDans(ctx, conventionLiaison, { libelle: "Logo sur la Portière", type: "logo_voiture", quantitePromise: 1 })
+    await partenaires.modifierContrepartieDans(ctx, logoLiaison, { slotId: emplacementLiaison, slotNom: "Portière" })
+    const publicationLiaison = await partenaires.ajouterContrepartieDans(ctx, conventionLiaison, { libelle: "Publications", type: "publication_reseaux", quantitePromise: 2 })
+    await partenaires.marquerEnvoyeeDans(ctx, conventionLiaison)
+    await partenaires.marquerSigneeDans(ctx, conventionLiaison, { signeeLe: "2041-01-02", signataires: "Jo ; Lia" })
+
+    // §2.1 : une proposition de recette par versement, datée du versement, référencée par versement.
+    const propositionsLiaison = await proprietaire.budgetSuggestion.findMany({
+      where: { teamId: team.id, origineRef: { startsWith: `partenaires:${conventionLiaison}:` } },
+      orderBy: { origineRef: "asc" },
+    })
+    controle("convention signée : une proposition de recette par versement", propositionsLiaison.length === 2, String(propositionsLiaison.length))
+    controle(
+      "chaque proposition porte la date de son versement et sa référence",
+      propositionsLiaison[0]?.date?.toISOString().slice(0, 10) === "2041-02-01" &&
+        propositionsLiaison[1]?.date?.toISOString().slice(0, 10) === "2041-06-01" &&
+        propositionsLiaison[0]?.origineRef === `partenaires:${conventionLiaison}:1`,
+    )
+
+    // §2.2 : une seule action « Réserver » pour la contrepartie logo, même clé.
+    controle("convention signée : une seule action « Réserver » pour la contrepartie logo", (await compterActions(`reserver:${logoLiaison}`)) === 1)
+
+    // Rejeu : la même convention signée, deux fois de plus : ni proposition ni action en plus.
+    const evenementSignee = (await evenementsDe("partenaires.convention_signee", "agreementId", conventionLiaison)).at(-1)
+    if (!evenementSignee) throw new EcartBus("convention_signee introuvable pour le rejeu")
+    await emettre(ctx, "partenaires.convention_signee", evenementSignee.donnees as Record<string, unknown>)
+    await emettre(ctx, "partenaires.convention_signee", evenementSignee.donnees as Record<string, unknown>)
+    controle(
+      "convention rejouée deux fois : toujours deux propositions",
+      (await proprietaire.budgetSuggestion.count({ where: { teamId: team.id, origineRef: { startsWith: `partenaires:${conventionLiaison}:` } } })) === 2,
+    )
+    controle("convention rejouée deux fois : toujours une action « Réserver »", (await compterActions(`reserver:${logoLiaison}`)) === 1)
+
+    // §4 : pose du logo sans photo : une seule action « Marquer le logo comme posé » pour l'occupation.
+    await voitureLiaison.reserverEmplacementDans(ctx, emplacementLiaison, { partenaireId: prospectLiaison, partenaireNom: `Liaison Verif ${suffixe}`, du: "2041-01-01", au: "2041-12-31" })
+    const occupationLiaison = await proprietaire.voitureSlotAssignment.findFirst({ where: { teamId: team.id, slotId: emplacementLiaison, deletedAt: null } })
+    if (!occupationLiaison) throw new EcartBus("occupation de la Portière introuvable après réservation")
+    await voitureLiaison.poserLogoDans(ctx, occupationLiaison.id, { poseLe: "2041-01-03", photoPoseFileId: null })
+    controle("logo posé : une seule action de preuve pour l'occupation", (await compterActions(`preuve_pose:${occupationLiaison.id}`)) === 1)
+    const evenementPose = (await evenementsDe("voiture.logo_pose", "assignmentId", occupationLiaison.id)).at(-1)
+    if (!evenementPose) throw new EcartBus("voiture.logo_pose introuvable")
+    await emettre(ctx, "voiture.logo_pose", evenementPose.donnees as Record<string, unknown>)
+    controle("logo posé rejoué : toujours une seule action de preuve", (await compterActions(`preuve_pose:${occupationLiaison.id}`)) === 1)
+
+    // §6 : épreuve terminée : une action par personne qui suit le partenaire, même après un rejeu.
+    const personneLiaison = await proprietaire.corePerson.create({ data: { id: randomUUID(), teamId: team.id, prenom: "Lia", nom: "Suiveuse" } })
+    await proprietaire.coreMembership.update({ where: { id: adhesion }, data: { personId: personneLiaison.id } })
+    await proprietaire.partenairesPartner.update({ where: { id: prospectLiaison }, data: { suiviParPersonId: personneLiaison.id } })
+    const epreuveLiaison = await proprietaire.coreEvent.create({
+      data: {
+        id: randomUUID(),
+        teamId: team.id,
+        seasonId: saisonPartenaires,
+        type: "rallye",
+        nom: "Rallye de liaison",
+        dateDebut: new Date("2041-03-01"),
+        dateFin: new Date("2041-03-02"),
+      },
+    })
+    await proprietaire.partenairesBenefit.update({ where: { id: publicationLiaison }, data: { eventIds: [epreuveLiaison.id] } })
+    await emettre(ctx, "saison.epreuve_terminee", { eventId: epreuveLiaison.id, seasonId: saisonPartenaires })
+    await emettre(ctx, "saison.epreuve_terminee", { eventId: epreuveLiaison.id, seasonId: saisonPartenaires })
+    controle(
+      "épreuve terminée rejouée : une seule action « Publications promises » par personne",
+      (await compterActions(`publications:${epreuveLiaison.id}:${personneLiaison.id}`)) === 1,
+    )
+
+    // §7 : encaissement du premier versement, puis du second : l'apport passe de « partiel » à « oui ».
+    const caisseLiaison = await proprietaire.budgetPayer.findFirst({ where: { teamId: team.id, type: "caisse_team", deletedAt: null } })
+    if (!caisseLiaison) throw new EcartBus("caisse de la team introuvable")
+    for (let index = 0; index < propositionsLiaison.length; index++) {
+      const proposition = propositionsLiaison[index]
+      const mouvementId = await budgetLiaison.confirmerSuggestionDans(ctx, proposition.id)
+      await budgetLiaison.encaisserRecetteDans(ctx, { recetteId: mouvementId, payerId: caisseLiaison.id, date: index === 0 ? "2041-02-01" : "2041-06-01" })
+      const apport = await proprietaire.partenairesAgreement.findUnique({ where: { id: conventionLiaison }, select: { apportRecu: true } })
+      controle(
+        index === 0 ? "premier versement encaissé : apport partiel" : "second versement encaissé : apport reçu",
+        apport?.apportRecu === (index === 0 ? "partiel" : "oui"),
+        apport?.apportRecu,
+      )
+    }
+
+    // §3 : résiliation : une seule action « Libérer » pour l'occupation du partenaire, avec le motif et l'emplacement.
+    await partenaires.resilierDans(ctx, conventionLiaison, { motif: "Test de résiliation" })
+    const evenementTerminee = (await evenementsDe("partenaires.convention_terminee", "agreementId", conventionLiaison)).at(-1)
+    const donneesTerminee = evenementTerminee?.donnees as { motif?: string; slotIds?: string[] } | undefined
+    controle(
+      "résiliation : convention_terminee porte le motif et l'emplacement libéré",
+      donneesTerminee?.motif === "resiliee" && (donneesTerminee?.slotIds ?? []).includes(emplacementLiaison),
+      JSON.stringify(donneesTerminee),
+    )
+    controle("résiliation : une seule action « Libérer » pour l'occupation", (await compterActions(`liberer:${occupationLiaison.id}`)) === 1)
+
+    console.log("\nLiaisons du lot 3 vérifiées : tous les contrôles passent.")
+
+    // 14. Contexte système (brief 3.9, §1) : un événement émis par un contexte système ne traite que lui-même. Une livraison
+    // de Budget laissée en attente par un membre reste en attente quand un message arrive depuis la page partenaire, puis
+    // part au prochain événement émis par un membre. Pour la laisser en attente, on émet normalement, puis on remet la
+    // livraison en attente avec le rôle propriétaire (simulation d'un traitement interrompu).
+    const idMembre = await emettre(ctx, "saison.engagement_paye", { demo: true })
+    const livraisonMembre = await proprietaire.coreEventDelivery.findFirstOrThrow({
+      where: { teamId: team.id, domainEventId: idMembre, appDestinataire: "budget" },
+    })
+    await proprietaire.coreEventDelivery.update({
+      where: { id: livraisonMembre.id },
+      data: { statut: "en_attente", traiteAt: null, derniereErreur: null, tentatives: 0 },
+    })
+
+    // Le message de la page partenaire, émis comme le fait l'action publique (actions-public.ts).
+    const contexteMessage = contexteSysteme(team.id, "page_partenaire")
+    await emettre(contexteMessage, "partenaires.action_requise", {
+      type: "message_partenaire",
+      cleUnicite: `message-bus:${suffixe}`,
+      titre: "Nouveau message de test",
+      contexte: "Message laissé depuis la page partenaire.",
+      ficheType: "partner",
+      ficheId: randomUUID(),
+      destinataires: { roles: ["responsable"] },
+      boutons: [{ cle: "vu", libelle: "Vu" }],
+      priorite: 3,
+    })
+    const apresMessage = await proprietaire.coreEventDelivery.findUnique({ where: { id: livraisonMembre.id } })
+    controle(
+      "contexte système : la livraison de Budget laissée par un membre reste en attente",
+      apresMessage?.statut === "en_attente",
+      JSON.stringify(apresMessage),
+    )
+
+    // Un événement émis par le contexte système vers un gestionnaire réservé aux utilisateurs reste en attente, avec son motif.
+    const idSysteme = await emettre(contexteMessage, "saison.engagement_paye", { demo: true })
+    const livraisonSysteme = await proprietaire.coreEventDelivery.findFirstOrThrow({
+      where: { teamId: team.id, domainEventId: idSysteme, appDestinataire: "budget" },
+    })
+    controle(
+      "contexte système : gestionnaire réservé aux utilisateurs, livraison en attente avec son motif",
+      livraisonSysteme.statut === "en_attente" && (livraisonSysteme.derniereErreur ?? "").includes("réservé aux utilisateurs"),
+      JSON.stringify(livraisonSysteme),
+    )
+
+    // Au prochain événement émis par un membre, les deux livraisons en attente sont traitées.
+    await emettre(ctx, "saison.engagement_paye", { demo: true })
+    const finale = await proprietaire.coreEventDelivery.findUnique({ where: { id: livraisonMembre.id } })
+    const finaleSysteme = await proprietaire.coreEventDelivery.findUnique({ where: { id: livraisonSysteme.id } })
+    controle(
+      "au prochain événement d'un membre, les livraisons de Budget laissées en attente sont traitées",
+      finale?.statut === "traite" && finaleSysteme?.statut === "traite",
+      `${finale?.statut} / ${finaleSysteme?.statut}`,
+    )
+
+    console.log("\nContexte système vérifié : tous les contrôles passent.")
+
     console.log("\nBus et boîte d'actions vérifiés : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
@@ -524,7 +879,28 @@ async function main() {
     await proprietaire.saisonRegistration.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreEventEntry.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreEvent.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voitureSlotAssignment.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voitureSetup.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voitureSetupTemplate.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voiturePaper.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voitureSlot.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voitureTeamPref.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.voitureVehicle.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreVehicle.deleteMany({ where: { teamId: team.id } })
+    // Partenaires : les enfants d'abord (RESTRICT), puis les contacts et les tâches.
+    await proprietaire.partenairesPortalMessage.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesPortalLink.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesProof.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesReport.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesBenefit.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesBenefitCatalog.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesAmendment.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesAgreement.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesTemplate.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesInteraction.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.partenairesPartner.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.coreTask.deleteMany({ where: { teamId: team.id } })
+    await proprietaire.coreContact.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreSeason.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreAction.deleteMany({ where: { teamId: team.id } })
     await proprietaire.coreDomainEvent.deleteMany({ where: { teamId: team.id } })

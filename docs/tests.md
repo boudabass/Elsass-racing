@@ -17,6 +17,18 @@ Scripts tsx qui se connectent à la base locale. Ils créent des données de tes
 
 Pré-requis : `pnpm db:up`, puis `pnpm db:deploy` si la base est neuve.
 
+## Vérifier sans saturer la mémoire
+
+Trois niveaux, du plus léger au plus lourd. On ne monte d'un niveau que si le précédent ne suffit pas.
+
+1. **Sans serveur** (par défaut, après chaque tâche) : `pnpm typecheck`, `pnpm test`, `pnpm db:verifier-rls`, `pnpm db:verifier-bus`, `pnpm db:verifier-synchro`.
+2. **Sur l'app dev déployée** : après le push sur dev, Coolify construit l'app. On contrôle en HTTP ou à la main sur https://elsass-racing-dev.theelsassisch.com. Rien à lancer en local.
+3. **E2E local ciblé** : `pnpm test:e2e e2e/<fichier>.spec.ts`, seulement les fichiers touchés. La suite complète (`pnpm test:e2e`) est réservée à l'orchestrateur, avant une fusion dans main.
+
+Règles pour l'opérateur :
+- Une seule passe à la fois. Avant de lancer un build ou un e2e, vérifier que le port 3101 est libre (Playwright refuse de démarrer s'il est occupé : ne pas relancer, nettoyer).
+- À la fin de chaque tâche, et après tout échec ou interruption : `pnpm nettoyer:serveurs`. Il arrête le port 3101, les `next build`, `playwright` et les Chromium de Playwright, et épargne le serveur de John (port 3000).
+
 ## Bout en bout (Playwright)
 
 - Commande : `pnpm test:e2e` (`playwright test`). Premier passage sur un poste : `pnpm exec playwright install chromium`.
@@ -80,3 +92,79 @@ pnpm db:verifier-rls
 pnpm db:verifier-bus
 pnpm test:e2e
 ```
+
+## Journal serveur pendant l'e2e : connexions coupées par le client (brief 3.8, point 0.6)
+
+Pendant `pnpm test:e2e`, le journal du serveur (`[WebServer]`) reçoit deux sortes de lignes pour une requête que le client
+a coupée : `[Error: aborted] { code: 'ECONNRESET' }`, puis `uncaughtException: [Error: aborted]`. Elles viennent de Node et
+de Next, pas du code de l'app : Next installe un `process.on('uncaughtException')` qui les journalise et laisse le serveur
+tourner (`node_modules/next/dist/server/next-server.js`).
+
+**Ce qui est vérifié** (serveur de production local, port distinct, `.next-e2e-prod`) :
+
+| Expérience | Résultat |
+|---|---|
+| 5 GET complets (`/api/sante`, `/connexion`) | 0 ligne |
+| 40 GET coupés, avant ou après les en-têtes (`/api/sante`, `/connexion`) | 0 ligne |
+| 3 chargements Chromium complets puis fermés, et 6 navigations coupées (page fermée pendant le chargement, navigation suivante) | 0 ligne |
+| 5 réponses en flux coupées (un gros fragment JavaScript statique) | 0 ligne |
+| 5 POST à corps incomplet vers `/api/synchro/pousser` | 10 lignes `ECONNRESET` (deux par requête), 0 `uncaughtException` |
+| 5 POST à corps incomplet vers `/connexion` | 0 ligne |
+
+Dans la route `/api/synchro/pousser`, la lecture du corps échoue déjà proprement (`requete.json().catch(() => null)`, réponse
+400) : l'erreur `aborted` est donc émise par Node avant que l'app ne réponde, et Next la journalise. Le serveur répond
+ensuite normalement (`/api/sante` : 200 après chaque série).
+
+**Ce qui n'est pas expliqué** : les lignes `uncaughtException` du run complet (environ 300) n'ont pas été reproduites
+par ces expériences. Elles restent comptées à part. Pas de preuve qu'elles viennent d'un défaut de l'app ; leur source
+exacte n'est pas identifiée.
+
+**Mise à jour (run complet du 18/10/2026, 116 tests, tous verts)** : 654 lignes `ECONNRESET` et 327 `uncaughtException`.
+Une cause est maintenant prouvée pour une partie d'entre elles : dans `e2e/lot3-parcours.spec.ts`, un clic « Ajouter » dans
+la boîte d'actions suivi d'une navigation immédiate a coupé la requête de décision. Côté serveur, la requête est
+`aborted` ; la décision n'a jamais été enregistrée (aucun `core.action_decidee`). Le test attend désormais que le réseau
+soit au repos avant de naviguer. Les autres lignes restent non expliquées.
+
+**Consigne** : un simple affichage de page ne produit aucune de ces lignes (expérience des 3 chargements complets, 0 ligne).
+Ne pas chercher à les supprimer dans l'app tant qu'elles ne viennent pas d'un défaut prouvé.
+
+## Connexions coupées : qui les coupe (brief 3.9, §7)
+
+Mesure sur `e2e/lot3-parcours.spec.ts` (1 test), serveur de test (`next start`, port 3101), avec un hook Node
+temporaire chargé par `NODE_OPTIONS` (fichier hors dépôt, rien de committé, aucun code de l'app modifié). Le hook note
+chaque requête à sa fermeture : méthode, chemin (jetons masqués), genre (page, RSC, prefetch, server action, API, fichier,
+statique), réponse entièrement écrite ou non, et chaque `uncaughtException`.
+
+| Run | Requêtes observées | Coupées | dont POST `/api/synchro/tirer` | dont préchargements RSC | `uncaughtException` |
+|---|---|---|---|---|---|
+| 1 | 1 059 | 26 | 23 | 3 | 23 |
+| 2 | 1 068 | 25 | 22 | 3 | 22 |
+
+Dans le run 2, chaque `uncaughtException` tombe à ±1 ms de la fermeture d'un POST `/api/synchro/tirer` coupé : 22 sur 22.
+Aucune exception n'est liée à un préchargement coupé. Aucune server action et aucun envoi ou téléchargement de fichier
+n'a été coupé (0 dans les deux runs). Les 3 préchargements coupés sont des GET RSC (`/apps/partenaires`, `/apps/saison`,
+`/apps/checklist`) quittés par la navigation suivante. Aucun POST `/api/synchro/pousser` coupé dans ce spec.
+
+**Cause côté client** : le moteur de synchro (`src/core/synchro/client/moteur.ts`) interroge `/api/synchro/tirer` avec un
+`setInterval` et tire page après page. `appeler()` n'a pas de `AbortController`. Quand le test navigue pendant un tirage,
+le navigateur annule la requête en vol ; le serveur écrit quand même sa réponse, qui n'arrive jamais. Node émet alors
+`aborted`, et Next journalise `ECONNRESET` puis `uncaughtException`.
+
+**Effet sur les données : aucun aujourd'hui.** `memoriserSynchro` écrit le curseur de l'appareil avant d'envoyer la
+réponse, mais `coreSyncCursor` n'est lu nulle part dans `src` (écriture seule). Le client renvoie toujours son propre
+curseur : un tirage coupé est refait au tirage suivant, sans perte. À revoir si l'on lit un jour ce curseur côté serveur.
+
+Pas de correction dans l'app pour ce lot (consigne : ne pas supprimer les lignes sans défaut prouvé). Le run complet de
+§8 est repris avec le même hook pour classer ses propres coupures.
+
+## Suite complète du brief 3.9 (§8)
+
+- `pnpm typecheck` : sans erreur. `pnpm test` (vitest) : 594/594, 69 fichiers. `db:verifier-rls`, `db:verifier-bus` et `db:verifier-synchro` : tous les contrôles passent. Build isolé (`NEXT_DIST_DIR=.next-build`) : vert.
+- `pnpm test:e2e` complet (`DEBUG=pw:webserver`, journal serveur dans un fichier) : **119 passed** (12,6 min). Les 3 tests de `e2e/lot3-verifications.spec.ts` (historique Voiture, papiers, résultat annulé) sont inclus ; `e2e/lot3-parcours.spec.ts` couvre la fonction de l'interlocuteur (étape 3) et le bouton « Encaisser » (étape 8).
+- Journal serveur de ce run : P2003 0, P2025 0, `reading 'id'` 0, ErreurAcces 0, TypeError 0. ECONNRESET 686, `uncaughtException` 343 (3.8 : 654 et 327). Jetons de 43 caractères : **1**. C'est l'URL `/connexion/lien?t=…` d'un mail de connexion de test, que le build de test écrit dans la console (`envoyerMail`, `src/core/auth/jetons-serveur.ts`). Le compteur attendu est 0 : à traiter, pas masqué.
+- Coupures côté serveur pendant ce run (hook Node temporaire hors dépôt, même méthode qu'au §7) : 16 996 requêtes observées, 457 coupées.
+  - 343 POST `/api/synchro/tirer` coupés, pour 343 `uncaughtException` : même nombre. Le rapprochement à la milliseconde n'a été vérifié que sur `lot3-parcours` (§7) ; il n'est pas refait ici.
+  - **10 server actions coupées** (POST multipart, réponse non écrite) : `/apps/budget` (4), `/qg` (2), `/apps/voiture/vehicules/<id>` (4). **Escaladé à l'orchestrateur, non corrigé** : on ne sait pas, à partir du journal, si l'action a été exécutée côté base avant la coupure.
+  - 0 envoi ou téléchargement de fichier coupé.
+  - 114 autres coupures : 65 préchargements RSC, 5 requêtes RSC, 34 GET de navigation, 10 server actions (ci-dessus).
+- Captures : `lot3-budget-encaisser-1440x900.png`, `lot3-budget-recette-encaissee-1440x900.png` (1440) et `…-360x740.png` (360), `lot3-fiche-qualite-1440x900.png`, `lot3-convention-apport-partiel-1440x900.png` (1440), `lot3-convention-actions-360x740.png` (360). Captures régénérées par le run et non liées au lot : restaurées à leur version commitée. **Non fait** : la capture de la boîte d'actions avec un groupe de deux éléments (brief §8).

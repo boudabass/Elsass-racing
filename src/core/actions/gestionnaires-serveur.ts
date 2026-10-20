@@ -3,11 +3,11 @@
 
 import { z } from "zod"
 
-import { prismaPourTeam } from "@/lib/prisma"
 import { newId } from "@/core/ids"
 import { NIVEAUX } from "@/core/droits/niveaux"
-import { enregistrerGestionnaire, type EvenementRecu } from "@/core/evenements/gestionnaires"
-import type { ContexteTeam } from "@/core/contexte"
+import { enregistrerGestionnaireTousContextes, type EvenementRecu } from "@/core/evenements/gestionnaires"
+import type { ContexteEvenement } from "@/core/contexte"
+import { clientPourContexte } from "@/core/client-contexte-serveur"
 
 import type { Prisma } from "@/generated/prisma/client"
 
@@ -50,9 +50,9 @@ function appDeLEvenement(nom: string): string {
   return nom.split(".")[0]
 }
 
-async function actionRequise(ctx: ContexteTeam, evenement: EvenementRecu): Promise<void> {
+async function actionRequise(ctx: ContexteEvenement, evenement: EvenementRecu): Promise<void> {
   const donnees = schemaActionRequise.parse(evenement.donnees)
-  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const client = clientPourContexte(ctx)
   const appOrigine = appDeLEvenement(evenement.nom)
   const niveauRequis = donnees.niveauRequis ?? "ecriture"
   const terrain = donnees.terrain ?? false
@@ -99,14 +99,15 @@ async function actionRequise(ctx: ContexteTeam, evenement: EvenementRecu): Promi
   })
 }
 
-async function actionLevee(ctx: ContexteTeam, evenement: EvenementRecu): Promise<void> {
+async function actionLevee(ctx: ContexteEvenement, evenement: EvenementRecu): Promise<void> {
   const donnees = schemaActionLevee.parse(evenement.donnees)
-  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const client = clientPourContexte(ctx)
   await client.coreAction.updateMany({
     where: { teamId: ctx.teamId, cleUnicite: donnees.cleUnicite, statut: "en_attente" },
     data: { statut: "annulee" },
   })
 }
 
-enregistrerGestionnaire("core", "*.action_requise", actionRequise)
-enregistrerGestionnaire("core", "*.action_levee", actionLevee)
+// Acceptent un contexte système : la page partenaire lève une action sans utilisateur (brief 3.8, point 0.3).
+enregistrerGestionnaireTousContextes("core", "*.action_requise", actionRequise)
+enregistrerGestionnaireTousContextes("core", "*.action_levee", actionLevee)

@@ -44,7 +44,8 @@ test("liste de John : débrief saisi hors ligne par l'équipage, part au retour 
   await connecterParLien(page, equipe)
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Saison" }).click()
-  await page.getByRole("button", { name: "Ouvrir la saison" }).click()
+  await page.getByRole("button", { name: "Nouvelle saison", exact: true }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Ouvrir la saison", exact: true }).click()
   await page.getByRole("link", { name: "Ajouter une épreuve" }).click()
   await page.getByLabel("Nom de l'épreuve").fill("Rallye débrief John")
   await page.getByLabel("Premier jour").fill(`${ANNEE}-01-10`)
@@ -52,27 +53,31 @@ test("liste de John : débrief saisi hors ligne par l'équipage, part au retour 
   await page.getByRole("button", { name: "Ajouter l'épreuve" }).click()
   await expect(page).toHaveURL(/\/apps\/saison\/epreuves\/[0-9a-f-]+/)
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo debrief John" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo debrief John" })
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await page.getByRole("link", { name: /Saxo debrief John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
   const adresse = page.url().split("?")[0]
   const entryId = adresse.split("/").pop() ?? ""
+  await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
   await page.getByLabel("Montant payé (€)").fill("450")
-  await page.getByRole("button", { name: "Enregistrer le paiement" }).click()
-  await expect(page.getByText("Enregistré.")).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 
   // Équipier : la fiche est mise en cache en ligne, puis le débrief s'écrit sans réseau.
   const eq = await connecterMembre(browser, equipier)
   try {
     await attendreServiceWorker(eq.page)
     await eq.page.goto(adresse)
-    await expect(eq.page.getByRole("button", { name: "Ressenti 3 sur 5" })).toBeVisible()
+    await expect(eq.page.getByRole("button", { name: /^(Ajouter|Modifier) mon débrief$/ })).toBeVisible()
 
     await eq.contexte.setOffline(true)
     await eq.page.goto(adresse)
+    await eq.page.getByRole("button", { name: /^(Ajouter|Modifier) mon débrief$/ }).click()
     await eq.page.getByLabel("Points positifs").fill("Bon départ")
     await eq.page.getByRole("button", { name: "Ressenti 3 sur 5" }).click()
+    await eq.page.getByRole("dialog").getByRole("button", { name: "Enregistrer le débrief", exact: true }).click()
     await expect(eq.page.getByText("Enregistré. Le débrief part")).toBeVisible()
     expect(await debriefsEnBase(equipe, entryId)).toBe(0)
 

@@ -82,6 +82,8 @@ const schemaDepense = z
     fournisseurContactId: identifiant.nullable().optional(),
     vehicleId: identifiant.nullable().optional(),
     entryId: identifiant.nullable().optional(),
+    // Photo du ticket (brief 3.2) : absent = inchangé à la modification.
+    justificatifFileId: identifiant.nullable().optional(),
   })
   .strict()
 
@@ -149,6 +151,10 @@ const schemaSuggestion = z
     // Personne désignée par l'événement (par exemple payeurPersonId de saison.engagement_paye) : son payeur
     // membre devient le payeur proposé. À défaut, la caisse de la team à la confirmation.
     payeurPersonId: identifiant.nullable().optional(),
+    // Date du mouvement (jour civil : le versement d'une convention) et référence d'origine. Une seule proposition
+    // par référence : une demande rejouée ne crée rien de plus (brief 3.8, §2.1).
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    origineRef: z.string().trim().min(1).max(200).nullable().optional(),
   })
   .strict()
 
@@ -423,7 +429,7 @@ export async function encaisserRecetteDans(ctx: ContexteTeam, entree: z.input<ty
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const recette = await client.budgetIncome.findFirst({
     where: { id: donnees.recetteId, teamId: ctx.teamId, deletedAt: null },
-    select: { id: true, statut: true, montant: true },
+    select: { id: true, statut: true, montant: true, origineRef: true },
   })
   if (!recette) refus("Recette introuvable dans cette team.")
   if (recette.statut === "encaissee") refus("Cette recette est déjà encaissée.")
@@ -436,7 +442,7 @@ export async function encaisserRecetteDans(ctx: ContexteTeam, entree: z.input<ty
     where: { id: recette.id, teamId: ctx.teamId },
     data: { statut: "encaissee", encaisseeLe: donnees.date ?? aujourdhui(), encaisseeSurPayerId: compte.id, rev: { increment: 1 }, updatedBy: ctx.userId },
   })
-  await emettre(ctx, "budget.recette_encaissee", { recetteId: recette.id, montant: recette.montant, payerId: compte.id })
+  await emettre(ctx, "budget.recette_encaissee", { recetteId: recette.id, montant: recette.montant, payerId: compte.id, origineRef: recette.origineRef })
 }
 
 // --- Remboursements -------------------------------------------------------------------------
@@ -593,6 +599,19 @@ export async function proposerMouvementDans(ctx: ContexteTeam, entree: EntreeSug
   // Une autre app peut proposer un mouvement avant que Budget n'ait été ouvert : on l'initialise d'abord.
   await initialiserSiBesoin(ctx)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  if (donnees.origineRef) {
+    // Même référence déjà proposée, confirmée ou ignorée : rien de nouveau, on rend la proposition existante.
+    const proposition = await client.budgetSuggestion.findFirst({
+      where: { teamId: ctx.teamId, origineRef: donnees.origineRef, deletedAt: null },
+      select: { id: true },
+    })
+    if (proposition) return proposition.id
+    const mouvement = await client.budgetIncome.findFirst({
+      where: { teamId: ctx.teamId, origineRef: donnees.origineRef, deletedAt: null },
+      select: { id: true },
+    })
+    if (mouvement) return mouvement.id
+  }
   const categorie = await client.budgetCategory.findFirst({
     where: { id: donnees.categoryId, teamId: ctx.teamId, sens: donnees.sens, active: true, deletedAt: null },
     select: { id: true },
@@ -615,6 +634,8 @@ export async function proposerMouvementDans(ctx: ContexteTeam, entree: EntreeSug
       libelle: donnees.libelle,
       eventId: lieu?.eventId ?? null,
       entryId: donnees.entryId ?? null,
+      date: donnees.date ? new Date(`${donnees.date}T00:00:00Z`) : null,
+      origineRef: donnees.origineRef ?? null,
       statut: "en_attente",
       payerId: payeurId,
       actionCle,
@@ -671,9 +692,13 @@ export async function confirmerSuggestionDans(ctx: ContexteTeam, id: string, mod
 
   const mouvementId = newId()
   // Une proposition venant de Saison garde l'engagement comme référence : saison:<entryId> (aucune boucle).
-  const origineRef = suggestion.appOrigine === "saison" && suggestion.entryId ? `saison:${suggestion.entryId}` : `${suggestion.appOrigine}:${suggestion.id}`
+  // Une proposition qui porte sa référence (versement d'une convention) la garde telle quelle.
+  const origineRef =
+    suggestion.origineRef ?? (suggestion.appOrigine === "saison" && suggestion.entryId ? `saison:${suggestion.entryId}` : `${suggestion.appOrigine}:${suggestion.id}`)
+  // Le mouvement prend la date proposée (versement) ; à défaut, aujourd'hui.
+  const dateMouvement = suggestion.date ?? aujourdhui()
   const lieu = await rattachement(client, ctx.teamId, suggestion.eventId)
-  const saisonId = lieu?.seasonId ?? (await saisonPourDate(client, ctx.teamId, aujourdhui()))
+  const saisonId = lieu?.seasonId ?? (await saisonPourDate(client, ctx.teamId, dateMouvement))
 
   if (suggestion.sens === "depense") {
     const caisse = await client.budgetPayer.findFirst({ where: { teamId: ctx.teamId, type: "caisse_team", actif: true, deletedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true } })
@@ -683,7 +708,7 @@ export async function confirmerSuggestionDans(ctx: ContexteTeam, id: string, mod
       data: {
         id: mouvementId,
         teamId: ctx.teamId,
-        date: aujourdhui(),
+        date: dateMouvement,
         montant: suggestion.montant,
         categoryId: categorieId,
         libelle: suggestion.libelle,
@@ -706,7 +731,7 @@ export async function confirmerSuggestionDans(ctx: ContexteTeam, id: string, mod
       data: {
         id: mouvementId,
         teamId: ctx.teamId,
-        date: aujourdhui(),
+        date: dateMouvement,
         montant: suggestion.montant,
         categoryId: categorieId,
         libelle: suggestion.libelle,
@@ -864,6 +889,7 @@ export async function modifierDepenseDans(ctx: ContexteTeam, id: string, entree:
         entryId: donnees.entryId ?? null,
         seasonId: saisonId,
         moyen: donnees.moyen ?? null,
+        justificatifFileId: donnees.justificatifFileId,
       },
       niveau,
     )

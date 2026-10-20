@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/budget/ecran"
@@ -23,9 +22,6 @@ export default async function PageNouvelleDepense({ searchParams }: { searchPara
 
   return (
     <section className="flex max-w-xl flex-col gap-6">
-      <Link href="/apps/budget" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
-        ← Mouvements
-      </Link>
       <h1 className="titre-rallye text-3xl">Nouvelle dépense</h1>
       <FormulaireDepense
         options={{

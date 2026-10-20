@@ -53,3 +53,6 @@ __pycache__/
 
 # Build de production des tests hors ligne (serveur 3101)
 /.next-e2e-prod/
+
+# Fichiers envoyés pendant les tests de bout en bout (vidé au démarrage des tests)
+/.e2e-stockage/

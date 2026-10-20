@@ -10,7 +10,11 @@ export const manifesteVoiture: ManifesteApp = {
   icone: "car",
   version: "0.1.0",
   requiert: [],
-  menu: [{ libelle: "Accueil", chemin: "/" }],
+  menu: [
+    { libelle: "Véhicules", chemin: "/" },
+    // Champs masqués de la fiche de réglage : réservés à la gestion.
+    { libelle: "Champs de réglage", chemin: "/champs", niveauMinimum: "gestion" },
+  ],
   widgets: [...WIDGETS.voiture],
   evenementsEmis: evenementsEmisPar("voiture"),
   evenementsEcoutes: evenementsEcoutesPar("voiture"),

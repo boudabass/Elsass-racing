@@ -288,8 +288,10 @@ test("boutons d'envoi, 1280 px : aucun ne dépasse 400 px sur les menus de Saiso
   await verifierBoutonsEtroits(page, "Réglages · Identité")
 })
 
-// Brief 2.16, point 1 : sous sm, le bouton d'envoi fait toute la largeur du formulaire (à 2 px près).
-test("boutons d'envoi, 360 px : « Ajouter la dépense » fait toute la largeur du formulaire, à 2 px près", async ({ page, equipe }) => {
+// Brief 2.16, point 1 : sous sm, la barre de page des formulaires de création tient toute la largeur de l'écran, et son
+// bouton principal est à droite, à 44 px de haut au moins. Le bouton est dans la barre fixe (FormulairePage), hors du
+// <form> : il le soumet par son attribut form, d'où le sélecteur sur la barre et non sur le formulaire.
+test("boutons d'envoi, 360 px : « Ajouter la dépense » est à droite d'une barre pleine largeur, à 44 px au moins", async ({ page, equipe }) => {
   await preparerSaison(equipe, SAISON)
   await connecterParLien(page, equipe)
   await page.setViewportSize({ width: 360, height: 740 })
@@ -297,11 +299,17 @@ test("boutons d'envoi, 360 px : « Ajouter la dépense » fait toute la largeur 
   await expect(page.getByLabel("Montant (€)")).toBeVisible()
 
   const bouton = page.getByRole("button", { name: "Ajouter la dépense", exact: true })
-  const formulaire = page.locator("main form", { has: bouton })
-  const largeurBouton = (await bouton.boundingBox())?.width ?? 0
-  const largeurFormulaire = (await formulaire.boundingBox())?.width ?? 0
-  expect(
-    Math.abs(largeurBouton - largeurFormulaire),
-    `Ajouter la dépense à 360 px : bouton ${largeurBouton} px, formulaire ${largeurFormulaire} px`,
-  ).toBeLessThanOrEqual(2)
+  const barre = page.locator("div.sticky", { has: bouton })
+  await expect(barre).toHaveCount(1)
+  const boiteBarre = await barre.boundingBox()
+  const boiteBouton = await bouton.boundingBox()
+  if (!boiteBarre || !boiteBouton) throw new Error("La barre ou le bouton Ajouter la dépense n'a pas de boîte à 360 px")
+
+  const milieuBarre = boiteBarre.x + boiteBarre.width / 2
+  expect(boiteBarre.width, `barre à 360 px : ${boiteBarre.width} px`).toBeGreaterThanOrEqual(360 - 2)
+  const milieuBouton = boiteBouton.x + boiteBouton.width / 2
+  expect(milieuBouton, `bouton à 360 px : milieu ${milieuBouton}, milieu de la barre ${milieuBarre}`).toBeGreaterThanOrEqual(milieuBarre)
+  expect(boiteBouton.x + boiteBouton.width, "bouton à 360 px : déborde à droite de la barre").toBeLessThanOrEqual(boiteBarre.x + boiteBarre.width + 1)
+  expect(boiteBouton.height, `bouton à 360 px : hauteur ${boiteBouton.height} px`).toBeGreaterThanOrEqual(44)
+  expect(boiteBouton.width, `bouton à 360 px : largeur ${boiteBouton.width} px`).toBeGreaterThanOrEqual(44)
 })

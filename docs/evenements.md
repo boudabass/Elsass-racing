@@ -57,6 +57,8 @@ Un événement `<app>.action_requise` est traité par le socle (`src/core/action
 
 ## Bouton « Prochaine étape »
 
+Le bouton flottant n'est plus affiché (brief 3.11, §9, 19/10) : ni sur ordinateur ni sur téléphone. La logique ci-dessous reste, pour les écrans qui s'en servent.
+
 `choisirProchaineEtape` (`src/core/actions/prochaine-etape.ts`), règles de l'article 960, section 5 :
 
 1. Les actions proposées sont celles du membre, non reportées, et en mode terrain seulement les actions `terrain`.
@@ -116,3 +118,26 @@ pnpm test
 - `budget.depense_creee` (Budget vers Saison) : Saison demande « marquer payé » pour une dépense d'engagement. Charge utile : `{ depenseId, montant, date, categoryId, categorieCle, payerId, personneId, eventId, seasonId, entryId, origineRef }`. `categorieCle` vaut `engagement` pour la catégorie d'engagement ; `origineRef` vaut `saison:<entryId>` pour une proposition venant de Saison.
 - Action `marquer_engagement_paye` (Saison) : `cleUnicite` `marquer_paye:<entryId>`, boutons `marquer_paye` et `ignorer`.
 - Budget émet `budget.depense_creee` par `emettreDepenseCreee` (une seule source, en ligne comme en synchro). Une modification ou une suppression émet `budget.solde_modifie`.
+
+## Liaisons du lot 3 (brief 3.8, §2 à §7)
+
+Chaque liaison a une clé d'unicité : un événement rejoué deux fois ne crée ni proposition ni action en plus (`scripts/verifier-bus.ts`, section 13).
+
+| Événement | Vers | Effet | Clé d'unicité | Charge lue |
+|---|---|---|---|---|
+| `partenaires.convention_signee` | Budget | une proposition de recette par versement (`partenaires:<agreementId>:<rang>`, datée du versement) | `origineRef` (dédoublonnage) | voir `chargeConventionSignee` (`src/apps/partenaires/charges.ts`) |
+| `partenaires.convention_signee` | Voiture | action « Réserver » pour chaque contrepartie logo | `reserver:<benefitId>` | voir `chargeConventionSignee` |
+| `partenaires.convention_terminee` | Voiture | action « Libérer » pour chaque occupation de logo | `liberer:<assignmentId>` | `agreementId`, `motif` (`terminee` ou `resiliee`), `slotIds` |
+| `voiture.logo_pose` | Partenaires | action « Ajouter la photo de pose comme preuve » (avec photo), ou « Marquer le logo comme posé » (sans photo) | `preuve_pose:<assignmentId>` | `assignmentId`, `partenaireId`, `poseLe`, `photoFileId` |
+| `voiture.emplacement_modifie` | Partenaires | renomme l'emplacement sur la contrepartie ; si l'emplacement n'existe plus, le lien est vidé, le nom passe à « (supprimé) » et une action « Compris » est proposée | `emplacement_supprime:<contrepartieId>` | `vehicleId`, `slotId` (sans `slotId`, rien ne se passe) |
+| `saison.epreuve_terminee` | Partenaires | action « Publications promises après <épreuve> » pour chaque personne qui suit un partenaire ayant des publications sur l'épreuve | `publications:<eventId>:<personneId>` | `eventId`, `seasonId` |
+| `saison.epreuve_terminee` | Voiture | aucun gestionnaire : l'historique est calculé à la lecture | — | — |
+| `budget.recette_encaissee` | Partenaires | recalcule l'apport reçu de la convention (`non`, `partiel`, `oui`) | — | `origineRef` |
+| `core.action_decidee` | Voiture, Partenaires | applique la décision (réserver, libérer, ajouter la preuve, publications reportées) | — | `type`, `cleUnicite`, `decision`, `ficheId` |
+
+Précisions :
+
+- `budget.recette_encaissee` porte `origineRef` (même valeur que la proposition d'origine). Partenaires ne réagit que si la valeur commence par `partenaires:`.
+- L'action « Plus tard » des publications est reportée de 3 jours (`reporteeJusquAu`), puis revient en attente.
+- Une publication sans personne qui suit le partenaire, ou dont la personne n'a pas d'adhésion active, ne donne pas d'action « Publications promises ». Une contrepartie déjà tenue n'est pas comptée.
+- `saison.resultat_valide` et `saison.resultat_annule` sont listés dans le catalogue pour Partenaires, mais aucun gestionnaire n'existe dans le lot 3 : les lectures de la page partenaire et du bilan lisent les résultats à l'affichage. À reprendre si un gestionnaire devient nécessaire.

@@ -65,8 +65,11 @@ export async function creerRecetteAction(_etat: Resultat | null, donnees: FormDa
   })
 }
 
+// Sans date, le service prend aujourd'hui (brief 3.9, §3).
 export async function encaisserRecetteAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
-  return executerBudget(() => encaisserRecette({ recetteId: texte(donnees, "recetteId"), payerId: texte(donnees, "payerId") }))
+  return executerBudget(() =>
+    encaisserRecette({ recetteId: texte(donnees, "recetteId"), payerId: texte(donnees, "payerId"), date: texteOuNull(donnees, "date") ?? undefined }),
+  )
 }
 
 // Remboursement : le montant total est celui de l'écran ; chaque dépense cochée porte son montant
@@ -145,6 +148,8 @@ export async function modifierMouvementAction(_etat: Resultat | null, donnees: F
       date,
       eventId,
       moyen: (texteOuNull(donnees, "moyen") as "carte" | "especes" | "cheque" | "virement" | null) ?? null,
+      // Champ présent dans le formulaire de dépense : vide = photo retirée.
+      justificatifFileId: donnees.has("justificatifFileId") ? texteOuNull(donnees, "justificatifFileId") : undefined,
     })
   })
 }

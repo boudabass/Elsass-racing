@@ -22,6 +22,7 @@ import { newId } from "@/core/ids"
 import { ErreurBudget } from "@/apps/budget/erreurs"
 import { lireDepenseEngagementDans } from "@/apps/budget/liaisons-serveur"
 import { rouvrirAction } from "@/core/actions/actions-serveur"
+import { rattacherFichier } from "@/core/fichiers/fichiers-serveur"
 import { ErreurMetier } from "@/core/sdk/actions-serveur"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 
@@ -471,17 +472,19 @@ export async function joindrePreuveDans(
   const resultat = await client.saisonResult.findFirst({ where: { entryId, teamId: ctx.teamId, deletedAt: null } })
   if (!resultat) refus("Saisis d'abord le résultat de cet engagement.")
 
-  if (fichierId) {
-    const fichier = await client.coreFile.findFirst({ where: { id: fichierId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
-    if (!fichier) refus("Fichier introuvable dans cette team.")
-  }
-
   const transition = transitionResultat(
     { validation: resultat.validation, saisiParMembershipId: resultat.saisiParMembershipId },
     { type: "joindre_preuve" },
     { membershipId: ctx.membership.id, role: ctx.membership.role },
   )
   if (!transition.ok) refus(transition.message)
+
+  // Preuve en fichier : rattachée au résultat (brief 3.3). Le fichier doit être de la team et envoyé par la personne.
+  if (fichierId) {
+    await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+      rattacherFichier(tx, ctx, { fileId: fichierId, app: "saison", ficheType: "result", ficheId: resultat.id, role: "preuve" }),
+    )
+  }
 
   await client.saisonResult.updateMany({
     where: { id: resultat.id, teamId: ctx.teamId },

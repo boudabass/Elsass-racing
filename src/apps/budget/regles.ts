@@ -126,3 +126,9 @@ export function modePaiementSaison(moyen: string | null): "cheque" | "virement" 
   if (moyen === "especes") return "especes"
   return "virement"
 }
+
+// Comptes où une recette peut être encaissée : tous les payeurs sauf les membres. La caisse de la team est proposée
+// par défaut (brief 3.9, §3).
+export function comptesEncaissement(payeurs: ReadonlyArray<{ id: string; nom: string; type: string }>) {
+  return payeurs.filter((payeur) => payeur.type !== "membre").map(({ id, nom, type }) => ({ id, nom, parDefaut: type === "caisse_team" }))
+}

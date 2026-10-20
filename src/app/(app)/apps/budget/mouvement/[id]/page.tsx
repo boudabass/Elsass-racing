@@ -1,10 +1,12 @@
-import Link from "next/link"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/budget/ecran"
-import { FormulaireMouvement } from "@/apps/budget/composants/mouvement"
+import { EncaisserRecette } from "@/apps/budget/composants/encaisser"
+import { FicheMouvement } from "@/apps/budget/composants/mouvement"
 import { lireChoix, lireMouvement } from "@/apps/budget/lectures-serveur"
 import { aAuMoins } from "@/core/droits/niveaux"
+import { jourDeParis, jourEnFrancais } from "@/core/dates"
+import { comptesEncaissement } from "@/apps/budget/regles"
 import { EcranVide } from "@/components/qg/ecran-vide"
 
 // Modifier ou supprimer un mouvement. Écriture : tout mouvement. Contribution : ses propres dépenses seulement.
@@ -24,15 +26,19 @@ export default async function PageMouvement({ params }: { params: Promise<{ id: 
   }
   const choix = await lireChoix()
   const peutChoisirPayeur = aAuMoins(acces.niveau, "ecriture")
+  const peutEncaisser = aAuMoins(acces.niveau, "gestion")
   const payeurs = peutChoisirPayeur ? choix.payeurs : choix.payeurs.filter((payeur) => payeur.id === choix.moiId)
 
   return (
     <section className="flex max-w-2xl flex-col gap-6">
-      <Link href="/apps/budget" className="cible-tactile inline-flex items-center text-sm text-texte-discret">
-        ← Mouvements
-      </Link>
       <h1 className="titre-rallye text-3xl">{mouvement.type === "depense" ? "Modifier la dépense" : "Modifier la recette"}</h1>
-      <FormulaireMouvement
+      {mouvement.type === "recette" && mouvement.encaisseeLe && (
+        <p className="text-sm text-etat-ok">Encaissée le {jourEnFrancais(new Date(`${mouvement.encaisseeLe}T00:00:00Z`))}</p>
+      )}
+      {mouvement.type === "recette" && mouvement.statut === "prevue" && peutEncaisser && (
+        <EncaisserRecette recetteId={mouvement.id} comptes={comptesEncaissement(choix.payeurs)} dateDefaut={jourDeParis(new Date())} />
+      )}
+      <FicheMouvement
         valeurs={{
           id: mouvement.id,
           type: mouvement.type,
@@ -43,6 +49,7 @@ export default async function PageMouvement({ params }: { params: Promise<{ id: 
           eventId: mouvement.eventId,
           payerId: mouvement.payeurId,
           moyen: mouvement.moyen,
+          justificatif: mouvement.justificatif,
         }}
         categories={mouvement.type === "depense" ? choix.categoriesDepense : choix.categoriesRecette}
         payeurs={payeurs.map(({ id: payeurId, nom }) => ({ id: payeurId, nom }))}

@@ -1,8 +1,8 @@
 import type { Prisma } from "@/generated/prisma/client"
-import { prismaPourTeam } from "@/lib/prisma"
 import { newId } from "@/core/ids"
 
-import type { ContexteTeam } from "../contexte"
+import { estContexteTeam, type ContexteEvenement } from "../contexte"
+import { clientPourContexte } from "../client-contexte-serveur"
 
 import { EVENEMENTS } from "./catalogue"
 import { emetteurDe, estNomValide } from "./evenements"
@@ -22,7 +22,7 @@ export interface OptionsEmission {
 
 // Destinataires d'un nom : les apps écrites dans le catalogue, plus les apps activées
 // de la team si le catalogue dit « * » (toutes les apps sauf l'émetteur).
-async function resoudreDestinataires(ctx: ContexteTeam, nom: string, emetteur: string): Promise<string[]> {
+async function resoudreDestinataires(ctx: ContexteEvenement, nom: string, emetteur: string): Promise<string[]> {
   const evenement = EVENEMENTS.find((e) => e.nom === nom)
   // Motif générique <app>.action_requise ou action_levee : destinataire unique, le socle.
   if (!evenement) return ["core"]
@@ -30,7 +30,7 @@ async function resoudreDestinataires(ctx: ContexteTeam, nom: string, emetteur: s
   const explicites = evenement.ecoutePar.filter((d) => d !== "*") as string[]
   if (!evenement.ecoutePar.includes("*")) return Array.from(new Set(explicites))
 
-  const activees = await prismaPourTeam(ctx.teamId, ctx.userId).coreTeamApp.findMany({
+  const activees = await clientPourContexte(ctx).coreTeamApp.findMany({
     where: { teamId: ctx.teamId, activee: true, deletedAt: null },
     select: { appCle: true },
   })
@@ -41,8 +41,10 @@ async function resoudreDestinataires(ctx: ContexteTeam, nom: string, emetteur: s
 // Émet un événement : l'app émettrice est le préfixe du nom. Écrit l'événement et une
 // livraison par destinataire, puis traite les livraisons en attente de la team.
 // Renvoie l'identifiant de l'événement.
+// Un événement émis par un contexte système (brief 3.8, point 0.3) n'a pas d'auteur : son origine est notée dans
+// les données, à la clé « origine ». Aucune autre donnée n'est ajoutée.
 export async function emettre(
-  ctx: ContexteTeam,
+  ctx: ContexteEvenement,
   nom: string,
   donnees: Record<string, unknown>,
   version = 1,
@@ -53,8 +55,9 @@ export async function emettre(
   }
 
   const emetteur = emetteurDe(nom) as string
-  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const client = clientPourContexte(ctx)
   const destinataires = options.destinataires ?? (await resoudreDestinataires(ctx, nom, emetteur))
+  const donneesEvenement = estContexteTeam(ctx) ? donnees : { ...donnees, origine: ctx.origine }
 
   const id = newId()
   await client.coreDomainEvent.create({
@@ -64,7 +67,7 @@ export async function emettre(
       appEmettrice: emetteur,
       nom,
       version,
-      donnees: donnees as Prisma.InputJsonValue,
+      donnees: donneesEvenement as Prisma.InputJsonValue,
     },
   })
 
@@ -79,7 +82,8 @@ export async function emettre(
     })
   }
 
-  // Choix provisoire du lot 1 : traitement immédiat, dans la même requête.
-  await traiterEnAttente(ctx)
+  // Choix provisoire du lot 1 : traitement immédiat, dans la même requête. Avec un contexte système, seul cet événement
+  // est traité (brief 3.9, §1).
+  await traiterEnAttente(ctx, id)
   return id
 }

@@ -18,15 +18,21 @@ export interface MouvementLu {
   categorieNom: string
   payeurId: string | null
   payeurNom: string | null
+  // Recette : contact ou personne d'où vient l'argent, s'ils sont renseignés. Dépense : null.
+  provenanceNom: string | null
   personneId: string | null
   eventId: string | null
   eventNom: string | null
   seasonId: string | null
   // Dépense : confirmée ou non. Recette : statut « prevue » ou « encaissee ».
   statut: string
+  // Recette encaissée : sa date d'encaissement (AAAA-MM-JJ). Dépense et recette prévue : null (brief 3.9, §3).
+  encaisseeLe: string | null
   moyen: string | null
   remboursement: string | null
   origine: string
+  // Dépense : photo du ticket, si elle existe (brief 3.2). Recette : toujours null.
+  justificatif: { id: string; nom: string; mimeType: string } | null
 }
 
 export interface FiltresMouvements {
@@ -59,7 +65,12 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
       ...(filtres.categorieId ? { categoryId: filtres.categorieId } : {}),
       ...(personneFiltre ? { payer: { personId: personneFiltre } } : {}),
     },
-    include: { category: { select: { nom: true } }, payer: { select: { nom: true, personId: true } }, event: { select: { nom: true } } },
+    include: {
+      category: { select: { nom: true } },
+      payer: { select: { nom: true, personId: true } },
+      event: { select: { nom: true } },
+      justificatif: { select: { id: true, nom: true, mimeType: true } },
+    },
     orderBy: [{ date: "desc" }, { id: "asc" }],
   })
 
@@ -73,14 +84,17 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
     categorieNom: ligne.category.nom,
     payeurId: ligne.payerId,
     payeurNom: ligne.payer.nom,
+    provenanceNom: null,
     personneId: ligne.payer.personId,
     eventId: ligne.eventId,
     eventNom: ligne.event?.nom ?? null,
     seasonId: ligne.seasonId,
     statut: ligne.confirmee ? "confirmee" : "a_confirmer",
+    encaisseeLe: null,
     moyen: ligne.moyen,
     remboursement: ligne.remboursement,
     origine: ligne.origine,
+    justificatif: ligne.justificatif,
   }))
 
   let recettes: MouvementLu[] = []
@@ -93,7 +107,13 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
         ...(filtres.eventId ? { eventId: filtres.eventId } : {}),
         ...(filtres.categorieId ? { categoryId: filtres.categorieId } : {}),
       },
-      include: { category: { select: { nom: true } }, encaisseeSur: { select: { id: true, nom: true } }, event: { select: { nom: true } } },
+      include: {
+        category: { select: { nom: true } },
+        encaisseeSur: { select: { id: true, nom: true } },
+        event: { select: { nom: true } },
+        provenanceContact: { select: { nom: true } },
+        provenancePerson: { select: { prenom: true, nom: true } },
+      },
       orderBy: [{ date: "desc" }, { id: "asc" }],
     })
     recettes = recettesBrutes.map((ligne) => ({
@@ -106,14 +126,17 @@ export async function listerMouvements(filtres: FiltresMouvements = {}): Promise
       categorieNom: ligne.category.nom,
       payeurId: ligne.encaisseeSur?.id ?? null,
       payeurNom: ligne.encaisseeSur?.nom ?? null,
+      provenanceNom: ligne.provenanceContact?.nom ?? (ligne.provenancePerson ? `${ligne.provenancePerson.prenom} ${ligne.provenancePerson.nom}` : null),
       personneId: null,
       eventId: ligne.eventId,
       eventNom: ligne.event?.nom ?? null,
       seasonId: ligne.seasonId,
       statut: ligne.statut,
+      encaisseeLe: ligne.encaisseeLe ? jour(ligne.encaisseeLe) : null,
       moyen: null,
       remboursement: null,
       origine: ligne.origine,
+      justificatif: null,
     }))
   }
 
@@ -177,6 +200,7 @@ export async function lireCoutsParEpreuve(saisonId: string): Promise<{
     id: string
     nom: string
     type: string
+    date: string // AAAA-MM-JJ, début de l'épreuve (bilan de saison)
     total: number
     prevuCentimes: number | null
     parCategorie: Array<{ categorieId: string; nom: string; montant: number }>
@@ -186,7 +210,7 @@ export async function lireCoutsParEpreuve(saisonId: string): Promise<{
 }> {
   const { ctx } = await accesBudget("lecture")
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
-  const epreuves = await client.coreEvent.findMany({ where: { teamId: ctx.teamId, seasonId: saisonId, deletedAt: null }, select: { id: true, nom: true, type: true }, orderBy: [{ dateDebut: "asc" }] })
+  const epreuves = await client.coreEvent.findMany({ where: { teamId: ctx.teamId, seasonId: saisonId, deletedAt: null }, select: { id: true, nom: true, type: true, dateDebut: true }, orderBy: [{ dateDebut: "asc" }] })
   const depenses = await client.budgetExpense.findMany({
     where: { teamId: ctx.teamId, seasonId: saisonId, deletedAt: null, confirmee: true },
     select: { montant: true, confirmee: true, eventId: true, categoryId: true, category: { select: { nom: true } } },
@@ -210,6 +234,7 @@ export async function lireCoutsParEpreuve(saisonId: string): Promise<{
       id: epreuve.id,
       nom: epreuve.nom,
       type: epreuve.type,
+      date: jour(epreuve.dateDebut),
       total: coutParEpreuve(lignes, epreuve.id),
       prevuCentimes: prevuParEpreuve.get(epreuve.id) ?? null,
       parCategorie: Array.from(parCategorieMap.values()).sort((a, b) => b.montant - a.montant),

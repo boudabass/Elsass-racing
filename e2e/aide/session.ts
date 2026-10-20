@@ -143,6 +143,16 @@ export function emettreActionSaison(equipe: Equipe, cleUnicite: string): void {
   })
 }
 
+// Montant réglé d'un engagement, en centimes (null tant qu'il n'est pas payé). Le statut affiché dépend
+// aussi de la date de l'épreuve (« Parti » une fois commencée), donc le paiement se lit ici.
+export async function montantPayeEnBase(equipe: Equipe, entryId: string): Promise<number | null> {
+  const { rows } = await bd().query<{ montant: number | null }>(
+    "SELECT montant_paye AS montant FROM saison_registration WHERE team_id = $1 AND entry_id = $2",
+    [equipe.teamId, entryId],
+  )
+  return rows[0]?.montant ?? null
+}
+
 export async function statutAction(equipe: Equipe, cleUnicite: string): Promise<string | null> {
   const { rows } = await bd().query<{ statut: string }>(
     "SELECT statut::text AS statut FROM core_action WHERE team_id = $1 AND cle_unicite = $2",
@@ -158,6 +168,16 @@ export async function engagementsEnBase(equipe: Equipe): Promise<Array<{ id: str
     [equipe.teamId],
   )
   return rows
+}
+
+// Liens de la page partenaire en base, dont l'empreinte est égale à ce jeton en clair : doit être zéro (le jeton
+// n'est jamais stocké, seulement son empreinte).
+export async function jetonEnClairEnBase(equipe: Equipe, jeton: string): Promise<number> {
+  const { rows } = await bd().query<{ n: number }>(
+    "SELECT count(*)::int AS n FROM partenaires_portal_link WHERE team_id = $1 AND jeton_empreinte = $2",
+    [equipe.teamId, jeton],
+  )
+  return rows[0].n
 }
 
 export async function compterEvenements(equipe: Equipe, nom: string): Promise<number> {
@@ -285,6 +305,39 @@ export async function ajouterVoitureDeCourse(equipe: Equipe, nomCourt = "Saxo te
   return id
 }
 
+// Voiture (3.3) : donne à un membre un niveau explicite sur Voiture, pour que le scénario ne dépende pas des
+// valeurs par défaut des rôles. « aucun » : la personne n'a pas accès à l'app (l'écran de refus).
+export async function donnerAccesVoiture(equipe: Equipe, membre: Membre, niveau: "aucun" | "lecture" | "contribution" | "ecriture" | "gestion"): Promise<void> {
+  await bd().query(`DELETE FROM core_app_access WHERE team_id = $1 AND membership_id = $2 AND app_cle = 'voiture'`, [equipe.teamId, membre.membershipId])
+  await bd().query(
+    `INSERT INTO core_app_access (id, team_id, membership_id, app_cle, niveau, updated_at)
+     VALUES ($1, $2, $3, 'voiture', $4::core_access_level, now())`,
+    [newId(), equipe.teamId, membre.membershipId, niveau],
+  )
+}
+
+// Véhicule de Voiture complet (ligne du socle et fiche Voiture), sans emplacement : pour une fiche de réglage.
+export async function ajouterVoitureSaxo(equipe: Equipe, nomCourt: string): Promise<string> {
+  const id = newId()
+  await bd().query(
+    `INSERT INTO core_vehicle (id, team_id, type, nom_court, actif, updated_at)
+     VALUES ($1, $2, 'course'::core_vehicle_type, $3, true, now())`,
+    [id, equipe.teamId, nomCourt],
+  )
+  await bd().query(`INSERT INTO voiture_vehicle (id, team_id, vehicle_id, updated_at) VALUES ($1, $2, $3, now())`, [newId(), equipe.teamId, id])
+  return id
+}
+
+// Fiches de réglage de Voiture en base, non supprimées, de la plus ancienne à la plus récente.
+export async function reglagesVoitureEnBase(equipe: Equipe): Promise<Array<{ id: string; vehicleId: string; createdBy: string | null; valeurs: Record<string, number>; note: number | null }>> {
+  const { rows } = await bd().query(
+    `SELECT id, vehicle_id AS "vehicleId", created_by AS "createdBy", valeurs, note FROM voiture_setup
+     WHERE team_id = $1 AND deleted_at IS NULL ORDER BY created_at, id`,
+    [equipe.teamId],
+  )
+  return rows
+}
+
 // Saison (2.3) : donne à un membre un niveau explicite sur Saison, pour que le scénario ne dépende
 // pas des valeurs par défaut des rôles.
 export async function donnerAccesSaison(equipe: Equipe, membre: Membre, niveau: "lecture" | "contribution" | "ecriture" | "gestion"): Promise<void> {
@@ -293,6 +346,31 @@ export async function donnerAccesSaison(equipe: Equipe, membre: Membre, niveau: 
      VALUES ($1, $2, $3, 'saison', $4::core_access_level, now())`,
     [newId(), equipe.teamId, membre.membershipId, niveau],
   )
+}
+
+// Accès à Budget d'un membre, forcé à un niveau : « aucun » pour tester le cloisonnement des fichiers (tâche 3.1).
+export async function definirAccesBudget(equipe: Equipe, membre: Membre, niveau: "aucun" | "lecture" | "contribution"): Promise<void> {
+  await bd().query(`DELETE FROM core_app_access WHERE team_id = $1 AND membership_id = $2 AND app_cle = 'budget'`, [equipe.teamId, membre.membershipId])
+  await bd().query(
+    `INSERT INTO core_app_access (id, team_id, membership_id, app_cle, niveau, updated_at)
+     VALUES ($1, $2, $3, 'budget', $4::core_access_level, now())`,
+    [newId(), equipe.teamId, membre.membershipId, niveau],
+  )
+}
+
+// Photo du ticket d'une dépense, en base (tâche 3.2) : l'identifiant du fichier, ou null.
+export async function justificatifDepenseEnBase(equipe: Equipe, depenseId: string): Promise<string | null> {
+  const { rows } = await bd().query<{ justificatif: string | null }>(
+    `SELECT justificatif_file_id AS justificatif FROM budget_expense WHERE team_id = $1 AND id = $2`,
+    [equipe.teamId, depenseId],
+  )
+  return rows[0]?.justificatif ?? null
+}
+
+// Logo de la team, en base (tâche 3.1) : l'identifiant du fichier, ou null.
+export async function logoEquipeEnBase(equipe: Equipe): Promise<string | null> {
+  const { rows } = await bd().query<{ logo: string | null }>(`SELECT logo_file_id AS logo FROM core_team WHERE id = $1`, [equipe.teamId])
+  return rows[0]?.logo ?? null
 }
 
 // Sorties de reconnaissance de la team, à une date civile (tâche 2.4 : écrites hors ligne, puis synchronisées).
@@ -388,6 +466,30 @@ export async function preverEpreuveEnBase(equipe: Equipe, eventId: string, monta
   )
 }
 
+// Logo de la team, posé directement en base : le PDF du bilan le lit (le téléversement est testé à part).
+export async function definirLogoTeamEnBase(equipe: Equipe, fichierId: string | null): Promise<void> {
+  await bd().query("UPDATE core_team SET logo_file_id = $2 WHERE id = $1", [equipe.teamId, fichierId])
+}
+
+// Recette de Budget (catégorie Partenaire) dans une saison, encaissée ou prévue : données du bilan.
+export async function ajouterRecetteBudgetEnBase(equipe: Equipe, saisonId: string, libelle: string, montant: number, encaissee: boolean): Promise<void> {
+  await bd().query(
+    `INSERT INTO budget_income (id, team_id, date, montant, category_id, libelle, statut, encaissee_le, season_id, updated_at)
+     SELECT $1, $2, CURRENT_DATE, $3, c.id, $4, $5::budget_statut_recette, CASE WHEN $6::boolean THEN CURRENT_DATE END, $7, now()
+     FROM budget_category c WHERE c.team_id = $2 AND c.sens = 'recette' AND c.nom = 'Partenaire'`,
+    [newId(), equipe.teamId, montant, libelle, encaissee ? "encaissee" : "prevue", encaissee, saisonId],
+  )
+}
+
+// Prévisionnel de la saison, hors épreuve, pour une catégorie de dépense : données du bilan.
+export async function preverSaisonEnBase(equipe: Equipe, saisonId: string, nomCategorie: string, montant: number): Promise<void> {
+  await bd().query(
+    `INSERT INTO budget_forecast (id, team_id, season_id, category_id, event_id, montant, devise, updated_at)
+     SELECT $1, $2, $3, c.id, NULL, $4, 'EUR', now() FROM budget_category c WHERE c.team_id = $2 AND c.sens = 'depense' AND c.nom = $5`,
+    [newId(), equipe.teamId, saisonId, montant, nomCategorie],
+  )
+}
+
 // Véhicule de reconnaissance de la team (type reco) : la liste des règles de reco ne propose que ceux-là.
 export async function ajouterVehiculeDeReco(equipe: Equipe, nomCourt: string): Promise<string> {
   const id = newId()
@@ -397,4 +499,87 @@ export async function ajouterVehiculeDeReco(equipe: Equipe, nomCourt: string): P
     [id, equipe.teamId, nomCourt],
   )
   return id
+}
+
+// Épreuve à venir (dates données, statut envisagé) : Saison la passe à « terminée » quand ses dates sont passées.
+export async function ajouterEpreuveEnBase(equipe: Equipe, seasonId: string, nom: string, debut: string, fin: string): Promise<string> {
+  const id = newId()
+  await bd().query(
+    `INSERT INTO core_event (id, team_id, season_id, type, nom, date_debut, date_fin, updated_at)
+     VALUES ($1, $2, $3, 'rallye'::core_event_type, $4, $5, $6, now())`,
+    [id, equipe.teamId, seasonId, nom, debut, fin],
+  )
+  return id
+}
+
+// Statut d'une épreuve en base (envisagee, en_cours, terminee…).
+export async function statutEpreuveEnBase(equipe: Equipe, eventId: string): Promise<string | null> {
+  const { rows } = await bd().query(`SELECT statut FROM core_event WHERE team_id = $1 AND id = $2`, [equipe.teamId, eventId])
+  return rows[0]?.statut ?? null
+}
+
+// Déplace une épreuve à des dates passées : Saison la passe à « terminée » au prochain chargement du QG.
+export async function passerEpreuveDansLePasseEnBase(equipe: Equipe, eventId: string, debut: string, fin: string): Promise<void> {
+  await bd().query(`UPDATE core_event SET date_debut = $3, date_fin = $4, updated_at = now() WHERE team_id = $1 AND id = $2`, [
+    equipe.teamId,
+    eventId,
+    debut,
+    fin,
+  ])
+}
+
+
+// Livraisons du bus de la team, avec leur statut et le dernier message d'erreur (« aucun gestionnaire » compris).
+export async function livraisonsEnBase(equipe: Equipe): Promise<string[]> {
+  const { rows } = await bd().query(
+    `SELECT e.nom, d.app_destinataire, d.statut, d.derniere_erreur FROM core_event_delivery d
+     JOIN core_domain_event e ON e.id = d.domain_event_id
+     WHERE d.team_id = $1 ORDER BY d.created_at`,
+    [equipe.teamId],
+  )
+  return rows.map((r: { nom: string; app_destinataire: string; statut: string; derniere_erreur: string | null }) => `${r.nom} → ${r.app_destinataire} [${r.statut}] ${r.derniere_erreur ?? ""}`)
+}
+
+// --- Brief 3.9, §5 : données des vérifications du lot 3 (historique Voiture, papiers, résultat annulé) -----------
+
+// Engagement d'un véhicule à une épreuve, inscrit. Renvoie l'identifiant de l'engagement.
+export async function engagerVehiculeEnBase(equipe: Equipe, eventId: string, vehicleId: string): Promise<string> {
+  const id = newId()
+  await bd().query(
+    `INSERT INTO core_event_entry (id, team_id, event_id, vehicle_id, statut, updated_at) VALUES ($1, $2, $3, $4, 'inscrit', now())`,
+    [id, equipe.teamId, eventId, vehicleId],
+  )
+  return id
+}
+
+// Résultat validé d'un engagement : une arrivée, classée au général.
+export async function ajouterResultatValideEnBase(equipe: Equipe, entryId: string, classementGeneral: number): Promise<void> {
+  await bd().query(
+    `INSERT INTO saison_result (id, team_id, entry_id, statut_final, validation, classement_general, nb_classes, updated_at)
+     VALUES ($1, $2, $3, 'arrivee', 'valide', $4, 40, now())`,
+    [newId(), equipe.teamId, entryId, classementGeneral],
+  )
+}
+
+// Spéciale d'une épreuve : longueur et nombre de passages (son km de spéciale est longueur × passages).
+export async function ajouterSpecialeEnBase(equipe: Equipe, eventId: string, numero: number, nom: string, longueurKm: number, passages: number): Promise<void> {
+  await bd().query(
+    `INSERT INTO saison_stage (id, team_id, event_id, numero, nom, longueur_km, nb_passages, type, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'speciale', now())`,
+    [newId(), equipe.teamId, eventId, numero, nom, longueurKm, passages],
+  )
+}
+
+// Papier d'un véhicule (assurance, carte grise…) valable jusqu'à une date (AAAA-MM-JJ).
+export async function ajouterPapierEnBase(equipe: Equipe, vehicleId: string, type: string, valableJusquAu: string): Promise<void> {
+  await bd().query(
+    `INSERT INTO voiture_paper (id, team_id, vehicle_id, type, valable_jusqu_au, updated_at) VALUES ($1, $2, $3, $4::voiture_paper_type, $5, now())`,
+    [newId(), equipe.teamId, vehicleId, type, valableJusquAu],
+  )
+}
+
+// Identifiant d'une épreuve de la team, par son nom (les noms des épreuves de test sont uniques).
+export async function idEpreuveParNomEnBase(equipe: Equipe, nom: string): Promise<string | null> {
+  const { rows } = await bd().query<{ id: string }>(`SELECT id FROM core_event WHERE team_id = $1 AND nom = $2 LIMIT 1`, [equipe.teamId, nom])
+  return rows[0]?.id ?? null
 }

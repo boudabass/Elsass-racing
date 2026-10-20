@@ -1,10 +1,15 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useMemo, useState, type FormEvent } from "react"
 import { useActionState } from "react"
 
+
+import { ChampFichier, type FichierEnvoye } from "@/components/formulaire/champ-fichier"
+import { FormulairePage } from "@/components/formulaire/formulaire-page"
 import { Message } from "@/components/formulaire/message"
+import { TiroirAction, TiroirFormulaire } from "@/components/formulaire/tiroir"
 import { newId } from "@/core/ids"
 import { useMoteurSynchro } from "@/core/synchro/client/react"
 import { enEuros } from "@/lib/euros"
@@ -43,6 +48,8 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
   const [categorieChoisie, setCategorieChoisie] = useState("")
   const [epreuveChoisie, setEpreuveChoisie] = useState(options.epreuveEnCoursId ?? "")
   const [engagementChoisi, setEngagementChoisi] = useState("")
+  // Photo du ticket (facultative) : envoyée au choix, son id part avec la dépense.
+  const [ticket, setTicket] = useState<FichierEnvoye | null>(null)
 
   // Catégorie Engagement et épreuve choisies : l'engagement de cette épreuve est prérempli s'il n'y en a qu'un ;
   // s'il y en a plusieurs, ils sont proposés en tête, sans rien choisir à la place de la personne.
@@ -94,12 +101,14 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
           libelle: libelle || null,
           eventId: eventId || null,
           entryId: entryId || null,
+          justificatifFileId: ticket?.id ?? null,
         },
       })
       formulaire.reset()
       setCategorieChoisie("")
       setEpreuveChoisie(options.epreuveEnCoursId ?? "")
       setEngagementChoisi("")
+      setTicket(null)
       setMessage({ ok: true, texte: "Enregistré. La dépense part dès que l'appareil est connecté.", boite: entryId !== "" })
     } catch {
       setMessage({ ok: false, texte: "La dépense n'a pas pu être enregistrée sur cet appareil." })
@@ -109,7 +118,8 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
   }
 
   return (
-    <form onSubmit={enregistrer} className="flex flex-col gap-5">
+    <FormulairePage formulaireId="depense-formulaire" annulerHref="/apps/budget" libelleBouton="Ajouter la dépense" enCours={enCours}>
+    <form id="depense-formulaire" onSubmit={enregistrer} className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <label htmlFor="montant" className="font-medium">
           Montant (€)
@@ -143,9 +153,17 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
           ))}
         </select>
       </div>
-      <details className="flex flex-col gap-4 rounded-md border border-bordure p-4">
-        <summary className="cursor-pointer font-medium">Plus de détails</summary>
-        <div className="mt-4 flex flex-col gap-4">
+      <ChampFichier
+        app="budget"
+        libelle="Photo du ticket (facultatif)"
+        valeur={ticket?.id ?? null}
+        typeValeur={ticket?.mimeType ?? null}
+        nomValeur={ticket?.nom ?? null}
+        onChange={setTicket}
+      />
+      <section className="flex flex-col gap-4">
+        <h2 className="font-medium">Plus de détails</h2>
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label htmlFor="date" className="text-sm text-texte-discret">
               Date
@@ -194,7 +212,7 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
             <input id="libelle" name="libelle" maxLength={200} className={CHAMP} />
           </div>
         </div>
-      </details>
+      </section>
       {message && (
         <p role={message.ok ? "status" : "alert"} className={`text-sm ${message.ok ? "text-etat-ok" : "text-etat-rouge"}`}>
           {message.texte}
@@ -206,10 +224,8 @@ export function FormulaireDepense({ options }: { options: OptionsDepense }) {
           )}
         </p>
       )}
-      <button type="submit" disabled={enCours} className={`${BOUTON} w-full sm:w-auto sm:self-start`}>
-        Ajouter la dépense
-      </button>
     </form>
+    </FormulairePage>
   )
 }
 
@@ -230,7 +246,8 @@ export function FormulaireRecette({
 }) {
   const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(creerRecetteAction, null)
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-2">
+    <FormulairePage formulaireId="recette-formulaire" annulerHref="/apps/budget/recette" libelleBouton="Enregistrer la recette" enCours={enCours}>
+    <form id="recette-formulaire" action={action} className="grid gap-4 sm:grid-cols-2">
       <div className="flex flex-col gap-1">
         <label htmlFor="montant" className="font-medium">
           Montant (€)
@@ -318,27 +335,28 @@ export function FormulaireRecette({
       <div className="sm:col-span-2">
         <Message resultat={resultat} />
       </div>
-      <button type="submit" disabled={enCours} className={`${BOUTON} sm:col-span-2 sm:justify-self-start`}>
-        Enregistrer la recette
-      </button>
     </form>
+    </FormulairePage>
   )
 }
 
 // --- Remboursement à un membre ----------------------------------------------------------------
 
+// Remboursement : un tiroir de saisie, ouvert par le lien « Rembourser » de la liste. Sa fermeture revient à la liste.
 export function FormulaireRemboursement({
   personne,
   depenses,
   payeurs,
   dateDuJour,
+  fermerHref,
 }: {
   personne: { id: string; nom: string }
   depenses: Array<{ id: string; libelle: string; date: string; resteCentimes: number }>
   payeurs: Array<{ id: string; nom: string }>
   dateDuJour: string
+  fermerHref: string
 }) {
-  const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(rembourserAction, null)
+  const router = useRouter()
   // Par défaut : les plus anciennes dépenses, cochées dans l'ordre, jusqu'à leur reste dû.
   const [cochees, setCochees] = useState<Record<string, boolean>>({})
   const [montants, setMontants] = useState<Record<string, string>>(() => Object.fromEntries(depenses.map((d) => [d.id, enEuros(d.resteCentimes)])))
@@ -349,7 +367,17 @@ export function FormulaireRemboursement({
   }, 0)
 
   return (
-    <form action={action} className="flex flex-col gap-5">
+    <TiroirFormulaire
+      ouvert
+      onOuvertChange={(suivant) => {
+        if (!suivant) router.push(fermerHref)
+      }}
+      titre={`Rembourser ${personne.nom}`}
+      action={rembourserAction}
+      libelleBouton="Enregistrer le remboursement"
+      libelleEnCours="Remboursement…"
+      desactive={total <= 0}
+    >
       <input type="hidden" name="personId" value={personne.id} />
       <input type="hidden" name="montant" value={enEuros(total)} />
       <fieldset className="flex flex-col gap-2">
@@ -415,11 +443,7 @@ export function FormulaireRemboursement({
           </select>
         </div>
       </div>
-      <Message resultat={resultat} ok={`Remboursement enregistré pour ${personne.nom}.`} />
-      <button type="submit" disabled={enCours || total <= 0} className={`${BOUTON} sm:self-start`}>
-        Rembourser
-      </button>
-    </form>
+    </TiroirFormulaire>
   )
 }
 
@@ -427,6 +451,7 @@ export function FormulaireRemboursement({
 
 // --- Suggestions : confirmer (payeur et catégorie modifiables) ou ignorer ----------------------
 
+// Une suggestion : « Confirmer » ouvre un tiroir de saisie (payeur et catégorie), « Ignorer » un tiroir de confirmation.
 export function ActionsSuggestion({
   id,
   payeurs,
@@ -440,11 +465,16 @@ export function ActionsSuggestion({
   categories: Array<{ id: string; nom: string }>
   categorieId: string
 }) {
-  const [confirmation, actionConfirmer, enCoursConfirmer] = useActionState<Resultat | null, FormData>(confirmerSuggestionAction, null)
-  const [ignoration, actionIgnorer, enCoursIgnorer] = useActionState<Resultat | null, FormData>(ignorerSuggestionAction, null)
   return (
-    <div className="flex flex-col gap-3">
-      <form action={actionConfirmer} className="grid gap-3 sm:grid-cols-2">
+    <div className="flex flex-wrap items-center gap-3">
+      <TiroirAction
+        libelle="Confirmer"
+        titre="Confirmer le mouvement"
+        action={confirmerSuggestionAction}
+        libelleBouton="Confirmer le mouvement"
+        libelleEnCours="Confirmation…"
+        secondaire={false}
+      >
         <input type="hidden" name="id" value={id} />
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-texte-discret">Payé par</span>
@@ -466,20 +496,18 @@ export function ActionsSuggestion({
             ))}
           </select>
         </label>
-        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-          <button type="submit" disabled={enCoursConfirmer} className={BOUTON}>
-            Confirmer
-          </button>
-          <Message resultat={confirmation} ok="Confirmé." />
-        </div>
-      </form>
-      <form action={actionIgnorer} className="flex items-center gap-3">
+      </TiroirAction>
+      <TiroirAction
+        libelle="Ignorer"
+        titre="Ignorer ce mouvement ?"
+        action={ignorerSuggestionAction}
+        libelleBouton="Ignorer le mouvement"
+        libelleEnCours="Ignorer…"
+        danger
+        question="Le mouvement proposé disparaît de la liste « À confirmer ». Il ne sera pas comptabilisé."
+      >
         <input type="hidden" name="id" value={id} />
-        <button type="submit" disabled={enCoursIgnorer} className={BOUTON_SECONDAIRE}>
-          Ignorer
-        </button>
-        <Message resultat={ignoration} ok="Ignoré." />
-      </form>
+      </TiroirAction>
     </div>
   )
 }

@@ -31,8 +31,8 @@ test("b. connexion par code : adresse, code saisi, arrivée sur le QG", async ({
 test("c. déconnexion par le menu : retour à /connexion, puis /qg redirige vers /connexion", async ({ page, equipe }) => {
   await connecterParLien(page, equipe)
 
-  await page.locator("summary", { hasText: "Menu" }).click()
-  await page.getByRole("button", { name: "Se déconnecter" }).click()
+  await page.getByRole("button", { name: "Menu", exact: true }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Se déconnecter" }).click()
 
   await page.waitForURL(/\/connexion$/)
   await page.goto("/qg")

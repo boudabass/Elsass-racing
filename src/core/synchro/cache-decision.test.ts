@@ -17,6 +17,12 @@ describe("décision de mise en cache", () => {
     expect(doitMettreEnCache({ ok: true, redirected: false, contentType: "application/json" })).toBe(false)
   })
 
+  it("ne met jamais une page partenaire (/p/) en cache ni ne l'intercepte", () => {
+    const code = codeServiceWorker("essai")
+    expect(code).toContain('url.pathname === "/p" || url.pathname.indexOf("/p/") === 0')
+    expect(code).toContain('if (String(chemin).indexOf("/p/") === 0) return;')
+  })
+
   it("est injectée telle quelle dans le code du service worker", () => {
     const code = codeServiceWorker("essai")
     expect(code).toContain(doitMettreEnCache.toString())

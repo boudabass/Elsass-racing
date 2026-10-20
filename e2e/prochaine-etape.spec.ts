@@ -2,30 +2,19 @@ import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
 import { preparerDonneesCaptures } from "./aide/session"
 
-test("le bouton Prochaine étape affiche Valider le résultat du Gaschney et ouvre la boîte d'actions", async ({ page, equipe }) => {
+// Brief 3.11, §9 : le bouton flottant « Prochaine étape » n'est plus affiché, ni sur ordinateur ni sur téléphone.
+// La logique (src/core/actions/prochaine-etape.ts) reste pour les écrans qui s'en servent.
+test("la prochaine étape ne flotte plus : ni sur ordinateur, ni sur téléphone", async ({ page, equipe }) => {
   preparerDonneesCaptures(equipe)
   await connecterParLien(page, equipe)
+
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto("/qg")
+  await expect(page.getByText("1 action à traiter")).toBeVisible()
+  await expect(page.getByRole("link", { name: /Valider le résultat du Gaschney/ })).toHaveCount(0)
 
-  const bouton = page.getByRole("link", { name: /Valider le résultat du Gaschney/ })
-  await expect(bouton).toBeVisible()
-  await expect(bouton).toHaveAttribute("href", /\/qg\?boite=/)
-  await bouton.click()
-
-  // Le panneau s'ouvre, l'URL garde la cible, et l'action est dans la zone visible.
-  await expect(page).toHaveURL(/\/qg\?boite=/)
-  const panneau = page.getByRole("dialog")
-  await expect(panneau.getByRole("heading", { name: "Valider le résultat du Gaschney" })).toBeVisible()
-  await expect(panneau.locator("article", { hasText: "Valider le résultat du Gaschney" })).toBeInViewport()
-})
-
-test("sur téléphone, la bulle Prochaine étape n'apparaît pas : la boîte d'actions fait ce travail", async ({ page, equipe }) => {
-  preparerDonneesCaptures(equipe)
-  await connecterParLien(page, equipe)
   await page.setViewportSize({ width: 360, height: 740 })
   await page.goto("/qg")
-
-  // La barre haute et la boîte restent là ; seule la bulle flottante disparaît.
   await expect(page.getByRole("button", { name: /Synchronisé|En ligne|Hors ligne|En attente/ }).first()).toBeVisible()
-  await expect(page.getByRole("link", { name: /Valider le résultat du Gaschney/ })).toBeHidden()
+  await expect(page.getByRole("link", { name: /Valider le résultat du Gaschney/ })).toHaveCount(0)
 })

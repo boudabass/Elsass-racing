@@ -17,6 +17,7 @@ import { RefusSynchro } from "./erreurs"
 import { apresPosition } from "./position"
 import { declarationsSaisonSynchro } from "@/apps/saison/synchro-serveur"
 import { declarationsBudgetSynchro } from "@/apps/budget/synchro-serveur"
+import { declarationsVoitureSynchro } from "@/apps/voiture/synchro-serveur"
 import type { LigneSynchro } from "./protocole"
 
 export type ClientTeam = ReturnType<typeof prismaPourTeam>
@@ -174,7 +175,7 @@ const noteSynchro: DeclarationSynchro = {
   },
 }
 
-const REGISTRE: DeclarationSynchro[] = [noteSynchro, ...declarationsSaisonSynchro, ...declarationsBudgetSynchro]
+const REGISTRE: DeclarationSynchro[] = [noteSynchro, ...declarationsSaisonSynchro, ...declarationsBudgetSynchro, ...declarationsVoitureSynchro]
 
 export function declarationDe(cle: string): DeclarationSynchro | undefined {
   return REGISTRE.find((declaration) => declaration.cle === cle)

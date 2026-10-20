@@ -66,6 +66,13 @@ export function prismaPourCompte(userId: string) {
     return clientAvecContexte([{ nom: "app.user_id", valeur: userId }])
 }
 
+// Contexte système d'une team (brief 3.8, point 0.3) : app.team_id seul, sans app.user_id. core_team_courante() lit
+// NULLIF(app.user_id, '') : il vaut NULL, et les politiques de team suffisent. Ne sert qu'au code serveur, via
+// src/core/contexte-systeme-serveur.ts.
+export function prismaPourTeamSysteme(teamId: string) {
+    return clientAvecContexte([{ nom: "app.team_id", valeur: teamId }])
+}
+
 // Requêtes brutes ($queryRaw, $executeRaw) dans le contexte de team : l'extension des
 // modèles ne les couvre pas. Toute la fonction s'exécute dans une seule transaction.
 export async function executerPourTeam<T>(
@@ -76,6 +83,19 @@ export async function executerPourTeam<T>(
     return prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.team_id', ${teamId}, true)`
         await tx.$executeRaw`SELECT set_config('app.user_id', ${userId}, true)`
+        return requete(tx)
+    })
+}
+
+// Contexte public (brief 3.7, point 2) : la page partenaire, sans compte. Seul app.team_id est posé, pas app.user_id :
+// les politiques « membre de la team » ne laissent passer aucune ligne qui dépende d'un utilisateur. Le contexte
+// tient dans la transaction, il ne fuit pas vers la requête suivante. Chaque lecture filtre elle-même par partenaire.
+export async function avecContextePublic<T>(
+    teamId: string,
+    requete: (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => Promise<T>,
+): Promise<T> {
+    return prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.team_id', ${teamId}, true)`
         return requete(tx)
     })
 }

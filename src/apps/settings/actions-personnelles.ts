@@ -1,5 +1,6 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { ErreurAcces, libelleErreurAcces } from "@/core/droits/erreurs"
@@ -7,7 +8,7 @@ import { exigerContexte } from "@/core/droits/garde-serveur"
 import { deconnecter, lireSession, magasinCookies } from "@/core/auth/session-serveur"
 import { teamCourante } from "@/core/auth/team-serveur"
 import { appsVisibles } from "@/core/sdk/apps-serveur"
-import { texte } from "@/core/sdk/actions-serveur"
+import { texte, type Resultat } from "@/core/sdk/actions-serveur"
 import { emettre } from "@/core/evenements/bus-serveur"
 import { newId } from "@/core/ids"
 import type { ContexteTeam } from "@/core/contexte"
@@ -21,16 +22,19 @@ import { mettreAJourPrefsMembre, prefsMembre } from "./preferences-serveur"
 // Actions des rubriques personnelles. Ouvertes à tout membre de la team, sans droit sur
 // Réglages. Les rubriques de la team restent dans actions.ts.
 
-const RUBRIQUE = "/apps/settings"
 const THEMES = ["sombre", "clair", "systeme"] as const
 const TAILLES = ["normale", "grande"] as const
 const LUDIQUES = ["oui", "non", "comme_la_team"] as const
 const REGROUPEMENTS = ["immediat", "quotidien"] as const
 
-// Une erreur revient à la rubrique, en clair. Le succès aussi, avec « ok ».
-function retour(rubrique: string, erreur?: string): never {
-  const base = `${RUBRIQUE}/${rubrique}`
-  redirect(erreur ? `${base}?erreur=${encodeURIComponent(erreur)}` : `${base}?ok=1`)
+// Une erreur s'affiche dans le tiroir, en clair. Le succès ferme le tiroir et relit la rubrique
+// (demandes en cours, appareils, réglages) : le tiroir ne rafraîchit pas la page tout seul.
+const RUBRIQUE = "/apps/settings"
+
+function retour(erreur?: string): Resultat {
+  if (erreur) return { ok: false, message: erreur }
+  revalidatePath(RUBRIQUE, "layout")
+  return { ok: true }
 }
 
 function choix<T extends string>(valeur: string, liste: readonly T[]): T {
@@ -48,7 +52,7 @@ function estResponsable(ctx: ContexteTeam): boolean {
   return ctx.membership.role === "responsable"
 }
 
-export async function sauverNotifications(formData: FormData): Promise<void> {
+export async function sauverNotifications(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { contexte } = await exigerContexte()
@@ -75,10 +79,10 @@ export async function sauverNotifications(formData: FormData): Promise<void> {
   } catch (cause) {
     erreur = messageErreur(cause)
   }
-  retour("notifications", erreur)
+  return retour(erreur)
 }
 
-export async function sauverAffichage(formData: FormData): Promise<void> {
+export async function sauverAffichage(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { contexte } = await exigerContexte()
@@ -91,10 +95,10 @@ export async function sauverAffichage(formData: FormData): Promise<void> {
   } catch (cause) {
     erreur = messageErreur(cause)
   }
-  retour("affichage", erreur)
+  return retour(erreur)
 }
 
-export async function sauverLudiqueEquipe(formData: FormData): Promise<void> {
+export async function sauverLudiqueEquipe(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { contexte } = await exigerContexte()
@@ -109,11 +113,11 @@ export async function sauverLudiqueEquipe(formData: FormData): Promise<void> {
   } catch (cause) {
     erreur = messageErreur(cause)
   }
-  retour("affichage", erreur)
+  return retour(erreur)
 }
 
 // Revoir les écrans d'accueil : tous les écrans d'app redeviennent visibles une fois.
-export async function reinitialiserDecouvertes(): Promise<void> {
+export async function reinitialiserDecouvertes(_etat: Resultat | null): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { contexte } = await exigerContexte()
@@ -121,12 +125,12 @@ export async function reinitialiserDecouvertes(): Promise<void> {
   } catch (cause) {
     erreur = messageErreur(cause)
   }
-  retour("affichage", erreur)
+  return retour(erreur)
 }
 
 // Déconnecter un appareil : le sien, ou un appareil d'un membre pour le responsable.
 // L'événement part avant la suppression, pendant que la session est encore valable.
-export async function revoquerAppareil(formData: FormData): Promise<void> {
+export async function revoquerAppareil(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   let deconnecte = false
   try {
@@ -160,12 +164,12 @@ export async function revoquerAppareil(formData: FormData): Promise<void> {
     await deconnecter(await magasinCookies())
     redirect("/connexion")
   }
-  retour("appareils", erreur)
+  return retour(erreur)
 }
 
 // Export : personnel pour tout membre, de la team pour le responsable. La génération du
 // fichier n'existe pas encore : la ligne reste en attente.
-export async function demanderExport(formData: FormData): Promise<void> {
+export async function demanderExport(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { contexte } = await exigerContexte()
@@ -187,12 +191,12 @@ export async function demanderExport(formData: FormData): Promise<void> {
   } catch (cause) {
     erreur = messageErreur(cause)
   }
-  retour("donnees", erreur)
+  return retour(erreur)
 }
 
 // Suppression de mon compte, ou de la team (responsable). Confirmation par saisie. Aucune
 // purge n'est exécutée ici : la demande attend sa date.
-export async function demanderSuppression(formData: FormData): Promise<void> {
+export async function demanderSuppression(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { contexte, team } = await exigerContexte()
@@ -233,10 +237,10 @@ export async function demanderSuppression(formData: FormData): Promise<void> {
   } catch (cause) {
     erreur = messageErreur(cause)
   }
-  retour("donnees", erreur)
+  return retour(erreur)
 }
 
-export async function annulerSuppression(formData: FormData): Promise<void> {
+export async function annulerSuppression(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { contexte } = await exigerContexte()
@@ -257,10 +261,10 @@ export async function annulerSuppression(formData: FormData): Promise<void> {
   } catch (cause) {
     erreur = messageErreur(cause)
   }
-  retour("donnees", erreur)
+  return retour(erreur)
 }
 
-export async function sauverTelephone(formData: FormData): Promise<void> {
+export async function sauverTelephone(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   try {
     const { contexte } = await exigerContexte()
@@ -270,12 +274,12 @@ export async function sauverTelephone(formData: FormData): Promise<void> {
   } catch (cause) {
     erreur = messageErreur(cause)
   }
-  retour("compte", erreur)
+  return retour(erreur)
 }
 
 // Quitter une team : refusé au dernier responsable, avec la raison. Si c'est la team courante,
 // on repart vers le choix de team.
-export async function quitterTeam(formData: FormData): Promise<void> {
+export async function quitterTeam(_etat: Resultat | null, formData: FormData): Promise<Resultat> {
   let erreur: string | undefined
   let etaitCourante = false
   try {
@@ -306,7 +310,7 @@ export async function quitterTeam(formData: FormData): Promise<void> {
     erreur = messageErreur(cause)
   }
   if (etaitCourante) redirect("/equipes")
-  retour("compte", erreur)
+  return retour(erreur)
 }
 
 // Commencer une app : son écran d'accueil ne revient plus pour ce membre.

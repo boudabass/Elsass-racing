@@ -27,12 +27,21 @@ export function messageDe(erreur: unknown): string {
   return "L'enregistrement n'a pas pu être fait. Réessaie."
 }
 
+// Erreur ni métier ni d'accès : un bug ou un incident. Le journal du serveur garde le détail (chemin de l'app et
+// pile) ; l'utilisateur ne voit que le message générique de messageDe.
+export function journaliserErreurInattendue(chemin: string, erreur: unknown): void {
+  if (erreur instanceof ErreurMetier || erreur instanceof ErreurAcces) return
+  const pile = erreur instanceof Error ? (erreur.stack ?? erreur.message) : String(erreur)
+  console.error(`[executer] Erreur inattendue dans ${chemin} :\n${pile}`)
+}
+
 export async function executer(chemin: string, action: () => Promise<string | void>): Promise<Resultat> {
   try {
     const id = await action()
     revalidatePath(chemin, "layout")
     return { ok: true, id: id ?? undefined }
   } catch (erreur) {
+    journaliserErreurInattendue(chemin, erreur)
     return { ok: false, message: messageDe(erreur) }
   }
 }

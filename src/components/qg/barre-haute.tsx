@@ -1,12 +1,13 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
-import { House, Search } from "lucide-react"
+import { Search } from "lucide-react"
 
-import { deconnexionAction } from "@/core/auth/actions"
 import { basculerTerrainAction } from "@/core/actions/formulaires"
 import { formatEuros } from "@/lib/euros"
 
 import { IndicateurSynchro } from "./indicateur-synchro"
+import { LogoTeam } from "./logo-team"
+import { MenuQg } from "./menu-qg"
 
 // La couleur n'est qu'un renfort : la phrase du solde dit déjà qui doit quoi.
 function couleurSolde(centimes: number): string {
@@ -21,6 +22,8 @@ function libelleSolde(solde: { libelle: string; montantCentimes: number; texte?:
 
 export interface BarreHauteDonnees {
   nomTeam: string
+  // Logo de la team : à la place de l'icône QG quand il existe (brief 3.1, section 3.1).
+  logoFileId: string | null
   saison: string | null
   prochaine: { nom: string; compteARebours: string } | null
   nombreActions: number
@@ -45,9 +48,9 @@ export function BarreHaute({
     <header className="sticky top-0 z-30 border-b border-bordure bg-fond/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 md:px-6">
         <Link href="/qg" className="cible-tactile flex items-center gap-3" aria-label={`${donnees.nomTeam} : retour au QG`}>
-          {/* Pas encore de logo téléversé : une icône QG, à toutes les tailles. */}
+          {/* Logo de la team s'il existe, sinon l'icône QG (LogoTeam revient à l'icône si l'image ne charge pas). */}
           <span aria-hidden className="titre-rallye flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-marque text-marque-texte">
-            <House className="h-5 w-5" aria-hidden />
+            <LogoTeam logoFileId={donnees.logoFileId} />
           </span>
           <span className="hidden flex-col leading-tight sm:flex">
             <span className="titre-rallye text-lg">{donnees.nomTeam}</span>
@@ -110,39 +113,7 @@ export function BarreHaute({
               {donnees.modeTerrain ? "Terrain : activé" : "Mode terrain"}
             </button>
           </form>
-
-          <details className="relative">
-            <summary className="cible-tactile flex cursor-pointer list-none items-center rounded-md px-2 text-sm text-texte-discret hover:bg-surface-2 hover:text-texte">
-              Menu
-            </summary>
-            <div className="absolute right-0 mt-2 flex w-64 flex-col gap-1 rounded-lg border border-bordure bg-surface p-2 shadow-lg">
-              <Link href="/qg" className="cible-tactile flex items-center rounded-md px-3 hover:bg-surface-2">
-                Accueil du QG
-              </Link>
-              <Link href="/recherche" className="cible-tactile flex items-center rounded-md px-3 hover:bg-surface-2 md:hidden">
-                Rechercher
-              </Link>
-              <Link href="/notes" className="cible-tactile flex items-center rounded-md px-3 hover:bg-surface-2">
-                Notes de la team
-              </Link>
-              {donnees.plusieursTeams && (
-                <Link href="/equipes" className="cible-tactile flex items-center rounded-md px-3 hover:bg-surface-2">
-                  Changer de team
-                </Link>
-              )}
-              <form action={basculerTerrainAction} className="md:hidden">
-                <input type="hidden" name="actif" value={donnees.modeTerrain ? "0" : "1"} />
-                <button type="submit" className="cible-tactile flex w-full items-center rounded-md px-3 text-left hover:bg-surface-2">
-                  {donnees.modeTerrain ? "Quitter le mode terrain" : "Passer en mode terrain"}
-                </button>
-              </form>
-              <form action={deconnexionAction}>
-                <button type="submit" className="cible-tactile flex w-full items-center rounded-md px-3 text-left text-texte-discret hover:bg-surface-2 hover:text-texte">
-                  Se déconnecter
-                </button>
-              </form>
-            </div>
-          </details>
+          <MenuQg modeTerrain={donnees.modeTerrain} plusieursTeams={donnees.plusieursTeams} />
         </div>
       </div>
 

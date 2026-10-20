@@ -86,6 +86,9 @@ Une nouvelle app importe ces éléments au lieu de les recopier :
 - `src/core/synchro/registre.ts` : `socleSynchro(ligne)` (champs communs, au format de la synchro) et `refusLectureSeule()` pour les tables lues seulement hors ligne.
 - `src/components/formulaire/message.tsx` : `Message`, le message affiché sous un formulaire après une Server Action (prop `ok` pour le texte de succès).
 - `src/lib/euros.ts` : `formatEuros(centimes)` (« 1 234,50 € ») et `enEuros(centimes)` (« 12,50 » pour un champ de saisie).
+- `src/core/fichiers/fichiers-serveur.ts` : `enregistrerFichier` (écriture et ligne `core_file`), `rattacherFichier` (lien à une fiche, dans la transaction de l'app), `remplacerFichier` (l'ancien fichier part à la corbeille). Règles et routes dans `docs/fichiers.md`.
+- `src/components/formulaire/champ-fichier.tsx` : `ChampFichier`, le champ d'envoi de fichier (photo compressée, hors ligne géré, vignette ou nom).
+- `src/core/pdf/` : `DocumentTeam` (en-tête, pied de page), les blocs `Tableau`, `ChiffresCles`…, `rendrePdf` et `reponsePdf` pour une route qui télécharge un PDF, `lireLogoPourPdf`. Usage et limites dans `docs/pdf.md`.
 
 Les erreurs métier de Saison (`ErreurSaison`) et de Budget (`ErreurBudget`) héritent de `ErreurMetier`.
 
@@ -105,7 +108,7 @@ Côté écran : `useTable("<table>")` lit la base locale, `useMoteurSynchro().ec
 
 Une app peut ajouter un onglet à la fiche d'une autre app. Le contrat est dans `src/core/sdk/onglets.ts` :
 
-1. Déclarer l'onglet dans la liste de la fiche : `{ cle, libelle, app, niveauMinimum, composant }`. `composant` est le composant serveur de l'app, qui reçoit `{ ficheId }` et appelle ses propres fonctions de lecture. La liste vit dans `src/apps/onglets-fiches.ts` (couche de composition : elle connaît les apps, le socle et la fiche non). Pour la fiche épreuve : `ONGLETS_FICHE_EPREUVE`.
+1. Déclarer l'onglet dans la liste de la fiche : `{ cle, libelle, app, niveauMinimum, composant }`. `composant` est le composant serveur de l'app, qui reçoit `{ ficheId }` et appelle ses propres fonctions de lecture. La liste vit dans `src/apps/onglets-fiches.ts` (couche de composition : elle connaît les apps, le socle et la fiche non). Pour la fiche épreuve : `ONGLETS_FICHE_EPREUVE`. Pour la fiche véhicule (Voiture, tâche 3.3) : `ONGLETS_FICHE_VEHICULE`, avec les cinq onglets de Voiture (Identité, Papiers, Déco, Réglages, Historique) ; Garage y ajoutera « État » au lot 4.
 2. Dans la page de la fiche, appeler `ongletsVisibles(contexte, liste)` : l'onglet n'est retenu que si son app est activée pour la team et que le membre a au moins `niveauMinimum`.
 3. Ajouter l'onglet à la barre (`Onglets`), et rendre `onglet.composant` avec `ficheId`. La fiche ne connaît pas l'app qui fournit l'onglet. L'app qui possède la fiche ne lit jamais les tables de l'autre.
 
@@ -121,3 +124,22 @@ Chaque entrée peut porter ses droits, en plus du niveau d'accès à l'app :
 - `masquePour` : niveaux pour lesquels l'entrée est masquée (ex. « Prévisionnel » : `["contribution"]`, l'assistance ne voit pas le prévu).
 
 Le filtre est `entreeVisible` (`src/core/sdk/manifeste.ts`). Il ne remplace pas les contrôles de la page : la page garde sa propre garde (`accesEcran`, `exigerAcces`).
+
+## Lectures partagées entre apps (tâche 3.6)
+
+Une app lit les données d'une autre seulement par une fonction exposée dans `lectures-partagees.ts` de l'app propriétaire. Jamais par ses tables, et jamais par ses fiches d'écriture.
+
+Exemple : `listerEmplacementsPourPartenaires(ctx)` (`src/apps/voiture/lectures-partagees.ts`) renvoie les emplacements de tous les véhicules de la team, avec le statut `libre`, `reserve`, `occupe` ou `indisponible` (même règle que le plan de déco). Partenaires s'en sert pour le choix d'un emplacement de contrepartie « logo ».
+
+Ces fonctions n'ont pas de garde : l'app appelante contrôle son propre accès avant d'appeler la lecture (ici, `accesPartenaires`). Elles ne renvoient que des données de résultat.
+
+## Contexte public, sans utilisateur (tâche 3.7)
+
+`avecContextePublic(teamId, tx => …)` (`src/lib/prisma.ts`) ouvre une transaction où seul `app.team_id` est posé. Il n'y a pas d'`app.user_id` : une page servie sans compte, comme `/p/<jeton>`, lit et écrit dans une seule team, et les politiques RLS ne laissent rien passer d'autre.
+
+Règles :
+- à n'utiliser que quand le filtre (par exemple un lien validé) est décidé avant la requête ;
+- une table ne s'ouvre sans contexte que par une fonction SQL `SECURITY DEFINER` dont le corps est fermé (précédents : `core_invitation_en_attente`, `partenaires_lien_par_empreinte`) ;
+- `scripts/verifier-cloisonnement.ts` vérifie qu'une lecture sans contexte ne renvoie rien, et que la fonction ne renvoie que la ligne demandée.
+
+Exemple : `lirePagePartenaire(lien)` (`src/apps/partenaires/page-publique-serveur.ts`).

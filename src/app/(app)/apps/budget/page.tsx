@@ -2,10 +2,13 @@ import Link from "next/link"
 import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/budget/ecran"
-import { FiltresMouvements } from "@/apps/budget/composants/filtres"
+import { FiltresMouvements, PastillesFiltres } from "@/apps/budget/composants/filtres"
 import { BOUTON, MONTANT } from "@/apps/budget/composants/classes"
+import { EncaisserRecette } from "@/apps/budget/composants/encaisser"
 import { lireChoix, lireMouvement, listerMouvements, compterSuggestions, type MouvementLu } from "@/apps/budget/lectures-serveur"
-import { formatEuros, libelle } from "@/apps/budget/libelles"
+import { parametresSauf, pastillesFiltres } from "@/apps/budget/filtres-url"
+import { formatEuros, libelle, libelleStatutRecette } from "@/apps/budget/libelles"
+import { comptesEncaissement } from "@/apps/budget/regles"
 import { jourDeParis } from "@/core/dates"
 import { prefsMembre } from "@/apps/settings/preferences-serveur"
 import { appDecouverte } from "@/apps/settings/regles-personnelles"
@@ -14,6 +17,7 @@ import { EcranVide } from "@/components/qg/ecran-vide"
 import { contexteQg } from "@/core/qg/donnees"
 import { ECRANS_DECOUVERTE } from "@/core/sdk/decouverte"
 import { aAuMoins } from "@/core/droits/niveaux"
+import { LIEN } from "@/lib/classes-formulaire"
 
 // Mouvements de Budget : dépenses et recettes, plus récentes d'abord. Filtres dans l'URL ; la fiche d'un
 // mouvement s'ouvre à droite sur PC (paramètre m), en pleine page sur téléphone.
@@ -55,19 +59,13 @@ export default async function PageMouvements({
   const totalRecettes = recettes.reduce((total, mouvement) => total + mouvement.montantCentimes, 0)
   const aConfirmer = aAuMoins(acces.niveau, "ecriture") ? await compterSuggestions() : 0
   const fiche = parametres.m ? await lireMouvement(parametres.m) : null
+  // Encaisser une recette prévue : réservé au niveau gestion (brief 3.9, §3). Date par défaut : aujourd'hui.
+  const peutEncaisser = aAuMoins(acces.niveau, "gestion")
+  const encaissement = { comptes: comptesEncaissement(choix.payeurs), aujourdhui: jourDeParis(new Date()) }
 
   // Filtres actifs en pastilles retirables (la saison ne s'retire pas : c'est le choix de période).
-  const retirer = (cle: string) => {
-    const sansCle = new URLSearchParams(Object.entries(parametres).filter(([nom, valeur]) => nom !== "m" && nom !== cle && valeur) as [string, string][])
-    return `/apps/budget${sansCle.toString() ? `?${sansCle.toString()}` : ""}`
-  }
-  const pastilles = [
-    ...(parametres.epreuve ? [{ cle: "epreuve", libelle: choix.epreuves.find((epreuve) => epreuve.id === parametres.epreuve)?.nom ?? "Épreuve" }] : []),
-    ...(parametres.categorie ? [{ cle: "categorie", libelle: [...choix.categoriesDepense, ...choix.categoriesRecette].find((categorie) => categorie.id === parametres.categorie)?.nom ?? "Catégorie" }] : []),
-    ...(parametres.membre ? [{ cle: "membre", libelle: choix.payeurs.find((payeur) => payeur.id === parametres.membre)?.nom ?? "Membre" }] : []),
-  ].map((pastille) => ({ ...pastille, retirer: retirer(pastille.cle) }))
-
-  const query = new URLSearchParams(Object.entries(parametres).filter(([cle, valeur]) => cle !== "m" && valeur) as [string, string][]).toString()
+  const pastilles = pastillesFiltres(parametres, choix, "/apps/budget")
+  const query = parametresSauf(parametres, ["m"])
   const adresse = (id: string) => `/apps/budget?${query ? `${query}&` : ""}m=${id}`
 
   return (
@@ -83,6 +81,11 @@ export default async function PageMouvements({
           <Link href="/apps/budget/nouvelle" className={BOUTON}>
             Ajouter une dépense
           </Link>
+          {aAuMoins(acces.niveau, "ecriture") && (
+            <Link href={`/apps/budget/bilan${parametres.saison ? `?saison=${parametres.saison}` : ""}`} className={LIEN}>
+              Bilan de saison (PDF)
+            </Link>
+          )}
           {/* Action secondaire : un lien discret, après le bouton principal. */}
           <Link href={`/apps/budget/export${query ? `?${query}` : ""}`} className="inline-flex min-h-11 items-center px-2 text-sm text-texte-discret hover:text-texte">
             Exporter (CSV)
@@ -98,21 +101,7 @@ export default async function PageMouvements({
         valeurs={{ saison: saisonId ?? "", epreuve: parametres.epreuve ?? "", categorie: parametres.categorie ?? "", membre: parametres.membre ?? "" }}
         afficherMembres={toutVisible}
         nombreActifs={pastilles.length}
-        pastilles={
-          pastilles.length > 0 ? (
-            <ul className="flex flex-wrap gap-2" aria-label="Filtres actifs">
-              {pastilles.map((pastille) => (
-                <li key={pastille.cle}>
-                  <Link href={pastille.retirer} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-bordure bg-surface px-3 py-1 text-sm">
-                    {pastille.libelle}
-                    <span aria-hidden>×</span>
-                    <span className="sr-only">Retirer ce filtre</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : null
-        }
+        pastilles={<PastillesFiltres pastilles={pastilles} />}
       />
 
       {/* Téléphone : une seule carte, trois lignes (libellé à gauche, montant à droite). Ordinateur : trois cartes. */}
@@ -147,18 +136,30 @@ export default async function PageMouvements({
                     {formatJour.format(new Date(`${mouvement.date}T00:00:00Z`))} · {mouvement.categorieNom}
                     {mouvement.payeurNom ? ` · ${mouvement.payeurNom}` : ""}
                   </span>
+                  {mouvement.type === "recette" && mouvement.statut === "prevue" && (
+                    <span className="text-xs text-texte-discret">Prévue, pas encore encaissée</span>
+                  )}
                 </span>
                 <span className={`${MONTANT} shrink-0 ${mouvement.type === "recette" ? "text-etat-ok" : ""}`}>
                   {mouvement.type === "recette" ? "+" : "−"} {formatEuros(mouvement.montantCentimes)}
                 </span>
               </Link>
+            {peutEncaisser && mouvement.type === "recette" && mouvement.statut === "prevue" && parametres.m !== mouvement.id && (
+              <div className="px-4 pb-3">
+                <EncaisserRecette recetteId={mouvement.id} comptes={encaissement.comptes} dateDefaut={encaissement.aujourdhui} />
+              </div>
+            )}
             </li>
           ))}
         </ul>
 
         <aside className={parametres.m ? "" : "hidden md:block"} aria-label="Fiche du mouvement">
           {fiche ? (
-            <FicheMouvement mouvement={fiche} retour={query ? `/apps/budget?${query}` : "/apps/budget"} />
+            <FicheMouvement
+              mouvement={fiche}
+              retour={query ? `/apps/budget?${query}` : "/apps/budget"}
+              encaissement={peutEncaisser && fiche.type === "recette" && fiche.statut === "prevue" ? encaissement : null}
+            />
           ) : (
             <p className="text-sm text-texte-discret">Choisis un mouvement pour voir sa fiche.</p>
           )}
@@ -168,7 +169,15 @@ export default async function PageMouvements({
   )
 }
 
-function FicheMouvement({ mouvement, retour }: { mouvement: MouvementLu; retour: string }) {
+function FicheMouvement({
+  mouvement,
+  retour,
+  encaissement,
+}: {
+  mouvement: MouvementLu
+  retour: string
+  encaissement: { comptes: Array<{ id: string; nom: string; parDefaut: boolean }>; aujourdhui: string } | null
+}) {
   const estDepense = mouvement.type === "depense"
   return (
     <article className="flex flex-col gap-3 rounded-lg border border-bordure bg-surface p-4 text-sm">
@@ -197,7 +206,7 @@ function FicheMouvement({ mouvement, retour }: { mouvement: MouvementLu; retour:
           </>
         )}
         <dt className="text-texte-discret">Statut</dt>
-        <dd>{estDepense ? (mouvement.statut === "confirmee" ? "Confirmée" : "À confirmer") : libelle("BudgetStatutRecette", mouvement.statut)}</dd>
+        <dd>{estDepense ? (mouvement.statut === "confirmee" ? "Confirmée" : "À confirmer") : libelleStatutRecette(mouvement)}</dd>
         {estDepense && mouvement.remboursement && (
           <>
             <dt className="text-texte-discret">Remboursement</dt>
@@ -207,12 +216,13 @@ function FicheMouvement({ mouvement, retour }: { mouvement: MouvementLu; retour:
         <dt className="text-texte-discret">Origine</dt>
         <dd>{libelle("BudgetOrigine", mouvement.origine)}</dd>
       </dl>
+      {encaissement && <EncaisserRecette recetteId={mouvement.id} comptes={encaissement.comptes} dateDefaut={encaissement.aujourdhui} />}
       {/* Les droits sont ceux de la page : elle refuse ce que le membre ne peut pas modifier ou supprimer. */}
       <div className="flex flex-wrap gap-2 pt-1">
         <Link href={`/apps/budget/mouvement/${mouvement.id}`} className="cible-tactile flex items-center rounded-md border border-bordure px-3 hover:bg-surface-2">
           Modifier
         </Link>
-        <Link href={`/apps/budget/mouvement/${mouvement.id}#supprimer`} className="cible-tactile flex items-center rounded-md border border-etat-rouge px-3 text-etat-rouge hover:bg-surface-2">
+        <Link href={`/apps/budget/mouvement/${mouvement.id}`} className="cible-tactile flex items-center rounded-md border border-etat-rouge px-3 text-etat-rouge hover:bg-surface-2">
           Supprimer
         </Link>
       </div>

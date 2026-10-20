@@ -259,13 +259,167 @@ async function main() {
     }
     controle("création d'une dépense Budget dans la team B sous le contexte A refusée", depenseRefusee)
 
+    // Voiture (tâche 3.2) : sept tables, même garantie que budget_.
+    const tablesVoiture = [
+      "voiture_vehicle", "voiture_paper", "voiture_slot", "voiture_slot_assignment",
+      "voiture_setup", "voiture_setup_template", "voiture_team_pref",
+    ]
+    const voitureSansRls = await proprietaire.$queryRaw<Array<{ table_name: string }>>`
+      SELECT c.relname AS table_name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = ANY(${tablesVoiture}::text[])
+        AND (
+          NOT c.relrowsecurity
+          OR NOT c.relforcerowsecurity
+          OR NOT EXISTS (
+            SELECT 1 FROM pg_policies p
+            WHERE p.schemaname = 'public' AND p.tablename = c.relname AND p.policyname = 'cloisonnement_team'
+          )
+          OR NOT (
+            has_table_privilege('elsass_racing_app', c.oid, 'SELECT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'INSERT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'UPDATE')
+          )
+        )
+      ORDER BY c.relname`
+    controle(
+      "les sept tables voiture_ ont le RLS forcé, la politique cloisonnement_team et les droits du rôle applicatif",
+      voitureSansRls.length === 0 && tablesVoiture.length === 7,
+      voitureSansRls.map((r) => r.table_name).join(", "),
+    )
+
+    // Partenaires (tâche 3.5) : onze tables, même garantie que voiture_. Plus les trois colonnes d'identité
+    // juridique de core_team, qui doivent exister (la lecture passe par la team, comme les autres colonnes).
+    const tablesPartenaires = [
+      "partenaires_partner", "partenaires_interaction", "partenaires_template", "partenaires_agreement",
+      "partenaires_amendment", "partenaires_benefit_catalog", "partenaires_benefit", "partenaires_proof",
+      "partenaires_report", "partenaires_portal_link", "partenaires_portal_message",
+    ]
+    const partenairesSansRls = await proprietaire.$queryRaw<Array<{ table_name: string }>>`
+      SELECT c.relname AS table_name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = ANY(${tablesPartenaires}::text[])
+        AND (
+          NOT c.relrowsecurity
+          OR NOT c.relforcerowsecurity
+          OR NOT EXISTS (
+            SELECT 1 FROM pg_policies p
+            WHERE p.schemaname = 'public' AND p.tablename = c.relname AND p.policyname = 'cloisonnement_team'
+          )
+          OR NOT (
+            has_table_privilege('elsass_racing_app', c.oid, 'SELECT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'INSERT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'UPDATE')
+          )
+        )
+      ORDER BY c.relname`
+    controle(
+      "les onze tables partenaires_ ont le RLS forcé, la politique cloisonnement_team et les droits du rôle applicatif",
+      partenairesSansRls.length === 0 && tablesPartenaires.length === 11,
+      partenairesSansRls.map((r) => r.table_name).join(", "),
+    )
+    const colonnesJuridiques = await proprietaire.$queryRaw<Array<{ column_name: string }>>`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'core_team'
+        AND column_name IN ('forme_juridique', 'signataire_nom', 'signataire_qualite')`
+    controle("core_team porte les trois colonnes d'identité juridique", colonnesJuridiques.length === 3)
+
+    const vehiculeB = randomUUID()
+    await proprietaire.coreVehicle.create({ data: { id: vehiculeB, teamId: teamB.id, type: "course", nomCourt: "Véhicule B" } })
+    const ficheB = randomUUID()
+    await proprietaire.voitureVehicle.create({ data: { id: ficheB, teamId: teamB.id, vehicleId: vehiculeB } })
+    const papierB = randomUUID()
+    await proprietaire.voiturePaper.create({ data: { id: papierB, teamId: teamB.id, vehicleId: vehiculeB, type: "carte_grise" } })
+    const preferenceB = randomUUID()
+    await proprietaire.voitureTeamPref.create({ data: { id: preferenceB, teamId: teamB.id } })
+
+    const fichesVuesParA = await clientA.voitureVehicle.count({ where: { id: ficheB } })
+    controle("une fiche voiture de la team B est invisible sous le contexte A", fichesVuesParA === 0, `vu : ${fichesVuesParA}`)
+    const papiersVusParA = await clientA.voiturePaper.count({ where: { id: papierB } })
+    controle("un papier de la team B est invisible sous le contexte A", papiersVusParA === 0, `vu : ${papiersVusParA}`)
+    const papiersModifies = await clientA.voiturePaper.updateMany({ where: { id: papierB }, data: { numero: "piratage" } })
+    controle("update d'un papier de B sous le contexte A touche 0 ligne", papiersModifies.count === 0, `touché : ${papiersModifies.count}`)
+    const preferencesVues = await clientA.voitureTeamPref.count({ where: { id: preferenceB } })
+    controle("les préférences Voiture de la team B sont invisibles sous le contexte A", preferencesVues === 0, `vu : ${preferencesVues}`)
+    let papierIntrusRefuse = false
+    try {
+      await clientA.voiturePaper.create({
+        data: { id: randomUUID(), teamId: teamB.id, vehicleId: vehiculeB, type: "assurance" },
+      })
+    } catch {
+      papierIntrusRefuse = true
+    }
+    controle("création d'un papier Voiture dans la team B sous le contexte A refusée", papierIntrusRefuse)
+
+    // Page partenaire (brief 3.7, point 2) : la fonction de lien, sans aucun contexte, ne renvoie que la ligne demandée.
+    const { empreinteJeton } = await import("../src/apps/partenaires/empreinte-jeton")
+    const empreinteA = empreinteJeton(`verif-lien-${suffixe}`)
+    const contactPartenaire = randomUUID()
+    const partenairePublic = randomUUID()
+    const lienPublic = randomUUID()
+    await proprietaire.coreContact.create({ data: { id: contactPartenaire, teamId: teamA.id, nom: `Partenaire ${suffixe}` } })
+    await proprietaire.partenairesPartner.create({ data: { id: partenairePublic, teamId: teamA.id, contactId: contactPartenaire } })
+    await proprietaire.partenairesPortalLink.create({ data: { id: lienPublic, teamId: teamA.id, partnerId: partenairePublic, jetonEmpreinte: empreinteA } })
+
+    const trouves = await applicatif.$queryRaw<Record<string, unknown>[]>`SELECT * FROM partenaires_lien_par_empreinte(${empreinteA})`
+    controle("sans contexte, la fonction de lien renvoie la seule ligne demandée", trouves.length === 1 && trouves[0].lien_id === lienPublic, `lignes : ${trouves.length}`)
+    const inconnues = await applicatif.$queryRaw<Record<string, unknown>[]>`SELECT * FROM partenaires_lien_par_empreinte(${empreinteJeton(`inconnu-${suffixe}`)})`
+    controle("sans contexte, une empreinte inconnue ne renvoie aucune ligne", inconnues.length === 0, `lignes : ${inconnues.length}`)
+    const colonnes = Object.keys(trouves[0] ?? {}).sort().join(",")
+    controle("la fonction ne renvoie que quatre colonnes, sans autre donnée", colonnes === "lien_id,partner_id,sections,team_id", colonnes)
+    const partenairesVus = await applicatif.$queryRaw<{ n: bigint }[]>`SELECT count(*)::bigint AS n FROM partenaires_partner`
+    controle("sans contexte, la table des partenaires reste invisible à l'application", Number(partenairesVus[0].n) === 0, `vus : ${partenairesVus[0].n}`)
+
+    // Liaison entre apps (brief 3.8, §1) : un fichier ne se rattache à une autre fiche que s'il est déjà rattaché à la source.
+    const { rattacherDepuisSource } = await import("../src/core/fichiers/fichiers-serveur")
+    const ficheSource = randomUUID()
+    const ficheCible = randomUUID()
+    const fichierLiaison = randomUUID()
+    const source = { app: "voiture", ficheType: "occupation", ficheId: ficheSource }
+    const cible = { app: "partenaires", ficheType: "proof", ficheId: ficheCible, role: "photo" as const }
+    const ctxLiaison = { teamId: teamA.id, userId: utilisateur.id, membership: { id: adhesion, role: "responsable" as const } }
+    await proprietaire.coreFile.create({
+      data: { id: fichierLiaison, teamId: teamA.id, storageKey: `verif/${suffixe}/${fichierLiaison}`, nom: "logo.png", mimeType: "image/png", taille: 1, empreinte: `verif-${suffixe}` },
+    })
+
+    let liaisonRefusee = ""
+    try {
+      await rattacherDepuisSource(clientA as never, ctxLiaison, { fileId: fichierLiaison, source, cible })
+    } catch (erreur) {
+      liaisonRefusee = erreur instanceof Error ? erreur.message : String(erreur)
+    }
+    controle("un fichier non rattaché à la fiche source ne se lie pas à une autre fiche", liaisonRefusee.includes("n'est pas rattaché"), liaisonRefusee)
+    const liaisonsSansSource = await proprietaire.coreAttachment.count({ where: { fileId: fichierLiaison, app: cible.app } })
+    controle("le refus n'a créé aucun rattachement", liaisonsSansSource === 0, `créés : ${liaisonsSansSource}`)
+
+    await proprietaire.coreAttachment.create({
+      data: { id: randomUUID(), teamId: teamA.id, fileId: fichierLiaison, app: source.app, ficheType: source.ficheType, ficheId: ficheSource, role: "photo" },
+    })
+    await rattacherDepuisSource(clientA as never, ctxLiaison, { fileId: fichierLiaison, source, cible })
+    await rattacherDepuisSource(clientA as never, ctxLiaison, { fileId: fichierLiaison, source, cible })
+    const liaisonsAvecSource = await proprietaire.coreAttachment.count({ where: { fileId: fichierLiaison, app: cible.app, ficheId: ficheCible } })
+    controle("une fois rattaché à la source, le fichier se lie à la fiche cible, une seule fois", liaisonsAvecSource === 1, `liaisons : ${liaisonsAvecSource}`)
+
     console.log("\nCloisonnement vérifié : tous les contrôles passent.")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères.
+    await proprietaire.voiturePaper.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.voitureTeamPref.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.voitureVehicle.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.coreVehicle.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.budgetExpense.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.budgetPayer.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.budgetCategory.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.saisonChampionship.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.coreAttachment.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.coreFile.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.partenairesPortalLink.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.partenairesPartner.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
+    await proprietaire.coreContact.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.coreMembership.deleteMany({ where: { id: adhesion } })
     await proprietaire.coreSeason.deleteMany({ where: { id: { in: [saisonA, saisonB] } } })
     await proprietaire.coreTeam.deleteMany({ where: { id: { in: [teamA.id, teamB.id] } } })

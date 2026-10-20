@@ -20,7 +20,8 @@ async function passerDecouverteBudget(page: Page): Promise<void> {
 async function saisonEtEpreuveAuClic(page: Page, nomEpreuve: string): Promise<string> {
   await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Saison" }).click()
   await expect(page.getByRole("heading", { name: "Créer la saison" })).toBeVisible()
-  await page.getByRole("button", { name: "Ouvrir la saison" }).click()
+  await page.getByRole("button", { name: "Nouvelle saison", exact: true }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Ouvrir la saison", exact: true }).click()
   await expect(page.getByRole("link", { name: "Ajouter une épreuve" })).toBeVisible()
   await page.getByRole("link", { name: "Ajouter une épreuve" }).click()
   await page.getByLabel("Nom de l'épreuve").fill(nomEpreuve)
@@ -47,7 +48,8 @@ test("liste de John : saison créée à l'écran, épreuve, engagement, paiement
   await page.setViewportSize({ width: 360, height: 740 })
   await page.screenshot({ path: "docs/captures/saison-vide-360x740.png" })
   await page.setViewportSize({ width: 1280, height: 900 })
-  await page.getByRole("button", { name: "Ouvrir la saison" }).click()
+  await page.getByRole("button", { name: "Nouvelle saison", exact: true }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Ouvrir la saison", exact: true }).click()
   await expect(page.getByRole("link", { name: "Ajouter une épreuve" })).toBeVisible()
 
   // Épreuve, puis engagement de la voiture, depuis la fiche.
@@ -58,18 +60,20 @@ test("liste de John : saison créée à l'écran, épreuve, engagement, paiement
   await page.getByRole("button", { name: "Ajouter l'épreuve" }).click()
   await expect(page).toHaveURL(/\/apps\/saison\/epreuves\/[0-9a-f-]+/)
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo liste John" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo liste John" })
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await page.getByRole("link", { name: /Saxo liste John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
   const entryId = page.url().split("?")[0].split("/").pop() ?? ""
 
   // Paiement en espèces : Saison le saisit, Budget reçoit une proposition.
+  await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
   await page.getByLabel("Mode de paiement").selectOption({ label: "Espèces" })
   await page.getByLabel("Montant payé (€)").fill("450")
   await page.getByLabel("Payeur").selectOption({ index: 1 })
-  await page.getByRole("button", { name: "Enregistrer le paiement" }).click()
-  await expect(page.getByText("Enregistré.")).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 
   // Budget : la proposition est confirmée depuis À confirmer, par clic.
   await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Budget" }).click()
@@ -77,7 +81,8 @@ test("liste de John : saison créée à l'écran, épreuve, engagement, paiement
   const menuBudget = page.getByRole("navigation", { name: "Menu de Budget" })
   await menuBudget.getByRole("link", { name: "À confirmer" }).click()
   await expect(page.getByRole("heading", { name: /Engagement Rallye liste John/ })).toBeVisible()
-  await page.getByRole("button", { name: "Confirmer" }).click()
+  await page.getByRole("button", { name: "Confirmer", exact: true }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Confirmer le mouvement" }).click()
   await expect(page.getByRole("heading", { name: /Engagement Rallye liste John/ })).toHaveCount(0)
 
   // Dépense saisie, puis modifiée et supprimée depuis la fiche du mouvement.
@@ -85,7 +90,6 @@ test("liste de John : saison créée à l'écran, épreuve, engagement, paiement
   await page.getByRole("link", { name: "Ajouter une dépense" }).click()
   await page.getByLabel("Montant (€)").fill("80")
   await page.getByLabel("Catégorie", { exact: true }).selectOption({ index: 1 })
-  await page.getByText("Plus de détails").click()
   await page.getByLabel(/Libellé/).fill("Pneus liste John")
   await page.getByRole("button", { name: "Ajouter la dépense" }).click()
   await expect(page.getByText("Enregistré. La dépense part")).toBeVisible()
@@ -101,14 +105,17 @@ test("liste de John : saison créée à l'écran, épreuve, engagement, paiement
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.getByRole("complementary", { name: "Fiche du mouvement" }).getByRole("link", { name: "Modifier" }).click()
   await expect(page.getByRole("heading", { name: "Modifier la dépense" })).toBeVisible()
-  await page.getByLabel(/Libellé/).fill("Pneus modifiés John")
+  await page.getByRole("button", { name: "Modifier", exact: true }).click()
+  await page.getByRole("dialog").getByLabel(/Libellé/).fill("Pneus modifiés John")
   await page.getByRole("button", { name: "Enregistrer les modifications" }).click()
-  await page.getByRole("link", { name: "← Mouvements" }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await menuBudget.getByRole("link", { name: "Mouvements", exact: true }).click()
   await page.getByRole("link", { name: /Pneus modifiés John/ }).first().click()
   await page.getByRole("complementary", { name: "Fiche du mouvement" }).getByRole("link", { name: "Supprimer" }).click()
-  await expect(page).toHaveURL(/#supprimer/)
-  await page.getByRole("checkbox", { name: "Je confirme la suppression de ce mouvement." }).check()
-  await page.locator("#supprimer").getByRole("button", { name: "Supprimer" }).click()
+  await expect(page.getByRole("heading", { name: "Modifier la dépense" })).toBeVisible()
+  await page.getByRole("button", { name: "Supprimer", exact: true }).click()
+  await page.getByRole("dialog").getByRole("checkbox", { name: "Je confirme la suppression de ce mouvement." }).check()
+  await page.getByRole("dialog").getByRole("button", { name: "Supprimer", exact: true }).click()
   await page.getByRole("link", { name: "Mouvements" }).first().click()
   await expect(page.getByRole("link", { name: /Pneus modifiés John/ })).toHaveCount(0)
 
@@ -194,14 +201,16 @@ test("liste de John : paiement dans Saison, confirmation dans la boîte d'action
 
   // Engagement, puis paiement dans Saison.
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
-  await page.getByLabel("Voiture").selectOption({ label: "Saxo boite John" })
-  await page.getByRole("button", { name: "Engager la voiture" }).click()
+  await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
+  await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo boite John" })
+  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
   await page.getByRole("link", { name: /Saxo boite John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
+  await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
   await page.getByLabel("Montant payé (€)").fill("450")
   await page.getByLabel("Payeur").selectOption({ index: 1 })
-  await page.getByRole("button", { name: "Enregistrer le paiement" }).click()
-  await expect(page.getByText("Enregistré.")).toBeVisible()
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 
   // La proposition se confirme dans la boîte d'actions (pas seulement dans la page À confirmer).
   await page.getByRole("link", { name: /retour au QG/ }).click()
