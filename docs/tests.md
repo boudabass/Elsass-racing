@@ -35,6 +35,12 @@ Les consignes de passes locales plus bas dans ce fichier datent d'avant la 4.0b.
 - Cause non établie. Le HTML serveur de `/qg` et le DOM client ont la même séquence de textes : la différence est ailleurs (attribut, nœud non textuel).
 - Suivi sur les prochains runs. Si le 418 revient : étape de diagnostic dans un commit séparé, hors du test, qui capte le HTML serveur et le DOM client de `/qg` (attributs de `<html>` et `<body>`, thème, indicateur « il y a N min »). Renommage ou séparation des erreurs « en ligne » et « hors ligne » : après la cause.
 
+### Intermittent suivi : `e2e/hors-ligne.spec.ts:119`
+
+- Test : « hors ligne : une app jamais visitée affiche la page de repli, sans écran d'erreur ».
+- Échec sur le run 39480825378 (commit bf1e6d3, documentation seule ; code `src` et `e2e` identique au run vert 39474476309) : erreur React #418, relevée au premier chargement en ligne de `/qg`, comme pour `hors-ligne.spec.ts:87`. Même cause présumée, non établie.
+- Deuxième apparition du 418 : décision (2) de l'Orchestrateur. Le diagnostic (HTML serveur et DOM client de `/qg`) suit dans un commit séparé, hors des tests.
+
 ### Intermittent suivi : `e2e/liste-john.spec.ts:134`
 
 - Test : « liste de John : calendrier en vue mois et filtres sur téléphone, pastilles retirables ». Échec sur `locator.click` du lien « Mois » (ligne 147), timeout de 20 s.
