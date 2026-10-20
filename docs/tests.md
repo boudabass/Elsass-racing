@@ -35,6 +35,15 @@ Les consignes de passes locales plus bas dans ce fichier datent d'avant la 4.0b.
 - Cause non établie. Le HTML serveur de `/qg` et le DOM client ont la même séquence de textes : la différence est ailleurs (attribut, nœud non textuel).
 - Suivi sur les prochains runs. Si le 418 revient : étape de diagnostic dans un commit séparé, hors du test, qui capte le HTML serveur et le DOM client de `/qg` (attributs de `<html>` et `<body>`, thème, indicateur « il y a N min »). Renommage ou séparation des erreurs « en ligne » et « hors ligne » : après la cause.
 
+### Intermittent suivi : `e2e/liste-john.spec.ts:134`
+
+- Test : « liste de John : calendrier en vue mois et filtres sur téléphone, pastilles retirables ». Échec sur `locator.click` du lien « Mois » (ligne 147), timeout de 20 s.
+- Échec sur le run 39477610690 (commit 364916e, documentation seule ; code identique au run vert 39474476309).
+- Lecture de la trace : après le clic sur la tuile Saison depuis le QG, la page affiche le contenu du QG (tuiles, « Le QG »), alors que la barre d'app marque « Calendrier » comme actif. L'URL et la sous-navigation suivent la navigation, le contenu reste celui du QG.
+- Séquence réseau : un `GET /qg?_rsc=…` (rafraîchissement, 28 ms) part juste avant le `GET /apps/saison?_rsc=…` du clic ; les deux réponses reviennent dans la même milliseconde.
+- Piste (probable, non vérifiée dans le code de Next) : `SynchroProvider` appelle `router.refresh()` après chaque poussée qui a appliqué une opération (`src/core/synchro/client/moteur.ts`, `serveurAApplique`). Si ce rafraîchissement part pendant la navigation, sa réponse (le QG) peut arriver après celle de la navigation.
+- Pas de 418 dans ce run. Suivi sur les prochains runs. Si le test échoue à nouveau sur du code identique à un run vert, la règle est celle de la décision (3) de l'Orchestrateur : ça ne bloque pas `dev`. Un échec nouveau, ou sur du code modifié, bloque.
+
 ## Unitaires (Vitest)
 
 - Commande : `pnpm test` (`vitest run`). Fichiers `src/**/*.test.ts`, environnement node, aucune base.
