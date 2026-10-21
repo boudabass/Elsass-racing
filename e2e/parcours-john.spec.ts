@@ -150,8 +150,11 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Créer l'ordre", exact: true }))
   await page.getByRole("link", { name: "Plaquettes avant à remplacer", exact: true }).click()
   await arriver(page, /\/apps\/garage\/travaux\/[0-9a-f-]{36}$/)
+  // Le coût se saisit d'abord (« Coût et prestataire », tiroir propre à l'ordre), puis l'ordre se termine.
+  await page.getByRole("button", { name: "Coût et prestataire", exact: true }).click()
+  await page.getByRole("dialog").getByLabel("Main-d'œuvre, en euros (facultatif)").fill("80")
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }))
   await page.getByRole("button", { name: "Terminer l'ordre", exact: true }).click()
-  await page.getByLabel("Main-d'œuvre, en euros (facultatif)").fill("80")
   await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Terminer l'ordre", exact: true }))
   await expect(page.getByText("Terminé", { exact: true }).filter({ visible: true }).first()).toBeVisible()
 
