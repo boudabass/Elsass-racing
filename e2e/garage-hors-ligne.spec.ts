@@ -6,7 +6,7 @@ import type { Page } from "@playwright/test"
 import { expect, test } from "./aide/fixtures"
 import { ordresEnBase, pieceEnStockDeTest, preparerAtelierSaxo } from "./aide/garage"
 import { connecterParLien } from "./aide/navigation"
-import { ajouterVoitureSaxo } from "./aide/session"
+import { ajouterVoitureSaxo, rattacherPersonne } from "./aide/session"
 
 // Attend que le service worker contrôle la page (il prend le contrôle après le premier rechargement).
 async function attendreServiceWorker(page: Page): Promise<void> {
@@ -23,6 +23,9 @@ test("garage hors ligne : une intervention sans pièce part au retour du réseau
   // Une pièce en stock, pour que le menu « Pièce utilisée » ait une option à choisir (les pièces montées n'y figurent pas).
   await pieceEnStockDeTest(equipe, organes.freins, "Disque avant en stock")
   const titre = "Plaquettes avant changées hors ligne"
+
+  // Le compte doit avoir une fiche personne : sans elle, l'intervention hors ligne est refusée à l'envoi (D1, affectation).
+  await rattacherPersonne(equipe, equipe.responsable, "Responsable", "E2E")
 
   // En ligne, une fois : la page d'intervention est mise en cache, avec ses organes et ses pièces.
   await connecterParLien(page, equipe)
