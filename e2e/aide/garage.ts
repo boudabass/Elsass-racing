@@ -100,3 +100,23 @@ export async function kmPieceMonteeEnBase(organeId: string): Promise<number | nu
   )
   return rows[0] ? Number(rows[0].km_cumules) : null
 }
+
+// Un fournisseur de la team (core_contact), pour une commande de test. Renvoie son identifiant.
+export async function fournisseurDeTest(equipe: Equipe, nom: string): Promise<string> {
+  const id = newId()
+  await bd().query(`INSERT INTO core_contact (id, team_id, nom, updated_at) VALUES ($1, $2, $3, now())`, [id, equipe.teamId, nom])
+  return id
+}
+
+// Pièces créées par la réception d'une commande, par désignation : une ligne par unité, avec son prix et son fournisseur.
+export async function piecesDeCommandeEnBase(
+  equipe: Equipe,
+  designation: string,
+): Promise<Array<{ prix_cents: number | null; statut: string; fournisseur_contact_id: string | null; commande_ligne_id: string | null }>> {
+  const { rows } = await bd().query(
+    `SELECT prix_cents, statut, fournisseur_contact_id, commande_ligne_id FROM garage_part
+      WHERE team_id = $1 AND designation = $2 AND deleted_at IS NULL ORDER BY created_at`,
+    [equipe.teamId, designation],
+  )
+  return rows
+}
