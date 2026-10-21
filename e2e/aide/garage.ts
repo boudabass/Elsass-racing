@@ -120,3 +120,16 @@ export async function piecesDeCommandeEnBase(
   )
   return rows
 }
+
+// Ordres de travail de la team portant ce titre, pour vérifier une intervention écrite hors ligne après le retour du réseau.
+export async function ordresEnBase(
+  equipe: Equipe,
+  titre: string,
+): Promise<Array<{ statut: string; avancement_pct: number; origine: string; vehicle_component_id: string | null; vehicle_id: string }>> {
+  const { rows } = await bd().query(
+    `SELECT statut, avancement_pct, origine, vehicle_component_id, vehicle_id FROM garage_work_order
+      WHERE team_id = $1 AND titre = $2 AND deleted_at IS NULL ORDER BY created_at`,
+    [equipe.teamId, titre],
+  )
+  return rows
+}
