@@ -84,8 +84,8 @@ Compte : **11 runs rouges sur 23 contiennent l'erreur React #418** : 8 sur `hors
 | 39514032165 | verif | 02dacb4 | liste-john:134 | Idem, dernier échec avant a06ff42 | Corrigé : a06ff42 |
 | 39520820033 | verif | 099c4de | hors-ligne:87 | 418 | Intermittent suivi (418) |
 | 39523480135 | dev | 099c4de | hors-ligne:87 | 418 | Intermittent suivi (418) |
-| 39523629008 | verif | 2955d39 | hors-ligne:87 ; partenaire-page:198 | 418 ; partenaire-page : un lien révoqué répond 200 au lieu de 404 | 418 suivi ; **partenaire-page : non classé, à examiner en priorité** |
-| 39526025280 | verif | 7345ef2 | voiture:64 | « N2 » introuvable sur `/apps/voiture` après 15 s. Pas de trace lue | **Non classé** (une apparition) |
+| 39523629008 | verif | 2955d39 | hors-ligne:87 ; partenaire-page:198 | 418 ; partenaire-page : POST de révocation coupé par `page.reload` (trace), un lien révoqué répondait 200 | 418 suivi ; partenaire-page corrigé : 7345ef2 |
+| 39526025280 | verif | 7345ef2 | voiture:64 | « Enregistrer » puis `goto` 10 ms après : POST coupé (trace) | Corrigé : 3bf8f36 (aide d'envoi) |
 | 39531022168 | verif | 566aa84 | hors-ligne:87 | 418 | Intermittent suivi (418) |
 | 39539354644 | verif | 34facd3 | hors-ligne:119 | 418 | Intermittent suivi (418) |
 | 39546225474 | verif | 0fc59ee | garage-hors-ligne:19 | Pièce absente de la liste « Pièce utilisée » (la pièce de test n'était pas en stock) | Corrigé : 4d024e4 |
@@ -97,7 +97,7 @@ Compte : **11 runs rouges sur 23 contiennent l'erreur React #418** : 8 sur `hors
 
 **Depuis `3bf8f36`** : 8 runs rouges (39531022168, 39539354644, 39546225474, 39548389381, 39550585406, 39552717997, 39565329067, 39571735559). Hors 418 et `voiture-deco:337`, il reste `garage-hors-ligne:19` (3 runs, 0fc59ee, 4d024e4, a43e9c8), corrigé par bd79933 : aucun échec de ce test dans les runs suivants (39552717997 à 39579299567, jusqu'au run verif de dbc5df5).
 
-**Non classés** : `partenaire-page.spec.ts:198` (run 39523629008) : un lien révoqué a répondu 200 au lieu de 404. Une seule apparition, pas de trace lue. Ce test touche au contrôle d'accès des liens partenaires : à examiner avant toute autre chose. `voiture.spec.ts:64` (run 39526025280) : une apparition, pas revue depuis.
+**Non classés** : aucun. `partenaire-page.spec.ts:198` et `voiture.spec.ts:64` sont classés par trace (règle « envoi, puis attendre la réponse », section « Après un envoi »).
 
 ## Unitaires (Vitest)
 
