@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
 import { usePathname, useRouter } from "next/navigation"
 
-import { MoteurSynchro, type EtatSynchro } from "./moteur"
+import { ETAT_INITIAL, MoteurSynchro, type EtatSynchro } from "./moteur"
 import { nomBase, type LigneLocale, type TableLocale } from "./base"
 import type { RefusLocal } from "./refus"
 
@@ -70,7 +70,9 @@ export function useMoteurSynchro(): MoteurSynchro {
 export function useEtatSynchro(): EtatSynchro {
   const moteur = useMoteurSynchro()
   const abonner = useCallback((ecouteur: () => void) => moteur.abonner(ecouteur), [moteur])
-  return useSyncExternalStore(abonner, () => moteur.lireEtat(), () => moteur.lireEtat())
+  // Pendant l'hydratation, React rend l'instantané serveur, pas l'état vivant. Si le moteur a déjà avancé (synchro
+  // lancée avant que cet écran soit hydraté), l'HTML du client ne serait plus celui du serveur : hydratation en erreur.
+  return useSyncExternalStore(abonner, () => moteur.lireEtat(), () => ETAT_INITIAL)
 }
 
 // Envois refusés du compte, à lire et à effacer (« Compris »). Relus à chaque changement de la synchro.

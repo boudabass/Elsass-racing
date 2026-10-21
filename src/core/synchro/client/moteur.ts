@@ -23,6 +23,10 @@ export interface EtatSynchro {
   erreur: string | null
 }
 
+// État d'un moteur neuf. Sert d'instantané serveur à useSyncExternalStore : pendant l'hydratation, React exige que le
+// client rende ce que le serveur a rendu. Jamais l'état vivant (voir react.tsx).
+export const ETAT_INITIAL: EtatSynchro = { enLigne: true, enAttente: 0, refus: 0, derniereSync: null, erreur: null }
+
 type Ecouteur = () => void
 
 // Champs modifiables d'une ligne : validés par la table côté serveur.
@@ -34,7 +38,7 @@ export class MoteurSynchro {
   private ecouteurs = new Set<Ecouteur>()
   private ecouteursServeur = new Set<Ecouteur>()
   private serveurAApplique = false
-  private etat: EtatSynchro = { enLigne: true, enAttente: 0, refus: 0, derniereSync: null, erreur: null }
+  private etat: EtatSynchro = { ...ETAT_INITIAL }
   private minuteur: ReturnType<typeof setTimeout> | null = null
   private intervalle: ReturnType<typeof setInterval> | null = null
   private echecs = 0

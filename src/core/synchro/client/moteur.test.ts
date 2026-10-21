@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { LigneSynchro, Operation, ResultatOperation } from "../protocole"
 
 import { ouvrirBase } from "./base"
-import { MoteurSynchro } from "./moteur"
+import { ETAT_INITIAL, MoteurSynchro } from "./moteur"
 
 // Le moteur sur une vraie base locale (IndexedDB, fake-indexeddb) et un serveur simulé par un fetch : on vérifie ce qui
 // reste sur l'écran, ce qui est gardé en refus, et ce que le tirage suivant rétablit. Les timers ne sont pas avancés :
@@ -176,5 +176,20 @@ describe("moteur : « Compris »", () => {
     await apresRechargement.effacerRefus(refus!.idOperation)
     expect(await apresRechargement.lireRefus()).toEqual([])
     expect(apresRechargement.lireEtat().refus).toBe(0)
+  })
+})
+
+describe("moteur : instantané serveur", () => {
+  // Le hook rend ETAT_INITIAL pendant l'hydratation : l'état d'un moteur neuf doit être exactement cette valeur, et une
+  // synchro ne doit jamais la modifier (sinon le serveur et le client ne rendent plus la même chose).
+  it("l'état d'un moteur neuf égale ETAT_INITIAL, et une synchro ne modifie pas la constante", async () => {
+    const { moteur } = nouveauMoteur()
+    expect(moteur.lireEtat()).toEqual(ETAT_INITIAL)
+
+    const avant = { ...ETAT_INITIAL }
+    await moteur.ecrireLocal("core_note", { type: "creer", id: "note-3", champs: { texte: "Une note" } })
+    await moteur.synchroniser()
+    expect(moteur.lireEtat().derniereSync).not.toBeNull()
+    expect(ETAT_INITIAL).toEqual(avant)
   })
 })
