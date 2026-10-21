@@ -36,8 +36,9 @@ function tuile(page: Page, cle: string): Locator {
 }
 
 // Arrivée d'une navigation, vue comme John : l'URL d'abord, puis le titre h1 (s'il est connu). Le clic suivant ne part qu'après.
-async function arriver(page: Page, url: RegExp, titre?: RegExp): Promise<void> {
-  await page.waitForURL(url)
+// L'URL s'attend sur son chemin seul : les paramètres (?vehicule=…) ne comptent pas.
+async function arriver(page: Page, chemin: RegExp, titre?: RegExp): Promise<void> {
+  await page.waitForURL((adresse) => chemin.test(adresse.pathname))
   if (titre) await expect(page.getByRole("heading", { level: 1 }).filter({ visible: true }).filter({ hasText: titre }).first()).toBeVisible()
 }
 
@@ -84,7 +85,7 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
     const cible = (await tuileRang.getAttribute("href")) ?? ""
     const cle = cible.split("/").pop() ?? ""
     await tuileRang.click()
-    await arriver(page, new RegExp(`/apps/${cle}(/|\\?|$)`), TITRE_APP[cle])
+    await arriver(page, new RegExp(`^/apps/${cle}(/|$)`), TITRE_APP[cle])
     await sansErreur(page)
     await retourAuQg(page)
   }
