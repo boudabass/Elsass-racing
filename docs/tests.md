@@ -143,6 +143,15 @@ La team des captures reçoit les données de démonstration Koehling (`e2e/aide/
 - Cas vécus, sans doublon de données (la fiche et le plan avaient le bon nombre d'emplacements) : `e2e/voiture-deco.spec.ts` lignes 406 et 437 (run 39487952792), 334 (run 39492136999), 536 (run 39495850178).
 - Le piège `getByText` qui trouve aussi les `<option>` d'un `<select>` est dans `CLAUDE.md` (pièges du lot 2).
 
+### Après un envoi : attendre la réponse
+
+Règle : après un envoi (bouton d'un tiroir ou d'un formulaire, qui déclenche une server action), attendre la réponse avant toute navigation (`goto`, `reload`, clic de lien ou de menu). Le navigateur annule une requête en vol au premier rechargement : l'écriture peut alors ne pas avoir lieu, et le test lit l'ancien état.
+
+- Aide : `envoyer(page, bouton)` dans `e2e/aide/envoi.ts`. Elle attend la réponse POST portant `next-action`, puis la fermeture du tiroir s'il y en a un. Utiliser cette aide pour tout envoi suivi de navigation, sans exception.
+- Cas vécus (21/10) : `e2e/partenaire-page.spec.ts:198` (révocation, POST `-1` dans la trace du run 39523629008) et `e2e/voiture.spec.ts:64` (sauvegarde de la fiche, POST `-1` dans le run 39526025280). Les deux échecs venaient de la même course : le test naviguait pendant l'envoi.
+- Côté app, le tiroir ne se ferme qu'à la réponse du serveur, donc pas de faux succès. Une sortie de page pendant l'envoi reste un risque (point ouvert, `docs/plan-developpement.md`, lot 4).
+- Le runner GitHub a un autre minutage que le poste : ces courses sortent d'un run à l'autre. Les fermer toutes d'un coup plutôt qu'une par une.
+
 ## Enchaînement recommandé
 
 ```

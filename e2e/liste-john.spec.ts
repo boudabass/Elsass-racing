@@ -1,3 +1,4 @@
+import { envoyer } from "./aide/envoi"
 import type { Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
@@ -62,7 +63,7 @@ test("liste de John : saison créée à l'écran, épreuve, engagement, paiement
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo liste John" })
-  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }))
   await page.getByRole("link", { name: /Saxo liste John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
   const entryId = page.url().split("?")[0].split("/").pop() ?? ""
@@ -115,7 +116,7 @@ test("liste de John : saison créée à l'écran, épreuve, engagement, paiement
   await expect(page.getByRole("heading", { name: "Modifier la dépense" })).toBeVisible()
   await page.getByRole("button", { name: "Supprimer", exact: true }).click()
   await page.getByRole("dialog").getByRole("checkbox", { name: "Je confirme la suppression de ce mouvement." }).check()
-  await page.getByRole("dialog").getByRole("button", { name: "Supprimer", exact: true }).click()
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Supprimer", exact: true }))
   await page.getByRole("link", { name: "Mouvements" }).first().click()
   await expect(page.getByRole("link", { name: /Pneus modifiés John/ })).toHaveCount(0)
 
@@ -208,7 +209,7 @@ test("liste de John : paiement dans Saison, confirmation dans la boîte d'action
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo boite John" })
-  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }))
   await page.getByRole("link", { name: /Saxo boite John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
   await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()

@@ -1,3 +1,4 @@
+import { envoyer } from "./aide/envoi"
 import type { Browser, Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
@@ -36,7 +37,7 @@ async function passerDecouverteBudget(page: Page): Promise<void> {
 async function saisonEtEpreuvePasseeAuClic(page: Page, nomEpreuve: string): Promise<string> {
   await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Saison" }).click()
   await page.getByRole("button", { name: "Nouvelle saison", exact: true }).click()
-  await page.getByRole("dialog").getByRole("button", { name: "Ouvrir la saison", exact: true }).click()
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Ouvrir la saison", exact: true }))
   await page.getByRole("link", { name: "Ajouter une épreuve" }).click()
   await page.getByLabel("Nom de l'épreuve").fill(nomEpreuve)
   await page.getByLabel("Premier jour").fill(`${ANNEE}-01-10`)
@@ -87,7 +88,7 @@ test("liste de John : saison complète par clic, spéciale, reconnaissance, rés
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo saison John" })
-  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }))
   await page.getByRole("link", { name: /Saxo saison John/ }).first().click()
   await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
   await page.getByLabel("Montant payé (€)").fill("450")
@@ -189,7 +190,7 @@ test("liste de John : recette saisie, remboursement d'un membre, sa ligne revien
   await page.getByRole("link", { name: "Rembourser" }).first().click()
   await page.getByRole("checkbox", { name: /Pneus remb John/ }).check()
   await page.locator("select[name='payerId']").selectOption({ index: 1 })
-  await page.getByRole("button", { name: "Enregistrer le remboursement" }).last().click()
+  await envoyer(page, page.getByRole("button", { name: "Enregistrer le remboursement" }).last())
   await menuBudget.getByRole("link", { name: "Par membre" }).click()
   await expect(page.getByText("Rien à régler").first()).toBeVisible()
   await expect.poll(async () => (await depensesBudgetEnBase(equipe)).some((d) => d.libelle === "Pneus remb John")).toBe(true)
@@ -208,7 +209,7 @@ test("liste de John : Marquer payé dans la boîte, puis paiement direct dans Sa
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo liaison John" })
-  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }))
   await page.getByRole("link", { name: /Saxo liaison John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
   const engagement = page.url().split("?")[0]
@@ -261,7 +262,7 @@ test("liste de John : paiement direct dans Saison lève « Marquer payé » rest
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo direct John" })
-  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }))
   await page.getByRole("link", { name: /Saxo direct John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
   const entryId = page.url().split("?")[0].split("/").pop() ?? ""

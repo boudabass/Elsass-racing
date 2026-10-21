@@ -1,3 +1,4 @@
+import { envoyer } from "./aide/envoi"
 import type { Browser, Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
@@ -45,7 +46,7 @@ test("liste de John : débrief saisi hors ligne par l'équipage, part au retour 
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Saison" }).click()
   await page.getByRole("button", { name: "Nouvelle saison", exact: true }).click()
-  await page.getByRole("dialog").getByRole("button", { name: "Ouvrir la saison", exact: true }).click()
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Ouvrir la saison", exact: true }))
   await page.getByRole("link", { name: "Ajouter une épreuve" }).click()
   await page.getByLabel("Nom de l'épreuve").fill("Rallye débrief John")
   await page.getByLabel("Premier jour").fill(`${ANNEE}-01-10`)
@@ -55,7 +56,7 @@ test("liste de John : débrief saisi hors ligne par l'équipage, part au retour 
   await page.getByRole("navigation", { name: "Onglets de l'épreuve" }).getByRole("link", { name: "Engagements" }).click()
   await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
   await page.getByLabel("Voiture", { exact: true }).selectOption({ label: "Saxo debrief John" })
-  await page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }).click()
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Engager la voiture", exact: true }))
   await page.getByRole("link", { name: /Saxo debrief John/ }).first().click()
   await expect(page).toHaveURL(/\/apps\/saison\/engagements\/[0-9a-f-]+/)
   const adresse = page.url().split("?")[0]

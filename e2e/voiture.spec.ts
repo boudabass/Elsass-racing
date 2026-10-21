@@ -1,3 +1,4 @@
+import { envoyer } from "./aide/envoi"
 // Voiture : écrans, fiches de réglage et widgets (tâche 3.3, brief section 9). Le scénario hors ligne est dans
 // voiture-hors-ligne.spec.ts (projet « hors-ligne », seul à avoir le service worker). Les captures des écrans
 // partent dans docs/captures/ à 1440 px et à 360 px.
@@ -79,7 +80,7 @@ test("responsable : Saxo 2 par le bouton +, identité saisie, la Déco liste les
   await page.locator('input[name="marque"]').fill("Citroën")
   await page.locator('input[name="modele"]').fill("Saxo")
   await page.locator('input[name="groupe"]').fill("N2")
-  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }).click()
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }))
 
   await page.goto("/apps/voiture")
   await expect(page.getByText("N2").first()).toBeVisible()
@@ -95,7 +96,7 @@ test("responsable : une assurance qui expire dans 10 jours fait « Papier à ren
   await page.getByText("Ajouter un papier").click()
   await formulaireAjoutPapier(page).locator('select[name="type"]').selectOption("assurance")
   await formulaireAjoutPapier(page).locator('input[name="valableJusquAu"]').fill(jourCivil(10))
-  await page.getByRole("button", { name: "Ajouter le papier" }).click()
+  await envoyer(page, page.getByRole("button", { name: "Ajouter le papier" }))
 
   await page.goto("/apps/voiture")
   await expect(page.getByText("Papier à renouveler").first()).toBeVisible()
@@ -109,7 +110,7 @@ test("responsable : une assurance qui expire dans 10 jours fait « Papier à ren
   await page.getByText("Ajouter un papier").click()
   await formulaireAjoutPapier(page).locator('select[name="type"]').selectOption("controle_technique")
   await formulaireAjoutPapier(page).locator('input[name="valableJusquAu"]').fill(jourCivil(-3))
-  await page.getByRole("button", { name: "Ajouter le papier" }).click()
+  await envoyer(page, page.getByRole("button", { name: "Ajouter le papier" }))
 
   await page.goto("/apps/voiture")
   await expect(page.getByText("Papier expiré").first()).toBeVisible()
@@ -162,7 +163,7 @@ test("responsable : deux fiches, comparaison des écarts, référence et pré-re
   await page.locator('input[name="marque"]').fill("Citroën")
   await page.locator('input[name="modele"]').fill("Saxo")
   await page.locator('input[name="groupe"]').fill("N2")
-  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }).click()
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }))
   for (const [type, decalage] of [
     ["assurance", 200],
     ["controle_technique", 10],
