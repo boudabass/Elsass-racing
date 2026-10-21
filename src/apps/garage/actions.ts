@@ -8,13 +8,22 @@ import { executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-
 import { refus } from "./erreurs"
 import type { MotifDepose } from "./libelles"
 import {
+  affecterOrdre,
+  ajouterPieceOrdre,
   ajouterUsureManuelle,
+  avancerOrdre,
+  changerStatutOrdre,
   changerStatutPiece,
   creerOrdre,
   creerPiece,
+  modifierCoutOrdre,
+  modifierOrdre,
   modifierOrgane,
   poserPiece,
   retirerOrgane,
+  retirerPieceOrdre,
+  terminerOrdre,
+  type EntreeModificationOrdre,
   type EntreeOrdre,
   type EntreeOrgane,
   type EntreePiece,
@@ -143,6 +152,73 @@ export async function creerOrdreAction(_etat: Resultat | null, donnees: FormData
       aFaireAvantEventId: texteOuNull(donnees, "aFaireAvantEventId"),
       dureeEstimeeMinutes: entierOuNull(donnees, "dureeEstimeeMinutes", "La durée estimée"),
       personIds: donnees.getAll("personIds").map(String).filter((id) => id !== ""),
+    }),
+  )
+}
+
+// Réglages d'un ordre : seuls les champs présents dans le formulaire sont écrits.
+export async function modifierOrdreAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() => {
+    const entree: EntreeModificationOrdre = {}
+    if (donnees.has("titre")) entree.titre = texte(donnees, "titre")
+    if (donnees.has("type")) entree.type = texte(donnees, "type") as EntreeOrdre["type"]
+    if (donnees.has("priorite")) entree.priorite = texte(donnees, "priorite") as EntreeOrdre["priorite"]
+    if (donnees.has("vehicleComponentId")) entree.vehicleComponentId = texteOuNull(donnees, "vehicleComponentId")
+    if (donnees.has("aFaireAvantEventId")) entree.aFaireAvantEventId = texteOuNull(donnees, "aFaireAvantEventId")
+    if (donnees.has("dureeEstimeeMinutes")) entree.dureeEstimeeMinutes = entierOuNull(donnees, "dureeEstimeeMinutes", "La durée estimée")
+    return modifierOrdre(texte(donnees, "ordreId"), entree)
+  })
+}
+
+// Personnes affectées : celles qui sont cochées. Aucune case cochée retire toutes les affectations.
+export async function affecterOrdreAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() =>
+    affecterOrdre(
+      texte(donnees, "ordreId"),
+      donnees.getAll("personIds").map(String).filter((id) => id !== ""),
+    ),
+  )
+}
+
+// Avancement : un entier de 0 à 100, saisi tel quel.
+export async function avancerOrdreAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() => {
+    const brut = texte(donnees, "pct")
+    if (!/^\d+$/.test(brut)) refus("L'avancement doit être un nombre entier, de 0 à 100.")
+    return avancerOrdre(texte(donnees, "ordreId"), Number(brut))
+  })
+}
+
+// Statut « prévu » ou « en cours ». La fin passe par terminerOrdreAction.
+export async function changerStatutOrdreAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() =>
+    changerStatutOrdre(texte(donnees, "ordreId"), texte(donnees, "statut") as "prevu" | "en_cours"),
+  )
+}
+
+// Coût de main-d'œuvre (en euros saisis) et prestataire. Vide efface le coût.
+export async function modifierCoutOrdreAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() =>
+    modifierCoutOrdre(texte(donnees, "ordreId"), {
+      coutMainOeuvreCents: centimesOuNull(donnees, "coutMainOeuvre"),
+      prestataireContactId: texteOuNull(donnees, "prestataireContactId"),
+    }),
+  )
+}
+
+export async function ajouterPieceOrdreAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() => ajouterPieceOrdre(texte(donnees, "ordreId"), texte(donnees, "partId")))
+}
+
+export async function retirerPieceOrdreAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() => retirerPieceOrdre(texte(donnees, "ordreId"), texte(donnees, "partId")))
+}
+
+// Fin de l'ordre. Le motif de dépose n'est demandé que s'il y a une pièce en place (le service le vérifie).
+export async function terminerOrdreAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() =>
+    terminerOrdre(texte(donnees, "ordreId"), {
+      motifDepose: (texteOuNull(donnees, "motifDepose") as MotifDepose | null) ?? null,
     }),
   )
 }

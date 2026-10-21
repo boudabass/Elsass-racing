@@ -1,9 +1,11 @@
 // Écran des travaux (tâche 4.3, §3) : trois colonnes, en cours, prévus, terminés. Rendu côté serveur ; seul le tiroir de
 // création est un composant client. Le prix et le prestataire ne sont affichés qu'au niveau écriture (cout présent).
 
+import Link from "next/link"
+
 import { LIEN } from "@/lib/classes-formulaire"
 
-import type { OrdreTravail, TravauxVehicule } from "../lectures-serveur"
+import type { lireChoixTravaux, OrdreTravail, TravauxVehicule } from "../lectures-serveur"
 import { COLONNES_TRAVAUX, LIBELLE_PRIORITE, LIBELLE_STATUT_ORDRE, LIBELLE_TYPE_ORDRE, type StatutOrdre } from "../travaux"
 
 import { FormulaireOrdre } from "./formulaires-travaux"
@@ -12,11 +14,7 @@ export interface TravauxEcranProps {
   vehicules: Array<{ id: string; nomCourt: string }>
   choisi: { id: string; nomCourt: string }
   travaux: TravauxVehicule
-  choix: {
-    organes: Array<{ id: string; nom: string }>
-    epreuves: Array<{ id: string; nom: string; date: string }>
-    personnes: Array<{ id: string; nom: string }>
-  } | null
+  choix: Awaited<ReturnType<typeof lireChoixTravaux>> | null
 }
 
 const TITRES_COLONNE: Record<StatutOrdre, string> = {
@@ -43,7 +41,11 @@ function montant(cents: number | null, devise: string): string {
 function CarteOrdre({ ordre, peutEcrire }: { ordre: OrdreTravail; peutEcrire: boolean }) {
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-bordure bg-surface p-4">
-      <h3 className="text-base font-semibold text-texte">{ordre.titre}</h3>
+      <h3 className="text-base font-semibold text-texte">
+        <Link href={`/apps/garage/travaux/${ordre.id}`} className="underline underline-offset-4 decoration-marque decoration-2 hover:text-marque">
+          {ordre.titre}
+        </Link>
+      </h3>
       <p className="text-sm text-texte-discret">
         {LIBELLE_TYPE_ORDRE[ordre.type]}
         {ordre.organeNom ? ` · ${ordre.organeNom}` : ""}

@@ -440,6 +440,44 @@ export type TravauxVehicule = { colonnes: Record<StatutOrdre, OrdreTravail[]>; p
 
 const colonnesVides = (): Record<StatutOrdre, OrdreTravail[]> => ({ en_cours: [], prevu: [], termine: [] })
 
+// Forme commune d'un ordre lu avec ses liens (liste et fiche). Les champs sont ceux de l'include ci-dessous.
+type OrdreAvecLiens = {
+  id: string
+  titre: string
+  type: TypeOrdre
+  priorite: PrioriteTravail
+  avancementPct: number
+  statut: StatutOrdre
+  devise: string
+  coutMainOeuvreCents: number | null
+  vehicleComponent: { componentType: { nom: string } } | null
+  aFaireAvantEvent: { nom: string; dateDebut: Date } | null
+  persons: Array<{ person: { prenom: string; nom: string } }>
+  parts: Array<{ partId: string; part: { designation: string } }>
+  prestataire: { nom: string } | null
+}
+
+// Mise en forme d'un ordre. Le coût et le prestataire ne sortent que si peutEcrire.
+function versOrdreTravail(o: OrdreAvecLiens, peutEcrire: boolean): OrdreTravail {
+  const ordre: OrdreTravail = {
+    id: o.id,
+    titre: o.titre,
+    type: o.type,
+    organeNom: o.vehicleComponent?.componentType.nom ?? null,
+    priorite: o.priorite,
+    aFaireAvant: o.aFaireAvantEvent ? { nom: o.aFaireAvantEvent.nom, date: o.aFaireAvantEvent.dateDebut.toISOString().slice(0, 10) } : null,
+    personnes: o.persons.map((lien) => `${lien.person.prenom} ${lien.person.nom}`),
+    avancementPct: o.avancementPct,
+    statut: o.statut,
+    pieces: o.parts.map((lien) => lien.part.designation),
+  }
+  if (peutEcrire) {
+    ordre.cout = { cents: o.coutMainOeuvreCents, devise: o.devise }
+    ordre.prestataire = o.prestataire?.nom ?? null
+  }
+  return ordre
+}
+
 // Ordres d'une voiture, par colonne. L'assistance ne voit que les ordres où son compte est affecté. Null si la voiture
 // n'existe pas dans la team.
 export async function lireTravaux(vehicleId: string): Promise<TravauxVehicule | null> {
@@ -465,32 +503,15 @@ export async function lireTravaux(vehicleId: string): Promise<TravauxVehicule | 
       vehicleComponent: { select: { componentType: { select: { nom: true } } } },
       aFaireAvantEvent: { select: { nom: true, dateDebut: true } },
       persons: { where: { deletedAt: null }, select: { person: { select: { prenom: true, nom: true } } } },
-      parts: { where: { deletedAt: null }, select: { part: { select: { designation: true } } } },
+      parts: { where: { deletedAt: null }, select: { partId: true, part: { select: { designation: true } } } },
       prestataire: { select: { nom: true } },
     },
   })
 
   const colonnes = colonnesVides()
   const lignes = ordres.map((o) => {
-    const ordre: OrdreTravail = {
-      id: o.id,
-      titre: o.titre,
-      type: o.type,
-      organeNom: o.vehicleComponent?.componentType.nom ?? null,
-      priorite: o.priorite,
-      aFaireAvant: o.aFaireAvantEvent
-        ? { nom: o.aFaireAvantEvent.nom, date: o.aFaireAvantEvent.dateDebut.toISOString().slice(0, 10) }
-        : null,
-      personnes: o.persons.map((lien) => `${lien.person.prenom} ${lien.person.nom}`),
-      avancementPct: o.avancementPct,
-      statut: o.statut,
-      pieces: o.parts.map((lien) => lien.part.designation),
-    }
-    if (peutEcrire) {
-      ordre.cout = { cents: o.coutMainOeuvreCents, devise: o.devise }
-      ordre.prestataire = o.prestataire?.nom ?? null
-    }
-    return { ordre, tri: { priorite: o.priorite, aFaireAvant: ordre.aFaireAvant?.date ?? null, titre: o.titre } }
+    const ordre = versOrdreTravail(o, peutEcrire)
+    return { ordre, tri: { priorite: ordre.priorite, aFaireAvant: ordre.aFaireAvant?.date ?? null, titre: ordre.titre } }
   })
 
   for (const { ordre, tri } of lignes.sort((a, b) => comparerOrdres(a.tri, b.tri))) {
@@ -504,10 +525,11 @@ export async function lireChoixTravaux(vehicleId: string): Promise<{
   organes: Array<{ id: string; nom: string }>
   epreuves: Array<{ id: string; nom: string; date: string }>
   personnes: Array<{ id: string; nom: string }>
+  prestataires: Array<{ id: string; nom: string }>
 }> {
   const { ctx } = await accesGarage("ecriture")
   const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
-  const [organes, epreuves, personnes] = await Promise.all([
+  const [organes, epreuves, personnes, prestataires] = await Promise.all([
     client.garageVehicleComponent.findMany({
       where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
       select: { id: true, componentType: { select: { nom: true, ordre: true } } },
@@ -524,10 +546,63 @@ export async function lireChoixTravaux(vehicleId: string): Promise<{
       select: { id: true, prenom: true, nom: true },
       orderBy: [{ prenom: "asc" }, { nom: "asc" }],
     }),
+    client.coreContact.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true, nom: true }, orderBy: { nom: "asc" } }),
   ])
   return {
     organes: organes.map((o) => ({ id: o.id, nom: o.componentType.nom })),
     epreuves: epreuves.map((e) => ({ id: e.id, nom: e.nom, date: e.dateDebut.toISOString().slice(0, 10) })),
     personnes: personnes.map((p) => ({ id: p.id, nom: `${p.prenom} ${p.nom}` })),
+    prestataires,
+  }
+}
+
+// Fiche d'un ordre : l'ordre, ses réglages (pour les formulaires), ses personnes et ses pièces. Même garde que la liste :
+// l'assistance ne lit que ses ordres affectés, sans prix. Null si l'ordre n'existe pas ou n'est pas accessible.
+export type FicheOrdre = {
+  ordre: OrdreTravail
+  vehicleId: string
+  vehicleComponentId: string | null
+  aFaireAvantEventId: string | null
+  dureeEstimeeMinutes: number | null
+  personIds: string[]
+  pieces: Array<{ partId: string; designation: string }>
+  peutEcrire: boolean
+}
+
+export async function lireOrdre(id: string): Promise<FicheOrdre | null> {
+  const { ctx, niveau } = await accesGarage("lecture")
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const peutEcrire = aAuMoins(niveau, "ecriture")
+  const moi = peutEcrire
+    ? null
+    : await client.corePerson.findFirst({ where: { teamId: ctx.teamId, userId: ctx.userId, deletedAt: null }, select: { id: true } })
+  if (!peutEcrire && !moi) return null
+
+  const o = await client.garageWorkOrder.findFirst({
+    where: {
+      id,
+      teamId: ctx.teamId,
+      deletedAt: null,
+      ...(peutEcrire ? {} : { persons: { some: { personId: moi?.id ?? "", deletedAt: null } } }),
+    },
+    include: {
+      vehicleComponent: { select: { componentType: { select: { nom: true } } } },
+      aFaireAvantEvent: { select: { nom: true, dateDebut: true } },
+      persons: { where: { deletedAt: null }, select: { personId: true, person: { select: { prenom: true, nom: true } } } },
+      parts: { where: { deletedAt: null }, select: { partId: true, part: { select: { designation: true } } } },
+      prestataire: { select: { nom: true } },
+    },
+  })
+  if (!o) return null
+
+  return {
+    ordre: versOrdreTravail(o, peutEcrire),
+    vehicleId: o.vehicleId,
+    vehicleComponentId: o.vehicleComponentId,
+    aFaireAvantEventId: o.aFaireAvantEventId,
+    dureeEstimeeMinutes: o.dureeEstimeeMinutes,
+    personIds: o.persons.map((lien) => lien.personId),
+    pieces: o.parts.map((lien) => ({ partId: lien.partId, designation: lien.part.designation })),
+    peutEcrire,
   }
 }
