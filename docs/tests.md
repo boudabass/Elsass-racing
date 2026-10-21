@@ -57,8 +57,9 @@ Les consignes de passes locales plus bas dans ce fichier datent d'avant la 4.0b.
 - Cause non établie. Parqué (décision 3 de l'Orchestrateur) : le spec de diagnostic est retiré de la suite ; il reste dans l'historique (`efa08d6`, `311962b`) pour être rejoué.
 - Troisième apparition : run 39539354644 (commit 34facd3), même signature. Trace lue : le `pageError` tombe pendant le premier chargement en ligne de `/qg`, après le comptage des tuiles et avant le reload, le passage hors ligne et le clic sur « Budget ». Non bloquant selon la règle de l'Orchestrateur (418 au premier chargement, avant toute action du test).
 
-### Intermittent suivi : `e2e/liste-john.spec.ts:134`
+### Corrigé (a06ff42) : `e2e/liste-john.spec.ts:134`
 
+- Statut : corrigé. Runs complets verts depuis la correction : 39515002395, 39528399664, 39593601284 (`verif`).
 - Test : « liste de John : calendrier en vue mois et filtres sur téléphone, pastilles retirables ». Échec sur `locator.click` du lien « Mois » (ligne 147), timeout de 20 s.
 - Échec sur le run 39477610690 (commit 364916e, documentation seule ; code identique au run vert 39474476309).
 - Lecture de la trace : après le clic sur la tuile Saison depuis le QG, la page affiche le contenu du QG (tuiles, « Le QG »), alors que la barre d'app marque « Calendrier » comme actif. L'URL et la sous-navigation suivent la navigation, le contenu reste celui du QG.
