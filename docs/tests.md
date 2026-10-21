@@ -63,6 +63,42 @@ Les consignes de passes locales plus bas dans ce fichier datent d'avant la 4.0b.
 - Cause non établie : le glisser-déposer de la poignée ne produit pas toujours le déplacement attendu dans le délai. Pas de trace lue à ce jour pour ce run.
 - Règle appliquée (décision (3) de l'Orchestrateur, confirmée le 21/10) : sur du code identique à un run vert, ça ne bloque pas `dev`. Un échec nouveau, ou sur du code modifié, bloque.
 
+## Runs rouges depuis la 4.0b : classement (avant fusion dans main)
+
+Périmètre : les 48 runs de `verifications.yml` depuis `9fbead9` (20/10/2026, vers 18 h), branches `verif` et `dev`. 47 ont exécuté le job e2e (24 verts, 23 rouges). Le run dev `39530793049` (commit `3bf8f36`) est annulé : non compté. Lecture des logs complets, sans relance. « Depuis `3bf8f36` » : runs postérieurs au commit `3bf8f36` (aide d'envoi).
+
+Compte : **11 runs rouges sur 23 contiennent l'erreur React #418** : 8 sur `hors-ligne.spec.ts:87`, 3 sur `hors-ligne.spec.ts:119`. Le 418 n'est donc pas limité à `:87`.
+
+| Run | Branche | Commit | Test(s) en échec | Cause | État |
+|---|---|---|---|---|---|
+| 39471174537 | verif | 9fbead9 | hors-ligne:87 | 418 au premier chargement de `/qg` | Intermittent suivi (418) |
+| 39477610690 | verif | 364916e | liste-john:134 | Navigations qui se chevauchent, clic sur Mois, timeout 20 s | Corrigé : a06ff42 |
+| 39480825378 | verif | bf1e6d3 | liste-john:134 ; hors-ligne:119 | liste-john : idem ; hors-ligne:119 : 418 | liste-john corrigé (a06ff42) ; 418 suivi |
+| 39487952792 | dev | d4eaf05 | liste-john:134 ; voiture-deco:406, :437 ; hors-ligne:119 | liste-john : idem ; voiture-deco : sélecteur sans `:visible` (copie cachée du streaming) ; 418 | liste-john corrigé (a06ff42) ; voiture-deco corrigé (1d16a76) ; 418 suivi |
+| 39488585671 | verif | cd904f5 | liste-john:134 | Idem | Corrigé : a06ff42 |
+| 39492136999 | verif | efa08d6 | liste-john:134 ; voiture-deco:334 ; diagnostic-hors-ligne:82 | liste-john : idem ; voiture-deco : copie cachée ; diagnostic : `DOMParser` absent de Node (défaut du test de diagnostic) | liste-john corrigé (a06ff42) ; voiture-deco corrigé (1d16a76) ; diagnostic retiré (a0c40ef) |
+| 39495850178 | verif | 311962b | liste-john:134 ; voiture-deco:536 | Idem | liste-john corrigé (a06ff42) ; voiture-deco corrigé (1d16a76) |
+| 39499841326 | verif | a0c40ef | voiture-deco:98, :538 | Sélecteurs par rôle, perdus sous le tiroir modal (b5ed26b) | Corrigé : 1d16a76 (`:visible`) |
+| 39503223048 | verif | 1d16a76 | hors-ligne:87 | 418 | Intermittent suivi (418) |
+| 39506478640 | verif | 977609d | liste-john:134 | Idem | Corrigé : a06ff42 |
+| 39514032165 | verif | 02dacb4 | liste-john:134 | Idem, dernier échec avant a06ff42 | Corrigé : a06ff42 |
+| 39520820033 | verif | 099c4de | hors-ligne:87 | 418 | Intermittent suivi (418) |
+| 39523480135 | dev | 099c4de | hors-ligne:87 | 418 | Intermittent suivi (418) |
+| 39523629008 | verif | 2955d39 | hors-ligne:87 ; partenaire-page:198 | 418 ; partenaire-page : un lien révoqué répond 200 au lieu de 404 | 418 suivi ; **partenaire-page : non classé, à examiner en priorité** |
+| 39526025280 | verif | 7345ef2 | voiture:64 | « N2 » introuvable sur `/apps/voiture` après 15 s. Pas de trace lue | **Non classé** (une apparition) |
+| 39531022168 | verif | 566aa84 | hors-ligne:87 | 418 | Intermittent suivi (418) |
+| 39539354644 | verif | 34facd3 | hors-ligne:119 | 418 | Intermittent suivi (418) |
+| 39546225474 | verif | 0fc59ee | garage-hors-ligne:19 | Pièce absente de la liste « Pièce utilisée » (la pièce de test n'était pas en stock) | Corrigé : 4d024e4 |
+| 39548389381 | verif | 4d024e4 | garage-hors-ligne:19 | Ordre jamais arrivé en base après le retour du réseau (fiche personne du responsable absente) | Corrigé : a43e9c8 puis bd79933 |
+| 39550585406 | verif | a43e9c8 | garage-hors-ligne:19 | Même symptôme : compte non relié à sa fiche (`core_person.user_id`) | Corrigé : bd79933 |
+| 39552717997 | verif | bd79933 | voiture-deco:337 | Glisser la poignée : largeur sous le seuil après 15 s. Trace non lue | Intermittent suivi |
+| 39565329067 | verif | c22de9f | hors-ligne:87 | 418 | Intermittent suivi (418) |
+| 39571735559 | verif | a8bc84d | hors-ligne:87 | 418 | Intermittent suivi (418) |
+
+**Depuis `3bf8f36`** : 8 runs rouges (39531022168, 39539354644, 39546225474, 39548389381, 39550585406, 39552717997, 39565329067, 39571735559). Hors 418 et `voiture-deco:337`, il reste `garage-hors-ligne:19` (3 runs, 0fc59ee, 4d024e4, a43e9c8), corrigé par bd79933 : aucun échec de ce test dans les runs suivants (39552717997 à 39579299567, jusqu'au run verif de dbc5df5).
+
+**Non classés** : `partenaire-page.spec.ts:198` (run 39523629008) : un lien révoqué a répondu 200 au lieu de 404. Une seule apparition, pas de trace lue. Ce test touche au contrôle d'accès des liens partenaires : à examiner avant toute autre chose. `voiture.spec.ts:64` (run 39526025280) : une apparition, pas revue depuis.
+
 ## Unitaires (Vitest)
 
 - Commande : `pnpm test` (`vitest run`). Fichiers `src/**/*.test.ts`, environnement node, aucune base.
