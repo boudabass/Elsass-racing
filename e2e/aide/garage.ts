@@ -143,3 +143,15 @@ export async function pieceEnStockDeTest(equipe: Equipe, organeId: string, desig
     [newId(), equipe.teamId, designation, organeId],
   )
 }
+
+// Fiche personne du responsable, liée au compte comme la crée team:creer : core_person.user_id ET core_membership.person_id.
+// Le Garage retrouve la personne du compte par user_id (sa synchro et ses services), donc rattacherPersonne ne suffit pas.
+export async function personneResponsableDeTest(equipe: Equipe): Promise<string> {
+  const personneId = newId()
+  await bd().query(
+    `INSERT INTO core_person (id, team_id, nom, prenom, user_id, updated_at) VALUES ($1, $2, 'E2E', 'Responsable', $3, now())`,
+    [personneId, equipe.teamId, equipe.responsable.userId],
+  )
+  await bd().query(`UPDATE core_membership SET person_id = $1 WHERE id = $2`, [personneId, equipe.responsable.membershipId])
+  return personneId
+}
