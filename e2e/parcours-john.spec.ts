@@ -111,13 +111,8 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
     await expect(page.getByText(type.nom, { exact: true }).filter({ visible: true }).first()).toBeVisible()
   }
 
-  // Une durée de vie renseignée, sur les freins.
-  await page.getByRole("listitem").filter({ hasText: "Freins" }).getByRole("button", { name: "Renseigner la durée de vie" }).click()
-  await page.getByLabel("Durée en kilomètres").fill("40000")
-  await page.getByLabel("Durée en épreuves").fill("10")
-  await envoyer(page, page.getByRole("button", { name: "Enregistrer la durée", exact: true }))
-
-  // Une pièce ajoutée par le bouton +, puis posée sur les freins depuis la fiche de l'organe.
+  // Une pièce ajoutée par le bouton +, puis posée sur les freins depuis la fiche de l'organe. La durée de vie ne se
+  // renseigne qu'une fois une pièce montée : c'est l'ordre que suit John.
   await page.getByRole("button", { name: "Ajouter", exact: true }).click()
   await page.getByRole("menuitem", { name: "Pièce", exact: true }).click()
   await arriver(page, /\/apps\/garage\/pieces\/nouvelle$/)
@@ -135,9 +130,13 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   await page.getByLabel("Pièce de rechange").selectOption({ label: "Plaquettes avant parcours · Brembo" })
   await envoyer(page, page.getByRole("button", { name: "Poser la pièce", exact: true }))
 
-  // Retour à l'atelier : les freins sont posés, durée connue, zone verte (l'état est sur la carte, sans silhouette).
+  // Retour à l'atelier : la pièce est posée, la carte des freins propose la durée de vie. Une durée renseignée, puis la zone verte.
   await page.getByRole("link", { name: "Atelier", exact: true }).click()
   await arriver(page, /\/apps\/garage$/, /^Atelier$/)
+  await page.getByRole("listitem").filter({ hasText: "Freins" }).getByRole("button", { name: "Renseigner la durée de vie" }).click()
+  await page.getByLabel("Durée en kilomètres").fill("40000")
+  await page.getByLabel("Durée en épreuves").fill("10")
+  await envoyer(page, page.getByRole("button", { name: "Enregistrer la durée", exact: true }))
   await expect(page.getByRole("img", { name: "État : 100%" }).first()).toBeVisible()
 
   // 5. Travaux : un ordre créé sur les freins, puis terminé avec sa main-d'œuvre (une proposition au Budget).
