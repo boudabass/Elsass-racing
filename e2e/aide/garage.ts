@@ -133,3 +133,13 @@ export async function ordresEnBase(
   )
   return rows
 }
+
+// Une pièce en stock (non montée) pour le type de l'organe donné : c'est ce que l'intervention propose en « Pièce utilisée ».
+export async function pieceEnStockDeTest(equipe: Equipe, organeId: string, designation: string): Promise<void> {
+  await bd().query(
+    `INSERT INTO garage_part (id, team_id, vehicle_id, component_type_id, designation, statut, km_cumules, updated_at)
+     SELECT $1, $2, vehicle_id, component_type_id, $3, 'en_stock', 0, now()
+       FROM garage_vehicle_component WHERE id = $4 AND team_id = $2`,
+    [newId(), equipe.teamId, designation, organeId],
+  )
+}

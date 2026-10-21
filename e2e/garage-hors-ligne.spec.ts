@@ -4,7 +4,7 @@
 import type { Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
-import { ordresEnBase, preparerAtelierSaxo } from "./aide/garage"
+import { ordresEnBase, pieceEnStockDeTest, preparerAtelierSaxo } from "./aide/garage"
 import { connecterParLien } from "./aide/navigation"
 import { ajouterVoitureSaxo } from "./aide/session"
 
@@ -20,6 +20,8 @@ test("garage hors ligne : une intervention sans pièce part au retour du réseau
   test.setTimeout(240_000)
   const vehicleId = await ajouterVoitureSaxo(equipe, "Saxo garage hors ligne")
   const organes = await preparerAtelierSaxo(equipe, vehicleId)
+  // Une pièce en stock, pour que le menu « Pièce utilisée » ait une option à choisir (les pièces montées n'y figurent pas).
+  await pieceEnStockDeTest(equipe, organes.freins, "Disque avant en stock")
   const titre = "Plaquettes avant changées hors ligne"
 
   // En ligne, une fois : la page d'intervention est mise en cache, avec ses organes et ses pièces.
