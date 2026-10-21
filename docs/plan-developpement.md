@@ -287,6 +287,7 @@ Décisions de John (20/10) :
 
 ### 4.7 Vérification du lot 4
 - Parcours e2e complet (de l'achat à l'usure validée, à la zone rouge, au plan avant épreuve et à l'indice de Saison), audit Impeccable des écrans, corrections. Puis test de John sur dev.
+- Point ouvert (tiroirs, décidé le 21/10) : quitter ou recharger la page pendant « Révocation… » ou tout autre envoi coupe l'action, sans avertissement. Traitement unique plus tard : avertissement beforeunload tant que `enCours`, dans `FormulaireTiroir` (`src/components/formulaire/tiroir.tsx`). Cas vécu : `e2e/partenaire-page.spec.ts:198` (run 39523629008).
 
 ## 6. Méthode de travail
 
