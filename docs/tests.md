@@ -55,6 +55,14 @@ Les consignes de passes locales plus bas dans ce fichier datent d'avant la 4.0b.
 - Runs de référence : 39514032165 (rouge, avant la correction, navigations chevauchées), 39510369396 (vert, même chevauchement sans échec : l'ordre des réponses n'est pas maîtrisé par le test).
 - Historique : 7 échecs sur 12 runs du 20 et du 21/10 (39480825378, 39487952792, 39488585671, 39492136999, 39495850178, 39506478640, 39514032165). Si le test échoue à nouveau après la correction, la règle est celle de la décision (3) : sur du code identique à un run vert, ça ne bloque pas `dev` ; un échec nouveau, ou sur du code modifié, bloque.
 
+### Intermittent suivi : `e2e/voiture-deco.spec.ts:337`
+
+- Test : « responsable : déplacer une forme avec son logo après l'avoir redimensionnée garde la taille ». Échec sur `expect.poll` de la largeur après un redimensionnement à la poignée (« Aile avant » reste à 61,8 au lieu de plus de 64,8, délai de 15 s).
+- Échec sur le run 39552717997 (commit bd79933). Code Voiture identique au run vert 39546225474 (commit 0fc59ee), où le même test passe en 8,9 s.
+- Même test déjà fléchi au run 39492136999 (ligne 334 dans ce fichier, même famille de glisser-déposer sur poignée).
+- Cause non établie : le glisser-déposer de la poignée ne produit pas toujours le déplacement attendu dans le délai. Pas de trace lue à ce jour pour ce run.
+- Règle appliquée (décision (3) de l'Orchestrateur, confirmée le 21/10) : sur du code identique à un run vert, ça ne bloque pas `dev`. Un échec nouveau, ou sur du code modifié, bloque.
+
 ## Unitaires (Vitest)
 
 - Commande : `pnpm test` (`vitest run`). Fichiers `src/**/*.test.ts`, environnement node, aucune base.
