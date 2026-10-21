@@ -206,6 +206,9 @@ test("4 · un lien révoqué, renouvelé ou expiré ne sert plus", async ({ page
     await page.goto(`/apps/partenaires/${donnees.partenaireA}?onglet=page`)
     await page.getByRole("button", { name: "Révoquer le lien", exact: true }).click()
     await page.getByRole("dialog").getByRole("button", { name: "Révoquer le lien", exact: true }).click()
+    // Attendre que la révocation soit écrite (le formulaire de création revient) : un rechargement avant la fin de
+    // l'action l'annulerait, et l'ancien lien répondrait encore.
+    await expect(page.getByRole("button", { name: "Créer le lien", exact: true })).toBeVisible()
     await page.reload()
     const revoque = await visiteur.request.get(`/p/${premier}`)
     const invente = await visiteur.request.get(`/p/${JETON_INVENTE}`)
