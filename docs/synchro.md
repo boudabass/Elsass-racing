@@ -8,7 +8,7 @@ Principe : le serveur reste la vérité. L'appareil garde une copie locale (Inde
 2. **Liste blanche.** Seules les tables du registre (`src/core/synchro/registre.ts`) sont lues ou écrites par la synchro. Chaque déclaration porte la table, le schéma zod des champs modifiables, le niveau requis pour lire et pour écrire, et la règle de contribution.
 3. **Identifiants côté client.** Une création hors ligne utilise `newId()` (UUID v7) : aucune réécriture d'identifiant à la synchro.
 4. **Conflits : la dernière écriture gagne, sans perte silencieuse.** Une écriture envoie la `rev` qu'elle a lue. Si la ligne a changé entre-temps, elle est appliquée quand même, et la version écrasée est gardée dans `core_activity` (action `conflit_synchro`, contenu remplacé dans `resume`). Une suppression l'emporte sur une modification concurrente, et le conflit est journalisé pareil.
-5. **Rien de magique à l'écran.** L'indicateur de la barre haute dit « Hors ligne », « 3 modifications en attente » ou « Synchronisé il y a 2 min ». Un conflit ne bloque jamais : il reste dans le journal de la fiche.
+5. **Rien de magique à l'écran.** L'indicateur de la barre haute dit « 1 envoi refusé » (tant qu'un refus n'est pas lu), « Hors ligne », « 3 modifications en attente » ou « Synchronisé il y a 2 min ». Un conflit ne bloque jamais : il reste dans le journal de la fiche. Un refus, lui, s'affiche avec sa raison (voir « Envois refusés »).
 
 ## Routes
 
@@ -44,13 +44,15 @@ Les champs de `creer` ne suffisent pas à poser la fiche : le serveur pose l'aut
 
 `src/core/synchro/conflit.ts` contient les décisions, sans accès à la base.
 
+Effets après application (tâche 4.3b). `apresApplication` d'une déclaration est appelé après toute écriture validée, `appliquee` ou `conflit_resolu` (un ordre terminé par une modification en conflit émet donc comme les autres). Il n'est pas appelé quand rien n'a été écrit : suppression déjà faite, modification face à une ligne supprimée (`conflit_resolu` sans écriture). `pousser.ts` le décide ; le garage ne lit que les ordres non supprimés (`garage.travail_termine`, `fautEmettreTravailTermine`).
+
 ## Client
 
-- Base locale par compte et par team : `elsass-racing-<userId>-<teamId>`. Magasins : une table par table synchronisable (`core_note`), `operations_en_attente`, `curseurs`.
+- Base locale par compte et par team : `elsass-racing-<userId>-<teamId>` (version 6). Magasins : une table par table synchronisable (`core_note`), `operations_en_attente`, `refus_synchro` (envois refusés, tant qu'ils ne sont pas lus), `curseurs`.
 - `MoteurSynchro` (`src/core/synchro/client/moteur.ts`) : `ecrireLocal` met à jour la base locale tout de suite et ajoute l'opération à la file. Une seule synchro à la fois : pousser la file, puis tirer.
 - Déclenchements : au démarrage, au retour du réseau (`online`), toutes les 60 s quand l'onglet est visible, et 2 s après une écriture locale. Après un échec réseau : attente croissante, plafonnée à une minute (`attente.ts`).
 - Hooks : `useTable(table)` (lignes locales, sans les supprimées, mises à jour à chaque changement) et `useEtatSynchro()`.
-- Déconnexion : la page de connexion retire les bases des comptes déconnectés, sauf celles qui ont encore des modifications en attente (les effacer perdrait ces modifications).
+- Déconnexion : la page de connexion retire les bases des comptes déconnectés, sauf celles qui ont encore des modifications en attente ou des refus non lus (les effacer perdrait ces modifications, ou un refus que personne n'a vu).
 
 ## Service worker et application installable
 
@@ -100,6 +102,17 @@ Six tables de Saison suivent la procédure de `docs/app-sdk.md`, section 9 (regi
 Vérifications : `db:verifier-synchro` (registre, lecture seule refusée, sortie de l'équipage appliquée, sortie de l'assistance refusée, débrief jamais reçu par l'assistance, événement du débrief émis une seule fois, saison clôturée refusée) et `e2e/saison-hors-ligne.spec.ts` (programme en mode avion, sortie saisie hors ligne puis synchronisée au retour du réseau ; débrief saisi hors ligne, en base et événement émis au retour du réseau).
 
 Limite : un débrief créé sur un autre appareil n'est visible ici qu'après la première synchronisation : tant qu'il n'est pas sur cet appareil, un nouveau débrief y est créé et sera refusé à l'envoi (« Tu as déjà un débrief pour cette épreuve »).
+## Envois refusés, visibles (tâche 4.3b)
+
+Un envoi que le serveur refuse ne disparaît pas en silence (règle 8 : tout refus affiche sa raison). Avant, le client jetait la raison, une création refusée disparaissait de l'écran et l'indicateur disait « Synchronisé ».
+
+- **Ce qui est gardé** (`refus_synchro`, `src/core/synchro/client/refus.ts`) : `idOperation`, la team et le compte qui ont fait l'envoi, la table, l'identifiant de la ligne, le type, le libellé de la table, un résumé seulement quand la saisie le permet (`resumer`, dans `libelles.ts` ; sans résumé, rien n'est deviné), la raison du serveur (ou « Le serveur a refusé cet envoi. » si elle manque), la date de saisie et la date du refus.
+- **Qui le voit** : `refusDuCompte` ne rend que les refus de la team et du compte courants, les plus récents d'abord. Un appareil partagé, ou un changement de team, n'affiche jamais les refus d'un autre.
+- **Effet sur la ligne locale** : une création refusée est retirée de l'écran. Une modification ou une suppression refusée remet le curseur de la table à zéro : au tirage suivant, la ligne reprend la valeur du serveur (les lignes encore en attente sur l'appareil gardent leur version locale, comme avant).
+- **Écran** : l'indicateur passe à « N envoi(s) refusé(s) » (rouge, icône et texte, visible aussi sur téléphone). Son tiroir liste chaque refus avec sa raison et un bouton « Compris », qui efface le refus. Hook : `useRefusSynchro()` (`src/core/synchro/client/react.tsx`).
+- **Libellés** : `LIBELLES_TABLES` a une entrée par table de `TABLES_LOCALES`. `refus.test.ts` échoue si une table du registre serveur n'a pas de libellé.
+- **Tests** : `refus.test.ts` (ce qui est gardé, visibilité par compte, libellé, couverture du registre), `pousser.test.ts` (quand `apresApplication` suit une écriture). Le moteur lui-même (IndexedDB) n'a pas de test unitaire : l'environnement de test est `node`, sans IndexedDB. Son câblage est couvert par `e2e/garage-refus-hors-ligne.spec.ts` (raison visible au retour du réseau, persistance après rechargement, « Compris »).
+
 ## Limites connues
 
 - Pas de worker en arrière-plan : la synchro tourne dans l'onglet ouvert, et le service worker ne rejoue rien seul.
