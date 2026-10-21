@@ -65,10 +65,22 @@ export function motIndice(organes: OrganeMot[]): string {
   return `${LIBELLE_ZONE[pire]} : ${enumererOrganes(noms)}`
 }
 
-// Ce qui manque à l'indice quand il n'y en a pas : les organes critiques sans pièce, par leur nom.
-export function phraseManque(noms: string[]): string {
-  if (noms.length === 0) return "Aucun organe critique sans pièce montée."
-  return `Il manque une pièce montée sur : ${noms.join(", ")}.`
+// Un organe nommé dans une phrase de l'atelier : son nom renvoie à sa fiche.
+export type OrganeNomme = { id: string; nom: string }
+
+// Une phrase de l'atelier dont les noms d'organes sont des liens. Texte avant la liste, texte après.
+export type PhraseAtelier = { debut: string; organes: OrganeNomme[]; fin: string }
+
+// Ce qui manque à l'indice quand il n'y en a pas. Jamais « rien ne manque » tant qu'un organe critique n'a pas d'état :
+// une pièce à monter d'abord, puis une durée de vie à renseigner. Sans organe critique, une seule phrase le dit.
+export function phrasesIndiceAbsent(sansPiece: OrganeNomme[], sansEtat: OrganeNomme[]): PhraseAtelier[] {
+  if (sansPiece.length === 0 && sansEtat.length === 0) {
+    return [{ debut: "Aucun organe critique sur cette voiture.", organes: [], fin: "" }]
+  }
+  const phrases: PhraseAtelier[] = []
+  if (sansPiece.length > 0) phrases.push({ debut: "Il manque une pièce montée sur : ", organes: sansPiece, fin: "." })
+  if (sansEtat.length > 0) phrases.push({ debut: "Renseigne la durée de vie de : ", organes: sansEtat, fin: " pour calculer l'indice." })
+  return phrases
 }
 
 const FORMAT_JOUR = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Paris" })

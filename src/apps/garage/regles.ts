@@ -84,14 +84,17 @@ export type IndiceFiabilite = {
   indice: number | null
   // Organes critiques sans pièce montée : signalés à part, jamais comptés à 0.
   sansPiece: string[]
+  // Organes critiques avec une pièce montée, mais dont l'état est inconnu (durée de vie à renseigner) : hors de la moyenne.
+  sansEtat: string[]
 }
 
 export function indiceFiabilite(organes: OrganeIndice[]): IndiceFiabilite {
   const retenus = organes.filter((o) => o.critique && o.pieceMontee && o.etat !== null)
   const sansPiece = organes.filter((o) => o.critique && !o.pieceMontee).map((o) => o.id)
-  if (retenus.length === 0) return { indice: null, sansPiece }
+  const sansEtat = organes.filter((o) => o.critique && o.pieceMontee && o.etat === null).map((o) => o.id)
+  if (retenus.length === 0) return { indice: null, sansPiece, sansEtat }
   const somme = retenus.reduce((total, o) => total + (o.etat ?? 0), 0)
-  return { indice: somme / retenus.length, sansPiece }
+  return { indice: somme / retenus.length, sansPiece, sansEtat }
 }
 
 // Franchissement du seuil rouge : l'état passe de « au-dessus ou égal » à « strictement sous ». Une seule fois

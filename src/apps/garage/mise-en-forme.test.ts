@@ -6,7 +6,7 @@ import {
   motIndice,
   ordreDesOrganes,
   phraseKmRestants,
-  phraseManque,
+  phrasesIndiceAbsent,
   pourcentage,
   regrouperStock,
   zoneIndice,
@@ -131,9 +131,32 @@ describe("phrases de l'atelier", () => {
     expect(phraseKmRestants(1240.4)).toBe("1 240 km avant la zone rouge")
   })
 
-  it("nomme ce qui manque à l'indice", () => {
-    expect(phraseManque([])).toBe("Aucun organe critique sans pièce montée.")
-    expect(phraseManque(["Freins", "Moteur"])).toBe("Il manque une pièce montée sur : Freins, Moteur.")
+  it("sans organe critique, le dit en une phrase", () => {
+    expect(phrasesIndiceAbsent([], [])).toEqual([{ debut: "Aucun organe critique sur cette voiture.", organes: [], fin: "" }])
+  })
+
+  it("une pièce manquante nomme les organes, chacun avec sa fiche", () => {
+    const freins = { id: "freins", nom: "Freins" }
+    const moteur = { id: "moteur", nom: "Moteur" }
+    expect(phrasesIndiceAbsent([freins, moteur], [])).toEqual([
+      { debut: "Il manque une pièce montée sur : ", organes: [freins, moteur], fin: "." },
+    ])
+  })
+
+  it("une pièce montée à durée inconnue demande la durée, jamais « rien ne manque »", () => {
+    const embrayage = { id: "embrayage", nom: "Embrayage" }
+    const phrases = phrasesIndiceAbsent([], [embrayage])
+    expect(phrases).toEqual([{ debut: "Renseigne la durée de vie de : ", organes: [embrayage], fin: " pour calculer l'indice." }])
+    expect(JSON.stringify(phrases)).not.toContain("Aucun organe critique")
+  })
+
+  it("pièce manquante et durée à renseigner : les deux phrases, la pièce d'abord", () => {
+    const boite = { id: "boite", nom: "Boîte de vitesses" }
+    const embrayage = { id: "embrayage", nom: "Embrayage" }
+    expect(phrasesIndiceAbsent([boite], [embrayage]).map((p) => p.debut)).toEqual([
+      "Il manque une pièce montée sur : ",
+      "Renseigne la durée de vie de : ",
+    ])
   })
 })
 

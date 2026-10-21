@@ -116,7 +116,7 @@ describe("indiceFiabilite", () => {
       { id: "moteur", critique: true, pieceMontee: true, etat: 80 },
       { id: "freins", critique: true, pieceMontee: true, etat: 60 },
     ])
-    expect(indice).toEqual({ indice: 70, sansPiece: [] })
+    expect(indice).toEqual({ indice: 70, sansPiece: [], sansEtat: [] })
   })
 
   it("ignore les organes non critiques (pneus, amortisseurs)", () => {
@@ -132,19 +132,39 @@ describe("indiceFiabilite", () => {
       { id: "moteur", critique: true, pieceMontee: true, etat: 80 },
       { id: "boite", critique: true, pieceMontee: false, etat: null },
     ])
-    expect(indice).toEqual({ indice: 80, sansPiece: ["boite"] })
+    expect(indice).toEqual({ indice: 80, sansPiece: ["boite"], sansEtat: [] })
   })
 
-  it("exclut un organe avec pièce mais à renseigner, sans le compter à 0", () => {
+  it("exclut un organe avec pièce mais à renseigner, sans le compter à 0, et le nomme à part", () => {
     const indice = indiceFiabilite([
       { id: "moteur", critique: true, pieceMontee: true, etat: 80 },
       { id: "embrayage", critique: true, pieceMontee: true, etat: null },
     ])
-    expect(indice.indice).toBe(80)
+    expect(indice).toEqual({ indice: 80, sansPiece: [], sansEtat: ["embrayage"] })
   })
 
-  it("renvoie null s'il n'y a aucun organe retenu", () => {
-    expect(indiceFiabilite([{ id: "moteur", critique: true, pieceMontee: false, etat: null }]).indice).toBeNull()
+  it("renvoie null s'il n'y a aucun organe retenu, et nomme la pièce manquante", () => {
+    expect(indiceFiabilite([{ id: "moteur", critique: true, pieceMontee: false, etat: null }])).toEqual({
+      indice: null,
+      sansPiece: ["moteur"],
+      sansEtat: [],
+    })
+  })
+
+  it("sans organe critique : indice null, aucune liste", () => {
+    expect(indiceFiabilite([{ id: "pneus", critique: false, pieceMontee: true, etat: 50 }])).toEqual({
+      indice: null,
+      sansPiece: [],
+      sansEtat: [],
+    })
+  })
+
+  it("une pièce montée à état inconnu, seule : indice null, et l'organe est dans sansEtat", () => {
+    expect(indiceFiabilite([{ id: "freins", critique: true, pieceMontee: true, etat: null }])).toEqual({
+      indice: null,
+      sansPiece: [],
+      sansEtat: ["freins"],
+    })
   })
 })
 

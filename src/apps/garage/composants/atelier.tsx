@@ -8,7 +8,7 @@ import { Silhouette } from "@/components/silhouette/silhouette"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 
 import type { OrganeAtelier, VehiculeAtelier, VehiculeChoisi } from "../lectures-serveur"
-import { libelleZone, ordreDesOrganes, phraseKmRestants, phraseManque, pourcentage } from "../mise-en-forme"
+import { libelleZone, ordreDesOrganes, phraseKmRestants, pourcentage, type PhraseAtelier } from "../mise-en-forme"
 import { RAYON_CONTACT_BUREAU, RAYON_CONTACT_TELEPHONE, type PointSilhouette } from "../positions"
 import type { Zone } from "../regles"
 
@@ -40,7 +40,8 @@ export function ChoixVehicule({ vehicules, choisi, chemin = "/apps/garage" }: { 
 // --- Indice de fiabilité -------------------------------------------------------------------
 
 // La moyenne se lit en grand ; le mot (le pire organe critique renseigné, calculé par la page) se lit à côté.
-export function IndiceBloc({ indice, mot, manque }: { indice: number | null; mot: string; manque: string[] }) {
+// Sans indice, la phrase dit ce qui manque, et chaque organe nommé renvoie à sa fiche (pose de pièce, durée de vie).
+export function IndiceBloc({ indice, mot, phrases }: { indice: number | null; mot: string; phrases: PhraseAtelier[] }) {
   return (
     <section aria-labelledby="indice-fiabilite" className="flex flex-col gap-1">
       <h2 id="indice-fiabilite" className="text-sm text-texte-discret">
@@ -50,9 +51,24 @@ export function IndiceBloc({ indice, mot, manque }: { indice: number | null; mot
         <span className="chiffre text-5xl font-semibold">{pourcentage(indice) ?? "—"}</span>
         <span className="text-lg">{mot}</span>
       </p>
-      <p className="text-sm text-texte-discret">
-        {indice === null ? phraseManque(manque) : "Moyenne des organes critiques renseignés"}
-      </p>
+      {indice === null ? (
+        phrases.map((phrase) => (
+          <p key={phrase.debut} className="text-sm text-texte-discret">
+            {phrase.debut}
+            {phrase.organes.map((organe, rang) => (
+              <span key={organe.id}>
+                {rang > 0 && ", "}
+                <Link href={`/apps/garage/organes/${organe.id}`} className="cible-tactile inline-flex items-center underline">
+                  {organe.nom}
+                </Link>
+              </span>
+            ))}
+            {phrase.fin}
+          </p>
+        ))
+      ) : (
+        <p className="text-sm text-texte-discret">Moyenne des organes critiques renseignés</p>
+      )}
     </section>
   )
 }

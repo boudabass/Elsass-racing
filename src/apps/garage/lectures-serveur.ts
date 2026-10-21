@@ -59,6 +59,8 @@ export type VehiculeAtelier = {
   indice: number | null
   // Organes critiques sans pièce montée : signalés à part, jamais comptés à 0.
   sansPiece: string[]
+  // Organes critiques avec pièce montée, durée de vie à renseigner : hors de la moyenne, nommés à part.
+  sansEtat: string[]
 }
 
 type Client = ReturnType<typeof prismaPourTeam>
@@ -166,6 +168,7 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
     organes: lignes,
     indice: indice.indice,
     sansPiece: indice.sansPiece,
+    sansEtat: indice.sansEtat,
   }
 }
 
