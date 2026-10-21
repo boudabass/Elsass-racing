@@ -137,7 +137,8 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   await page.getByLabel("Durée en kilomètres").fill("40000")
   await page.getByLabel("Durée en épreuves").fill("10")
   await envoyer(page, page.getByRole("button", { name: "Enregistrer la durée", exact: true }))
-  await expect(page.getByRole("img", { name: "État : 100%" }).first()).toBeVisible()
+  // Le pourcentage de la barre a une espace insécable avant « % » (mise-en-forme.ts) : \s l'accepte.
+  await expect(page.getByRole("img", { name: /État : 100\s%/ }).first()).toBeVisible()
 
   // 5. Travaux : un ordre créé sur les freins, puis terminé avec sa main-d'œuvre (une proposition au Budget).
   await page.getByRole("link", { name: "Travaux", exact: true }).click()
