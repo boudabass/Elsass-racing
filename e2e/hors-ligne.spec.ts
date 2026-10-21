@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test"
 import { expect, test } from "./aide/fixtures"
 import { notesEnBase } from "./aide/session"
 import { connecterParLien, tuilesDuQg } from "./aide/navigation"
+import { diagnostiquerRecouvrement } from "./aide/diagnostic-418"
 
 // Ce fichier tourne sur le projet « hors-ligne » : serveur de production (port 3101), le seul où le
 // service worker existe.
@@ -84,13 +85,16 @@ test("une note créée hors ligne reste en attente, puis part au retour du rése
 // Reproduction du bug de production : hors ligne, depuis le QG, un clic sur « + » puis « Note ».
 // Le clic déclenche une navigation côté client (requête RSC) : elle doit passer par une navigation
 // de page servie par le service worker, sans erreur.
-test("hors ligne : + puis Note depuis le QG ouvre les notes sans erreur", async ({ page, equipe, context }) => {
+test("hors ligne : + puis Note depuis le QG ouvre les notes sans erreur", async ({ page, equipe, context }, testInfo) => {
   const erreurs: string[] = []
   page.on("pageerror", (erreur) => erreurs.push(erreur.message))
 
   await connecterParLien(page, equipe)
-  await page.goto("/qg")
+  const avant = erreurs.length
+  const reponse = await page.goto("/qg")
   await expect(tuilesDuQg(page)).toHaveCount(11)
+  // Diagnostic 4.3c : seulement si ce premier chargement de /qg a levé un 418.
+  if (erreurs.slice(avant).some((e) => e.includes("418"))) await diagnostiquerRecouvrement(page, reponse, testInfo)
   await attendreServiceWorker(page)
   await page.goto("/notes")
   await page.goto("/qg")

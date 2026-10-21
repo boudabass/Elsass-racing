@@ -142,6 +142,16 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+      # Diagnostic du 418 (tâche 4.3c) : HTML reçu et comparaison de structure, écrits seulement si un 418 est levé.
+      - name: Diagnostic du 418
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: diagnostic-418
+          path: test-results/diagnostic-418/
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Traces de l'échec
         if: failure()
         uses: actions/upload-artifact@v7
