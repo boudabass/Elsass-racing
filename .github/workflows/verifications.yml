@@ -12,6 +12,10 @@ on:
         description: "Un seul spec e2e (ex. e2e/garage.spec.ts). Vide : toute la suite."
         required: false
         default: ""
+      repeat:
+        description: "Répétitions du spec (--repeat-each), pour mesurer une erreur intermittente. Vide : une fois."
+        required: false
+        default: ""
 
 # Une exécution par branche : un nouveau push annule l'ancienne.
 concurrency:
@@ -98,10 +102,11 @@ jobs:
       - name: Tests de bout en bout
         env:
           SPEC: ${{ inputs.e2e }}
+          REPEAT: ${{ inputs.repeat }}
           DEBUG: pw:webserver
         run: |
           set -o pipefail
-          pnpm test:e2e $SPEC 2>&1 | tee "$JOURNAL"
+          pnpm test:e2e $SPEC ${REPEAT:+--repeat-each=$REPEAT} 2>&1 | tee "$JOURNAL"
 
       - name: Résumé du journal et des captures
         if: always()
