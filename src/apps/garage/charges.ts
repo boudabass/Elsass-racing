@@ -53,3 +53,16 @@ export const chargeInterventionFacturee = z
     prestataireContactId: identifiant.nullable(),
   })
   .strict()
+
+// garage.piece_achetee : une commande reçue (émis après la transaction de réception, D7). Total en centimes, fournisseur
+// et date de réception. Budget propose la dépense. Pas émis pour une commande à zéro.
+export const chargePieceAchetee = z
+  .object({
+    purchaseId: identifiant,
+    vehicleId: identifiant,
+    supplierContactId: identifiant,
+    totalCents: z.number().int().min(1),
+    devise: z.string().min(1),
+    recueLe: z.string().min(1),
+  })
+  .strict()

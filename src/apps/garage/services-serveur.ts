@@ -4,6 +4,7 @@
 
 import { z } from "zod"
 
+import type { Prisma } from "@/generated/prisma/client"
 import type { ContexteTeam } from "@/core/contexte"
 import { exigerAcces } from "@/core/droits/garde-serveur"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
@@ -12,7 +13,8 @@ import { newId } from "@/core/ids"
 import { executerPourTeam } from "@/lib/prisma"
 import { avecReprisePourConflit } from "@/lib/reprise-conflit"
 
-import { chargeFiabiliteChangee, chargeInterventionFacturee, chargePieceZoneRouge, chargeTravailTermine } from "./charges"
+import { chargeFiabiliteChangee, chargeInterventionFacturee, chargePieceAchetee, chargePieceZoneRouge, chargeTravailTermine } from "./charges"
+import { receptionPossible } from "./commandes"
 import { ErreurGarage, refus } from "./erreurs"
 import { MODE_USURE_DEFAUT, TYPES_DEFAUT } from "./types-defaut"
 import {
@@ -1099,4 +1101,180 @@ export async function creerInterventionDans(
   // D7 : événement après la transaction, un échec est journalisé sans annuler l'intervention.
   await emettreSansBloquer(ctx, "garage.travail_termine", chargeTravailTermine.parse({ workOrderId: id, vehicleId, type: partId ? "remplacement" : "reparation" }))
   return id
+}
+
+// --- Commandes (tâche 4.3, brief §5, D6) ----------------------------------------------------
+// Écriture seulement (accesGarage « ecriture »). La réception passe à « reçue » une seule fois : le statut est verrouillé
+// par updateMany avant la création des pièces, dans la même transaction. Une pièce par unité, en stock, avec le prix et le
+// fournisseur. L'événement part après la transaction (D7).
+
+const dateCivile = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Indiquez une date (AAAA-MM-JJ).")
+
+const schemaLigneCommande = z
+  .object({
+    designation: z.string().trim().min(1, "Désignez la pièce.").max(200),
+    componentTypeId: z.string().min(1, "Choisissez l'organe de la pièce."),
+    reference: texte(100),
+    quantite: z.number().int("La quantité doit être un nombre entier.").min(1).max(50),
+    prixUnitaireCents: z.number().int().min(0),
+    qualite: z.enum(QUALITES).default("origine"),
+  })
+  .strict()
+
+const schemaCommande = z
+  .object({
+    supplierContactId: z.string().min(1, "Choisissez le fournisseur."),
+    commandeeLe: dateCivile,
+    livraisonPrevueLe: dateCivile.nullable().optional(),
+    lignes: z.array(schemaLigneCommande).min(1, "Ajoutez au moins une ligne.").max(10),
+  })
+  .strict()
+
+export type EntreeCommande = z.input<typeof schemaCommande>
+
+async function fournisseurDans(tx: Tx, teamId: string, id: string): Promise<void> {
+  const fournisseur = await tx.coreContact.findFirst({ where: { id, teamId, deletedAt: null }, select: { id: true } })
+  if (!fournisseur) refus("Ce fournisseur n'existe pas dans la team.")
+}
+
+export async function creerCommande(vehicleId: string, entree: EntreeCommande): Promise<string> {
+  const { ctx } = await accesGarage("ecriture")
+  return creerCommandeDans(ctx, vehicleId, entree)
+}
+
+export async function creerCommandeDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeCommande): Promise<string> {
+  const donnees = schemaCommande.parse(entree)
+  const id = newId()
+  await avecReprisePourConflit(() =>
+    executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+      await vehiculeDans(tx, ctx.teamId, vehicleId)
+      await fournisseurDans(tx, ctx.teamId, donnees.supplierContactId)
+      for (const ligne of donnees.lignes) await typeDansTeam(tx, ctx.teamId, ligne.componentTypeId)
+      await tx.garagePurchase.create({
+        data: {
+          id,
+          teamId: ctx.teamId,
+          vehicleId,
+          supplierContactId: donnees.supplierContactId,
+          statut: "commandee",
+          commandeeLe: new Date(donnees.commandeeLe),
+          livraisonPrevueLe: donnees.livraisonPrevueLe ? new Date(donnees.livraisonPrevueLe) : null,
+          createdBy: ctx.userId,
+          updatedBy: ctx.userId,
+        },
+      })
+      await tx.garagePurchaseLine.createMany({
+        data: donnees.lignes.map((ligne) => ({
+          id: newId(),
+          teamId: ctx.teamId,
+          purchaseId: id,
+          designation: ligne.designation,
+          reference: ligne.reference ?? null,
+          quantite: ligne.quantite,
+          prixUnitaireCents: ligne.prixUnitaireCents,
+          devise: "EUR",
+          componentTypeId: ligne.componentTypeId,
+          qualite: ligne.qualite,
+          createdBy: ctx.userId,
+          updatedBy: ctx.userId,
+        })),
+      })
+    }),
+  )
+  return id
+}
+
+export async function expedierCommande(id: string): Promise<void> {
+  const { ctx } = await accesGarage("ecriture")
+  return expedierCommandeDans(ctx, id)
+}
+
+export async function expedierCommandeDans(ctx: ContexteTeam, id: string): Promise<void> {
+  await avecReprisePourConflit(() =>
+    executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+      const commande = await tx.garagePurchase.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null }, select: { statut: true } })
+      if (!commande) refus("Commande introuvable.")
+      if (!receptionPossible(commande.statut)) refus("Cette commande est déjà reçue.")
+      if (commande.statut === "expediee") refus("Cette commande est déjà expédiée.")
+      await tx.garagePurchase.updateMany({
+        where: { id, teamId: ctx.teamId, deletedAt: null, statut: "commandee" },
+        data: { statut: "expediee", rev: { increment: 1 }, updatedBy: ctx.userId },
+      })
+    }),
+  )
+}
+
+export async function recevoirCommande(id: string): Promise<void> {
+  const { ctx } = await accesGarage("ecriture")
+  return recevoirCommandeDans(ctx, id)
+}
+
+// Réception : une transaction. Le verrou sur le statut (updateMany « pas encore reçue ») passe avant tout le reste : une
+// seconde réception concurrente ne voit aucune ligne et ne crée rien. Une ligne sans organe bloque la réception.
+export async function recevoirCommandeDans(ctx: ContexteTeam, id: string): Promise<void> {
+  const recueLe = new Date()
+  const bilan = await avecReprisePourConflit(() =>
+    executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+      const commande = await tx.garagePurchase.findFirst({
+        where: { id, teamId: ctx.teamId, deletedAt: null },
+        select: { vehicleId: true, supplierContactId: true, statut: true },
+      })
+      if (!commande) refus("Commande introuvable.")
+      if (!receptionPossible(commande.statut)) refus("Cette commande est déjà reçue.")
+
+      const fin = await tx.garagePurchase.updateMany({
+        where: { id, teamId: ctx.teamId, deletedAt: null, statut: { not: "recue" } },
+        data: { statut: "recue", recueLe, rev: { increment: 1 }, updatedBy: ctx.userId },
+      })
+      if (fin.count === 0) refus("Cette commande est déjà reçue.")
+
+      const lignes = await tx.garagePurchaseLine.findMany({
+        where: { purchaseId: id, teamId: ctx.teamId, deletedAt: null },
+        orderBy: { createdAt: "asc" },
+      })
+      const pieces: Prisma.GaragePartCreateManyInput[] = []
+      let totalCents = 0
+      for (const ligne of lignes) {
+        if (!ligne.componentTypeId) refus(`La ligne « ${ligne.designation} » n'a pas d'organe : complétez-la avant la réception.`)
+        totalCents += ligne.quantite * ligne.prixUnitaireCents
+        for (let unite = 0; unite < ligne.quantite; unite += 1) {
+          pieces.push({
+            id: newId(),
+            teamId: ctx.teamId,
+            vehicleId: commande.vehicleId,
+            componentTypeId: ligne.componentTypeId,
+            designation: ligne.designation,
+            reference: ligne.reference,
+            qualite: ligne.qualite,
+            prixCents: ligne.prixUnitaireCents,
+            devise: ligne.devise,
+            fournisseurContactId: commande.supplierContactId,
+            statut: "en_stock",
+            acheteeLe: recueLe,
+            commandeLigneId: ligne.id,
+            createdBy: ctx.userId,
+            updatedBy: ctx.userId,
+          })
+        }
+      }
+      if (pieces.length > 0) await tx.garagePart.createMany({ data: pieces })
+      return { vehicleId: commande.vehicleId, supplierContactId: commande.supplierContactId, totalCents, devise: lignes[0]?.devise ?? "EUR" }
+    }),
+  )
+
+  // D7 : l'événement part après la transaction. Une commande à zéro n'ouvre pas de dépense côté Budget.
+  if (bilan.totalCents > 0) {
+    await emettreSansBloquer(
+      ctx,
+      "garage.piece_achetee",
+      chargePieceAchetee.parse({
+        purchaseId: id,
+        vehicleId: bilan.vehicleId,
+        supplierContactId: bilan.supplierContactId,
+        totalCents: bilan.totalCents,
+        devise: bilan.devise,
+        recueLe: recueLe.toISOString(),
+      }),
+    )
+  }
 }

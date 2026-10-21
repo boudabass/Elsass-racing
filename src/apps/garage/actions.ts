@@ -14,16 +14,20 @@ import {
   avancerOrdre,
   changerStatutOrdre,
   changerStatutPiece,
+  creerCommande,
   creerIntervention,
   creerOrdre,
   creerPiece,
+  expedierCommande,
   modifierCoutOrdre,
   modifierOrdre,
   modifierOrgane,
   poserPiece,
+  recevoirCommande,
   retirerOrgane,
   retirerPieceOrdre,
   terminerOrdre,
+  type EntreeCommande,
   type EntreeModificationOrdre,
   type EntreeOrdre,
   type EntreeOrgane,
@@ -234,4 +238,42 @@ export async function creerInterventionAction(_etat: Resultat | null, donnees: F
       motifDepose: (texteOuNull(donnees, "motifDepose") as MotifDepose | null) ?? null,
     }),
   )
+}
+
+// Commande : jusqu'à cinq lignes au formulaire. Une ligne est prise dès qu'un de ses champs est rempli ; une ligne vide est
+// ignorée. Le prix se saisit en euros, une quantité vide vaut 1.
+const LIGNES_COMMANDE = 5
+const champLigne = (n: number, champ: string) => `ligne${n}${champ}`
+
+export async function creerCommandeAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(async () => {
+    const lignes: NonNullable<EntreeCommande["lignes"]> = []
+    for (let n = 1; n <= LIGNES_COMMANDE; n += 1) {
+      const saisie = ["Designation", "ComponentTypeId", "Reference", "Quantite", "Prix"].some((c) => texteOuNull(donnees, champLigne(n, c)) !== null)
+      if (!saisie) continue
+      lignes.push({
+        designation: texte(donnees, champLigne(n, "Designation")),
+        componentTypeId: texte(donnees, champLigne(n, "ComponentTypeId")),
+        reference: texteOuNull(donnees, champLigne(n, "Reference")),
+        quantite: entierOuNull(donnees, champLigne(n, "Quantite"), "La quantité") ?? 1,
+        prixUnitaireCents: centimesOuNull(donnees, champLigne(n, "Prix")) ?? 0,
+        qualite: (texteOuNull(donnees, champLigne(n, "Qualite")) ?? "origine") as "origine" | "renforcee" | "competition",
+      })
+    }
+    return creerCommande(texte(donnees, "vehicleId"), {
+      supplierContactId: texte(donnees, "supplierContactId"),
+      commandeeLe: texte(donnees, "commandeeLe"),
+      livraisonPrevueLe: texteOuNull(donnees, "livraisonPrevueLe"),
+      lignes,
+    })
+  })
+}
+
+export async function expedierCommandeAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() => expedierCommande(texte(donnees, "id")))
+}
+
+// Réception : crée les pièces en stock, une par unité, et émet garage.piece_achetee après la transaction.
+export async function recevoirCommandeAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() => recevoirCommande(texte(donnees, "id")))
 }
