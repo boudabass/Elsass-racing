@@ -56,6 +56,11 @@ test("refus hors ligne : la raison est visible au retour du réseau, reste aprè
   await page.reload()
   await expect(page.getByRole("button", { name: "1 envoi refusé", exact: true })).toBeVisible()
 
+  // Sur téléphone, l'indicateur garde son texte : l'état ne se dit pas par la couleur seule.
+  await page.setViewportSize({ width: 360, height: 740 })
+  await expect(page.locator("button:visible", { hasText: "1 envoi refusé" })).toBeVisible()
+  await page.setViewportSize({ width: 1440, height: 900 })
+
   // « Compris » efface le refus : l'indicateur ne l'annonce plus.
   await page.getByRole("button", { name: "1 envoi refusé", exact: true }).click()
   await page.getByRole("dialog").getByRole("button", { name: /^Compris/ }).click()
