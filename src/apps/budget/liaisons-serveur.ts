@@ -17,7 +17,7 @@ import { prismaPourTeam } from "@/lib/prisma"
 import type { Tx } from "@/core/synchro/registre"
 
 import { ErreurBudget, refus } from "./erreurs"
-import { modePaiementSaison, voitTout } from "./regles"
+import { categorieParCle, modePaiementSaison, voitTout } from "./regles"
 import { phraseSoldeMoi } from "./libelles"
 import { lireSoldeMoi, listerMouvements } from "./lectures-serveur"
 import { accesBudget, initialiserSiBesoin, payeurDePersonneDans, PRIORITE_MOUVEMENT_A_CONFIRMER, proposerMouvementDans } from "./services-serveur"
@@ -334,3 +334,80 @@ export async function lireRecettesParOrigineDans(ctx: ContexteTeam, prefixe: str
     orderBy: { date: "asc" },
   })
 }
+
+// --- Garage : pièces achetées et main-d'œuvre facturée (tâche 4.3, brief §2, D8) -----------------
+// Budget propose la dépense ; il ne lit pas les tables du Garage et ne lit que la charge de l'événement. La catégorie se
+// trouve par sa clé stable (pieces, main_oeuvre), jamais par son nom. Si la clé manque, Budget n'écrit rien dans
+// budget_category : la proposition n'est pas créée, et le journal donne l'identifiant et le montant pour la retrouver.
+
+const schemaPieceAchetee = z.object({
+  purchaseId: z.string().min(1),
+  totalCents: z.number().int().min(1),
+  recueLe: z.string().min(1),
+})
+
+const schemaInterventionFacturee = z.object({
+  workOrderId: z.string().min(1),
+  coutCents: z.number().int().min(1),
+})
+
+async function categorieGarageDans(ctx: ContexteTeam, cle: string): Promise<string | null> {
+  const categories = await prismaPourTeam(ctx.teamId, ctx.userId).budgetCategory.findMany({
+    where: { teamId: ctx.teamId, sens: "depense", active: true, deletedAt: null, cle: { not: null } },
+    select: { id: true, cle: true },
+  })
+  return categorieParCle(categories, cle)
+}
+
+function journaliserCategorieAbsente(cle: string, origineRef: string, montantCents: number): void {
+  console.error(`[budget] catégorie « ${cle} » introuvable : proposition garage non créée (${origineRef}, ${montantCents} centimes).`)
+}
+
+export async function proposerDepensePieceDans(ctx: ContexteTeam, entree: z.input<typeof schemaPieceAchetee>): Promise<void> {
+  const donnees = schemaPieceAchetee.parse(entree)
+  const origineRef = `garage_purchase:${donnees.purchaseId}`
+  await initialiserSiBesoin(ctx)
+  const categorieId = await categorieGarageDans(ctx, "pieces")
+  if (!categorieId) return journaliserCategorieAbsente("pieces", origineRef, donnees.totalCents)
+  await proposerMouvementDans(ctx, {
+    appOrigine: "garage",
+    evenementOrigine: "garage.piece_achetee",
+    sens: "depense",
+    montant: donnees.totalCents,
+    categoryId: categorieId,
+    libelle: "Pièces achetées (Garage)",
+    date: jourDeParis(new Date(donnees.recueLe)),
+    origineRef,
+  })
+}
+
+export async function proposerDepenseMainOeuvreDans(ctx: ContexteTeam, entree: z.input<typeof schemaInterventionFacturee>): Promise<void> {
+  const donnees = schemaInterventionFacturee.parse(entree)
+  const origineRef = `garage_work_order:${donnees.workOrderId}`
+  await initialiserSiBesoin(ctx)
+  const categorieId = await categorieGarageDans(ctx, "main_oeuvre")
+  if (!categorieId) return journaliserCategorieAbsente("main_oeuvre", origineRef, donnees.coutCents)
+  await proposerMouvementDans(ctx, {
+    appOrigine: "garage",
+    evenementOrigine: "garage.intervention_facturee",
+    sens: "depense",
+    montant: donnees.coutCents,
+    categoryId: categorieId,
+    libelle: "Main-d'œuvre (Garage)",
+    date: jourDeParis(new Date()),
+    origineRef,
+  })
+}
+
+// Une commande reçue et une intervention facturée : une proposition par référence, donc un événement rejoué ne crée rien.
+enregistrerGestionnaire("budget", "garage.piece_achetee", async (ctx: ContexteTeam, evenement: EvenementRecu) => {
+  const analyse = schemaPieceAchetee.safeParse(evenement.donnees)
+  if (!analyse.success) return
+  await proposerDepensePieceDans(ctx, analyse.data)
+})
+
+enregistrerGestionnaire("budget", "garage.intervention_facturee", async (ctx: ContexteTeam, evenement: EvenementRecu) => {
+  const analyse = schemaInterventionFacturee.safeParse(evenement.donnees)
+  if (!analyse.success) return
+  await proposerDepenseMainOeuvreDans(ctx, analyse.data)
+})

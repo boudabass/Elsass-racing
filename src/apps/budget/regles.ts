@@ -132,3 +132,9 @@ export function modePaiementSaison(moyen: string | null): "cheque" | "virement" 
 export function comptesEncaissement(payeurs: ReadonlyArray<{ id: string; nom: string; type: string }>) {
   return payeurs.filter((payeur) => payeur.type !== "membre").map(({ id, nom, type }) => ({ id, nom, parDefaut: type === "caisse_team" }))
 }
+
+// Catégorie de Budget par sa clé stable (pieces, main_oeuvre : jamais le nom, D8 du Garage). Absente : null. Une
+// catégorie sans clé ne sert jamais de repli, même si son nom ressemble.
+export function categorieParCle(categories: ReadonlyArray<{ id: string; cle: string | null }>, cle: string): string | null {
+  return categories.find((categorie) => categorie.cle === cle)?.id ?? null
+}
