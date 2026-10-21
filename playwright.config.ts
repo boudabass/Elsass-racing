@@ -25,8 +25,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      // Le diagnostic de l'hydratation (e2e/diagnostic) n'est lancé que par playwright.diagnostic.config.ts.
-      testIgnore: [/hors-ligne\.spec\.ts/, /[\\/]diagnostic[\\/]/],
+      testIgnore: /hors-ligne\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: "http://localhost:3101" },
     },
     {

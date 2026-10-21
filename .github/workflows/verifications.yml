@@ -12,10 +12,6 @@ on:
         description: "Un seul spec e2e (ex. e2e/garage.spec.ts). Vide : toute la suite."
         required: false
         default: ""
-      diagnostic:
-        description: "Diagnostic de l'hydratation (tâche 4.3c) : next dev sur le port 3102, 30 chargements de /qg. Vide : pas de diagnostic."
-        required: false
-        default: ""
       repeat:
         description: "Répétitions du spec (--repeat-each), pour mesurer une erreur intermittente. Vide : une fois."
         required: false
@@ -104,7 +100,6 @@ jobs:
       # La config Playwright construit elle-même le build de test (port 3101, E2E=1).
       # DEBUG=pw:webserver : le journal du serveur part dans le fichier JOURNAL.
       - name: Tests de bout en bout
-        if: inputs.diagnostic != 'hydratation'
         env:
           SPEC: ${{ inputs.e2e }}
           REPEAT: ${{ inputs.repeat }}
@@ -112,13 +107,6 @@ jobs:
         run: |
           set -o pipefail
           pnpm test:e2e $SPEC ${REPEAT:+--repeat-each=$REPEAT} 2>&1 | tee "$JOURNAL"
-
-      # Diagnostic de l'hydratation (tâche 4.3c) : serveur de développement, hors de la suite. Lancé par dispatch seulement.
-      - name: Diagnostic de l'hydratation (développement)
-        if: inputs.diagnostic == 'hydratation'
-        run: |
-          set -o pipefail
-          pnpm exec playwright test -c playwright.diagnostic.config.ts 2>&1 | tee "$JOURNAL"
 
       - name: Résumé du journal et des captures
         if: always()
@@ -151,16 +139,6 @@ jobs:
         with:
           name: captures
           path: docs/captures/
-          retention-days: 7
-          if-no-files-found: ignore
-
-      # Diagnostic du 418 (tâche 4.3c) : HTML reçu et comparaison de structure, écrits seulement si un 418 est levé.
-      - name: Diagnostic du 418
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: diagnostic-418
-          path: test-results/diagnostic-418/
           retention-days: 7
           if-no-files-found: ignore
 
