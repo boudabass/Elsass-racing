@@ -33,3 +33,23 @@ export const chargeResultatValide = z
     eventId: identifiant.nullable(),
   })
   .passthrough()
+
+// garage.travail_termine : un ordre passe à terminé (après la transaction de fin, D7). Consommé par Checklist et le socle.
+export const chargeTravailTermine = z
+  .object({
+    workOrderId: identifiant,
+    vehicleId: identifiant,
+    type: z.enum(["revision", "reparation", "remplacement", "controle"]),
+  })
+  .strict()
+
+// garage.intervention_facturee : la fin d'un ordre avec un coût de main-d'œuvre (D7). Budget propose la dépense.
+export const chargeInterventionFacturee = z
+  .object({
+    workOrderId: identifiant,
+    vehicleId: identifiant,
+    coutCents: z.number().int().min(1),
+    devise: z.string().min(1),
+    prestataireContactId: identifiant.nullable(),
+  })
+  .strict()

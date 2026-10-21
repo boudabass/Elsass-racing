@@ -6,13 +6,13 @@ import { z } from "zod"
 
 import type { ContexteTeam } from "@/core/contexte"
 import { exigerAcces } from "@/core/droits/garde-serveur"
-import { type Niveau } from "@/core/droits/niveaux"
+import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 import { emettre } from "@/core/evenements/bus-serveur"
 import { newId } from "@/core/ids"
 import { executerPourTeam } from "@/lib/prisma"
 import { avecReprisePourConflit } from "@/lib/reprise-conflit"
 
-import { chargeFiabiliteChangee, chargePieceZoneRouge } from "./charges"
+import { chargeFiabiliteChangee, chargeInterventionFacturee, chargePieceZoneRouge, chargeTravailTermine } from "./charges"
 import { ErreurGarage, refus } from "./erreurs"
 import { MODE_USURE_DEFAUT, TYPES_DEFAUT } from "./types-defaut"
 import {
@@ -27,6 +27,7 @@ import {
   type ModeUsure,
   type OrganeIndice,
 } from "./regles"
+import { avancementValide, coutValide, PRIORITES_TRAVAIL, statutModifiable } from "./travaux"
 
 export { ErreurGarage }
 
@@ -503,40 +504,51 @@ export async function poserPieceDans(
   const vehicleId = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => (await organeDans(tx, ctx.teamId, vehicleComponentId)).vehicleId)
   const id = newId()
 
-  await ecrireEtEmettre(ctx, vehicleId, async (tx) => {
-    const organe = await organeDans(tx, ctx.teamId, vehicleComponentId)
-    const piece = await pieceDans(tx, ctx.teamId, partId)
-    if (piece.vehicleId !== organe.vehicleId) refus("Cette pièce est sur une autre voiture.")
-    if (piece.componentTypeId !== organe.componentTypeId) refus("Cette pièce ne va pas sur ce type d'organe.")
-    if (piece.statut === "montee") refus("Cette pièce est déjà montée : déposez-la d'abord.")
-
-    const enPlace = await tx.garagePartMount.findFirst({
-      where: { vehicleComponentId, deposeeLe: null, deletedAt: null },
-      select: { id: true, partId: true },
-    })
-    if (enPlace) {
-      if (!motif) refus("Un autre pièce est en place : indiquez le motif de sa dépose.")
-      await deposerDans(tx, ctx, enPlace.id, motif)
-    }
-
-    await tx.garagePartMount.create({
-      data: {
-        id,
-        teamId: ctx.teamId,
-        partId,
-        vehicleComponentId,
-        poseLe: new Date(),
-        kmPose: piece.kmCumules,
-        createdBy: ctx.userId,
-        updatedBy: ctx.userId,
-      },
-    })
-    await tx.garagePart.updateMany({
-      where: { id: partId, teamId: ctx.teamId },
-      data: { statut: "montee", rev: { increment: 1 }, updatedBy: ctx.userId },
-    })
-  })
+  await ecrireEtEmettre(ctx, vehicleId, (tx) => poserPieceTx(tx, ctx, id, vehicleComponentId, partId, motif))
   return id
+}
+
+// Pose dans une transaction déjà ouverte. Sert aussi à la fin d'un ordre de remplacement (Garage 4.3, D1 et D7) :
+// la pose et la fin de l'ordre s'écrivent ensemble, ou pas du tout.
+export async function poserPieceTx(
+  tx: Tx,
+  ctx: ContexteTeam,
+  id: string,
+  vehicleComponentId: string,
+  partId: string,
+  motif: (typeof MOTIFS)[number] | null,
+): Promise<void> {
+  const organe = await organeDans(tx, ctx.teamId, vehicleComponentId)
+  const piece = await pieceDans(tx, ctx.teamId, partId)
+  if (piece.vehicleId !== organe.vehicleId) refus("Cette pièce est sur une autre voiture.")
+  if (piece.componentTypeId !== organe.componentTypeId) refus("Cette pièce ne va pas sur ce type d'organe.")
+  if (piece.statut === "montee") refus("Cette pièce est déjà montée : déposez-la d'abord.")
+
+  const enPlace = await tx.garagePartMount.findFirst({
+    where: { vehicleComponentId, deposeeLe: null, deletedAt: null },
+    select: { id: true, partId: true },
+  })
+  if (enPlace) {
+    if (!motif) refus("Un autre pièce est en place : indiquez le motif de sa dépose.")
+    await deposerDans(tx, ctx, enPlace.id, motif)
+  }
+
+  await tx.garagePartMount.create({
+    data: {
+      id,
+      teamId: ctx.teamId,
+      partId,
+      vehicleComponentId,
+      poseLe: new Date(),
+      kmPose: piece.kmCumules,
+      createdBy: ctx.userId,
+      updatedBy: ctx.userId,
+    },
+  })
+  await tx.garagePart.updateMany({
+    where: { id: partId, teamId: ctx.teamId },
+    data: { statut: "montee", rev: { increment: 1 }, updatedBy: ctx.userId },
+  })
 }
 
 async function deposerDans(tx: Tx, ctx: ContexteTeam, mountId: string, motif: (typeof MOTIFS)[number]): Promise<void> {
@@ -690,4 +702,331 @@ export async function appliquerUsureResultatDans(
       entryId,
     })
   })
+}
+
+// --- Travaux (ordres de travail, tâche 4.3, brief §3) -----------------------------------------
+// Création, réglages, affectations, coût et pièces : écriture. Avancement et statut en cours : contribution, sur les
+// ordres affectés seulement (la personne du compte, CorePerson.userId). Fin : contribution sans pièce, écriture avec
+// pièce (D2). La fin est une transaction (D1, D3) ; ses événements partent après (D7).
+
+const TYPES_ORDRE = ["revision", "reparation", "remplacement", "controle"] as const
+
+const schemaOrdre = z
+  .object({
+    type: z.enum(TYPES_ORDRE),
+    titre: z.string().trim().min(1, "Le titre est obligatoire.").max(200),
+    vehicleComponentId: z.string().min(1).nullable().optional(),
+    priorite: z.enum(PRIORITES_TRAVAIL).default("normale"),
+    aFaireAvantEventId: z.string().min(1).nullable().optional(),
+    dureeEstimeeMinutes: entier(1).nullable().optional(),
+    personIds: z.array(z.string().min(1)).default([]),
+  })
+  .strict()
+
+const schemaModificationOrdre = schemaOrdre.omit({ personIds: true }).partial().strict()
+
+const schemaCout = z
+  .object({
+    coutMainOeuvreCents: entier(0).nullable(),
+    prestataireContactId: z.string().min(1).nullable(),
+  })
+  .strict()
+
+export type EntreeOrdre = z.input<typeof schemaOrdre>
+export type EntreeModificationOrdre = z.input<typeof schemaModificationOrdre>
+export type EntreeCout = z.input<typeof schemaCout>
+
+// Personne du compte connecté dans la team (fiche personne liée au compte), ou null.
+async function personneDuCompte(tx: Tx, ctx: ContexteTeam): Promise<string | null> {
+  const personne = await tx.corePerson.findFirst({ where: { teamId: ctx.teamId, userId: ctx.userId, deletedAt: null }, select: { id: true } })
+  return personne?.id ?? null
+}
+
+// Assistance : l'ordre doit être affecté à la personne du compte. Les autres niveaux n'ont pas ce contrôle.
+async function verifierAffecte(tx: Tx, ctx: ContexteTeam, workOrderId: string): Promise<void> {
+  const personneId = await personneDuCompte(tx, ctx)
+  const lien = personneId
+    ? await tx.garageWorkOrderPerson.findFirst({ where: { workOrderId, personId: personneId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+    : null
+  if (!lien) refus("Cet ordre ne vous est pas affecté.")
+}
+
+async function ordreDans(tx: Tx, teamId: string, id: string) {
+  const ordre = await tx.garageWorkOrder.findFirst({ where: { id, teamId, deletedAt: null } })
+  if (!ordre) refus("Ordre de travail introuvable.")
+  return ordre
+}
+
+async function personnesDans(tx: Tx, teamId: string, ids: string[]): Promise<void> {
+  const uniques = Array.from(new Set(ids))
+  if (uniques.length === 0) return
+  const trouvees = await tx.corePerson.count({ where: { id: { in: uniques }, teamId, deletedAt: null } })
+  if (trouvees !== uniques.length) refus("Une personne choisie n'existe pas dans la team.")
+}
+
+async function liensDansOrdre(tx: Tx, ctx: ContexteTeam, vehicleId: string, donnees: { vehicleComponentId?: string | null; aFaireAvantEventId?: string | null }): Promise<void> {
+  if (donnees.vehicleComponentId) {
+    const organe = await organeDans(tx, ctx.teamId, donnees.vehicleComponentId)
+    if (organe.vehicleId !== vehicleId) refus("Cet organe n'est pas sur ce véhicule.")
+  }
+  if (donnees.aFaireAvantEventId) {
+    const epreuve = await tx.coreEvent.findFirst({ where: { id: donnees.aFaireAvantEventId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+    if (!epreuve) refus("Cette épreuve n'existe pas dans la team.")
+  }
+}
+
+// Affectations : une ligne par personne, jamais supprimée (deletedAt), ré-affectée en restaurant la ligne existante.
+async function affecterDans(tx: Tx, ctx: ContexteTeam, workOrderId: string, personIds: string[]): Promise<void> {
+  const voulues = new Set(personIds)
+  const liens = await tx.garageWorkOrderPerson.findMany({ where: { workOrderId, teamId: ctx.teamId }, select: { id: true, personId: true, deletedAt: true } })
+  for (const lien of liens) {
+    const doit = voulues.has(lien.personId)
+    if (doit && lien.deletedAt) {
+      await tx.garageWorkOrderPerson.updateMany({ where: { id: lien.id, teamId: ctx.teamId }, data: { deletedAt: null, rev: { increment: 1 }, updatedBy: ctx.userId } })
+    } else if (!doit && !lien.deletedAt) {
+      await tx.garageWorkOrderPerson.updateMany({ where: { id: lien.id, teamId: ctx.teamId }, data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId } })
+    }
+  }
+  const dejaLa = new Set(liens.map((lien) => lien.personId))
+  const nouvelles = Array.from(voulues).filter((personId) => !dejaLa.has(personId))
+  if (nouvelles.length > 0) {
+    await tx.garageWorkOrderPerson.createMany({
+      data: nouvelles.map((personId) => ({ id: newId(), teamId: ctx.teamId, workOrderId, personId, createdBy: ctx.userId, updatedBy: ctx.userId })),
+      skipDuplicates: true,
+    })
+  }
+}
+
+export async function creerOrdre(vehicleId: string, entree: EntreeOrdre): Promise<string> {
+  const { ctx } = await accesGarage("ecriture")
+  return creerOrdreDans(ctx, vehicleId, entree)
+}
+
+export async function creerOrdreDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeOrdre): Promise<string> {
+  const donnees = schemaOrdre.parse(entree)
+  const id = newId()
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    await vehiculeDans(tx, ctx.teamId, vehicleId)
+    await liensDansOrdre(tx, ctx, vehicleId, donnees)
+    await personnesDans(tx, ctx.teamId, donnees.personIds)
+    await tx.garageWorkOrder.create({
+      data: {
+        id,
+        teamId: ctx.teamId,
+        vehicleId,
+        type: donnees.type,
+        titre: donnees.titre,
+        vehicleComponentId: donnees.vehicleComponentId ?? null,
+        priorite: donnees.priorite,
+        aFaireAvantEventId: donnees.aFaireAvantEventId ?? null,
+        dureeEstimeeMinutes: donnees.dureeEstimeeMinutes ?? null,
+        origine: "saisie",
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
+      },
+    })
+    await affecterDans(tx, ctx, id, donnees.personIds)
+  })
+  return id
+}
+
+export async function modifierOrdre(id: string, entree: EntreeModificationOrdre): Promise<void> {
+  const { ctx } = await accesGarage("ecriture")
+  return modifierOrdreDans(ctx, id, entree)
+}
+
+export async function modifierOrdreDans(ctx: ContexteTeam, id: string, entree: EntreeModificationOrdre): Promise<void> {
+  const donnees = schemaModificationOrdre.parse(entree)
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    const ordre = await ordreDans(tx, ctx.teamId, id)
+    await liensDansOrdre(tx, ctx, ordre.vehicleId, donnees)
+    await tx.garageWorkOrder.updateMany({
+      where: { id, teamId: ctx.teamId, deletedAt: null },
+      data: { ...donnees, rev: { increment: 1 }, updatedBy: ctx.userId },
+    })
+  })
+}
+
+export async function affecterOrdre(id: string, personIds: string[]): Promise<void> {
+  const { ctx } = await accesGarage("ecriture")
+  return affecterOrdreDans(ctx, id, personIds)
+}
+
+export async function affecterOrdreDans(ctx: ContexteTeam, id: string, personIds: string[]): Promise<void> {
+  const donnees = z.array(z.string().min(1)).parse(personIds)
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    await ordreDans(tx, ctx.teamId, id)
+    await personnesDans(tx, ctx.teamId, donnees)
+    await affecterDans(tx, ctx, id, Array.from(new Set(donnees)))
+  })
+}
+
+// Avancement et statut « prévu » ou « en cours » : l'assistance y est admise sur ses ordres affectés.
+export async function avancerOrdre(id: string, pct: number): Promise<void> {
+  const { ctx, niveau } = await accesGarage("contribution")
+  return avancerOrdreDans(ctx, id, pct, niveau)
+}
+
+export async function avancerOrdreDans(ctx: ContexteTeam, id: string, pct: number, niveau: Niveau = "ecriture"): Promise<void> {
+  if (!avancementValide(pct)) refus("L'avancement doit être un pourcentage entier, de 0 à 100.")
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    const ordre = await ordreDans(tx, ctx.teamId, id)
+    if (!statutModifiable(ordre.statut)) refus("Cet ordre est terminé : son avancement ne bouge plus.")
+    if (!aAuMoins(niveau, "ecriture")) await verifierAffecte(tx, ctx, id)
+    await tx.garageWorkOrder.updateMany({
+      where: { id, teamId: ctx.teamId, deletedAt: null, statut: { not: "termine" } },
+      data: { avancementPct: pct, rev: { increment: 1 }, updatedBy: ctx.userId },
+    })
+  })
+}
+
+export async function changerStatutOrdre(id: string, statut: "prevu" | "en_cours"): Promise<void> {
+  const { ctx, niveau } = await accesGarage("contribution")
+  return changerStatutOrdreDans(ctx, id, statut, niveau)
+}
+
+export async function changerStatutOrdreDans(ctx: ContexteTeam, id: string, statut: "prevu" | "en_cours", niveau: Niveau = "ecriture"): Promise<void> {
+  if (statut !== "prevu" && statut !== "en_cours") refus("Ce statut ne se choisit pas ici : la fin d'un ordre passe par « Terminer ».")
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    const ordre = await ordreDans(tx, ctx.teamId, id)
+    if (!statutModifiable(ordre.statut)) refus("Cet ordre est terminé : son statut ne change plus.")
+    if (!aAuMoins(niveau, "ecriture")) await verifierAffecte(tx, ctx, id)
+    await tx.garageWorkOrder.updateMany({
+      where: { id, teamId: ctx.teamId, deletedAt: null, statut: { not: "termine" } },
+      data: { statut, rev: { increment: 1 }, updatedBy: ctx.userId },
+    })
+  })
+}
+
+// Coût de main-d'œuvre et prestataire : écriture seulement, jamais dans le paquet de l'assistance.
+export async function modifierCoutOrdre(id: string, entree: EntreeCout): Promise<void> {
+  const { ctx } = await accesGarage("ecriture")
+  return modifierCoutOrdreDans(ctx, id, entree)
+}
+
+export async function modifierCoutOrdreDans(ctx: ContexteTeam, id: string, entree: EntreeCout): Promise<void> {
+  const donnees = schemaCout.parse(entree)
+  if (!coutValide(donnees.coutMainOeuvreCents)) refus("Le coût doit être un montant positif, en centimes.")
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    const ordre = await ordreDans(tx, ctx.teamId, id)
+    if (!statutModifiable(ordre.statut)) refus("Cet ordre est terminé : son coût ne se modifie plus.")
+    if (donnees.prestataireContactId) {
+      const prestataire = await tx.coreContact.findFirst({ where: { id: donnees.prestataireContactId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+      if (!prestataire) refus("Ce prestataire n'existe pas dans la team.")
+    }
+    await tx.garageWorkOrder.updateMany({
+      where: { id, teamId: ctx.teamId, deletedAt: null },
+      data: { coutMainOeuvreCents: donnees.coutMainOeuvreCents, prestataireContactId: donnees.prestataireContactId, rev: { increment: 1 }, updatedBy: ctx.userId },
+    })
+  })
+}
+
+// Pièces de l'ordre : choisies dans le stock du véhicule. Ajouter ou retirer ne pose rien ; la pose ne se fait qu'à la fin.
+export async function ajouterPieceOrdre(workOrderId: string, partId: string): Promise<void> {
+  const { ctx } = await accesGarage("ecriture")
+  return ajouterPieceOrdreDans(ctx, workOrderId, partId)
+}
+
+export async function ajouterPieceOrdreDans(ctx: ContexteTeam, workOrderId: string, partId: string): Promise<void> {
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    const ordre = await ordreDans(tx, ctx.teamId, workOrderId)
+    if (!statutModifiable(ordre.statut)) refus("Cet ordre est terminé : ses pièces ne changent plus.")
+    const piece = await pieceDans(tx, ctx.teamId, partId)
+    if (piece.vehicleId !== ordre.vehicleId) refus("Cette pièce est sur une autre voiture.")
+    const lien = await tx.garageWorkOrderPart.findFirst({ where: { workOrderId, partId, teamId: ctx.teamId }, select: { id: true, deletedAt: true } })
+    if (lien && !lien.deletedAt) refus("Cette pièce est déjà sur cet ordre.")
+    if (lien) {
+      await tx.garageWorkOrderPart.updateMany({ where: { id: lien.id, teamId: ctx.teamId }, data: { deletedAt: null, rev: { increment: 1 }, updatedBy: ctx.userId } })
+    } else {
+      await tx.garageWorkOrderPart.create({ data: { id: newId(), teamId: ctx.teamId, workOrderId, partId, createdBy: ctx.userId, updatedBy: ctx.userId } })
+    }
+  })
+}
+
+export async function retirerPieceOrdre(workOrderId: string, partId: string): Promise<void> {
+  const { ctx } = await accesGarage("ecriture")
+  return retirerPieceOrdreDans(ctx, workOrderId, partId)
+}
+
+export async function retirerPieceOrdreDans(ctx: ContexteTeam, workOrderId: string, partId: string): Promise<void> {
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    const ordre = await ordreDans(tx, ctx.teamId, workOrderId)
+    if (!statutModifiable(ordre.statut)) refus("Cet ordre est terminé : ses pièces ne changent plus.")
+    await tx.garageWorkOrderPart.updateMany({
+      where: { workOrderId, partId, teamId: ctx.teamId, deletedAt: null },
+      data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId },
+    })
+  })
+}
+
+// Fin d'un ordre (D1, D2, D3, D7). Transaction : passage à terminé (une seule fois), puis, pour un remplacement, la pose
+// de la pièce sur son organe, avec le motif de dépose de la pièce en place. Les événements partent après la transaction.
+export async function terminerOrdre(id: string, options: { motifDepose?: (typeof MOTIFS)[number] | null } = {}): Promise<void> {
+  const { ctx, niveau } = await accesGarage("contribution")
+  return terminerOrdreDans(ctx, id, options, niveau)
+}
+
+export async function terminerOrdreDans(
+  ctx: ContexteTeam,
+  id: string,
+  options: { motifDepose?: (typeof MOTIFS)[number] | null } = {},
+  niveau: Niveau = "ecriture",
+): Promise<void> {
+  const motif = options.motifDepose ?? null
+  if (motif !== null && !MOTIFS.includes(motif)) refus("Motif de dépose inconnu.")
+
+  const { ordre, pieces, organe } = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    const ordreLu = await ordreDans(tx, ctx.teamId, id)
+    const piecesLiees = await tx.garageWorkOrderPart.findMany({
+      where: { workOrderId: id, teamId: ctx.teamId, deletedAt: null },
+      select: { partId: true, part: { select: { componentTypeId: true } } },
+    })
+    const organeLu = ordreLu.vehicleComponentId
+      ? await tx.garageVehicleComponent.findFirst({ where: { id: ordreLu.vehicleComponentId, teamId: ctx.teamId, deletedAt: null }, select: { id: true, componentTypeId: true } })
+      : null
+    return { ordre: ordreLu, pieces: piecesLiees, organe: organeLu }
+  })
+
+  if (ordre.statut === "termine") refus("Cet ordre est déjà terminé.")
+  if (pieces.length > 0 && !aAuMoins(niveau, "ecriture")) refus("Terminer un ordre avec une pièce demande le niveau écriture.")
+
+  // Remplacement : la pièce de l'organe (de son type) est posée. Une seule à la fois, sinon la pose est ambiguë.
+  const poses = ordre.type === "remplacement" && organe ? pieces.filter((piece) => piece.part.componentTypeId === organe.componentTypeId) : []
+  if (poses.length > 1) refus("Un remplacement pose une seule pièce : retirez les autres pièces de l'ordre.")
+
+  await ecrireEtEmettre(ctx, ordre.vehicleId, async (tx) => {
+    if (!aAuMoins(niveau, "ecriture")) await verifierAffecte(tx, ctx, id)
+    const fin = await tx.garageWorkOrder.updateMany({
+      where: { id, teamId: ctx.teamId, deletedAt: null, statut: { not: "termine" } },
+      data: { statut: "termine", avancementPct: 100, rev: { increment: 1 }, updatedBy: ctx.userId },
+    })
+    if (fin.count === 0) refus("Cet ordre est déjà terminé.")
+    if (organe && poses.length === 1) {
+      await poserPieceTx(tx, ctx, newId(), organe.id, poses[0].partId, motif)
+    }
+  })
+
+  // D7 : les événements partent après la transaction. Un échec est journalisé, il n'annule pas la fin.
+  await emettreSansBloquer(ctx, "garage.travail_termine", chargeTravailTermine.parse({ workOrderId: id, vehicleId: ordre.vehicleId, type: ordre.type }))
+  if (ordre.coutMainOeuvreCents && ordre.coutMainOeuvreCents > 0) {
+    await emettreSansBloquer(
+      ctx,
+      "garage.intervention_facturee",
+      chargeInterventionFacturee.parse({
+        workOrderId: id,
+        vehicleId: ordre.vehicleId,
+        coutCents: ordre.coutMainOeuvreCents,
+        devise: ordre.devise,
+        prestataireContactId: ordre.prestataireContactId,
+      }),
+    )
+  }
+}
+
+async function emettreSansBloquer(ctx: ContexteTeam, nom: string, charge: Record<string, unknown>): Promise<void> {
+  try {
+    await emettre(ctx, nom, charge)
+  } catch (erreur) {
+    console.error(`[garage] ${nom} non émis :`, erreur instanceof Error ? erreur.message : "erreur inconnue")
+  }
 }
