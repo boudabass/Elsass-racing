@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 
 import { MoteurSynchro, type EtatSynchro } from "./moteur"
 import { nomBase, type LigneLocale, type TableLocale } from "./base"
+import type { RefusLocal } from "./refus"
 
 // Un moteur par compte et par team, pour tout l'onglet (les écrans partagent la même file).
 const moteurs = new Map<string, MoteurSynchro>()
@@ -70,6 +71,28 @@ export function useEtatSynchro(): EtatSynchro {
   const moteur = useMoteurSynchro()
   const abonner = useCallback((ecouteur: () => void) => moteur.abonner(ecouteur), [moteur])
   return useSyncExternalStore(abonner, () => moteur.lireEtat(), () => moteur.lireEtat())
+}
+
+// Envois refusés du compte, à lire et à effacer (« Compris »). Relus à chaque changement de la synchro.
+export function useRefusSynchro(): { refus: RefusLocal[]; effacer: (idOperation: string) => Promise<void> } {
+  const moteur = useMoteurSynchro()
+  const [refus, setRefus] = useState<RefusLocal[]>([])
+
+  useEffect(() => {
+    let actif = true
+    const charger = async () => {
+      const liste = await moteur.lireRefus()
+      if (actif) setRefus(liste)
+    }
+    void charger()
+    const retirer = moteur.abonner(() => void charger())
+    return () => {
+      actif = false
+      retirer()
+    }
+  }, [moteur])
+
+  return { refus, effacer: (idOperation) => moteur.effacerRefus(idOperation) }
 }
 
 // Lignes d'une table de la base locale, qui se rafraîchissent à chaque changement. Sans les supprimées.
