@@ -1,12 +1,13 @@
 // Silhouette du véhicule (brief 4.2, point 0) : le dessin du gabarit en SVG, sans rien d'autre. Les rôles de couleur sont
-// des variables du thème, donc la silhouette suit le thème clair ou sombre. Le filet rouge du dessin d'origine prend la
-// couleur de la team. Chaque app pose ses calques (emplacements, repères) par-dessus, en enfants du SVG.
+// des variables du thème, donc la silhouette suit le thème clair ou sombre. Le filet rouge du dessin d'origine n'est plus
+// dessiné (retour de John) : les gabarits le gardent, le filtre se fait au rendu. Chaque app pose ses calques (emplacements,
+// repères) par-dessus, en enfants du SVG.
 
 import type { CSSProperties, ReactNode, Ref } from "react"
 
 import type { ElementDessin, RoleDessin } from "./types"
 
-// Épaisseur à partir de laquelle un trait « detail » est le filet rouge du dessin d'origine : il prend la couleur de la team.
+// Épaisseur à partir de laquelle un trait « detail » est le filet rouge du dessin d'origine.
 const EPAISSEUR_FILET = 4
 
 const STYLE_ROLE: Record<RoleDessin, CSSProperties> = {
@@ -30,13 +31,24 @@ export interface SilhouetteProps {
   children?: ReactNode
 }
 
+// Trait « detail » épais : le filet rouge du dessin d'origine. Il reste dans les gabarits, mais n'est plus dessiné.
+export function estFilet(element: ElementDessin): boolean {
+  return element.role === "detail" && Number(element.attributs["stroke-width"] ?? 0) >= EPAISSEUR_FILET
+}
+
+// Les éléments à dessiner : tous, sauf le filet.
+export function elementsDessines(elements: ElementDessin[]): ElementDessin[] {
+  return elements.filter((element) => !estFilet(element))
+}
+
 export function Silhouette({ viewBox, elements, retourne = false, nomAccessible, ref, style, children }: SilhouetteProps) {
   const [x, , largeur] = viewBox.trim().split(/\s+/).map(Number)
+  const dessines = elementsDessines(elements)
   return (
     <svg ref={ref} viewBox={viewBox} role="group" aria-label={nomAccessible} className="block h-auto w-full" style={style}>
-      {elements.length > 0 && (
+      {dessines.length > 0 && (
         <g transform={retourne ? `translate(${x + largeur} 0) scale(-1 1)` : undefined}>
-          {elements.map((element, index) => (
+          {dessines.map((element, index) => (
             <TraitDessin key={index} element={element} />
           ))}
         </g>
@@ -48,10 +60,8 @@ export function Silhouette({ viewBox, elements, retourne = false, nomAccessible,
 
 function TraitDessin({ element }: { element: ElementDessin }) {
   const { "stroke-width": epaisseurAttribut, ...geometrie } = element.attributs
-  const estFilet = element.role === "detail" && Number(epaisseurAttribut ?? 0) >= EPAISSEUR_FILET
   const style: CSSProperties = {
     ...STYLE_ROLE[element.role],
-    ...(estFilet ? { stroke: "var(--marque)" } : {}),
     ...(epaisseurAttribut !== undefined ? { strokeWidth: Number(epaisseurAttribut) } : {}),
   }
   if (element.type === "circle") return <circle {...geometrie} style={style} />
