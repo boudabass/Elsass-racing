@@ -1028,3 +1028,75 @@ async function emettreSansBloquer(ctx: ContexteTeam, nom: string, charge: Record
     console.error(`[garage] ${nom} non émis :`, erreur instanceof Error ? erreur.message : "erreur inconnue")
   }
 }
+
+// --- Intervention rapide (tâche 4.3, brief §4, D5) ---------------------------------------------
+// Un ordre déjà terminé, affecté à la personne qui saisit. Sans pièce : type réparation, la contribution suffit (l'assistance
+// comprise). Avec une pièce : type remplacement, la pose se fait dans la même transaction (D1), et la pièce demande le
+// niveau écriture (D2). « Ce qui a été fait » est le titre de l'ordre.
+
+const schemaIntervention = z
+  .object({
+    vehicleComponentId: z.string().min(1, "Choisissez l'organe."),
+    titre: z.string().trim().min(1, "Dites ce qui a été fait.").max(200),
+    partId: z.string().min(1).nullable().optional(),
+    motifDepose: z.enum(MOTIFS).nullable().optional(),
+  })
+  .strict()
+
+export type EntreeIntervention = z.input<typeof schemaIntervention>
+
+export async function creerIntervention(vehicleId: string, entree: EntreeIntervention): Promise<string> {
+  const donnees = schemaIntervention.parse(entree)
+  const { ctx, niveau } = await accesGarage(donnees.partId ? "ecriture" : "contribution")
+  return creerInterventionDans(ctx, vehicleId, donnees, niveau)
+}
+
+export async function creerInterventionDans(
+  ctx: ContexteTeam,
+  vehicleId: string,
+  entree: EntreeIntervention,
+  niveau: Niveau = "ecriture",
+): Promise<string> {
+  const donnees = schemaIntervention.parse(entree)
+  if (donnees.partId && !aAuMoins(niveau, "ecriture")) refus("Pour utiliser une pièce, il faut le niveau écriture.")
+  const id = newId()
+  const partId = donnees.partId ?? null
+
+  await ecrireEtEmettre(ctx, vehicleId, async (tx) => {
+    await vehiculeDans(tx, ctx.teamId, vehicleId)
+    const organe = await organeDans(tx, ctx.teamId, donnees.vehicleComponentId)
+    if (organe.vehicleId !== vehicleId) refus("Cet organe n'est pas sur ce véhicule.")
+    const personneId = await personneDuCompte(tx, ctx)
+    if (!personneId) refus("Votre compte n'a pas de fiche personne dans la team : le responsable doit la créer.")
+
+    await tx.garageWorkOrder.create({
+      data: {
+        id,
+        teamId: ctx.teamId,
+        vehicleId,
+        type: partId ? "remplacement" : "reparation",
+        titre: donnees.titre,
+        vehicleComponentId: organe.id,
+        priorite: "normale",
+        statut: "termine",
+        avancementPct: 100,
+        origine: "saisie",
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
+      },
+    })
+    await tx.garageWorkOrderPerson.create({
+      data: { id: newId(), teamId: ctx.teamId, workOrderId: id, personId: personneId, createdBy: ctx.userId, updatedBy: ctx.userId },
+    })
+    if (partId) {
+      await tx.garageWorkOrderPart.create({
+        data: { id: newId(), teamId: ctx.teamId, workOrderId: id, partId, createdBy: ctx.userId, updatedBy: ctx.userId },
+      })
+      await poserPieceTx(tx, ctx, newId(), organe.id, partId, donnees.motifDepose ?? null)
+    }
+  })
+
+  // D7 : événement après la transaction, un échec est journalisé sans annuler l'intervention.
+  await emettreSansBloquer(ctx, "garage.travail_termine", chargeTravailTermine.parse({ workOrderId: id, vehicleId, type: partId ? "remplacement" : "reparation" }))
+  return id
+}

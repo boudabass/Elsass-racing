@@ -8,12 +8,12 @@ describe("menu « + » selon le rôle", () => {
   })
 
   it("offre Dépense, Réglage, Photo et Note à l'assistance, sans Épreuve ni Véhicule", () => {
-    expect(entreesDuMenuPlus("assistance", false).map((e) => e.libelle)).toEqual(["Dépense", "Réglage", "Photo", "Note"])
+    expect(entreesDuMenuPlus("assistance", false).map((e) => e.libelle)).toEqual(["Intervention", "Dépense", "Réglage", "Photo", "Note"])
   })
 
   it("offre tout au responsable : Épreuve, Véhicule, Dépense, Réglage actives ; Photo désactivée avec sa raison ; Note active", () => {
     const entrees = entreesDuMenuPlus("responsable", false)
-    expect(entrees.map((e) => e.libelle)).toEqual(["Épreuve", "Véhicule", "Partenaire", "Pièce", "Roulage", "Dépense", "Réglage", "Photo", "Note"])
+    expect(entrees.map((e) => e.libelle)).toEqual(["Épreuve", "Véhicule", "Partenaire", "Pièce", "Roulage", "Intervention", "Dépense", "Réglage", "Photo", "Note"])
     expect(entrees.find((e) => e.libelle === "Partenaire")).toEqual({ libelle: "Partenaire", desactivee: false, href: "/apps/partenaires/nouveau" })
     expect(entrees.filter((e) => e.desactivee).every((e) => e.raison)).toBe(true)
     expect(entrees.find((e) => e.libelle === "Dépense")).toEqual({ libelle: "Dépense", desactivee: false, href: "/apps/budget/nouvelle" })
@@ -46,6 +46,20 @@ describe("menu « + » selon le rôle", () => {
       libelle: "Roulage",
       desactivee: false,
       href: "/apps/garage/roulage",
+    })
+  })
+
+  it("ouvre Intervention à l'équipage, au responsable et à l'assistance, hors terrain seulement", () => {
+    const pour = (role: string, terrain: boolean) => entreesDuMenuPlus(role, terrain).map((e) => e.libelle)
+    expect(pour("responsable", false)).toContain("Intervention")
+    expect(pour("equipage", false)).toContain("Intervention")
+    expect(pour("assistance", false)).toContain("Intervention")
+    expect(pour("assistance", true)).not.toContain("Intervention")
+    expect(pour("equipage", true)).not.toContain("Intervention")
+    expect(entreesDuMenuPlus("assistance", false).find((e) => e.libelle === "Intervention")).toEqual({
+      libelle: "Intervention",
+      desactivee: false,
+      href: "/apps/garage/intervention",
     })
   })
 

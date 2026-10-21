@@ -14,6 +14,7 @@ import {
   avancerOrdre,
   changerStatutOrdre,
   changerStatutPiece,
+  creerIntervention,
   creerOrdre,
   creerPiece,
   modifierCoutOrdre,
@@ -218,6 +219,18 @@ export async function retirerPieceOrdreAction(_etat: Resultat | null, donnees: F
 export async function terminerOrdreAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerGarage(() =>
     terminerOrdre(texte(donnees, "ordreId"), {
+      motifDepose: (texteOuNull(donnees, "motifDepose") as MotifDepose | null) ?? null,
+    }),
+  )
+}
+
+// Intervention rapide : un ordre terminé, affecté à la personne qui saisit. La pièce est facultative.
+export async function creerInterventionAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() =>
+    creerIntervention(texte(donnees, "vehicleId"), {
+      vehicleComponentId: texte(donnees, "vehicleComponentId"),
+      titre: texte(donnees, "titre"),
+      partId: texteOuNull(donnees, "partId"),
       motifDepose: (texteOuNull(donnees, "motifDepose") as MotifDepose | null) ?? null,
     }),
   )

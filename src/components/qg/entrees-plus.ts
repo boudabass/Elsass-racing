@@ -6,7 +6,8 @@ import type { EntreePlus } from "./bouton-plus"
 // formulaire de nouvelle épreuve de Saison. « Réglage » (Voiture) est ouverte à tous ceux qui ont la
 // contribution, y compris en terrain : l'assistance relève les pressions au parc. « Véhicule » (Voiture)
 // est pour le responsable et l'équipage, hors terrain. « Pièce » (ajout au stock du Garage) et « Roulage » (usure
-// manuelle) sont pour le responsable et l'équipage, hors terrain. En mode terrain : Dépense, Réglage, Photo et Note.
+// manuelle) sont pour le responsable et l'équipage, hors terrain. « Intervention » (ordre terminé du Garage) est pour le
+// responsable, l'équipage et l'assistance, hors terrain. En mode terrain : Dépense, Réglage, Photo et Note.
 export function entreesDuMenuPlus(role: string, terrain: boolean): EntreePlus[] {
   if (role === "invite") return []
 
@@ -19,10 +20,11 @@ export function entreesDuMenuPlus(role: string, terrain: boolean): EntreePlus[] 
   const partenaire: EntreePlus = { libelle: "Partenaire", desactivee: false, href: "/apps/partenaires/nouveau" }
   const piece: EntreePlus = { libelle: "Pièce", desactivee: false, href: "/apps/garage/pieces/nouvelle" }
   const roulage: EntreePlus = { libelle: "Roulage", desactivee: false, href: "/apps/garage/roulage" }
+  const intervention: EntreePlus = { libelle: "Intervention", desactivee: false, href: "/apps/garage/intervention" }
 
   // La dépense et le réglage sont ouverts à tous ceux qui ont la contribution (assistance comprise), y compris en terrain.
   if (terrain) return [depense, reglage, photo, note]
-  if (role === "assistance") return [depense, reglage, photo, note]
-  if (role === "equipage" || role === "responsable") return [epreuve, vehicule, partenaire, piece, roulage, depense, reglage, photo, note]
+  if (role === "assistance") return [intervention, depense, reglage, photo, note]
+  if (role === "equipage" || role === "responsable") return [epreuve, vehicule, partenaire, piece, roulage, intervention, depense, reglage, photo, note]
   return [depense, photo, note]
 }

@@ -606,3 +606,29 @@ export async function lireOrdre(id: string): Promise<FicheOrdre | null> {
     peutEcrire,
   }
 }
+
+// Choix de l'intervention rapide : organes de la voiture, et pièces du stock (au niveau écriture seulement, car une pièce
+// demande ce niveau). Les pièces portent le nom de leur organe, pour les grouper dans le formulaire.
+export async function lireChoixIntervention(vehicleId: string): Promise<{
+  organes: Array<{ id: string; nom: string }>
+  pieces: Array<{ id: string; designation: string; organeNom: string }> | null
+}> {
+  const { ctx, niveau } = await accesGarage("lecture")
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const organes = await client.garageVehicleComponent.findMany({
+    where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
+    select: { id: true, componentType: { select: { nom: true, ordre: true } } },
+    orderBy: { componentType: { ordre: "asc" } },
+  })
+  const pieces = aAuMoins(niveau, "ecriture")
+    ? await client.garagePart.findMany({
+        where: { teamId: ctx.teamId, vehicleId, deletedAt: null, statut: { not: "montee" } },
+        select: { id: true, designation: true, componentType: { select: { nom: true } } },
+        orderBy: { designation: "asc" },
+      })
+    : null
+  return {
+    organes: organes.map((o) => ({ id: o.id, nom: o.componentType.nom })),
+    pieces: pieces?.map((p) => ({ id: p.id, designation: p.designation, organeNom: p.componentType.nom })) ?? null,
+  }
+}
