@@ -13,6 +13,8 @@ export const manifesteGarage: ManifesteApp = {
   menu: [
     { libelle: "Atelier", chemin: "/" },
     { libelle: "Stock", chemin: "/stock" },
+    { libelle: "Travaux", chemin: "/travaux" },
+    { libelle: "Commandes", chemin: "/commandes", niveauMinimum: "ecriture" },
   ],
   widgets: [...WIDGETS.garage],
   evenementsEmis: evenementsEmisPar("garage"),

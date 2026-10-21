@@ -22,6 +22,7 @@ import { accesGarage } from "./services-serveur"
 import { pointPourOrgane, type PointSilhouette } from "./positions"
 import type { PieceStock } from "./mise-en-forme"
 import { comparerOrdres, type PrioriteTravail, type StatutOrdre, type TypeOrdre } from "./travaux"
+import { dateDeParis, type StatutCommande } from "./commandes"
 import { type PieceAtelier, versPiece } from "./vues"
 
 export type OrganeAtelier = {
@@ -631,4 +632,85 @@ export async function lireChoixIntervention(vehicleId: string): Promise<{
     organes: organes.map((o) => ({ id: o.id, nom: o.componentType.nom })),
     pieces: pieces?.map((p) => ({ id: p.id, designation: p.designation, organeNom: p.componentType.nom })) ?? null,
   }
+}
+
+// --- Commandes (tâche 4.3, brief §5) --------------------------------------------------------
+// Écriture seulement : l'assistance n'a pas de commande. Les dates sortent en « AAAA-MM-JJ » : la date de Paris pour les
+// instants (commande, réception), la date civile pour la livraison prévue.
+
+export type QualitePieceAtelier = "origine" | "renforcee" | "competition"
+
+export type LigneCommandeAtelier = {
+  id: string
+  designation: string
+  reference: string | null
+  quantite: number
+  prixUnitaireCents: number
+  qualite: QualitePieceAtelier
+  organeNom: string | null
+}
+
+export type CommandeAtelier = {
+  id: string
+  fournisseurNom: string
+  commandeeLe: string
+  livraisonPrevueLe: string | null
+  statut: StatutCommande
+  recueLe: string | null
+  totalCents: number
+  devise: string
+  lignes: LigneCommandeAtelier[]
+}
+
+export async function lireCommandes(vehicleId: string): Promise<CommandeAtelier[] | null> {
+  const { ctx } = await accesGarage("ecriture")
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const voiture = await client.coreVehicle.findFirst({ where: { id: vehicleId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!voiture) return null
+  const commandes = await client.garagePurchase.findMany({
+    where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
+    include: {
+      supplier: { select: { nom: true } },
+      lines: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        include: { componentType: { select: { nom: true } } },
+      },
+    },
+    orderBy: { commandeeLe: "desc" },
+    take: 100,
+  })
+  return commandes.map((commande) => {
+    const lignes = commande.lines.map((ligne) => ({
+      id: ligne.id,
+      designation: ligne.designation,
+      reference: ligne.reference,
+      quantite: ligne.quantite,
+      prixUnitaireCents: ligne.prixUnitaireCents,
+      qualite: ligne.qualite as QualitePieceAtelier,
+      organeNom: ligne.componentType?.nom ?? null,
+    }))
+    return {
+      id: commande.id,
+      fournisseurNom: commande.supplier.nom,
+      commandeeLe: dateDeParis(commande.commandeeLe),
+      livraisonPrevueLe: commande.livraisonPrevueLe ? commande.livraisonPrevueLe.toISOString().slice(0, 10) : null,
+      statut: commande.statut,
+      recueLe: commande.recueLe ? dateDeParis(commande.recueLe) : null,
+      totalCents: commande.lines.reduce((somme, ligne) => somme + ligne.quantite * ligne.prixUnitaireCents, 0),
+      devise: commande.lines[0]?.devise ?? "EUR",
+      lignes,
+    }
+  })
+}
+
+// Choix du formulaire de commande : fournisseurs de la team, types d'organe (la pièce d'une ligne porte son type).
+export async function lireChoixCommande(): Promise<{ fournisseurs: Array<{ id: string; nom: string }>; types: Array<{ id: string; nom: string }> }> {
+  const { ctx } = await accesGarage("ecriture")
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const [fournisseurs, types] = await Promise.all([
+    client.coreContact.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true, nom: true }, orderBy: { nom: "asc" } }),
+    client.garageComponentType.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true, nom: true }, orderBy: { ordre: "asc" } }),
+  ])
+  return { fournisseurs, types }
 }
