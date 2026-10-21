@@ -53,3 +53,42 @@ export function pointPourOrgane(
   if (!organe.cle) return null
   return POSITIONS_PAR_GABARIT[gabaritCle]?.[organe.cle] ?? null
 }
+
+// Repères de la vue de dessus (brief 4.3e, section 2.2), dans le même viewBox que la vue droite. Un repère par
+// emplacement (`emplacements.ts`), en coordonnées du dessin `dessus` de la Saxo : centres des roues (x 66 à l'arrière,
+// x 283 à l'avant ; y 13 pour le côté gauche, y 137 pour le côté droit), amortisseurs à 230 (avant) et 120 (arrière),
+// transmissions à 175, pneus au centre, boîte et embrayage sur l'axe, moteur sous le capot. Pas de chevauchement : deux
+// repères sont distants d'au moins 53 unités, au-delà de 2 × RAYON_CONTACT_TELEPHONE.
+const POSITIONS_DESSUS_SAXO: Record<string, Record<string, PointSilhouette>> = {
+  moteur: { unique: { x: 338, y: 75 } },
+  embrayage: { unique: { x: 283, y: 75 } },
+  boite: { unique: { x: 230, y: 75 } },
+  transmissions: { gauche: { x: 175, y: 13 }, droite: { x: 175, y: 137 } },
+  freins: {
+    avant_gauche: { x: 283, y: 13 },
+    avant_droit: { x: 283, y: 137 },
+    arriere_gauche: { x: 66, y: 13 },
+    arriere_droit: { x: 66, y: 137 },
+  },
+  amortisseurs: {
+    avant_gauche: { x: 230, y: 13 },
+    avant_droit: { x: 230, y: 137 },
+    arriere_gauche: { x: 120, y: 13 },
+    arriere_droit: { x: 120, y: 137 },
+  },
+  pneus: { train: { x: 175, y: 75 } },
+}
+
+const POSITIONS_DESSUS_PAR_GABARIT: Record<string, Record<string, Record<string, PointSilhouette>>> = {
+  citadine_3p_saxo: POSITIONS_DESSUS_SAXO,
+  voiture_generique: POSITIONS_DESSUS_SAXO,
+}
+
+// Point d'un emplacement sur la vue de dessus d'un gabarit. Null sans gabarit, sans type par défaut ou sans position.
+export function pointPourEmplacement(
+  gabaritCle: string | null,
+  organe: { cle: string | null; position: string | null },
+): PointSilhouette | null {
+  if (!gabaritCle || !organe.cle || !organe.position) return null
+  return POSITIONS_DESSUS_PAR_GABARIT[gabaritCle]?.[organe.cle]?.[organe.position] ?? null
+}

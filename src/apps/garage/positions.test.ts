@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
-import { pointPourOrgane, pointValide, RAYON_CONTACT_TELEPHONE } from "./positions"
+import { EMPLACEMENTS_PAR_TYPE } from "./emplacements"
+import { pointPourEmplacement, pointPourOrgane, pointValide, RAYON_CONTACT_TELEPHONE } from "./positions"
 import { TYPES_DEFAUT } from "./types-defaut"
 
 // viewBox de la vue droite de la Saxo : « 0 -14 370 173 ». Les gabarits partagent ce dessin.
@@ -66,6 +67,53 @@ describe("position enregistrée par la team", () => {
         }
       }
     }
+  })
+})
+
+describe("repères de la vue de dessus (emplacements)", () => {
+  const emplacements = (gabarit: string) =>
+    Object.entries(EMPLACEMENTS_PAR_TYPE).flatMap(([cle, liste]) =>
+      liste.map((emplacement) => ({
+        cle,
+        position: emplacement.position,
+        point: pointPourEmplacement(gabarit, { cle, position: emplacement.position }),
+      })),
+    )
+
+  it("chaque emplacement a un repère sur la Saxo et sur le générique", () => {
+    for (const gabarit of ["citadine_3p_saxo", "voiture_generique"]) {
+      for (const { cle, position, point } of emplacements(gabarit)) {
+        expect(point, `${gabarit} : ${cle} ${position}`).not.toBeNull()
+      }
+    }
+  })
+
+  it("chaque repère reste dans la viewBox", () => {
+    for (const { cle, position, point } of emplacements("citadine_3p_saxo")) {
+      expect(point!.x, `${cle} ${position}`).toBeGreaterThanOrEqual(LARGEUR_MIN)
+      expect(point!.x, `${cle} ${position}`).toBeLessThanOrEqual(LARGEUR_MAX)
+      expect(point!.y, `${cle} ${position}`).toBeGreaterThanOrEqual(HAUTEUR_MIN)
+      expect(point!.y, `${cle} ${position}`).toBeLessThanOrEqual(HAUTEUR_MAX)
+    }
+  })
+
+  it("à la taille téléphone, deux repères de la vue de dessus ne se coupent pas", () => {
+    const points = emplacements("citadine_3p_saxo")
+    for (let i = 0; i < points.length; i++) {
+      for (let j = i + 1; j < points.length; j++) {
+        const distance = Math.hypot(points[i].point!.x - points[j].point!.x, points[i].point!.y - points[j].point!.y)
+        expect(distance, `${points[i].cle} ${points[i].position} et ${points[j].cle} ${points[j].position}`).toBeGreaterThan(
+          2 * RAYON_CONTACT_TELEPHONE,
+        )
+      }
+    }
+  })
+
+  it("sans gabarit, sans position ou pour un type de la team, pas de repère", () => {
+    expect(pointPourEmplacement(null, { cle: "moteur", position: "unique" })).toBeNull()
+    expect(pointPourEmplacement("citadine_3p_saxo", { cle: "moteur", position: null })).toBeNull()
+    expect(pointPourEmplacement("citadine_3p_saxo", { cle: null, position: "unique" })).toBeNull()
+    expect(pointPourEmplacement("citadine_3p_saxo", { cle: "freins", position: "inconnue" })).toBeNull()
   })
 })
 
