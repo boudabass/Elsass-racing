@@ -42,6 +42,7 @@ Les consignes de passes locales plus bas dans ce fichier datent d'avant la 4.0b.
 - Deuxième apparition du 418 : décision (2) de l'Orchestrateur. Diagnostic (HTML serveur et DOM client de `/qg`) dans un commit séparé, hors des tests (`efa08d6`, corrigé en `311962b`).
 - Résultat (run 39495850178, 5 chargements de `/qg` dans des contextes neufs) : aucune erreur de page ni de console, donc 418 non reproduit. Attributs de `<html>` identiques (seule la sérialisation de `style` diffère) ; `<body>` sans attribut. Premier écart de texte : « En ligne » côté serveur, « Synchronisé à l'instant » côté client, libellé de l'indicateur de synchro, donc après hydratation. Limite : seule la première différence était relevée, pas l'état au moment de l'hydratation.
 - Cause non établie. Parqué (décision 3 de l'Orchestrateur) : le spec de diagnostic est retiré de la suite ; il reste dans l'historique (`efa08d6`, `311962b`) pour être rejoué.
+- Troisième apparition : run 39539354644 (commit 34facd3), même signature. Trace lue : le `pageError` tombe pendant le premier chargement en ligne de `/qg`, après le comptage des tuiles et avant le reload, le passage hors ligne et le clic sur « Budget ». Non bloquant selon la règle de l'Orchestrateur (418 au premier chargement, avant toute action du test).
 
 ### Intermittent suivi : `e2e/liste-john.spec.ts:134`
 
