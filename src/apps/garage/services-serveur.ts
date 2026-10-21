@@ -27,7 +27,7 @@ import {
   type ModeUsure,
   type OrganeIndice,
 } from "./regles"
-import { avancementValide, coutValide, PRIORITES_TRAVAIL, statutModifiable } from "./travaux"
+import { avancementValide, coutValide, PRIORITES_TRAVAIL, statutModifiable, TYPES_ORDRE } from "./travaux"
 
 export { ErreurGarage }
 
@@ -708,8 +708,6 @@ export async function appliquerUsureResultatDans(
 // Création, réglages, affectations, coût et pièces : écriture. Avancement et statut en cours : contribution, sur les
 // ordres affectés seulement (la personne du compte, CorePerson.userId). Fin : contribution sans pièce, écriture avec
 // pièce (D2). La fin est une transaction (D1, D3) ; ses événements partent après (D7).
-
-const TYPES_ORDRE = ["revision", "reparation", "remplacement", "controle"] as const
 
 const schemaOrdre = z
   .object({

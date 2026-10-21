@@ -10,10 +10,12 @@ import type { MotifDepose } from "./libelles"
 import {
   ajouterUsureManuelle,
   changerStatutPiece,
+  creerOrdre,
   creerPiece,
   modifierOrgane,
   poserPiece,
   retirerOrgane,
+  type EntreeOrdre,
   type EntreeOrgane,
   type EntreePiece,
   type EntreeUsureManuelle,
@@ -128,4 +130,19 @@ export async function ajouterRoulageAction(_etat: Resultat | null, donnees: Form
     const entree: EntreeUsureManuelle = { km: brut === null ? 0 : Number(brut), epreuve: donnees.has("epreuve") }
     return ajouterUsureManuelle(texte(donnees, "vehicleId"), entree)
   })
+}
+
+// Nouvel ordre de travail. Les personnes arrivent en plusieurs champs « personIds » ; une case vide est ignorée.
+export async function creerOrdreAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() =>
+    creerOrdre(texte(donnees, "vehicleId"), {
+      type: texte(donnees, "type") as EntreeOrdre["type"],
+      titre: texte(donnees, "titre"),
+      vehicleComponentId: texteOuNull(donnees, "vehicleComponentId"),
+      priorite: (texteOuNull(donnees, "priorite") ?? "normale") as EntreeOrdre["priorite"],
+      aFaireAvantEventId: texteOuNull(donnees, "aFaireAvantEventId"),
+      dureeEstimeeMinutes: entierOuNull(donnees, "dureeEstimeeMinutes", "La durée estimée"),
+      personIds: donnees.getAll("personIds").map(String).filter((id) => id !== ""),
+    }),
+  )
 }

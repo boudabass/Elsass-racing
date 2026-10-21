@@ -21,6 +21,7 @@ import {
 import { accesGarage } from "./services-serveur"
 import { pointPourOrgane, type PointSilhouette } from "./positions"
 import type { PieceStock } from "./mise-en-forme"
+import { comparerOrdres, type PrioriteTravail, type StatutOrdre, type TypeOrdre } from "./travaux"
 import { type PieceAtelier, versPiece } from "./vues"
 
 export type OrganeAtelier = {
@@ -415,4 +416,118 @@ export async function listerFournisseurs(): Promise<Array<{ id: string; nom: str
     orderBy: { nom: "asc" },
   })
   return contacts
+}
+
+// --- Travaux (tâche 4.3, §3) ----------------------------------------------------------------
+
+export type OrdreTravail = {
+  id: string
+  titre: string
+  type: TypeOrdre
+  organeNom: string | null
+  priorite: PrioriteTravail
+  aFaireAvant: { nom: string; date: string } | null
+  personnes: string[]
+  avancementPct: number
+  statut: StatutOrdre
+  pieces: string[]
+  // Coût et prestataire : présents seulement au niveau écriture. Absents des objets de l'assistance.
+  cout?: { cents: number | null; devise: string }
+  prestataire?: string | null
+}
+
+export type TravauxVehicule = { colonnes: Record<StatutOrdre, OrdreTravail[]>; peutEcrire: boolean }
+
+const colonnesVides = (): Record<StatutOrdre, OrdreTravail[]> => ({ en_cours: [], prevu: [], termine: [] })
+
+// Ordres d'une voiture, par colonne. L'assistance ne voit que les ordres où son compte est affecté. Null si la voiture
+// n'existe pas dans la team.
+export async function lireTravaux(vehicleId: string): Promise<TravauxVehicule | null> {
+  const { ctx, niveau } = await accesGarage("lecture")
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const voiture = await client.coreVehicle.findFirst({ where: { id: vehicleId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!voiture) return null
+
+  const peutEcrire = aAuMoins(niveau, "ecriture")
+  const moi = peutEcrire
+    ? null
+    : await client.corePerson.findFirst({ where: { teamId: ctx.teamId, userId: ctx.userId, deletedAt: null }, select: { id: true } })
+  if (!peutEcrire && !moi) return { colonnes: colonnesVides(), peutEcrire }
+
+  const ordres = await client.garageWorkOrder.findMany({
+    where: {
+      teamId: ctx.teamId,
+      vehicleId,
+      deletedAt: null,
+      ...(peutEcrire ? {} : { persons: { some: { personId: moi?.id ?? "", deletedAt: null } } }),
+    },
+    include: {
+      vehicleComponent: { select: { componentType: { select: { nom: true } } } },
+      aFaireAvantEvent: { select: { nom: true, dateDebut: true } },
+      persons: { where: { deletedAt: null }, select: { person: { select: { prenom: true, nom: true } } } },
+      parts: { where: { deletedAt: null }, select: { part: { select: { designation: true } } } },
+      prestataire: { select: { nom: true } },
+    },
+  })
+
+  const colonnes = colonnesVides()
+  const lignes = ordres.map((o) => {
+    const ordre: OrdreTravail = {
+      id: o.id,
+      titre: o.titre,
+      type: o.type,
+      organeNom: o.vehicleComponent?.componentType.nom ?? null,
+      priorite: o.priorite,
+      aFaireAvant: o.aFaireAvantEvent
+        ? { nom: o.aFaireAvantEvent.nom, date: o.aFaireAvantEvent.dateDebut.toISOString().slice(0, 10) }
+        : null,
+      personnes: o.persons.map((lien) => `${lien.person.prenom} ${lien.person.nom}`),
+      avancementPct: o.avancementPct,
+      statut: o.statut,
+      pieces: o.parts.map((lien) => lien.part.designation),
+    }
+    if (peutEcrire) {
+      ordre.cout = { cents: o.coutMainOeuvreCents, devise: o.devise }
+      ordre.prestataire = o.prestataire?.nom ?? null
+    }
+    return { ordre, tri: { priorite: o.priorite, aFaireAvant: ordre.aFaireAvant?.date ?? null, titre: o.titre } }
+  })
+
+  for (const { ordre, tri } of lignes.sort((a, b) => comparerOrdres(a.tri, b.tri))) {
+    colonnes[ordre.statut].push(ordre)
+  }
+  return { colonnes, peutEcrire }
+}
+
+// Choix des formulaires d'ordre : organes de la voiture, épreuves et personnes de la team. Niveau écriture seulement.
+export async function lireChoixTravaux(vehicleId: string): Promise<{
+  organes: Array<{ id: string; nom: string }>
+  epreuves: Array<{ id: string; nom: string; date: string }>
+  personnes: Array<{ id: string; nom: string }>
+}> {
+  const { ctx } = await accesGarage("ecriture")
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const [organes, epreuves, personnes] = await Promise.all([
+    client.garageVehicleComponent.findMany({
+      where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
+      select: { id: true, componentType: { select: { nom: true, ordre: true } } },
+      orderBy: { componentType: { ordre: "asc" } },
+    }),
+    client.coreEvent.findMany({
+      where: { teamId: ctx.teamId, deletedAt: null },
+      select: { id: true, nom: true, dateDebut: true },
+      orderBy: { dateDebut: "asc" },
+      take: 100,
+    }),
+    client.corePerson.findMany({
+      where: { teamId: ctx.teamId, deletedAt: null },
+      select: { id: true, prenom: true, nom: true },
+      orderBy: [{ prenom: "asc" }, { nom: "asc" }],
+    }),
+  ])
+  return {
+    organes: organes.map((o) => ({ id: o.id, nom: o.componentType.nom })),
+    epreuves: epreuves.map((e) => ({ id: e.id, nom: e.nom, date: e.dateDebut.toISOString().slice(0, 10) })),
+    personnes: personnes.map((p) => ({ id: p.id, nom: `${p.prenom} ${p.nom}` })),
+  }
 }

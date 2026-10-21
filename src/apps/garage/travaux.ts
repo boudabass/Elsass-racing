@@ -13,6 +13,16 @@ export const LIBELLE_PRIORITE: Record<PrioriteTravail, string> = {
   basse: "Basse",
 }
 
+export const TYPES_ORDRE = ["revision", "reparation", "remplacement", "controle"] as const
+export type TypeOrdre = (typeof TYPES_ORDRE)[number]
+
+export const LIBELLE_TYPE_ORDRE: Record<TypeOrdre, string> = {
+  revision: "Révision",
+  reparation: "Réparation",
+  remplacement: "Remplacement",
+  controle: "Contrôle",
+}
+
 export const LIBELLE_STATUT_ORDRE: Record<StatutOrdre, string> = {
   prevu: "Prévu",
   en_cours: "En cours",
