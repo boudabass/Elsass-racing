@@ -279,6 +279,7 @@ Décisions de John (20/10) :
 - Reporté, noté (21/10) : statut et avancement hors ligne sans écran (la modification serveur existe, aucun écran ne l'écrit) ; lecture locale de Travaux (conséquence pour l'assistance : ouvrir Travaux en ligne avant de partir) ; photos hors ligne, hors périmètre.
 - Point ouvert : notes et photos sur les ordres, hors 4.3. Elles demandent un service du socle pour les notes et les fichiers liés à une fiche, à concevoir à part.
 - Refus de la synchro invisibles (défaut du socle depuis le lot 1) : tâche 4.3b, brief `docs/briefs/4.3b-synchro-refus-visibles.md`.
+- Tâche 4.3c (cause du 418, décision de l'Orchestrateur, 21/10) : diagnostics et tolérance mesurée dans `docs/tests.md`, section « Erreur 418 au premier chargement en ligne de `/qg` ». Points ouverts : 418 au premier chargement de `/qg`, production seulement, cause non établie ; piste suivante : build de test avec React de développement.
 
 ### 4.4 Pneus et casses
 - Trains de pneus (gomme, type, épreuves, km, usure, statut), montés sur l'organe Pneus. Fiche casse ouverte sur `saison.abandon_declare`, liée à un ordre de travail de réparation.

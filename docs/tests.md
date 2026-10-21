@@ -27,13 +27,26 @@ Secrets : aucun secret de production ni de dev dans GitHub. La base est un servi
 
 Les consignes de passes locales plus bas dans ce fichier datent d'avant la 4.0b. Elles restent en historique et ne s'appliquent plus sur le poste.
 
+### Erreur 418 au premier chargement en ligne de `/qg` (tâche 4.3c)
+
+- Signature : `Minified React error #418` (hydratation : HTML serveur différent du DOM client), levée au premier chargement en ligne de `/qg`, avant toute action du test. Production seulement. **Cause non établie.**
+- Fréquence : 11 runs rouges sur 23 entre la 4.0b et `3bf8f36` contiennent le 418 (8 sur `hors-ligne.spec.ts:87`, 3 sur `:119`). Décompte de 4.3b : 8 échecs sur 47 runs pour `:87` seul (17 %).
+- Répétition (`--repeat-each=20`, run 39586203494, sur `35a20bf`) : 10 échecs 418 sur 80 exécutions (`:87` 8/20, `:119` 2/20).
+- Diagnostics faits, sans cause trouvée :
+  - Correctif de contrat `getServerSnapshot` (`35a20bf`, `ETAT_INITIAL` dans `useEtatSynchro`) : correct en soi, sans effet sur le 418 (run 39582802166 : 1 échec ; répétition : 10/80).
+  - Comparaison HTML serveur et DOM client (`cd673ee`, retirée en `7e30176`) : ne peut pas localiser le désaccord, car le DOM lu est déjà re-rendu par React. Aucun écart réel non expliqué.
+  - Diagnostic en développement (`05f33ba`, `27768cb`, run 39591124178) : 30 chargements de `/qg` avec le React de développement, 0 message d'hydratation, 0 erreur ni avertissement de console, 0 pageerror. Le 418 ne se reproduit pas en développement.
+  - Contrôle de la capture (`80b4aa3`, run 39592357410) : la route `/controle-hydratation`, retirée après le contrôle, provoquait un désaccord volontaire ; la capture le reçoit à 3 chargements sur 3. Le zéro sur `/qg` est donc établi : la capture ne le masque pas.
+- Tolérance (`e2e/hors-ligne.spec.ts`, helper `premierQgEnLigne`) : le 418 est toléré au premier chargement en ligne de `/qg`, dans les tests `:87` et `:119`, et seulement là. Chaque occurrence s'écrit dans le log (« 418 toléré : 1 »), pour voir si elle disparaît ou s'aggrave. Toute autre erreur, ou un 418 à un autre moment, fait échouer le test. Portée : c'est une tolérance de mesure, pas une correction. Une erreur qui arrive après l'affichage des tuiles n'est pas tolérée.
+- Piste suivante : build de test avec le React de développement (hors périmètre de la tâche 4.3c, noté dans `docs/plan-developpement.md`).
+
 ### Intermittent suivi : `e2e/hors-ligne.spec.ts:87`
 
 - Test : « hors ligne : + puis Note depuis le QG ouvre les notes sans erreur ».
 - Échec sur le run 39471174537 (commit 9fbead9) : erreur React #418 (hydratation, HTML). Elle arrive au **premier chargement en ligne de `/qg`**, avant la phase hors ligne : le test collecte les erreurs de page depuis son début, d'où un nom trompeur.
 - Référence verte : run 39474476309 (commit 8b7d693), 136 tests passés sur 136.
 - Cause non établie. Le HTML serveur de `/qg` et le DOM client ont la même séquence de textes : la différence est ailleurs (attribut, nœud non textuel).
-- Suivi sur les prochains runs. Si le 418 revient : étape de diagnostic dans un commit séparé, hors du test, qui capte le HTML serveur et le DOM client de `/qg` (attributs de `<html>` et `<body>`, thème, indicateur « il y a N min »). Renommage ou séparation des erreurs « en ligne » et « hors ligne » : après la cause.
+- Suivi : voir la section « Erreur 418 au premier chargement en ligne de `/qg` » ci-dessus (diagnostics, contrôle, tolérance et sa portée).
 
 ### Intermittent suivi : `e2e/hors-ligne.spec.ts:119`
 
