@@ -17,7 +17,7 @@ import { prismaPourTeam } from "@/lib/prisma"
 import type { Tx } from "@/core/synchro/registre"
 
 import { ErreurBudget, refus } from "./erreurs"
-import { categorieParCle, modePaiementSaison, voitTout } from "./regles"
+import { choisirCategorie, modePaiementSaison, voitTout } from "./regles"
 import { phraseSoldeMoi } from "./libelles"
 import { lireSoldeMoi, listerMouvements } from "./lectures-serveur"
 import { accesBudget, initialiserSiBesoin, payeurDePersonneDans, PRIORITE_MOUVEMENT_A_CONFIRMER, proposerMouvementDans } from "./services-serveur"
@@ -337,8 +337,9 @@ export async function lireRecettesParOrigineDans(ctx: ContexteTeam, prefixe: str
 
 // --- Garage : pièces achetées et main-d'œuvre facturée (tâche 4.3, brief §2, D8) -----------------
 // Budget propose la dépense ; il ne lit pas les tables du Garage et ne lit que la charge de l'événement. La catégorie se
-// trouve par sa clé stable (pieces, main_oeuvre), jamais par son nom. Si la clé manque, Budget n'écrit rien dans
-// budget_category : la proposition n'est pas créée, et le journal donne l'identifiant et le montant pour la retrouver.
+// trouve par sa clé stable (pieces, main_oeuvre), jamais par son nom. Si la clé manque, repli : « divers », puis la
+// première catégorie de dépense active, et la proposition porte « à classer ». Sans aucune catégorie de dépense active,
+// rien n'est créé : le journal donne l'identifiant et le montant pour retrouver la dépense à la main.
 
 const schemaPieceAchetee = z.object({
   purchaseId: z.string().min(1),
@@ -351,51 +352,64 @@ const schemaInterventionFacturee = z.object({
   coutCents: z.number().int().min(1),
 })
 
-async function categorieGarageDans(ctx: ContexteTeam, cle: string): Promise<string | null> {
+// Les catégories de dépense actives, dans l'ordre de Budget : le repli prend la première.
+async function categorieGarageDans(ctx: ContexteTeam, cle: string): Promise<{ id: string; repli: boolean } | null> {
   const categories = await prismaPourTeam(ctx.teamId, ctx.userId).budgetCategory.findMany({
-    where: { teamId: ctx.teamId, sens: "depense", active: true, deletedAt: null, cle: { not: null } },
+    where: { teamId: ctx.teamId, sens: "depense", active: true, deletedAt: null },
+    orderBy: [{ ordre: "asc" }, { createdAt: "asc" }],
     select: { id: true, cle: true },
   })
-  return categorieParCle(categories, cle)
+  return choisirCategorie(categories, cle)
 }
 
-function journaliserCategorieAbsente(cle: string, origineRef: string, montantCents: number): void {
-  console.error(`[budget] catégorie « ${cle} » introuvable : proposition garage non créée (${origineRef}, ${montantCents} centimes).`)
+// Une dépense venue du Garage : une seule proposition par référence (proposerMouvementDans rend l'existante si elle est
+// déjà là). Le repli passe par le journal, avec la même ligne qu'avant, et l'issue.
+async function proposerDepenseGarageDans(
+  ctx: ContexteTeam,
+  { cle, libelle, montant, origineRef, evenementOrigine, date }: { cle: string; libelle: string; montant: number; origineRef: string; evenementOrigine: string; date: string },
+): Promise<void> {
+  await initialiserSiBesoin(ctx)
+  const choix = await categorieGarageDans(ctx, cle)
+  if (!choix) {
+    console.error(`[budget] catégorie « ${cle} » introuvable : proposition garage non créée (${origineRef}, ${montant} centimes).`)
+    return
+  }
+  if (choix.repli) {
+    console.error(`[budget] catégorie « ${cle} » introuvable : proposition garage à classer (${origineRef}, ${montant} centimes).`)
+  }
+  await proposerMouvementDans(ctx, {
+    appOrigine: "garage",
+    evenementOrigine,
+    sens: "depense",
+    montant,
+    categoryId: choix.id,
+    libelle: choix.repli ? `${libelle}, à classer` : libelle,
+    date,
+    origineRef,
+  })
 }
 
 export async function proposerDepensePieceDans(ctx: ContexteTeam, entree: z.input<typeof schemaPieceAchetee>): Promise<void> {
   const donnees = schemaPieceAchetee.parse(entree)
-  const origineRef = `garage_purchase:${donnees.purchaseId}`
-  await initialiserSiBesoin(ctx)
-  const categorieId = await categorieGarageDans(ctx, "pieces")
-  if (!categorieId) return journaliserCategorieAbsente("pieces", origineRef, donnees.totalCents)
-  await proposerMouvementDans(ctx, {
-    appOrigine: "garage",
-    evenementOrigine: "garage.piece_achetee",
-    sens: "depense",
-    montant: donnees.totalCents,
-    categoryId: categorieId,
+  await proposerDepenseGarageDans(ctx, {
+    cle: "pieces",
     libelle: "Pièces achetées (Garage)",
+    montant: donnees.totalCents,
+    origineRef: `garage_purchase:${donnees.purchaseId}`,
+    evenementOrigine: "garage.piece_achetee",
     date: jourDeParis(new Date(donnees.recueLe)),
-    origineRef,
   })
 }
 
 export async function proposerDepenseMainOeuvreDans(ctx: ContexteTeam, entree: z.input<typeof schemaInterventionFacturee>): Promise<void> {
   const donnees = schemaInterventionFacturee.parse(entree)
-  const origineRef = `garage_work_order:${donnees.workOrderId}`
-  await initialiserSiBesoin(ctx)
-  const categorieId = await categorieGarageDans(ctx, "main_oeuvre")
-  if (!categorieId) return journaliserCategorieAbsente("main_oeuvre", origineRef, donnees.coutCents)
-  await proposerMouvementDans(ctx, {
-    appOrigine: "garage",
-    evenementOrigine: "garage.intervention_facturee",
-    sens: "depense",
-    montant: donnees.coutCents,
-    categoryId: categorieId,
+  await proposerDepenseGarageDans(ctx, {
+    cle: "main_oeuvre",
     libelle: "Main-d'œuvre (Garage)",
+    montant: donnees.coutCents,
+    origineRef: `garage_work_order:${donnees.workOrderId}`,
+    evenementOrigine: "garage.intervention_facturee",
     date: jourDeParis(new Date()),
-    origineRef,
   })
 }
 

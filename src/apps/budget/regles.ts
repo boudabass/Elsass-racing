@@ -133,8 +133,16 @@ export function comptesEncaissement(payeurs: ReadonlyArray<{ id: string; nom: st
   return payeurs.filter((payeur) => payeur.type !== "membre").map(({ id, nom, type }) => ({ id, nom, parDefaut: type === "caisse_team" }))
 }
 
-// Catégorie de Budget par sa clé stable (pieces, main_oeuvre : jamais le nom, D8 du Garage). Absente : null. Une
-// catégorie sans clé ne sert jamais de repli, même si son nom ressemble.
-export function categorieParCle(categories: ReadonlyArray<{ id: string; cle: string | null }>, cle: string): string | null {
-  return categories.find((categorie) => categorie.cle === cle)?.id ?? null
+// Catégorie d'une dépense venue d'une autre app (clés pieces, main_oeuvre : jamais le nom, D8 du Garage). Ordre de
+// repli : la clé demandée ; à défaut « divers » ; à défaut la première catégorie de dépense active (les catégories
+// arrivent triées par ordre). Un repli signale « à classer ». Null seulement si la team n'a aucune catégorie active.
+export function choisirCategorie(
+  categories: ReadonlyArray<{ id: string; cle: string | null }>,
+  cle: string,
+): { id: string; repli: boolean } | null {
+  const demandee = categories.find((categorie) => categorie.cle === cle)
+  if (demandee) return { id: demandee.id, repli: false }
+  const divers = categories.find((categorie) => categorie.cle === "divers")
+  if (divers) return { id: divers.id, repli: true }
+  return categories[0] ? { id: categories[0].id, repli: true } : null
 }

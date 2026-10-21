@@ -20,4 +20,8 @@ describe("clés stables des catégories", () => {
     expect(CLE_CATEGORIE["Pièces"]).toBe("pieces")
     expect(CLE_CATEGORIE["Main-d'œuvre"]).toBe("main_oeuvre")
   })
+
+  it("Divers porte la clé de repli (divers)", () => {
+    expect(CLE_CATEGORIE["Divers"]).toBe("divers")
+  })
 })
