@@ -74,19 +74,7 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   await expect(page.getByRole("heading", { name: FOURNISSEUR, exact: true }).filter({ visible: true }).first()).toBeVisible()
   await retourAuQg(page)
 
-  // 3. Voiture : la Saxo, sa Déco. Sans plan, John choisit le modèle, qui crée les emplacements.
-  await tuile(page, "voiture").click()
-  await page.getByRole("link", { name: NOM_VEHICULE }).click()
-  await page.getByRole("link", { name: "Déco", exact: true }).click()
-  await expect(page.getByText("Ce véhicule n'a pas encore de plan.")).toBeVisible()
-  await page.locator('select[name="gabaritCle"]').selectOption("citadine_3p_saxo")
-  await envoyer(page, page.getByRole("button", { name: "Choisir ce modèle", exact: true }))
-  await expect(page.getByText("Ce véhicule n'a pas encore de plan.")).toHaveCount(0)
-  await page.getByRole("button", { name: "Côté droit", exact: true }).click()
-  await sansErreur(page)
-  await retourAuQg(page)
-
-  // 4. Garage : l'atelier de la Saxo. Il n'a aucun organe avant « Préparer l'atelier » : c'est ici que le défaut apparaît.
+  // 3. Garage : l'atelier de la Saxo, sans gabarit. Il n'a aucun organe avant « Préparer l'atelier » : c'est ici que le défaut apparaît.
   await tuile(page, "garage").click()
   await expect(page.getByRole("heading", { name: "Atelier", exact: true })).toBeVisible()
   const preparer = page.getByRole("button", { name: "Préparer l'atelier", exact: true })
@@ -112,14 +100,14 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   await expect(page.getByText("Plaquettes avant parcours", { exact: true }).filter({ visible: true }).first()).toBeVisible()
 
   await page.getByRole("link", { name: "Atelier", exact: true }).click()
-  await page.getByRole("link", { name: /^Freins,/ }).first().click()
+  await page.getByRole("link", { name: "Freins", exact: true }).filter({ visible: true }).first().click()
   await page.getByRole("button", { name: "Poser une pièce", exact: true }).click()
   await page.getByLabel("Pièce de rechange").selectOption({ label: "Plaquettes avant parcours · Brembo" })
   await envoyer(page, page.getByRole("button", { name: "Poser la pièce", exact: true }))
 
-  // Retour à l'atelier : les freins sont posés, durée connue, zone verte.
+  // Retour à l'atelier : les freins sont posés, durée connue, zone verte (l'état est sur la carte, sans silhouette).
   await page.getByRole("link", { name: "Atelier", exact: true }).click()
-  await expect(page.getByRole("link", { name: "Freins, Bon, 100%" })).toBeVisible()
+  await expect(page.getByRole("img", { name: "État : 100%" }).first()).toBeVisible()
 
   // 5. Travaux : un ordre créé sur les freins, puis terminé avec sa main-d'œuvre (une proposition au Budget).
   await page.getByRole("link", { name: "Travaux", exact: true }).click()
@@ -157,7 +145,19 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   await expect(page.getByRole("button", { name: "Confirmer", exact: true })).toHaveCount(2)
   await retourAuQg(page)
 
-  // 8. Téléphone : l'atelier tient dans la largeur, avec ses organes.
+  // 8. Voiture : la Déco de la Saxo. Sans plan, John choisit le modèle, qui crée les emplacements, puis la silhouette apparaît à l'atelier.
+  await tuile(page, "voiture").click()
+  await page.getByRole("link", { name: NOM_VEHICULE }).click()
+  await page.getByRole("link", { name: "Déco", exact: true }).click()
+  await expect(page.getByText("Ce véhicule n'a pas encore de plan.")).toBeVisible()
+  await page.locator('select[name="gabaritCle"]').selectOption("citadine_3p_saxo")
+  await envoyer(page, page.getByRole("button", { name: "Choisir ce modèle", exact: true }))
+  await expect(page.getByText("Ce véhicule n'a pas encore de plan.")).toHaveCount(0)
+  await page.getByRole("button", { name: "Côté droit", exact: true }).click()
+  await sansErreur(page)
+  await retourAuQg(page)
+
+  // 9. Téléphone : l'atelier tient dans la largeur, avec ses organes et sa silhouette.
   await page.setViewportSize(TELEPHONE)
   await tuile(page, "garage").click()
   await expect(page.getByRole("heading", { name: "Atelier", exact: true })).toBeVisible()

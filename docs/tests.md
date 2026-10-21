@@ -219,6 +219,8 @@ Règle : après un envoi (bouton d'un tiroir ou d'un formulaire, qui déclenche 
 
 **Exception assumée** : la connexion passe par `ajouterCodeConnu` (un code connu, en base), comme `connexion.spec.ts`. Le reste est écrit par les scripts ou par l'interface.
 
+**État de départ mesuré** (lecture seule sur la base dev, transaction annulée) : la Saxo de la team d'essai dev, « Citroën Saxo VTS », a une ligne `voiture_vehicle` dont `gabarit_cle` est NULL. Elle n'a donc pas de gabarit, ni de silhouette à l'atelier. La team du parcours vient du même script : même état. Le spec part donc de l'atelier sans gabarit (liste des organes, état, lien vers la fiche, renvoi vers la Déco), et ne choisit le modèle qu'en fin de parcours, pour vérifier la silhouette.
+
 **Règle** : pas de push sur `dev` tant que `parcours-john` n'est pas vert sur le run de la tête de `verif`. Un échec de ce spec bloque `dev`, même si le reste est vert.
 
 **Inventaire des aides qui écrivent en base** (`e2e/aide/`, 4.3d). « Parcours par l'interface » : **oui** = un chemin existe dans l'interface et `parcours-john` ou un autre spec le suit ; **à vérifier** = non vérifié, le chemin n'est pas repéré ; **non** = usage de test seulement. Les lectures (`…EnBase` qui ne font que `SELECT`) ne sont pas listées.

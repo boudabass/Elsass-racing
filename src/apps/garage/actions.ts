@@ -23,6 +23,7 @@ import {
   modifierOrdre,
   modifierOrgane,
   poserPiece,
+  preparerAtelier,
   recevoirCommande,
   retirerOrgane,
   retirerPieceOrdre,
@@ -60,6 +61,11 @@ export async function renseignerDureeVieAction(_etat: Resultat | null, donnees: 
     }
     return modifierOrgane(texte(donnees, "organeId"), entree)
   })
+}
+
+// Préparer l'atelier : pose les organes par défaut d'une voiture qui n'en a pas encore (bouton « Préparer l'atelier »).
+export async function preparerAtelierAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() => preparerAtelier(texte(donnees, "vehicleId")))
 }
 
 // Remplacer : la pièce en place (si elle existe) part avec le motif de dépose, la rechange se pose, en une seule écriture.

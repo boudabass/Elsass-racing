@@ -2,6 +2,8 @@
 // valeurs lues, ces fonctions renvoient un état. Les km sont des décimaux (correction A) : la somme
 // passe par additionnerKm, pour qu'un arrondi ne s'accumule pas d'une épreuve à l'autre.
 
+import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
+
 export type ModeUsure = "km" | "epreuves" | "les_deux"
 export type Zone = "vert" | "orange" | "rouge" | "a_renseigner"
 
@@ -95,6 +97,12 @@ export function indiceFiabilite(organes: OrganeIndice[]): IndiceFiabilite {
   if (retenus.length === 0) return { indice: null, sansPiece, sansEtat }
   const somme = retenus.reduce((total, o) => total + (o.etat ?? 0), 0)
   return { indice: somme / retenus.length, sansPiece, sansEtat }
+}
+
+// Préparer l'atelier (action explicite) : l'écriture et plus. En dessous, le bouton reste visible, désactivé, avec sa raison.
+export function droitPreparerAtelier(niveau: Niveau): { possible: boolean; raison: string | null } {
+  if (aAuMoins(niveau, "ecriture")) return { possible: true, raison: null }
+  return { possible: false, raison: "Seul l'équipage peut préparer l'atelier." }
 }
 
 // Franchissement du seuil rouge : l'état passe de « au-dessus ou égal » à « strictement sous ». Une seule fois

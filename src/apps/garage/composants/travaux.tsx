@@ -8,6 +8,7 @@ import { LIEN } from "@/lib/classes-formulaire"
 import type { lireChoixTravaux, OrdreTravail, TravauxVehicule } from "../lectures-serveur"
 import { COLONNES_TRAVAUX, LIBELLE_PRIORITE, LIBELLE_STATUT_ORDRE, LIBELLE_TYPE_ORDRE, type StatutOrdre } from "../travaux"
 
+import { VoitureNonSuivie } from "./atelier"
 import { FormulaireOrdre } from "./formulaires-travaux"
 
 export interface TravauxEcranProps {
@@ -90,7 +91,9 @@ export function TravauxEcran({ vehicules, choisi, travaux, choix }: TravauxEcran
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="titre-rallye text-3xl">Travaux</h1>
-          {travaux.peutEcrire && choix && <FormulaireOrdre vehicleId={choisi.id} {...choix} />}
+          {travaux.peutEcrire &&
+            choix &&
+            (choix.organes.length > 0 ? <FormulaireOrdre vehicleId={choisi.id} {...choix} /> : <VoitureNonSuivie vehicleId={choisi.id} />)}
         </div>
         <nav aria-label="Voitures" className="flex flex-wrap gap-2">
           {vehicules.map((vehicule) => (

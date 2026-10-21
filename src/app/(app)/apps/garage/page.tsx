@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import { Lock, Wrench } from "lucide-react"
 
 import { accesEcran } from "@/apps/garage/ecran"
-import { CartesOrganes, ChoixVehicule, IndiceBloc, SilhouetteAtelier } from "@/apps/garage/composants/atelier"
+import { AtelierNonSuivi, CartesOrganes, ChoixVehicule, IndiceBloc, SansSilhouette, SilhouetteAtelier } from "@/apps/garage/composants/atelier"
 import { listerVehiculesAtelier, lireVehiculeAtelier } from "@/apps/garage/lectures-serveur"
 import { motIndice, phrasesIndiceAbsent } from "@/apps/garage/mise-en-forme"
 import { EcranVide } from "@/components/qg/ecran-vide"
@@ -45,13 +45,21 @@ export default async function PageAtelier({ searchParams }: { searchParams: Prom
         {vehicules.length > 1 && <ChoixVehicule vehicules={vehicules} choisi={choisi.id} />}
       </header>
 
-      <IndiceBloc indice={atelier.indice} mot={mot} phrases={phrases} />
+      {atelier.organes.length === 0 ? (
+        <AtelierNonSuivi vehicleId={choisi.id} niveau={acces.niveau} />
+      ) : (
+        <>
+          <IndiceBloc indice={atelier.indice} mot={mot} phrases={phrases} />
 
-      {atelier.silhouette ? (
-        <SilhouetteAtelier vehicule={choisi.nomCourt} silhouette={atelier.silhouette} organes={atelier.organes} />
-      ) : null}
+          {atelier.silhouette ? (
+            <SilhouetteAtelier vehicule={choisi.nomCourt} silhouette={atelier.silhouette} organes={atelier.organes} />
+          ) : (
+            <SansSilhouette vehicleId={choisi.id} />
+          )}
 
-      <CartesOrganes organes={atelier.organes} niveau={acces.niveau} />
+          <CartesOrganes organes={atelier.organes} niveau={acces.niveau} />
+        </>
+      )}
     </section>
   )
 }

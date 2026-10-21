@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest"
 import {
   additionnerKm,
   dureesEffectives,
+  droitPreparerAtelier,
   etatPiece,
   etatPneus,
   fiabiliteChangee,
@@ -165,6 +166,18 @@ describe("indiceFiabilite", () => {
       sansPiece: [],
       sansEtat: ["freins"],
     })
+  })
+})
+
+describe("droitPreparerAtelier", () => {
+  it("l'écriture et plus peuvent préparer l'atelier, sans raison", () => {
+    expect(droitPreparerAtelier("ecriture")).toEqual({ possible: true, raison: null })
+    expect(droitPreparerAtelier("gestion")).toEqual({ possible: true, raison: null })
+  })
+
+  it("en dessous de l'écriture, la raison est dite", () => {
+    expect(droitPreparerAtelier("contribution")).toEqual({ possible: false, raison: "Seul l'équipage peut préparer l'atelier." })
+    expect(droitPreparerAtelier("lecture")).toEqual({ possible: false, raison: "Seul l'équipage peut préparer l'atelier." })
   })
 })
 

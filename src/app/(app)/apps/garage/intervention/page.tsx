@@ -1,7 +1,7 @@
 import { Lock, Wrench } from "lucide-react"
 
 import { accesEcran } from "@/apps/garage/ecran"
-import { ChoixVehicule } from "@/apps/garage/composants/atelier"
+import { ChoixVehicule, VoitureNonSuivie } from "@/apps/garage/composants/atelier"
 import { FormulaireIntervention } from "@/apps/garage/composants/formulaires-intervention"
 import { listerVehiculesAtelier, lireChoixIntervention } from "@/apps/garage/lectures-serveur"
 import { EcranVide } from "@/components/qg/ecran-vide"
@@ -35,7 +35,11 @@ export default async function PageIntervention({ searchParams }: { searchParams:
         <h1 className="titre-rallye text-3xl">Intervention</h1>
         {vehicules.length > 1 && <ChoixVehicule vehicules={vehicules} choisi={choisi.id} chemin="/apps/garage/intervention" />}
       </header>
-      <FormulaireIntervention key={choisi.id} vehicleId={choisi.id} organes={choix.organes} pieces={choix.pieces} />
+      {choix.organes.length === 0 ? (
+        <VoitureNonSuivie vehicleId={choisi.id} />
+      ) : (
+        <FormulaireIntervention key={choisi.id} vehicleId={choisi.id} organes={choix.organes} pieces={choix.pieces} />
+      )}
     </section>
   )
 }

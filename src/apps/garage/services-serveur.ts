@@ -287,6 +287,21 @@ function verifierSeuils(orange: number, rouge: number): void {
 
 // --- Organes --------------------------------------------------------------------------------
 
+// Préparer l'atelier : l'action explicite qui pose les organes par défaut d'un véhicule qui n'en a pas (brief 4.1). Une
+// lecture n'écrit jamais : c'est le seul chemin, avec la première écriture d'organe. Idempotent : un véhicule déjà suivi
+// n'est pas touché.
+export async function preparerAtelier(vehicleId: string): Promise<void> {
+  const { ctx } = await accesGarage("ecriture")
+  return preparerAtelierDans(ctx, vehicleId)
+}
+
+export async function preparerAtelierDans(ctx: ContexteTeam, vehicleId: string): Promise<void> {
+  await ecrireOrgane(ctx, vehicleId, async (tx) => {
+    await vehiculeDans(tx, ctx.teamId, vehicleId)
+    await initialiserGarageDans(tx, ctx, vehicleId)
+  })
+}
+
 export async function ajouterOrgane(vehicleId: string, entree: EntreeOrgane): Promise<string> {
   const { ctx } = await accesGarage("ecriture")
   return ajouterOrganeDans(ctx, vehicleId, entree)

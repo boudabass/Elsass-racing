@@ -6,12 +6,14 @@ import Link from "next/link"
 
 import { Silhouette } from "@/components/silhouette/silhouette"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
+import { LIEN } from "@/lib/classes-formulaire"
 
 import type { OrganeAtelier, VehiculeAtelier, VehiculeChoisi } from "../lectures-serveur"
 import { libelleZone, ordreDesOrganes, phraseKmRestants, pourcentage, type PhraseAtelier } from "../mise-en-forme"
 import { RAYON_CONTACT_BUREAU, RAYON_CONTACT_TELEPHONE, type PointSilhouette } from "../positions"
-import type { Zone } from "../regles"
+import { droitPreparerAtelier, type Zone } from "../regles"
 
+import { BoutonPreparerAtelier } from "./preparer-atelier"
 import { FormulaireDuree } from "./formulaire-duree"
 
 // --- Choix de la voiture -------------------------------------------------------------------
@@ -34,6 +36,44 @@ export function ChoixVehicule({ vehicules, choisi, chemin = "/apps/garage" }: { 
         )
       })}
     </nav>
+  )
+}
+
+// --- Voiture non suivie --------------------------------------------------------------------
+
+// Une voiture sans organe : pas d'indice ni de silhouette à montrer. Le bouton pose les organes par défaut.
+export function AtelierNonSuivi({ vehicleId, niveau }: { vehicleId: string; niveau: Niveau }) {
+  const droit = droitPreparerAtelier(niveau)
+  return (
+    <section aria-labelledby="atelier-non-suivi" className="flex flex-col gap-3">
+      <h2 id="atelier-non-suivi" className="text-lg font-semibold">
+        Le Garage ne suit pas encore cette voiture.
+      </h2>
+      <p className="text-sm text-texte-discret">Préparer l&apos;atelier pose les organes par défaut : moteur, boîte, embrayage, transmissions, freins, amortisseurs, pneus.</p>
+      <BoutonPreparerAtelier vehicleId={vehicleId} possible={droit.possible} raison={droit.raison} />
+    </section>
+  )
+}
+
+// Une voiture sans gabarit : l'atelier marche sans silhouette (la liste des organes est là). Le renvoi va à la Déco, où
+// l'on choisit le modèle qui pose la silhouette.
+export function SansSilhouette({ vehicleId }: { vehicleId: string }) {
+  return (
+    <Link href={`/apps/voiture/vehicules/${vehicleId}?onglet=deco`} className={`${LIEN} text-sm`}>
+      Choisis le modèle de la voiture dans la Déco pour voir la silhouette.
+    </Link>
+  )
+}
+
+// Intervention et Travaux : une voiture sans organe n'a rien à choisir. Le renvoi va à l'atelier, où se prépare la voiture.
+export function VoitureNonSuivie({ vehicleId }: { vehicleId: string }) {
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <p className="text-sm text-texte-discret">Le Garage ne suit pas encore cette voiture : aucun organe à choisir.</p>
+      <Link href={`/apps/garage?vehicule=${vehicleId}`} className={LIEN}>
+        Préparer l&apos;atelier
+      </Link>
+    </div>
   )
 }
 
@@ -171,7 +211,9 @@ function CarteOrgane({ organe, peutEcrire }: { organe: OrganeAtelier; peutEcrire
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-semibold">
-            {organe.nom}
+            <Link href={`/apps/garage/organes/${organe.id}`} className="cible-tactile inline-flex items-center underline underline-offset-4">
+              {organe.nom}
+            </Link>
             {organe.position && <span className="font-normal text-texte-discret"> · {organe.position}</span>}
           </p>
         </div>
