@@ -213,12 +213,17 @@ async function main() {
     await proprietaire.coreEventEntry.create({ data: { id: engagement, teamId: team.id, eventId: evenement.id, vehicleId: vehicule } })
     const avantPiece = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: piece2 } })
     const avantTrain = await proprietaire.garageTyreSet.findUniqueOrThrow({ where: { id: train.id } })
+    // Cibles montées au moment de la validation, avec les mêmes critères que ciblesUsure : une ligne d'usure par cible.
+    const nombreCibles =
+      (await proprietaire.garagePartMount.count({ where: { teamId: team.id, deposeeLe: null, deletedAt: null, vehicleComponent: { vehicleId: vehicule } } })) +
+      (await proprietaire.garageTyreSet.count({ where: { teamId: team.id, vehicleId: vehicule, vehicleComponentId: { not: null }, deletedAt: null } }))
 
     await Promise.all([1, 2].map(() => services.appliquerUsureResultatDans(ctx, engagement, evenement.id, 40)))
     const apresPiece = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: piece2 } })
     const apresTrain = await proprietaire.garageTyreSet.findUniqueOrThrow({ where: { id: train.id } })
     const lignesCourse = await proprietaire.garageWearLog.count({ where: { eventEntryId: engagement } })
-    controle("deux validations simultanées donnent une ligne par cible", lignesCourse === 2, `${lignesCourse}`)
+    controle("le véhicule a des cibles d'usure montées", nombreCibles > 0, `${nombreCibles}`)
+    controle("deux validations simultanées donnent une ligne par cible", lignesCourse === nombreCibles, `${lignesCourse} lignes pour ${nombreCibles} cibles`)
     controle(
       "les km de la validation ne sont comptés qu'une fois sur la pièce",
       Number(apresPiece.kmCumules) - Number(avantPiece.kmCumules) === 40,
@@ -244,7 +249,7 @@ async function main() {
     await services.appliquerUsureResultatDans(ctx, engagement, evenement.id, 40)
     const relecturePiece = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: piece2 } })
     const lignesApres = await proprietaire.garageWearLog.count({ where: { eventEntryId: engagement } })
-    controle("un traitement de plus, après coup, n'ajoute ni ligne ni km", lignesApres === 2 && Number(relecturePiece.kmCumules) === Number(apresPiece.kmCumules), `${lignesApres}`)
+    controle("un traitement de plus, après coup, n'ajoute ni ligne ni km", lignesApres === nombreCibles && Number(relecturePiece.kmCumules) === Number(apresPiece.kmCumules), `${lignesApres}`)
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères, pour les deux teams.
     await proprietaire.garageWearLog.deleteMany({ where: { teamId: { in: equipes } } })
