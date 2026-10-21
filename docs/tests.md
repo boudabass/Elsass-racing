@@ -213,6 +213,37 @@ Règle : après un envoi (bouton d'un tiroir ou d'un formulaire, qui déclenche 
 - Côté app, le tiroir ne se ferme qu'à la réponse du serveur, donc pas de faux succès. Une sortie de page pendant l'envoi reste un risque (point ouvert, `docs/plan-developpement.md`, lot 4).
 - Le runner GitHub a un autre minutage que le poste : ces courses sortent d'un run à l'autre. Les fermer toutes d'un coup plutôt qu'une par une.
 
+## Parcours de John (tâche 4.3d)
+
+`e2e/parcours-john.spec.ts` parcourt la team créée par la CI à l'étape « Team du parcours de John » (`pnpm team:creer --slug parcours-john`, puis `pnpm donnees:koehling --slug parcours-john`), comme la team de dev : entrée par `/connexion`, puis des clics depuis le QG, sans adresse tapée après l'entrée. Il couvre les onze tuiles, Partenaires (le fournisseur), Voiture (la Déco, avec le modèle choisi), Garage (« Préparer l'atelier », durée, « + Pièce », pose), Travaux (un ordre terminé), Commandes (une commande reçue) et Budget (deux propositions à confirmer), puis l'atelier à 360 px.
+
+**Exception assumée** : la connexion passe par `ajouterCodeConnu` (un code connu, en base), comme `connexion.spec.ts`. Le reste est écrit par les scripts ou par l'interface.
+
+**Règle** : pas de push sur `dev` tant que `parcours-john` n'est pas vert sur le run de la tête de `verif`. Un échec de ce spec bloque `dev`, même si le reste est vert.
+
+**Inventaire des aides qui écrivent en base** (`e2e/aide/`, 4.3d). « Parcours par l'interface » : **oui** = un chemin existe dans l'interface et `parcours-john` ou un autre spec le suit ; **à vérifier** = non vérifié, le chemin n'est pas repéré ; **non** = usage de test seulement. Les lectures (`…EnBase` qui ne font que `SELECT`) ne sont pas listées.
+
+| Aide (fichier) | Ce qu'elle écrit | Parcours par l'interface |
+| --- | --- | --- |
+| `creerEquipe` (session) | team, 11 apps, responsable, lien | non : script `team:creer`, aucun écran de création de team |
+| `supprimerEquipe` (session) | nettoyage de la team | non : test seulement |
+| `ajouterCodeConnu` (session) | code de connexion | non : test seulement, le code arrive par mail |
+| `ajouterMembreConnectable`, `retirerAdhesion`, `rattacherPersonne` (session) | membre, adhésion, fiche personne | à vérifier : invitations et réglages des membres |
+| `ajouterVoitureSaxo`, `ajouterVoitureDeCourse` (session) | véhicule | oui : Voiture, « + » Véhicule (`voiture-deco.spec` crée « Saxo 2 » ainsi) |
+| `donnerAccesVoiture`, `donnerAccesSaison`, `definirAccesBudget` (session) | niveau d'accès par app | à vérifier : écran des droits |
+| `preparerSaison`, `preverSaisonEnBase`, `preverEpreuveEnBase`, `ajouterEpreuveEnBase`, `passerEpreuveDansLePasseEnBase`, `engagerVehiculeEnBase`, `ajouterResultatValideEnBase`, `ajouterSpecialeEnBase`, `ajouterVehiculeDeReco`, `ajouterPapierEnBase` (session) | saison, épreuves, engagements, résultats, papiers | à vérifier : app Saison |
+| `ajouterRecetteBudgetEnBase`, `definirLogoTeamEnBase` (session) | recette Budget, logo de la team | à vérifier |
+| `proposerMouvementBudget` (session) | proposition de mouvement venue du Garage (émise par le bus) | oui, indirect : `parcours-john` fait naître les deux propositions par l'intervention terminée et la commande reçue |
+| `preparerAtelierSaxo` (garage) | organes, pièces montées, durées | en partie : « Préparer l'atelier » (`parcours-john`) ; les pièces montées (« + Pièce », « Poser ») sont dans `parcours-john` pour une seule pièce, à vérifier pour les autres |
+| `monterPieceSansDuree` (garage) | pièce montée sans durée | à vérifier : « + Pièce » puis « Poser », sans durée |
+| `fournisseurDeTest` (garage) | contact fournisseur | oui : Partenaires, « + » Partenaire (`parcours-john`) |
+| `pieceEnStockDeTest` (garage) | pièce en stock | oui : Garage, « + » Pièce (`parcours-john`) |
+| `personneResponsableDeTest` (garage) | fiche personne du responsable | oui : `team:creer` la crée |
+| `preparerPageDePartenaire`, `contrepartie`, `renseignerMentionsConvention`, `expirerLien`, `poserLogoPartenaire` (partenaire-page) | page, contreparties, convention, lien, logo | à vérifier : fiche partenaire |
+| `emettreActionSaison`, `preparerDonneesCaptures` (session) | action requise Saison (bus), données de captures | non : test seulement |
+
+Rien n'est supprimé à ce stade : l'inventaire vient d'abord. Les aides marquées « à vérifier » sont à reprendre une par une, en remplaçant chacune par un parcours d'interface quand il existe.
+
 ## Enchaînement recommandé
 
 ```

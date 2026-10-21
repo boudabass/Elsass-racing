@@ -90,6 +90,12 @@ jobs:
 
       - run: pnpm db:deploy
       - run: pnpm db:seed
+      # Team du parcours de John (tâche 4.3d) : créée par les scripts, comme la team de dev, sans aide SQL pour l'écrire.
+      # Le spec e2e/parcours-john.spec.ts s'y connecte (code connu) et la parcourt en cliquant.
+      - name: Team du parcours de John
+        run: |
+          pnpm team:creer --nom "Team d'essai parcours" --slug parcours-john --email parcours-john@example.test --prenom-responsable John --nom-responsable Parcours
+          pnpm donnees:koehling --slug parcours-john
       - run: pnpm db:verifier-rls
       - run: pnpm db:verifier-bus
       - run: pnpm db:verifier-synchro
