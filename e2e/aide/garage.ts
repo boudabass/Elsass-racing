@@ -155,28 +155,3 @@ export async function personneResponsableDeTest(equipe: Equipe): Promise<string>
   await bd().query(`UPDATE core_membership SET person_id = $1 WHERE id = $2`, [personneId, equipe.responsable.membershipId])
   return personneId
 }
-
-// Monte une pièce sans durée de vie sur l'organe d'un type (« Renseigner la durée de vie » en attente), comme une pièce
-// posée à la main. Le véhicule doit déjà avoir ses organes (preparerAtelier, ou preparerAtelierSaxo).
-export async function monterPieceSansDuree(equipe: Equipe, vehicleId: string, cleType: string): Promise<void> {
-  const { rows } = await bd().query<{ organe_id: string; type_id: string }>(
-    `SELECT vc.id AS organe_id, ct.id AS type_id
-       FROM garage_vehicle_component vc
-       JOIN garage_component_type ct ON ct.id = vc.component_type_id
-      WHERE vc.team_id = $1 AND vc.vehicle_id = $2 AND ct.cle = $3 AND vc.deleted_at IS NULL`,
-    [equipe.teamId, vehicleId, cleType],
-  )
-  const organe = rows[0]
-  if (!organe) throw new Error(`Pas d'organe « ${cleType} » sur ce véhicule.`)
-  const pieceId = newId()
-  await bd().query(
-    `INSERT INTO garage_part (id, team_id, vehicle_id, component_type_id, designation, statut, km_cumules, updated_at)
-     VALUES ($1, $2, $3, $4, 'Pièce sans durée e2e', 'montee', 0, now())`,
-    [pieceId, equipe.teamId, vehicleId, organe.type_id],
-  )
-  await bd().query(
-    `INSERT INTO garage_part_mount (id, team_id, part_id, vehicle_component_id, posee_le, km_pose, updated_at)
-     VALUES ($1, $2, $3, $4, now(), 0, now())`,
-    [newId(), equipe.teamId, pieceId, organe.organe_id],
-  )
-}

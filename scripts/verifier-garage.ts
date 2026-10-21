@@ -65,18 +65,32 @@ async function main() {
       data: { id: vehicule, teamId: team.id, type: "course", nomCourt: `Saxo ${suffixe}` },
     })
 
-    // 1. Initialisation : sept types par défaut, un organe par type, sans doublon à la deuxième écriture.
+    // 1. Initialisation : sept types par défaut, un organe par emplacement (quatorze), sans doublon à la deuxième écriture.
     await executerPourTeam(team.id, utilisateur.id, (tx) => services.initialiserGarageDans(tx, ctx, vehicule))
     const types = await proprietaire.garageComponentType.findMany({ where: { teamId: team.id }, select: { id: true, cle: true } })
     controle("sept types d'organes par défaut copiés dans la team", types.length === 7, `${types.length}`)
     const organes = await proprietaire.garageVehicleComponent.findMany({ where: { teamId: team.id, vehicleId: vehicule } })
-    controle("un organe par type par défaut pour le véhicule", organes.length === 7, `${organes.length}`)
+    controle("un organe par emplacement par défaut pour le véhicule (quatorze)", organes.length === 14, `${organes.length}`)
     await executerPourTeam(team.id, utilisateur.id, (tx) => services.initialiserGarageDans(tx, ctx, vehicule))
     const organesApres = await proprietaire.garageVehicleComponent.count({ where: { teamId: team.id, vehicleId: vehicule } })
-    controle("une seconde initialisation ne double rien", organesApres === 7, `${organesApres}`)
+    controle("une seconde initialisation ne double rien", organesApres === 14, `${organesApres}`)
+
+    // 1 ter. Pièces d'origine (954 v1.2, « Voiture équipée dès le départ ») : une pièce montée par emplacement, un train
+    // monté sur les pneus, une seule fois malgré la seconde initialisation. Puis le moteur est déposé pour les étapes
+    // suivantes, qui testent la pose sur un organe libre.
+    const piecesOrigine = await proprietaire.garagePart.findMany({ where: { teamId: team.id, vehicleId: vehicule, designation: "D'origine" } })
+    controle("une pièce d'origine par emplacement sauf le train (treize)", piecesOrigine.length === 13, `${piecesOrigine.length}`)
+    controle("chaque pièce d'origine est montée", piecesOrigine.every((p) => p.statut === "montee"))
+    const trainOrigine = await proprietaire.garageTyreSet.findMany({ where: { teamId: team.id, vehicleId: vehicule, marque: "D'origine" } })
+    controle("un train d'origine, monté sur l'organe pneus", trainOrigine.length === 1 && trainOrigine[0].type === "asphalte" && trainOrigine[0].statut === "neuf" && trainOrigine[0].usureEstimeePct === null)
+    const monteSurPneus = await proprietaire.garageVehicleComponent.findFirst({ where: { teamId: team.id, vehicleId: vehicule, componentType: { cle: "pneus" } } })
+    controle("le train d'origine est sur l'organe pneus", trainOrigine[0]?.vehicleComponentId === monteSurPneus?.id)
+    const poseMoteur = await proprietaire.garagePartMount.findFirst({ where: { teamId: team.id, vehicleComponentId: organes.find((o) => o.componentTypeId === types.find((t) => t.cle === "moteur")!.id)!.id, deposeeLe: null } })
+    controle("le moteur a sa pièce d'origine montée", poseMoteur !== null)
+    await services.deposerPieceDans(ctx, poseMoteur!.id, "preventif")
 
     // 1 bis. Course (correction E) : deux initialisations simultanées sur une team neuve et un véhicule neuf.
-    // Les types sont copiés une seule fois et chaque type n'a qu'un organe, sans erreur de clé étrangère.
+    // Les types sont copiés une seule fois et chaque emplacement n'a qu'un organe, sans erreur de clé étrangère.
     await proprietaire.coreTeam.create({ data: { id: equipe2.id, nom: equipe2.nom, slug: equipe2.slug } })
     await proprietaire.coreVehicle.create({
       data: { id: vehicule2, teamId: equipe2.id, type: "course", nomCourt: `Saxo B ${suffixe}` },
@@ -86,7 +100,10 @@ async function main() {
     const typesCourse = await proprietaire.garageComponentType.count({ where: { teamId: equipe2.id } })
     controle("deux initialisations simultanées copient sept types, pas plus", typesCourse === 7, `${typesCourse}`)
     const organesCourse = await proprietaire.garageVehicleComponent.count({ where: { teamId: equipe2.id, vehicleId: vehicule2 } })
-    controle("deux initialisations simultanées donnent un organe par type", organesCourse === 7, `${organesCourse}`)
+    controle("deux initialisations simultanées donnent un organe par emplacement, sans doublon", organesCourse === 14, `${organesCourse}`)
+    const piecesCourse = await proprietaire.garagePart.count({ where: { teamId: equipe2.id, vehicleId: vehicule2 } })
+    const trainsCourse = await proprietaire.garageTyreSet.count({ where: { teamId: equipe2.id, vehicleId: vehicule2 } })
+    controle("deux initialisations simultanées ne doublent pas les pièces d'origine", piecesCourse === 13 && trainsCourse === 1, `${piecesCourse} pièces, ${trainsCourse} train`)
 
     const typeDe = (cle: string) => types.find((t) => t.cle === cle)!.id
     const organeDe = (cle: string) => organes.find((o) => o.componentTypeId === typeDe(cle))!.id
@@ -130,7 +147,9 @@ async function main() {
     const alertesApres = await proprietaire.coreDomainEvent.count({ where: { teamId: team.id, nom: "garage.piece_zone_rouge" } })
     controle("une pièce déjà en zone rouge n'émet plus rien", alertesApres === 1, `${alertesApres}`)
 
-    // 6. Train de pneus monté sur l'organe Pneus : l'usure manuelle compte une épreuve sur le train.
+    // 6. Train de pneus monté sur l'organe Pneus : l'usure manuelle compte une épreuve sur le train. Le train d'origine
+    // est démonté d'abord, pour que le seul train monté soit celui du test.
+    await proprietaire.garageTyreSet.updateMany({ where: { teamId: team.id, vehicleId: vehicule, marque: "D'origine" }, data: { vehicleComponentId: null } })
     const train = await proprietaire.garageTyreSet.create({
       data: {
         id: randomUUID(),

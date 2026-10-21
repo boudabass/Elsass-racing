@@ -112,29 +112,11 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
     await expect(page.getByText(type.nom, { exact: true }).filter({ visible: true }).first()).toBeVisible()
   }
 
-  // Une pièce ajoutée par le bouton +, puis posée sur les freins depuis la fiche de l'organe. La durée de vie ne se
-  // renseigne qu'une fois une pièce montée : c'est l'ordre que suit John.
-  await page.getByRole("button", { name: "Ajouter", exact: true }).click()
-  await page.getByRole("menuitem", { name: "Pièce", exact: true }).click()
-  await arriver(page, /\/apps\/garage\/pieces\/nouvelle$/)
-  await page.getByLabel("Organe").selectOption({ label: "Freins" })
-  await page.getByLabel("Désignation").fill("Plaquettes avant parcours")
-  await page.getByLabel("Marque").fill("Brembo")
-  await envoyer(page, page.getByRole("button", { name: "Ajouter la pièce", exact: true }))
-  await expect(page.getByText("Plaquettes avant parcours", { exact: true }).filter({ visible: true }).first()).toBeVisible()
-
-  await page.getByRole("link", { name: "Atelier", exact: true }).click()
-  await arriver(page, /\/apps\/garage$/, /^Atelier$/)
-  await page.getByRole("link", { name: "Freins", exact: true }).filter({ visible: true }).first().click()
-  await arriver(page, /\/apps\/garage\/organes\/[0-9a-f-]{36}$/)
-  await page.getByRole("button", { name: "Poser une pièce", exact: true }).click()
-  await page.getByLabel("Pièce de rechange").selectOption({ label: "Plaquettes avant parcours · Brembo" })
-  await envoyer(page, page.getByRole("button", { name: "Poser la pièce", exact: true }))
-
-  // Retour à l'atelier : la pièce est posée, la carte des freins propose la durée de vie. Une durée renseignée, puis la zone verte.
-  await page.getByRole("link", { name: "Atelier", exact: true }).click()
-  await arriver(page, /\/apps\/garage$/, /^Atelier$/)
-  await page.getByRole("listitem").filter({ hasText: "Freins" }).getByRole("button", { name: "Renseigner la durée de vie" }).click()
+  // La voiture part équipée (954 v1.2, « Voiture équipée dès le départ ») : chaque emplacement a sa pièce d'origine montée,
+  // sans durée de vie. John renseigne la durée des freins, puis la carte passe en zone verte. Le remplacement d'une pièce
+  // est l'étape 6 du brief 4.3e, il n'est pas dans ce parcours pour l'instant.
+  await expect(page.getByRole("listitem").filter({ hasText: "Freins" }).getByRole("button", { name: "Renseigner la durée de vie" }).first()).toBeVisible()
+  await page.getByRole("listitem").filter({ hasText: "Freins" }).getByRole("button", { name: "Renseigner la durée de vie" }).first().click()
   await page.getByLabel("Durée en kilomètres").fill("40000")
   await page.getByLabel("Durée en épreuves").fill("10")
   await envoyer(page, page.getByRole("button", { name: "Enregistrer la durée", exact: true }))

@@ -1,9 +1,9 @@
 // Préparer l'atelier (brief 4.1, action explicite) : une voiture créée par la Voiture, sans l'aide Garage, n'a aucun
-// organe. L'atelier le dit et propose « Préparer l'atelier » ; après l'action, les sept organes par défaut sont là. Un
-// assistant voit le même état, avec le bouton désactivé et sa raison.
+// organe. L'atelier le dit et propose « Préparer l'atelier » ; après l'action, les sept types sont là, et chaque emplacement
+// a sa pièce d'origine montée sans durée de vie (954 v1.2, « Voiture équipée dès le départ »). Un assistant voit le même
+// état, avec le bouton désactivé et sa raison.
 import { TYPES_DEFAUT } from "../src/apps/garage/types-defaut"
 
-import { monterPieceSansDuree } from "./aide/garage"
 import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
@@ -21,17 +21,16 @@ test("responsable · une voiture sans organes : l'atelier propose de le prépare
   await expect(bouton).toBeEnabled()
   await envoyer(page, bouton)
 
-  // Après l'action : plus d'état vide, et chacun des sept organes par défaut est affiché.
+  // Après l'action : plus d'état vide, et chacun des types par défaut est affiché.
   await expect(page.getByRole("heading", { name: TITRE_NON_SUIVIE })).toHaveCount(0)
   for (const type of TYPES_DEFAUT) {
     await expect(page.getByText(type.nom, { exact: true }).filter({ visible: true }).first()).toBeVisible()
   }
   await expect(page.getByText("Aucun organe critique sur cette voiture.")).toHaveCount(0)
 
-  // Un organe critique avec une pièce montée sans durée : la phrase demande la durée, et ne dit pas « rien ne manque ».
-  await monterPieceSansDuree(equipe, vehicleId, "embrayage")
-  await page.goto(`/apps/garage?vehicule=${vehicleId}`)
-  await expect(page.getByText("Renseigne la durée de vie de : Embrayage pour calculer l'indice.", { exact: true })).toBeVisible()
+  // Les pièces d'origine sont montées sans durée : la phrase demande la durée des organes critiques, et ne dit pas
+  // « rien ne manque ». L'embrayage y figure.
+  await expect(page.getByText("Renseigne la durée de vie de :").filter({ visible: true }).first()).toBeVisible()
   await expect(page.getByText("Aucun organe critique sur cette voiture.")).toHaveCount(0)
 })
 

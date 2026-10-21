@@ -269,6 +269,7 @@ Décisions de John (20/10) :
 - Livrée le 20/10 (ca02ccd..1175ce4) : repères écartés, mot de l'indice sur le pire organe critique, jauges de zone (retours de John). e2e ciblés verts ; suite complète interrompue par l'arrêt de Docker (mémoire du poste de John), 75/75 verts avant l'arrêt. Désormais, suite complète seulement avant une fusion dans main, au moment choisi par John.
 - Écran principal façon Motorsport Manager : silhouette du gabarit (lue de Voiture), organes posés et colorés selon leur état (couleur, mot et pourcentage, jamais la couleur seule), indice en grand, une carte par organe. Passage d'une voiture à l'autre.
 - Fiche organe : pièce montée, rechanges, historique, « Remplacer ». Stock par voiture (quantité, emplacement atelier ou remorque). Bouton + : Pièce et Roulage. Formulaires en tiroirs.
+- Écart avec 954 §2 Stock (relevé le 21/10) : quantité et emplacement (atelier, remorque) absents du modèle ; une ligne par pièce, emplacement en texte libre. À planifier.
 
 ### 4.3 Atelier et commandes
 - Brief : `docs/briefs/4.3-garage-atelier-commandes.md`. Priorité d'un ordre de travail : basse, normale, haute (décision de John, 20/10). Point d'arrêt sur la conception (fin d'un ordre, hors ligne de l'assistance, propositions vers Budget).
@@ -286,6 +287,7 @@ Décisions de John (20/10) :
 
 ### 4.5 Plan avant épreuve et liaisons Saison
 - Plan avant épreuve préparé sur `saison.engagement_cree` : ce qu'il faut faire pour qu'aucune pièce ne soit en zone rouge, avec coût et temps. Saison reçoit la zone rouge comme point bloquant de l'indice de préparation et la fiabilité dans le panneau « Prêt pour l'épreuve » (Saison écrit chez elle). Widgets Garage déclarés : fiabilité, pièces en zone rouge, travaux et livraisons.
+- 954 §2 dit « pour que toutes les pièces soient hors zone rouge », ce qui contredit le principe de John (954 v1.2, Décisions intégrées : le Garage informe, ne pousse pas). À revoir avec John avant la 4.5.
 
 ### 4.6 Équipements de la team
 - Remorque, outillage, levage, assistance, stand : état, valeur, prochain contrôle, emplacement.

@@ -16,6 +16,7 @@ import { avecReprisePourConflit } from "@/lib/reprise-conflit"
 import { chargeFiabiliteChangee, chargeInterventionFacturee, chargePieceAchetee, chargePieceZoneRouge, chargeTravailTermine } from "./charges"
 import { receptionPossible } from "./commandes"
 import { ErreurGarage, refus } from "./erreurs"
+import { emplacementsDuType } from "./emplacements"
 import { MODE_USURE_DEFAUT, TYPES_DEFAUT } from "./types-defaut"
 import {
   dureesEffectives,
@@ -100,11 +101,13 @@ export type EntreeUsureManuelle = z.input<typeof schemaUsureManuelle>
 
 // --- Initialisation : types et organes par défaut --------------------------------------------
 
-// Copie les types par défaut dans la team (une fois, à la première écriture), puis crée un organe par type pour le
-// véhicule (une fois par véhicule). Une ligne supprimée n'est jamais recréée : les comptes incluent les lignes retirées.
-// Course entre deux initialisations (correction E) : les insertions passent par skipDuplicates (ON CONFLICT DO NOTHING).
-// L'autre écriture a déjà créé la ligne, la nôtre n'ajoute rien et la transaction n'échoue pas. Les index uniques
-// (types : team + nom et team + clé ; organes : véhicule + type + position) portent la garantie.
+// Copie les types par défaut dans la team (une fois, à la première écriture), puis crée un organe par emplacement pour le
+// véhicule (une fois par véhicule, brief 4.3e et 954 §3 : position par organe). Une ligne supprimée n'est jamais recréée :
+// les comptes incluent les lignes retirées. Course entre deux initialisations (correction E) : les insertions passent
+// par skipDuplicates (ON CONFLICT DO NOTHING). Les index uniques (types : team + nom et team + clé ; organes : véhicule +
+// type + position) portent la garantie.
+// Quand la voiture reçoit son jeu d'organes, chaque emplacement reçoit aussi sa pièce d'origine montée, et l'organe pneus
+// son train d'origine (954 v1.2, Décisions intégrées : « Voiture équipée dès le départ »).
 export async function initialiserGarageDans(tx: Tx, ctx: ContexteTeam, vehicleId: string): Promise<void> {
   const typesExistants = await tx.garageComponentType.count({ where: { teamId: ctx.teamId } })
   if (typesExistants === 0) {
@@ -127,27 +130,96 @@ export async function initialiserGarageDans(tx: Tx, ctx: ContexteTeam, vehicleId
   const organesExistants = await tx.garageVehicleComponent.count({ where: { teamId: ctx.teamId, vehicleId } })
   if (organesExistants > 0) return
 
-  // Un organe par type par défaut (ceux qui ont une clé), dans l'ordre de la liste.
+  // Un organe par emplacement de chaque type par défaut (ceux qui ont une clé), dans l'ordre de la liste des types.
   const types = await tx.garageComponentType.findMany({
     where: { teamId: ctx.teamId, deletedAt: null, cle: { not: null } },
-    select: { id: true },
+    select: { id: true, cle: true },
     orderBy: { ordre: "asc" },
   })
 
   await tx.garageVehicleComponent.createMany({
     skipDuplicates: true,
-    data: types.map((t) => ({
-      id: newId(),
+    data: types.flatMap((t) =>
+      emplacementsDuType(t.cle).map((emplacement) => ({
+        id: newId(),
+        teamId: ctx.teamId,
+        vehicleId,
+        componentTypeId: t.id,
+        position: emplacement.position,
+        modeUsure: MODE_USURE_DEFAUT,
+        seuilOrangePct: SEUILS_DEFAUT.orange,
+        seuilRougePct: SEUILS_DEFAUT.rouge,
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
+      })),
+    ),
+  })
+
+  await poserPiecesOrigineDans(tx, ctx, vehicleId)
+}
+
+// Pièces d'origine (954 v1.2, Décisions intégrées : « Voiture équipée dès le départ », décision de John du 21/10) : chaque
+// organe reçoit une pièce d'origine montée (usure 0, durée de vie à renseigner, aucune valeur pré-remplie) ; l'organe pneus
+// reçoit un train d'origine monté (asphalte, neuf, usure estimée à renseigner). Idempotent : un organe qui a déjà une pose
+// active ou un train monté n'en reçoit pas. Deux initialisations simultanées ne doublent donc rien : la seconde voit les
+// poses de la première, validées avec ses organes.
+async function poserPiecesOrigineDans(tx: Tx, ctx: ContexteTeam, vehicleId: string): Promise<void> {
+  const organes = await tx.garageVehicleComponent.findMany({
+    where: {
       teamId: ctx.teamId,
       vehicleId,
-      componentTypeId: t.id,
-      modeUsure: MODE_USURE_DEFAUT,
-      seuilOrangePct: SEUILS_DEFAUT.orange,
-      seuilRougePct: SEUILS_DEFAUT.rouge,
-      createdBy: ctx.userId,
-      updatedBy: ctx.userId,
-    })),
+      deletedAt: null,
+      mounts: { none: { deletedAt: null, deposeeLe: null } },
+      tyreSets: { none: { deletedAt: null } },
+    },
+    select: { id: true, componentTypeId: true, componentType: { select: { cle: true } } },
   })
+  const maintenant = new Date()
+  for (const organe of organes) {
+    if (organe.componentType.cle === "pneus") {
+      await tx.garageTyreSet.create({
+        data: {
+          id: newId(),
+          teamId: ctx.teamId,
+          vehicleId,
+          vehicleComponentId: organe.id,
+          marque: "D'origine",
+          type: "asphalte",
+          statut: "neuf",
+          usureEstimeePct: null,
+          createdBy: ctx.userId,
+          updatedBy: ctx.userId,
+        },
+      })
+      continue
+    }
+    const pieceId = newId()
+    await tx.garagePart.create({
+      data: {
+        id: pieceId,
+        teamId: ctx.teamId,
+        vehicleId,
+        componentTypeId: organe.componentTypeId,
+        designation: "D'origine",
+        qualite: "origine",
+        statut: "montee",
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
+      },
+    })
+    await tx.garagePartMount.create({
+      data: {
+        id: newId(),
+        teamId: ctx.teamId,
+        partId: pieceId,
+        vehicleComponentId: organe.id,
+        poseLe: maintenant,
+        kmPose: 0,
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
+      },
+    })
+  }
 }
 
 // --- Lecture d'état (sert aux zones, à l'indice et aux événements) -----------------------------
