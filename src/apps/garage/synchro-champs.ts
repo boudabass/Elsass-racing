@@ -27,3 +27,9 @@ export const schemaModificationOrdre = z
 
 // Ce que la synchro accepte pour garage_work_order : une création d'intervention ou une modification de statut.
 export const schemaChampsOrdreHorsLigne = z.union([schemaCreationIntervention, schemaModificationOrdre])
+
+// garage.travail_termine part quand l'ordre, après une écriture, est terminé. Une ligne supprimée (ou absente) n'émet rien.
+// Un ordre terminé ne se modifie plus (refus côté synchro), donc une seule émission par ordre.
+export function fautEmettreTravailTermine(ordre: { statut: string; deletedAt: Date | null } | null): boolean {
+  return ordre !== null && ordre.deletedAt === null && ordre.statut === "termine"
+}

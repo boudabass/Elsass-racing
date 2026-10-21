@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { schemaChampsOrdreHorsLigne, schemaCreationIntervention, schemaModificationOrdre } from "./synchro-champs"
+import { fautEmettreTravailTermine, schemaChampsOrdreHorsLigne, schemaCreationIntervention, schemaModificationOrdre } from "./synchro-champs"
 
 const VEHICULE = "0190a7c2-0000-7000-8000-000000000001"
 const ORGANE = "0190a7c2-0000-7000-8000-000000000002"
@@ -31,6 +31,13 @@ describe("écritures hors ligne d'un ordre de travail", () => {
     expect(schemaModificationOrdre.safeParse({}).success).toBe(false)
     expect(schemaModificationOrdre.safeParse({ titre: "Autre titre" }).success).toBe(false)
     expect(schemaModificationOrdre.safeParse({ coutMainOeuvreCents: 5000 }).success).toBe(false)
+  })
+
+  it("émet garage.travail_termine seulement pour un ordre terminé et non supprimé, absent ou non", () => {
+    expect(fautEmettreTravailTermine({ statut: "termine", deletedAt: null })).toBe(true)
+    expect(fautEmettreTravailTermine({ statut: "en_cours", deletedAt: null })).toBe(false)
+    expect(fautEmettreTravailTermine({ statut: "termine", deletedAt: new Date() })).toBe(false)
+    expect(fautEmettreTravailTermine(null)).toBe(false)
   })
 
   it("accepte une création ou une modification, jamais un mélange des deux", () => {

@@ -14,6 +14,14 @@ import { resultatDejaNote, type Operation, type ResultatOperation } from "./prot
 import { RefusSynchro } from "./erreurs"
 import { declarationDe, type DeclarationSynchro, type Tx } from "./registre"
 
+// Ce que la décision a fait : le résultat à renvoyer, et si la ligne a été écrite. Les effets après
+// application (apresApplication) ne suivent que les écritures : une suppression déjà faite, ou une
+// modification perdue face à une suppression, n'émet rien.
+interface Decision {
+  resultat: ResultatOperation
+  ecrit: boolean
+}
+
 export async function appliquerOperations(
   ctx: ContexteTeam,
   deviceId: string,
@@ -47,24 +55,24 @@ async function appliquerUne(ctx: ContexteTeam, deviceId: string, operation: Oper
     return { idOperation: operation.idOperation, statut: "refusee", raison: "Cette donnée se lit seulement hors ligne : elle ne s'écrit pas depuis l'appareil." }
   }
 
-  let ecrit: ResultatOperation
+  let decision: Decision
   try {
     const niveau = await niveauDe(ctx, declaration.app)
-    ecrit = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
-      const resultat = await decider(tx, ctx, declaration, operation, niveau)
+    decision = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+      const enCours = await decider(tx, ctx, declaration, operation, niveau)
       await tx.coreSyncOperation.create({
         data: {
           id: newId(),
           teamId: ctx.teamId,
           deviceId,
           idOperation: operation.idOperation,
-          resultat: { statut: resultat.statut, raison: resultat.raison ?? null } satisfies Prisma.InputJsonValue,
+          resultat: { statut: enCours.resultat.statut, raison: enCours.resultat.raison ?? null } satisfies Prisma.InputJsonValue,
           appliqueeAt: new Date(),
           createdBy: ctx.userId,
           updatedBy: ctx.userId,
         },
       })
-      return resultat
+      return enCours
     })
   } catch (erreur) {
     // Refus métier levé dans la transaction : rien n'est écrit, le message part à l'appareil.
@@ -75,10 +83,12 @@ async function appliquerUne(ctx: ContexteTeam, deviceId: string, operation: Oper
   }
 
   // La transaction est validée : ce qui suit ne peut plus la défaire, et son échec ne change pas le résultat.
-  if (ecrit.statut === "appliquee" && declaration.apresApplication) {
+  // Vaut pour toute écriture, appliquée ou conflit résolu (un ordre terminé par une modification en conflit
+  // doit émettre comme les autres) ; une écriture sans effet n'émet rien.
+  if (decision.ecrit && declaration.apresApplication) {
     await declaration.apresApplication(ctx, operation.id, operation.type).catch((erreur: unknown) => console.error("[synchro] suite non faite :", erreur))
   }
-  return ecrit
+  return decision.resultat
 }
 
 async function decider(
@@ -87,9 +97,10 @@ async function decider(
   declaration: DeclarationSynchro,
   operation: Operation,
   niveau: Parameters<typeof peutEcrire>[0]["niveau"],
-): Promise<ResultatOperation> {
+): Promise<Decision> {
   const { idOperation } = operation
-  const refus = (raison: string): ResultatOperation => ({ idOperation, statut: "refusee", raison })
+  const refus = (raison: string): Decision => ({ resultat: { idOperation, statut: "refusee", raison }, ecrit: false })
+  const ecriture = (statut: "appliquee" | "conflit_resolu"): Decision => ({ resultat: { idOperation, statut }, ecrit: true })
 
   if (operation.type === "creer") {
     const champs = validerChamps(declaration, operation.champs)
@@ -105,7 +116,7 @@ async function decider(
     if (!verdict.ok) return refus(verdict.raison)
     if (await declaration.trouver(tx, ctx.teamId, operation.id)) return refus("Cet élément existe déjà.")
     await declaration.creer(tx, ctx, operation.id, champs.champs)
-    return { idOperation, statut: "appliquee" }
+    return ecriture("appliquee")
   }
 
   const etat = await declaration.trouver(tx, ctx.teamId, operation.id)
@@ -126,27 +137,27 @@ async function decider(
   if (operation.type === "modifier") {
     const champs = validerChamps(declaration, operation.champs)
     if (!champs.ok) return refus(champs.raison)
-    const decision = decideModification({ revLue, revServeur: etat.rev, supprimee: etat.supprimee })
-    if (decision === "supprimee_gagne") {
+    const verdictConflit = decideModification({ revLue, revServeur: etat.rev, supprimee: etat.supprimee })
+    if (verdictConflit === "supprimee_gagne") {
       await journaliser(tx, ctx, declaration, operation.id, { motif: "supprimee", version_ecrite: champs.champs })
-      return { idOperation, statut: "conflit_resolu", raison: "Supprimé entre-temps : la modification n'a pas été appliquée." }
+      return { resultat: { idOperation, statut: "conflit_resolu", raison: "Supprimé entre-temps : la modification n'a pas été appliquée." }, ecrit: false }
     }
     // L'écriture d'abord : si la ligne a disparu entre-temps, rien n'est journalisé.
     if (!(await declaration.modifier(tx, ctx, operation.id, champs.champs))) return refus("Cet élément n'existe plus.")
-    if (decision === "appliquer_et_journaliser") {
+    if (verdictConflit === "appliquer_et_journaliser") {
       await journaliser(tx, ctx, declaration, operation.id, { motif: "modifiee", version_remplacee: etat.contenu })
     }
-    return decision === "appliquer" ? { idOperation, statut: "appliquee" } : { idOperation, statut: "conflit_resolu" }
+    return verdictConflit === "appliquer" ? ecriture("appliquee") : ecriture("conflit_resolu")
   }
 
   // Suppression.
-  const decision = decideSuppression({ revLue, revServeur: etat.rev, supprimee: etat.supprimee })
-  if (decision === "deja_supprimee") return { idOperation, statut: "appliquee" }
+  const verdictConflit = decideSuppression({ revLue, revServeur: etat.rev, supprimee: etat.supprimee })
+  if (verdictConflit === "deja_supprimee") return { resultat: { idOperation, statut: "appliquee" }, ecrit: false }
   if (!(await declaration.supprimer(tx, ctx, operation.id))) return refus("Cet élément n'existe plus.")
-  if (decision === "supprimer_et_journaliser") {
+  if (verdictConflit === "supprimer_et_journaliser") {
     await journaliser(tx, ctx, declaration, operation.id, { motif: "supprimee_apres_modification", version_remplacee: etat.contenu })
   }
-  return decision === "supprimer" ? { idOperation, statut: "appliquee" } : { idOperation, statut: "conflit_resolu" }
+  return verdictConflit === "supprimer" ? ecriture("appliquee") : ecriture("conflit_resolu")
 }
 
 // Seulement pour la règle « affectation » : la table dit si le membre est affecté à la ligne. Sans

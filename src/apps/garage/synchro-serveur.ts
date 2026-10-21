@@ -16,7 +16,7 @@ import { newId } from "@/core/ids"
 import { prismaPourTeam } from "@/lib/prisma"
 
 import { chargeTravailTermine } from "./charges"
-import { schemaChampsOrdreHorsLigne, schemaCreationIntervention, schemaModificationOrdre } from "./synchro-champs"
+import { fautEmettreTravailTermine, schemaChampsOrdreHorsLigne, schemaCreationIntervention, schemaModificationOrdre } from "./synchro-champs"
 
 
 function analyser<T>(schema: z.ZodType<T>, champs: Record<string, unknown>): T {
@@ -165,15 +165,16 @@ const garageWorkOrderSynchro: DeclarationSynchro = {
     throw new RefusSynchro("Un ordre ne se supprime qu'en ligne.")
   },
 
-  // D7 : garage.travail_termine après la transaction, une fois, à la création terminée ou à la fin hors ligne. Un
-  // ordre terminé ne se modifie plus, donc la transition vers « terminé » ne se produit qu'une fois.
+  // D7 : garage.travail_termine après la transaction, une fois, à la création terminée, à la fin hors ligne, ou à une
+  // modification en conflit résolu (pousser.ts l'appelle pour toute écriture). Un ordre terminé ne se modifie plus,
+  // donc la transition vers « terminé » ne se produit qu'une fois. Une ligne supprimée n'émet pas.
   async apresApplication(ctx: ContexteTeam, id, type) {
     if (type === "supprimer") return
     const ordre = await prismaPourTeam(ctx.teamId, ctx.userId).garageWorkOrder.findFirst({
-      where: { id, teamId: ctx.teamId },
-      select: { vehicleId: true, type: true, statut: true },
+      where: { id, teamId: ctx.teamId, deletedAt: null },
+      select: { vehicleId: true, type: true, statut: true, deletedAt: true },
     })
-    if (!ordre || ordre.statut !== "termine") return
+    if (!fautEmettreTravailTermine(ordre) || !ordre) return
     await emettre(ctx, "garage.travail_termine", chargeTravailTermine.parse({ workOrderId: id, vehicleId: ordre.vehicleId, type: ordre.type }))
   },
 }
