@@ -5,6 +5,8 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb"
 
 import type { LigneSynchro, Operation } from "../protocole"
 
+import type { RefusLocal } from "./refus"
+
 export const PREFIXE_BASE = "elsass-racing-"
 
 // Ligne locale : ligne du serveur, plus l'indicateur d'une écriture pas encore envoyée.
@@ -40,6 +42,7 @@ export interface SchemaLocal extends DBSchema {
   garage_vehicle_component: { key: string; value: LigneLocale }
   garage_component_type: { key: string; value: LigneLocale }
   operations_en_attente: { key: string; value: OperationEnAttente }
+  refus_synchro: { key: string; value: RefusLocal }
   curseurs: { key: string; value: CurseurLocal }
 }
 
@@ -52,16 +55,19 @@ export function nomBase(userId: string, teamId: string): string {
 
 // Version 2 : magasins de Saison. Version 3 : magasins de Budget. Version 4 : magasins de Voiture (fiches de
 // réglage, et véhicules et références en lecture seule). Version 5 : magasins du Garage (ordres de travail, organes et
-// types d'organes en lecture seule). Une base plus ancienne reçoit les magasins manquants à l'ouverture.
-export const VERSION_BASE = 5
+// types d'organes en lecture seule). Version 6 : magasin des envois refusés (refus_synchro), lus par la personne.
+// Une base plus ancienne reçoit les magasins manquants à l'ouverture.
+export const VERSION_BASE = 6
 
 export function ouvrirBase(userId: string, teamId: string): Promise<IDBPDatabase<SchemaLocal>> {
   return openDB<SchemaLocal>(nomBase(userId, teamId), VERSION_BASE, {
     upgrade(db) {
-      const magasins: string[] = [...TABLES_LOCALES, "operations_en_attente", "curseurs"]
+      const magasins: string[] = [...TABLES_LOCALES, "operations_en_attente", "refus_synchro", "curseurs"]
       for (const magasin of magasins) {
         if (magasin === "operations_en_attente") {
           if (!db.objectStoreNames.contains("operations_en_attente")) db.createObjectStore("operations_en_attente", { keyPath: "idOperation" })
+        } else if (magasin === "refus_synchro") {
+          if (!db.objectStoreNames.contains("refus_synchro")) db.createObjectStore("refus_synchro", { keyPath: "idOperation" })
         } else if (magasin === "curseurs") {
           if (!db.objectStoreNames.contains("curseurs")) db.createObjectStore("curseurs", { keyPath: "table" })
         } else if (!db.objectStoreNames.contains(magasin as TableLocale)) {
@@ -73,7 +79,8 @@ export function ouvrirBase(userId: string, teamId: string): Promise<IDBPDatabase
 }
 
 // Supprime de l'appareil les bases des comptes déconnectés. Une base qui a encore des
-// modifications non envoyées est gardée : les effacer perdrait ces modifications.
+// modifications non envoyées, ou des refus que la personne n'a pas lus, est gardée : les effacer
+// perdrait ces modifications, ou un refus qu'elle n'a pas encore vu.
 export async function nettoyerBasesDeconnectees(): Promise<number> {
   if (typeof indexedDB === "undefined" || !indexedDB.databases) return 0
   let supprimees = 0
@@ -81,8 +88,10 @@ export async function nettoyerBasesDeconnectees(): Promise<number> {
     if (!name?.startsWith(PREFIXE_BASE)) continue
     const version = await openDB(name)
     const enAttente = await version.count("operations_en_attente")
+    // Une base de version antérieure n'a pas encore ce magasin : rien n'y est refusé.
+    const refus = version.objectStoreNames.contains("refus_synchro") ? await version.count("refus_synchro") : 0
     version.close()
-    if (enAttente > 0) continue
+    if (enAttente > 0 || refus > 0) continue
     await new Promise<void>((resolve) => {
       const demande = indexedDB.deleteDatabase(name)
       demande.onsuccess = () => resolve()

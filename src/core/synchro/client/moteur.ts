@@ -9,6 +9,7 @@ import { delaiAvantNouvelEssai } from "../attente"
 import { LIMITE_OPERATIONS, type LigneSynchro, type Operation, type ResultatOperation } from "../protocole"
 
 import { ouvrirBase, type LigneLocale, type OperationEnAttente, type SchemaLocal, type TableLocale, TABLES_LOCALES } from "./base"
+import { refusDepuisOperation, refusDuCompte, type RefusLocal } from "./refus"
 
 const DELAI_ECRITURE_MS = 2000
 const INTERVALLE_MS = 60_000
@@ -16,6 +17,8 @@ const INTERVALLE_MS = 60_000
 export interface EtatSynchro {
   enLigne: boolean
   enAttente: number
+  // Envois refusés par le serveur, pas encore lus par la personne (du compte courant).
+  refus: number
   derniereSync: string | null
   erreur: string | null
 }
@@ -31,7 +34,7 @@ export class MoteurSynchro {
   private ecouteurs = new Set<Ecouteur>()
   private ecouteursServeur = new Set<Ecouteur>()
   private serveurAApplique = false
-  private etat: EtatSynchro = { enLigne: true, enAttente: 0, derniereSync: null, erreur: null }
+  private etat: EtatSynchro = { enLigne: true, enAttente: 0, refus: 0, derniereSync: null, erreur: null }
   private minuteur: ReturnType<typeof setTimeout> | null = null
   private intervalle: ReturnType<typeof setInterval> | null = null
   private echecs = 0
@@ -53,7 +56,7 @@ export class MoteurSynchro {
     if (this.demarre) return
     this.demarre = true
     const db = await this.bd()
-    this.etat = { ...this.etat, enLigne: navigator.onLine, enAttente: await db.count("operations_en_attente") }
+    this.etat = { ...this.etat, enLigne: navigator.onLine, enAttente: await db.count("operations_en_attente"), refus: await this.compterRefus() }
     window.addEventListener("online", this.gestionReseau)
     window.addEventListener("offline", this.gestionReseau)
     document.addEventListener("visibilitychange", this.gestionVisibilite)
@@ -93,6 +96,17 @@ export class MoteurSynchro {
 
   lireEtat(): EtatSynchro {
     return this.etat
+  }
+
+  // Envois refusés du compte courant, les plus récents d'abord. Une personne les lit et les efface (« Compris »).
+  async lireRefus(): Promise<RefusLocal[]> {
+    return refusDuCompte(await (await this.bd()).getAll("refus_synchro"), { teamId: this.teamId, userId: this.userId })
+  }
+
+  async effacerRefus(idOperation: string): Promise<void> {
+    await (await this.bd()).delete("refus_synchro", idOperation)
+    await this.rafraichirCompteur()
+    this.notifier()
   }
 
   // Lignes d'une table, sans les supprimées.
@@ -211,10 +225,16 @@ export class MoteurSynchro {
   }
 
   // Une fois l'opération notée, la ligne locale n'est plus « en attente » (sauf s'il reste une autre
-  // opération sur la même ligne). Une création refusée est retirée de l'écran.
+  // opération sur la même ligne). Un refus est gardé pour la personne (refus_synchro), même si d'autres
+  // opérations restent sur la ligne. Une création refusée est retirée de l'écran ; une modification ou une
+  // suppression refusée remet la table à relire : la ligne reprend la valeur du serveur au tirage suivant.
   private async libererLigne(operation: OperationEnAttente, resultat: ResultatOperation): Promise<void> {
     const db = (await this.bd())
     const table = operation.table as TableLocale
+    if (resultat.statut === "refusee") {
+      await db.put("refus_synchro", refusDepuisOperation(operation, resultat, { teamId: this.teamId, userId: this.userId }, new Date().toISOString()))
+      if (operation.type !== "creer") await db.put("curseurs", { table, curseur: null })
+    }
     const restantes = (await db.getAll("operations_en_attente")).some((o) => o.id === operation.id)
     if (restantes) return
     if (resultat.statut === "refusee" && operation.type === "creer") {
@@ -296,7 +316,11 @@ export class MoteurSynchro {
 
   private async rafraichirCompteur(): Promise<void> {
     const compte = await (await this.bd()).count("operations_en_attente")
-    this.etat = { ...this.etat, enAttente: compte }
+    this.etat = { ...this.etat, enAttente: compte, refus: await this.compterRefus() }
+  }
+
+  private async compterRefus(): Promise<number> {
+    return (await this.lireRefus()).length
   }
 
   private notifier(): void {
