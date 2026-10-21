@@ -190,6 +190,8 @@ Pour le scénario e, le bouton « Désactiver » de Voiture est désactivé par 
 
 La team des captures reçoit les données de démonstration Koehling (`e2e/aide/donnees-equipe.ts`, qui réutilise `scripts/lib/donnees-koehling.ts`), plus une alerte orange sur Garage et l'action « Valider le résultat du Gaschney » en priorité 3. Le compte à rebours, le badge et la pastille des tuiles, et le bouton Prochaine étape apparaissent ainsi sur les captures.
 
+Le rendu des polices du runner Linux est différent de celui des captures d'avant la 4.0b : toutes les captures viennent désormais du runner, et ce changement de police n'est pas une régression.
+
 ### Aide : membres supplémentaires
 
 `ajouterEquipier` (équipage, sans lien de connexion) et `ajouterMembreConnectable` (équipage ou assistance, avec un lien de connexion) ajoutent un membre à la team de test. Ils sont nettoyés avec elle. `compterSuppressions` lit les demandes de suppression en base.
