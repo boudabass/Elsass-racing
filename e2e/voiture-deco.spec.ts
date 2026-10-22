@@ -123,7 +123,7 @@ test("responsable : plan, réservation, pose, indisponibilité, déplacement, aj
   await expect(page.getByRole("group", { name: /^Plan de Saxo 2, dessus/ })).toBeVisible()
   await boutonVue(page, "Côté droit").click()
   await expect(page).toHaveURL(/vue=droite/)
-  await expect(page.getByText("6 libres · 0 réservés · 0 occupés · 0 indisponibles")).toBeVisible()
+  await expect(page.getByText("6 libres · 0 réservés · 0 occupés · 0 indisponibles").filter({ visible: true })).toBeVisible()
 
   // 2. Réserver : « Portière droite », puis « Réserver », avec un nom et un logo PNG.
   await ligne(page, "Portière").click()
@@ -623,7 +623,8 @@ test("responsable : un véhicule sans plan propose un modèle, et la création p
   await page.waitForURL(/\/apps\/voiture\/vehicules\/[0-9a-f-]{36}/)
   const sansPlan = new URL(page.url()).pathname.split("/")[4]
   await page.goto(`/apps/voiture/vehicules/${sansPlan}?onglet=deco`)
-  await expect(page.getByText("Ce véhicule n'a pas encore de plan. Choisissez un modèle de plan pour y placer vos emplacements.")).toBeVisible()
+  // Après le goto, le streaming garde une copie cachée du texte : on ne vise que l'exemplaire visible.
+  await expect(page.getByText("Ce véhicule n'a pas encore de plan. Choisissez un modèle de plan pour y placer vos emplacements.").filter({ visible: true })).toBeVisible()
   await expect(page.getByRole("group", { name: /^Plan de Sans plan/ })).toHaveCount(0)
   await capturerEcran(page, "voiture-deco-sans-plan-1440.png")
 
