@@ -128,7 +128,7 @@ export function FicheOrdreEcran({ fiche, choix, stock, peutAvancer }: FicheOrdre
           </ul>
         )}
         {refusEcriture ? (
-          <p className="text-sm text-texte-discret">{refusEcriture}</p>
+          !termine && <p className="text-sm text-texte-discret">{refusEcriture}</p>
         ) : (
           stock && (
             <TiroirAction
