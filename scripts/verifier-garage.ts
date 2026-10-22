@@ -252,17 +252,20 @@ async function main() {
     controle("un traitement de plus, après coup, n'ajoute ni ligne ni km", lignesApres === nombreCibles && Number(relecturePiece.kmCumules) === Number(apresPiece.kmCumules), `${lignesApres}`)
 
     // 10. Réparation (954 v1.3, §4) : la clôture saisit l'état de la pièce montée, puis l'usure qui suit le fait baisser.
-    // Un organe sans pièce montée reçoit une pièce de 1 000 km, en mode km ; l'état saisi part de 80 %.
-    const organeLibre = await proprietaire.garageVehicleComponent.findFirst({
-      where: { teamId: team.id, vehicleId: vehicule, deletedAt: null, componentType: { cle: { not: "pneus" } }, mounts: { none: { deposeeLe: null, deletedAt: null } } },
-      select: { id: true, componentTypeId: true },
+    // La préparation pose une pièce sur chaque emplacement : on dépose une pièce (préventif), puis une pièce de 1 000 km
+    // est posée à sa place, en mode km. L'organe a donc bien une pièce montée au moment de la clôture ; l'état part de 80 %.
+    const pose = await proprietaire.garagePartMount.findFirst({
+      where: { teamId: team.id, deposeeLe: null, deletedAt: null, vehicleComponent: { vehicleId: vehicule, componentType: { cle: { not: "pneus" } } } },
+      select: { id: true, vehicleComponentId: true, vehicleComponent: { select: { componentTypeId: true } } },
     })
-    controle("un organe sans pièce montée sert à la réparation", organeLibre !== null)
-    await services.modifierOrganeDans(ctx, organeLibre!.id, { modeUsure: "km" })
-    const pieceReparee = await services.creerPieceDans(ctx, vehicule, { componentTypeId: organeLibre!.componentTypeId, designation: "Pièce réparée", dureeVieKm: 1000 })
-    await services.poserPieceDans(ctx, organeLibre!.id, pieceReparee)
+    controle("une pièce montée peut être déposée pour la réparation", pose !== null)
+    await services.deposerPieceDans(ctx, pose!.id, "preventif")
+    const organeLibre = { id: pose!.vehicleComponentId, componentTypeId: pose!.vehicleComponent.componentTypeId }
+    await services.modifierOrganeDans(ctx, organeLibre.id, { modeUsure: "km" })
+    const pieceReparee = await services.creerPieceDans(ctx, vehicule, { componentTypeId: organeLibre.componentTypeId, designation: "Pièce réparée", dureeVieKm: 1000 })
+    await services.poserPieceDans(ctx, organeLibre.id, pieceReparee)
 
-    const ordreReparation = await services.reparerOrganeDans(ctx, organeLibre!.id, { titre: "Réparation d'essai" })
+    const ordreReparation = await services.reparerOrganeDans(ctx, organeLibre.id, { titre: "Réparation d'essai" })
     const refusSansEtat = await refuse(services.terminerOrdreDans(ctx, ordreReparation, {}, "ecriture"))
     controle("terminer une réparation sans état saisi est refusé", refusSansEtat?.includes("état") === true, refusSansEtat ?? "aucun refus")
     const refusHorsBornes = await refuse(services.terminerOrdreDans(ctx, ordreReparation, { etatApresPct: 101 }, "ecriture"))
