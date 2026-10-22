@@ -7,6 +7,7 @@
 import { useRouter } from "next/navigation"
 
 import { TiroirAction } from "@/components/formulaire/tiroir"
+import { useEtatSynchro } from "@/core/synchro/client/react"
 import { BOUTON_SECONDAIRE, CHAMP } from "@/lib/classes-formulaire"
 
 import {
@@ -51,6 +52,9 @@ export function FicheOrdreEcran({ fiche, choix, stock, peutAvancer }: FicheOrdre
   const router = useRouter()
   const { ordre } = fiche
   const termine = ordre.statut === "termine"
+  const etat = useEtatSynchro()
+  // Une réparation d'un organe avec pièce montée se termine en ligne : elle demande l'état de la pièce (954 v1.3, §4).
+  const finHorsLigne = fiche.etatRequis && !etat.enLigne
   const refusEcriture = raisonRefus(fiche)
   const rafraichir = () => router.refresh()
 
@@ -319,7 +323,16 @@ export function FicheOrdreEcran({ fiche, choix, stock, peutAvancer }: FicheOrdre
             </TiroirAction>
           )}
 
-          {peutAvancer && !termine && (
+          {peutAvancer && !termine && finHorsLigne && (
+            <div className="flex flex-col items-start gap-2">
+              <button type="button" disabled className={`${BOUTON_SECONDAIRE} opacity-60`}>
+                Terminer l&apos;ordre
+              </button>
+              <p className="text-sm text-texte-discret">La réparation se termine en ligne.</p>
+            </div>
+          )}
+
+          {peutAvancer && !termine && !finHorsLigne && (
             <TiroirAction
               libelle="Terminer l'ordre"
               titre="Terminer l'ordre"
@@ -330,6 +343,12 @@ export function FicheOrdreEcran({ fiche, choix, stock, peutAvancer }: FicheOrdre
               onSucces={rafraichir}
             >
               <input type="hidden" name="ordreId" value={ordre.id} />
+              {fiche.etatRequis && (
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="font-medium">État de la pièce après réparation (%)</span>
+                  <input name="etatApresPct" type="number" inputMode="numeric" min={0} max={100} step={1} required placeholder="0 à 100" className={CHAMP} />
+                </label>
+              )}
               <label className="flex flex-col gap-1 text-sm">
                 <span className="font-medium">Motif de dépose de la pièce en place (si une pièce est montée)</span>
                 <select name="motifDepose" defaultValue="" className={CHAMP}>

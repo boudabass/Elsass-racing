@@ -19,7 +19,7 @@ import {
   type OrganeIndice,
   type Zone,
 } from "./regles"
-import { accesGarage } from "./services-serveur"
+import { accesGarage, SELECTION_SAISIE, versSaisies } from "./services-serveur"
 import { pointPourEmplacement, type PointSilhouette } from "./positions"
 import type { PieceStock } from "./mise-en-forme"
 import { comparerOrdres, type PrioriteTravail, type StatutOrdre, type TypeOrdre } from "./travaux"
@@ -107,6 +107,13 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
     ? { gabaritCle: silhouette.gabaritCle, sansGabarit: false, dessin: silhouette.dessus }
     : schemaGenerique()
   const organesIndice: OrganeIndice[] = []
+  // Dernière saisie après réparation de chaque pièce montée (954 v1.3, §4) : elle part de l'état saisi, pas de 100 %.
+  const piecesMontees = organes.flatMap((organe) => organe.mounts.map((montage) => montage.part.id))
+  const saisies = versSaisies(
+    piecesMontees.length === 0
+      ? []
+      : await client.garagePartEtat.findMany({ where: { teamId: ctx.teamId, partId: { in: piecesMontees }, deletedAt: null }, select: SELECTION_SAISIE }),
+  )
   const lignes: OrganeAtelier[] = organes.map((organe) => {
     const critique = organe.componentType.critique
     const mode = organe.modeUsure as ModeUsure
@@ -150,7 +157,8 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
         )
       : null
     const usure = piece ? { km: Number(piece.kmCumules), epreuves: piece.epreuvesCumulees } : null
-    const etat = piece && durees && usure ? etatPiece(mode, durees, usure) : null
+    const saisie = piece ? (saisies.get(piece.id) ?? null) : null
+    const etat = piece && durees && usure ? etatPiece(mode, durees, usure, saisie) : null
     organesIndice.push({ id: organe.id, critique, pieceMontee: Boolean(piece), etat })
 
     return {
@@ -167,7 +175,7 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
       seuilRouge: organe.seuilRougePct,
       dureeReferenceKm: organe.dureeVieReferenceKm,
       dureeReferenceEpreuves: organe.dureeVieReferenceEpreuves,
-      kmRestants: piece && durees && usure ?kmRestantsAvantRouge(mode, durees, usure, organe.seuilRougePct) : null,
+      kmRestants: piece && durees && usure ? kmRestantsAvantRouge(mode, durees, usure, organe.seuilRougePct, saisie) : null,
       piece:
         piece && montage
           ? { ...versPiece(piece, avecPrix), poseLe: montage.poseLe, kmPose: Number(montage.kmPose) }
@@ -230,12 +238,17 @@ export type UsureOrgane = {
   designation: string
 }
 
+// État saisi après une réparation : « Réparé le …, état saisi : X % » dans l'historique de l'organe.
+export type ReparationOrgane = { id: string; saisiLe: Date; etatPct: number }
+
 export type FicheOrgane = {
   organe: OrganeAtelier
   vehicleId: string
   vehiculeNomCourt: string
   // Poses et déposes de toutes les pièces passées sur cet organe, la plus récente d'abord.
   poses: PoseOrgane[]
+  // États saisis après réparation, la plus récente d'abord.
+  reparations: ReparationOrgane[]
   // Usures ajoutées aux pièces de cet organe, la plus récente d'abord.
   usures: UsureOrgane[]
 }
@@ -272,11 +285,19 @@ export async function lireFicheOrgane(organeId: string): Promise<FicheOrgane | n
         orderBy: { date: "desc" },
       })
   const designation = new Map(pieces.map((p) => [p.id, p.designation]))
+  // États saisis après réparation des pièces de cet organe (954 v1.3, §3 : garage_part_etat), le plus récent d'abord.
+  const saisies = pieces.length === 0
+    ? []
+    : await client.garagePartEtat.findMany({
+        where: { teamId: ctx.teamId, deletedAt: null, partId: { in: pieces.map((p) => p.id) } },
+        orderBy: { saisiLe: "desc" },
+      })
 
   return {
     organe,
     vehicleId: ligne.vehicleId,
     vehiculeNomCourt: voiture?.nomCourt ?? "",
+    reparations: saisies.map((s) => ({ id: s.id, saisiLe: s.saisiLe, etatPct: s.etatPct })),
     poses: montages.map((m) => ({
       id: m.id,
       designation: m.part.designation,
@@ -587,6 +608,8 @@ export type FicheOrdre = {
   dureeEstimeeMinutes: number | null
   personIds: string[]
   pieces: Array<{ partId: string; designation: string }>
+  // Réparation d'un organe avec pièce montée : la clôture demande l'état de la pièce après réparation (954 v1.3, §4).
+  etatRequis: boolean
   peutEcrire: boolean
 }
 
@@ -615,6 +638,9 @@ export async function lireOrdre(id: string): Promise<FicheOrdre | null> {
     },
   })
   if (!o) return null
+  const pieceMontee = o.type === "reparation" && o.vehicleComponentId
+    ? await client.garagePartMount.count({ where: { vehicleComponentId: o.vehicleComponentId, teamId: ctx.teamId, deposeeLe: null, deletedAt: null } })
+    : 0
 
   return {
     ordre: versOrdreTravail(o, peutEcrire),
@@ -624,6 +650,7 @@ export async function lireOrdre(id: string): Promise<FicheOrdre | null> {
     dureeEstimeeMinutes: o.dureeEstimeeMinutes,
     personIds: o.persons.map((lien) => lien.personId),
     pieces: o.parts.map((lien) => ({ partId: lien.partId, designation: lien.part.designation })),
+    etatRequis: pieceMontee > 0,
     peutEcrire,
   }
 }

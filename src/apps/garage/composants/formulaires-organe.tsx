@@ -8,14 +8,65 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 import { TiroirAction } from "@/components/formulaire/tiroir"
+import { useEtatSynchro } from "@/core/synchro/client/react"
 import { BOUTON_SECONDAIRE, CHAMP, LIEN } from "@/lib/classes-formulaire"
 
-import { remplacerPieceAction, reglerOrganeAction, retirerOrganeAction } from "../actions"
+import { remplacerPieceAction, reglerOrganeAction, reparerOrganeAction, retirerOrganeAction } from "../actions"
 import { LIBELLE_MODE_USURE, LIBELLE_MOTIF_DEPOSE, type MotifDepose } from "../libelles"
 import type { ModeUsure } from "../regles"
 import type { PieceAtelier } from "../vues"
 
 const MOTIFS = Object.keys(LIBELLE_MOTIF_DEPOSE) as MotifDepose[]
+
+// --- Réparer ---------------------------------------------------------------------------------
+
+interface FormulaireReparerProps {
+  organeId: string
+  nom: string
+  vehicleId: string
+}
+
+// Un ordre de travail de type réparation, à faire : sa clôture demande l'état de la pièce (954 v1.3, §4). Coût facultatif,
+// visible dans le tiroir. Hors ligne, le bouton reste visible, désactivé, avec la raison : la réparation se saisit en ligne.
+export function FormulaireReparer({ organeId, nom, vehicleId }: FormulaireReparerProps) {
+  const router = useRouter()
+  const etat = useEtatSynchro()
+
+  if (!etat.enLigne) {
+    return (
+      <div className="flex flex-col items-start gap-2">
+        <button type="button" disabled className={`${BOUTON_SECONDAIRE} opacity-60`}>
+          Réparer
+        </button>
+        <p className="text-sm text-texte-discret">La réparation se saisit en ligne.</p>
+      </div>
+    )
+  }
+
+  return (
+    <TiroirAction
+      libelle="Réparer"
+      titre={`Réparer : ${nom}`}
+      action={reparerOrganeAction}
+      libelleBouton="Ajouter la réparation"
+      libelleEnCours="Enregistrement…"
+      onSucces={() => router.push(`/apps/garage/travaux?vehicule=${vehicleId}`)}
+    >
+      <input type="hidden" name="organeId" value={organeId} />
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium">Ce qui est réparé</span>
+        <input name="titre" required maxLength={200} placeholder={`Réparation : ${nom.toLowerCase()}`} className={CHAMP} />
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium">Main-d&apos;œuvre, en euros (facultatif)</span>
+        <input name="coutMainOeuvre" inputMode="decimal" placeholder="0,00" className={CHAMP} />
+      </label>
+      <p className="text-sm text-texte-discret">
+        L&apos;ordre passe dans les travaux. Sa fin demandera l&apos;état de la pièce après réparation.
+      </p>
+    </TiroirAction>
+  )
+}
 const MODES = Object.keys(LIBELLE_MODE_USURE) as ModeUsure[]
 
 // --- Remplacer -------------------------------------------------------------------------------

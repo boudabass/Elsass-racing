@@ -4,17 +4,107 @@ import { describe, expect, it } from "vitest"
 import {
   additionnerKm,
   dureesEffectives,
+  derniereSaisie,
   droitPreparerAtelier,
   etatPiece,
   etatPneus,
+  etatSaisiValide,
   fiabiliteChangee,
   franchitZoneRouge,
   indiceFiabilite,
   kmRestantsAvantRouge,
+  saisieParPiece,
   SEUILS_DEFAUT,
   seuilsValides,
   zoneDeEtat,
+  type SaisieEtat,
 } from "./regles"
+
+// Saisie de test : 80 % saisis à 1 000 km et 2 épreuves ; la date sert à départager deux saisies.
+const saisie = (extra: Partial<SaisieEtat> = {}): SaisieEtat => ({
+  etatPct: 80,
+  kmAuSaisie: 1000,
+  epreuvesAuSaisie: 2,
+  saisiLe: new Date("2026-10-23T10:00:00Z"),
+  ...extra,
+})
+
+describe("état après réparation (954 v1.3, §4)", () => {
+  const durees = { km: 1000, epreuves: 10 }
+
+  it("sans saisie, l'état est celui du calcul ordinaire, inchangé", () => {
+    expect(etatPiece("km", durees, { km: 500, epreuves: 0 }, null)).toBe(50)
+    expect(etatPiece("km", durees, { km: 500, epreuves: 0 })).toBe(50)
+    expect(etatPiece("epreuves", durees, { km: 0, epreuves: 4 }, null)).toBe(60)
+    expect(etatPiece("les_deux", durees, { km: 500, epreuves: 4 }, null)).toBe(50)
+  })
+
+  it("saisie puis km : l'état saisi moins l'usure en km depuis la saisie", () => {
+    // 80 % saisis à 1 000 km ; 200 km ajoutés sur une durée de 1 000 km : 80 − 20 = 60.
+    expect(etatPiece("km", durees, { km: 1200, epreuves: 2 }, saisie())).toBe(60)
+  })
+
+  it("saisie puis épreuves : l'état saisi moins l'usure en épreuves depuis la saisie", () => {
+    // 80 % saisis à deux épreuves ; deux épreuves de plus sur une durée de dix : 80 − 20 = 60.
+    expect(etatPiece("epreuves", durees, { km: 1200, epreuves: 4 }, saisie())).toBe(60)
+  })
+
+  it("mode les deux : le plus bas des deux, depuis la saisie", () => {
+    // Km : 80 − 20 = 60. Épreuves : 80 − 10 = 70. Le plus bas : 60.
+    expect(etatPiece("les_deux", durees, { km: 1200, epreuves: 3 }, saisie())).toBe(60)
+    // Les épreuves sont plus usées : 80 − 40 = 40, alors que les km donnent 70.
+    expect(etatPiece("les_deux", durees, { km: 1100, epreuves: 6 }, saisie())).toBe(40)
+  })
+
+  it("une saisie n'ajoute pas l'usure déjà faite avant elle", () => {
+    // 1 000 km cumulés au moment de la saisie : rien depuis, l'état reste celui saisi.
+    expect(etatPiece("km", durees, { km: 1000, epreuves: 2 }, saisie())).toBe(80)
+  })
+
+  it("bornes : jamais au-dessus de 100, jamais sous 0", () => {
+    expect(etatPiece("km", durees, { km: 1000, epreuves: 2 }, saisie({ etatPct: 100 }))).toBe(100)
+    expect(etatPiece("km", durees, { km: 1900, epreuves: 2 }, saisie({ etatPct: 10 }))).toBe(0)
+  })
+
+  it("sans durée requise, l'état reste « à renseigner » même avec une saisie", () => {
+    expect(etatPiece("km", { km: null, epreuves: 10 }, { km: 1200, epreuves: 2 }, saisie())).toBeNull()
+    expect(etatPiece("les_deux", { km: 1000, epreuves: null }, { km: 1200, epreuves: 2 }, saisie())).toBeNull()
+  })
+
+  it("marge avant la zone rouge : part de l'état saisi, usure depuis la saisie", () => {
+    // Saisie à 80 %, zone rouge à 10 % : 70 % de marge sur 1 000 km, moins 200 km depuis la saisie = 500 km.
+    expect(kmRestantsAvantRouge("km", durees, { km: 1200, epreuves: 2 }, 10, saisie())).toBe(500)
+    // Sans saisie, la même usure donne 1 000 × 0,9 − 1 200 : jamais négatif, donc 0.
+    expect(kmRestantsAvantRouge("km", durees, { km: 1200, epreuves: 2 }, 10)).toBe(0)
+  })
+
+  it("deux saisies : seule la dernière compte, quel que soit l'ordre des lignes", () => {
+    const ancienne = saisie({ etatPct: 50, saisiLe: new Date("2026-06-01T10:00:00Z") })
+    const recente = saisie({ etatPct: 90, saisiLe: new Date("2026-10-23T10:00:00Z") })
+    expect(derniereSaisie([recente, ancienne])).toBe(recente)
+    expect(derniereSaisie([ancienne, recente])).toBe(recente)
+    expect(derniereSaisie([])).toBeNull()
+    expect(etatPiece("km", durees, { km: 1000, epreuves: 2 }, derniereSaisie([ancienne, recente]))).toBe(90)
+  })
+
+  it("saisieParPiece garde la dernière saisie de chaque pièce, et rien pour une pièce sans saisie", () => {
+    const ancienne = saisie({ etatPct: 50, saisiLe: new Date("2026-06-01T10:00:00Z") })
+    const recente = saisie({ etatPct: 90, saisiLe: new Date("2026-10-23T10:00:00Z") })
+    const parPiece = saisieParPiece([
+      { partId: "a", ...ancienne },
+      { partId: "b", ...saisie({ etatPct: 70 }) },
+      { partId: "a", ...recente },
+    ])
+    expect(parPiece.get("a")?.etatPct).toBe(90)
+    expect(parPiece.get("b")?.etatPct).toBe(70)
+    expect(parPiece.has("c")).toBe(false)
+  })
+
+  it("un état saisi est un entier de 0 à 100", () => {
+    expect([0, 50, 100].every(etatSaisiValide)).toBe(true)
+    expect([-1, 101, 50.5, Number.NaN].some(etatSaisiValide)).toBe(false)
+  })
+})
 
 describe("additionnerKm (correction A : décimaux sans dérive)", () => {
   it("garde le dixième exact : 0,1 + 0,2 vaut 0,3", () => {

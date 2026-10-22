@@ -25,6 +25,7 @@ import {
   poserPiece,
   preparerAtelier,
   recevoirCommande,
+  reparerOrgane,
   retirerOrgane,
   retirerPieceOrdre,
   terminerOrdre,
@@ -225,11 +226,32 @@ export async function retirerPieceOrdreAction(_etat: Resultat | null, donnees: F
   return executerGarage(() => retirerPieceOrdre(texte(donnees, "ordreId"), texte(donnees, "partId")))
 }
 
-// Fin de l'ordre. Le motif de dépose n'est demandé que s'il y a une pièce en place (le service le vérifie).
+// État de la pièce après réparation : vide reste null (la fin le refuse si la pièce l'exige), sinon un entier de 0 à 100.
+function etatApresOuNull(donnees: FormData): number | null {
+  const valeur = texteOuNull(donnees, "etatApresPct")
+  if (valeur === null) return null
+  if (!/^\d{1,3}$/.test(valeur) || Number(valeur) > 100) refus("L'état après réparation doit être un pourcentage entier, de 0 à 100.")
+  return Number(valeur)
+}
+
+// Fin de l'ordre. Le motif de dépose n'est demandé que s'il y a une pièce en place (le service le vérifie). Une réparation
+// sur un organe avec pièce montée demande aussi l'état de la pièce après réparation (954 v1.3, §4).
 export async function terminerOrdreAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerGarage(() =>
     terminerOrdre(texte(donnees, "ordreId"), {
       motifDepose: (texteOuNull(donnees, "motifDepose") as MotifDepose | null) ?? null,
+      etatApresPct: etatApresOuNull(donnees),
+    }),
+  )
+}
+
+// Réparer (954 v1.3, §2) : un ordre de travail de type réparation sur l'organe, à faire. Coût et prestataire facultatifs.
+export async function reparerOrganeAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() =>
+    reparerOrgane(texte(donnees, "organeId"), {
+      titre: texte(donnees, "titre"),
+      coutMainOeuvreCents: centimesOuNull(donnees, "coutMainOeuvre"),
+      prestataireContactId: texteOuNull(donnees, "prestataireContactId"),
     }),
   )
 }

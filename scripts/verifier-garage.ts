@@ -250,10 +250,57 @@ async function main() {
     const relecturePiece = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: piece2 } })
     const lignesApres = await proprietaire.garageWearLog.count({ where: { eventEntryId: engagement } })
     controle("un traitement de plus, après coup, n'ajoute ni ligne ni km", lignesApres === nombreCibles && Number(relecturePiece.kmCumules) === Number(apresPiece.kmCumules), `${lignesApres}`)
+
+    // 10. Réparation (954 v1.3, §4) : la clôture saisit l'état de la pièce montée, puis l'usure qui suit le fait baisser.
+    // Un organe sans pièce montée reçoit une pièce de 1 000 km, en mode km ; l'état saisi part de 80 %.
+    const organeLibre = await proprietaire.garageVehicleComponent.findFirst({
+      where: { teamId: team.id, vehicleId: vehicule, deletedAt: null, componentType: { cle: { not: "pneus" } }, mounts: { none: { deposeeLe: null, deletedAt: null } } },
+      select: { id: true, componentTypeId: true },
+    })
+    controle("un organe sans pièce montée sert à la réparation", organeLibre !== null)
+    await services.modifierOrganeDans(ctx, organeLibre!.id, { modeUsure: "km" })
+    const pieceReparee = await services.creerPieceDans(ctx, vehicule, { componentTypeId: organeLibre!.componentTypeId, designation: "Pièce réparée", dureeVieKm: 1000 })
+    await services.poserPieceDans(ctx, organeLibre!.id, pieceReparee)
+
+    const ordreReparation = await services.reparerOrganeDans(ctx, organeLibre!.id, { titre: "Réparation d'essai" })
+    const refusSansEtat = await refuse(services.terminerOrdreDans(ctx, ordreReparation, {}, "ecriture"))
+    controle("terminer une réparation sans état saisi est refusé", refusSansEtat?.includes("état") === true, refusSansEtat ?? "aucun refus")
+    const refusHorsBornes = await refuse(services.terminerOrdreDans(ctx, ordreReparation, { etatApresPct: 101 }, "ecriture"))
+    controle("un état saisi au-delà de 100 % est refusé", refusHorsBornes?.includes("état") === true, refusHorsBornes ?? "aucun refus")
+    const ordreApresRefus = await proprietaire.garageWorkOrder.findUniqueOrThrow({ where: { id: ordreReparation } })
+    controle("un refus de clôture ne termine pas l'ordre", ordreApresRefus.statut === "prevu", ordreApresRefus.statut)
+
+    await services.terminerOrdreDans(ctx, ordreReparation, { etatApresPct: 80 }, "ecriture")
+    const saisies = await proprietaire.garagePartEtat.findMany({ where: { workOrderId: ordreReparation } })
+    controle(
+      "la clôture écrit une saisie, pour la pièce montée, dans la team",
+      saisies.length === 1 && saisies[0].partId === pieceReparee && saisies[0].etatPct === 80 && saisies[0].teamId === team.id,
+      `${saisies.length} lignes`,
+    )
+    const etatSaisi = await executerPourTeam(team.id, utilisateur.id, (tx) => services.etatsDuVehicule(tx, team.id, vehicule))
+    controle("l'état de la pièce repart de la saisie : 80 %", etatSaisi.pieces.get(pieceReparee)?.etat === 80, `${etatSaisi.pieces.get(pieceReparee)?.etat}`)
+
+    await services.ajouterUsureManuelleDans(ctx, vehicule, { km: 100, epreuve: false })
+    const etatUsure = await executerPourTeam(team.id, utilisateur.id, (tx) => services.etatsDuVehicule(tx, team.id, vehicule))
+    controle("l'usure qui suit fait baisser l'état saisi : 80 % moins 100 km sur 1 000 km, soit 70 %", etatUsure.pieces.get(pieceReparee)?.etat === 70, `${etatUsure.pieces.get(pieceReparee)?.etat}`)
+
+    const vueAutreTeam = await executerPourTeam(equipe2.id, utilisateur.id, (tx) => tx.garagePartEtat.count({ where: { workOrderId: ordreReparation } }))
+    controle("une autre team ne voit pas la saisie (RLS)", vueAutreTeam === 0, `${vueAutreTeam}`)
+    const refusAutreTeam = await refuse(
+      services.terminerOrdreDans({ teamId: equipe2.id, userId: utilisateur.id, membership: ctx.membership }, ordreReparation, { etatApresPct: 50 }, "ecriture"),
+    )
+    controle("une autre team ne clôt pas la réparation d'une équipe voisine", refusAutreTeam?.includes("introuvable") === true, refusAutreTeam ?? "aucun refus")
+
+    const etatHorsBornes = await refuse(
+      proprietaire.garagePartEtat.create({ data: { id: randomUUID(), teamId: team.id, partId: pieceReparee, workOrderId: ordreReparation, etatPct: 101 } }),
+    )
+    controle("la base refuse un état hors de 0 à 100", etatHorsBornes !== null, "insertion acceptée")
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères, pour les deux teams.
     await proprietaire.garageWearLog.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garagePartMount.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garagePartEtat.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageWorkOrder.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageTyreSet.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garagePart.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageVehicleComponent.deleteMany({ where: { teamId: { in: equipes } } })

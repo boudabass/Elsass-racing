@@ -22,13 +22,16 @@ import {
   dureesEffectives,
   etatPiece,
   etatPneus,
+  etatSaisiValide,
   fiabiliteChangee,
   franchitZoneRouge,
   indiceFiabilite,
+  saisieParPiece,
   SEUILS_DEFAUT,
   seuilsValides,
   type ModeUsure,
   type OrganeIndice,
+  type SaisieEtat,
 } from "./regles"
 import { avancementValide, coutValide, PRIORITES_TRAVAIL, statutModifiable, TYPES_ORDRE } from "./travaux"
 
@@ -227,6 +230,29 @@ async function poserPiecesOrigineDans(tx: Tx, ctx: ContexteTeam, vehicleId: stri
 export type EtatPieceVehicule = { etat: number | null; seuilRouge: number; vehicleComponentId: string }
 export type EtatsVehicule = { pieces: Map<string, EtatPieceVehicule>; indice: number | null }
 
+// Colonnes lues sur garage_part_etat pour l'état d'une pièce. Les lectures et les services les lisent de la même façon.
+export const SELECTION_SAISIE = { partId: true, etatPct: true, kmAuSaisie: true, epreuvesAuSaisie: true, saisiLe: true } as const
+
+// Dernière saisie après réparation de chaque pièce, à partir des lignes lues avec SELECTION_SAISIE (954 v1.3, §4).
+export function versSaisies(lignes: Array<{ partId: string; etatPct: number; kmAuSaisie: Prisma.Decimal; epreuvesAuSaisie: number; saisiLe: Date }>): Map<string, SaisieEtat> {
+  return saisieParPiece(
+    lignes.map((ligne) => ({
+      partId: ligne.partId,
+      etatPct: ligne.etatPct,
+      kmAuSaisie: Number(ligne.kmAuSaisie),
+      epreuvesAuSaisie: ligne.epreuvesAuSaisie,
+      saisiLe: ligne.saisiLe,
+    })),
+  )
+}
+
+// Dernière saisie de chaque pièce. Une pièce sans saisie n'a pas d'entrée dans la carte.
+export async function saisiesDesPieces(tx: Tx, teamId: string, partIds: string[]): Promise<Map<string, SaisieEtat>> {
+  if (partIds.length === 0) return new Map()
+  const lignes = await tx.garagePartEtat.findMany({ where: { teamId, partId: { in: partIds }, deletedAt: null }, select: SELECTION_SAISIE })
+  return versSaisies(lignes)
+}
+
 export async function etatsDuVehicule(tx: Tx, teamId: string, vehicleId: string): Promise<EtatsVehicule> {
   const organes = await tx.garageVehicleComponent.findMany({
     where: { teamId, vehicleId, deletedAt: null },
@@ -239,6 +265,7 @@ export async function etatsDuVehicule(tx: Tx, teamId: string, vehicleId: string)
 
   const pieces = new Map<string, EtatPieceVehicule>()
   const organesIndice: OrganeIndice[] = []
+  const saisies = await saisiesDesPieces(tx, teamId, organes.flatMap((organe) => organe.mounts.map((montage) => montage.part.id)))
 
   for (const organe of organes) {
     const critique = organe.componentType.critique
@@ -258,10 +285,12 @@ export async function etatsDuVehicule(tx: Tx, teamId: string, vehicleId: string)
         { km: piece.dureeVieKm, epreuves: piece.dureeVieEpreuves },
         { km: organe.dureeVieReferenceKm, epreuves: organe.dureeVieReferenceEpreuves },
       )
-      etat = etatPiece(organe.modeUsure as ModeUsure, durees, {
-        km: Number(piece.kmCumules),
-        epreuves: piece.epreuvesCumulees,
-      })
+      etat = etatPiece(
+        organe.modeUsure as ModeUsure,
+        durees,
+        { km: Number(piece.kmCumules), epreuves: piece.epreuvesCumulees },
+        saisies.get(piece.id) ?? null,
+      )
       pieces.set(piece.id, { etat, seuilRouge: organe.seuilRougePct, vehicleComponentId: organe.id })
     }
     organesIndice.push({ id: organe.id, critique, pieceMontee: Boolean(piece), etat })
@@ -917,6 +946,55 @@ export async function creerOrdreDans(ctx: ContexteTeam, vehicleId: string, entre
   return id
 }
 
+// Réparer (954 v1.3, §2, Fiche organe) : un ordre de travail de type réparation sur l'organe, à faire. Sa clôture (Terminer)
+// demande l'état de la pièce quand l'organe en a une (954 v1.3, §4). Coût et prestataire sont facultatifs et s'écrivent
+// dans la même transaction que l'ordre. Écriture seulement.
+const schemaReparation = z
+  .object({
+    titre: z.string().trim().min(1, "Dites ce qui est réparé.").max(200),
+    coutMainOeuvreCents: entier(0).nullable().optional(),
+    prestataireContactId: z.string().min(1).nullable().optional(),
+  })
+  .strict()
+
+export type EntreeReparation = z.input<typeof schemaReparation>
+
+export async function reparerOrgane(organeId: string, entree: EntreeReparation): Promise<string> {
+  const { ctx } = await accesGarage("ecriture")
+  return reparerOrganeDans(ctx, organeId, entree)
+}
+
+export async function reparerOrganeDans(ctx: ContexteTeam, organeId: string, entree: EntreeReparation): Promise<string> {
+  const donnees = schemaReparation.parse(entree)
+  if (!coutValide(donnees.coutMainOeuvreCents ?? null)) refus("Le coût doit être un montant positif, en centimes.")
+  const id = newId()
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    const organe = await organeDans(tx, ctx.teamId, organeId)
+    if (donnees.prestataireContactId) {
+      const prestataire = await tx.coreContact.findFirst({ where: { id: donnees.prestataireContactId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+      if (!prestataire) refus("Ce prestataire n'existe pas dans la team.")
+    }
+    await tx.garageWorkOrder.create({
+      data: {
+        id,
+        teamId: ctx.teamId,
+        vehicleId: organe.vehicleId,
+        type: "reparation",
+        titre: donnees.titre,
+        vehicleComponentId: organe.id,
+        priorite: "normale",
+        statut: "prevu",
+        origine: "saisie",
+        coutMainOeuvreCents: donnees.coutMainOeuvreCents ?? null,
+        prestataireContactId: donnees.prestataireContactId ?? null,
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
+      },
+    })
+  })
+  return id
+}
+
 export async function modifierOrdre(id: string, entree: EntreeModificationOrdre): Promise<void> {
   const { ctx } = await accesGarage("ecriture")
   return modifierOrdreDans(ctx, id, entree)
@@ -1048,15 +1126,30 @@ export async function retirerPieceOrdreDans(ctx: ContexteTeam, workOrderId: stri
 
 // Fin d'un ordre (D1, D2, D3, D7). Transaction : passage à terminé (une seule fois), puis, pour un remplacement, la pose
 // de la pièce sur son organe, avec le motif de dépose de la pièce en place. Les événements partent après la transaction.
-export async function terminerOrdre(id: string, options: { motifDepose?: (typeof MOTIFS)[number] | null } = {}): Promise<void> {
+// Options de fin : le motif de dépose, et l'état de la pièce après réparation (954 v1.3, §4) quand l'ordre est une
+// réparation sur un organe avec pièce montée.
+export type OptionsFin = { motifDepose?: (typeof MOTIFS)[number] | null; etatApresPct?: number | null }
+
+export async function terminerOrdre(id: string, options: OptionsFin = {}): Promise<void> {
   const { ctx, niveau } = await accesGarage("contribution")
   return terminerOrdreDans(ctx, id, options, niveau)
+}
+
+const MESSAGE_ETAT_REQUIS = "Indiquez l'état de la pièce après réparation, en pourcentage de 0 à 100."
+
+// Pose active d'un organe, avec les cumuls de la pièce : la base de la saisie après réparation. Null sans pièce montée.
+async function pieceMonteeDans(tx: Tx, teamId: string, vehicleComponentId: string) {
+  const pose = await tx.garagePartMount.findFirst({
+    where: { vehicleComponentId, teamId, deposeeLe: null, deletedAt: null },
+    select: { partId: true, part: { select: { kmCumules: true, epreuvesCumulees: true } } },
+  })
+  return pose ? { partId: pose.partId, kmCumules: pose.part.kmCumules, epreuvesCumulees: pose.part.epreuvesCumulees } : null
 }
 
 export async function terminerOrdreDans(
   ctx: ContexteTeam,
   id: string,
-  options: { motifDepose?: (typeof MOTIFS)[number] | null } = {},
+  options: OptionsFin = {},
   niveau: Niveau = "ecriture",
 ): Promise<void> {
   const motif = options.motifDepose ?? null
@@ -1083,11 +1176,30 @@ export async function terminerOrdreDans(
 
   await ecrireEtEmettre(ctx, ordre.vehicleId, async (tx) => {
     if (!aAuMoins(niveau, "ecriture")) await verifierAffecte(tx, ctx, id)
+    // Réparation d'un organe avec pièce montée : l'état de la pièce après réparation se saisit à la clôture (954 v1.3, §4).
+    const montee = ordre.type === "reparation" && organe ? await pieceMonteeDans(tx, ctx.teamId, organe.id) : null
+    const etatApres = options.etatApresPct ?? null
+    if (montee && (etatApres === null || !etatSaisiValide(etatApres))) refus(MESSAGE_ETAT_REQUIS)
     const fin = await tx.garageWorkOrder.updateMany({
       where: { id, teamId: ctx.teamId, deletedAt: null, statut: { not: "termine" } },
       data: { statut: "termine", avancementPct: 100, rev: { increment: 1 }, updatedBy: ctx.userId },
     })
     if (fin.count === 0) refus("Cet ordre est déjà terminé.")
+    if (montee && etatApres !== null) {
+      await tx.garagePartEtat.create({
+        data: {
+          id: newId(),
+          teamId: ctx.teamId,
+          partId: montee.partId,
+          workOrderId: id,
+          etatPct: etatApres,
+          kmAuSaisie: montee.kmCumules,
+          epreuvesAuSaisie: montee.epreuvesCumulees,
+          createdBy: ctx.userId,
+          updatedBy: ctx.userId,
+        },
+      })
+    }
     if (organe && poses.length === 1) {
       await poserPieceTx(tx, ctx, newId(), organe.id, poses[0].partId, motif)
     }

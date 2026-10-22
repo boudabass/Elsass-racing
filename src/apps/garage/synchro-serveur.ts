@@ -140,12 +140,20 @@ const garageWorkOrderSynchro: DeclarationSynchro = {
   // Statut et avancement seulement. Un ordre terminé ne revient pas en cours (D3). Un ordre avec pièce se termine en ligne (D2).
   async modifier(tx: Tx, ctx: ContexteTeam, id, champs) {
     const donnees = analyser(schemaModificationOrdre, champs)
-    const ordre = await tx.garageWorkOrder.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null }, select: { statut: true } })
+    const ordre = await tx.garageWorkOrder.findFirst({
+      where: { id, teamId: ctx.teamId, deletedAt: null },
+      select: { statut: true, type: true, vehicleComponentId: true },
+    })
     if (!ordre) return false
     if (ordre.statut === "termine") throw new RefusSynchro("Cet ordre est déjà terminé : il ne revient pas en cours. Une correction se fait en ligne.")
     if (donnees.statut === "termine") {
       const pieces = await tx.garageWorkOrderPart.count({ where: { workOrderId: id, teamId: ctx.teamId, deletedAt: null } })
       if (pieces > 0) throw new RefusSynchro("Un ordre avec pièce se termine en ligne : revenez en ligne.")
+      // Réparation d'un organe avec pièce montée : l'état de la pièce après réparation se saisit en ligne (954 v1.3, §4).
+      if (ordre.type === "reparation" && ordre.vehicleComponentId) {
+        const montee = await tx.garagePartMount.count({ where: { vehicleComponentId: ordre.vehicleComponentId, teamId: ctx.teamId, deposeeLe: null, deletedAt: null } })
+        if (montee > 0) throw new RefusSynchro("Une réparation avec pièce montée se termine en ligne : l'état de la pièce se saisit en ligne.")
+      }
     }
     const avancement = donnees.statut === "termine" ? 100 : donnees.avancementPct
     const resultat = await tx.garageWorkOrder.updateMany({

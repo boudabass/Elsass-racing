@@ -290,9 +290,9 @@ async function main() {
       voitureSansRls.map((r) => r.table_name).join(", "),
     )
 
-    // Garage (tâche 4.1) : quinze tables, même garantie que voiture_ (RLS forcé, politique, droits du rôle applicatif).
+    // Garage (tâches 4.1 et 4.3e, 954 v1.3) : seize tables, même garantie que voiture_ (RLS forcé, politique, droits du rôle applicatif).
     const tablesGarage = [
-      "garage_component_type", "garage_vehicle_component", "garage_part", "garage_part_mount", "garage_wear_log",
+      "garage_component_type", "garage_vehicle_component", "garage_part", "garage_part_mount", "garage_part_etat", "garage_wear_log",
       "garage_work_order", "garage_purchase", "garage_tyre_set", "garage_incident", "garage_equipment",
       "garage_purchase_line", "garage_work_order_part", "garage_work_order_person", "garage_incident_component", "garage_incident_part",
     ]
@@ -317,8 +317,8 @@ async function main() {
         )
       ORDER BY c.relname`
     controle(
-      "les quinze tables garage_ ont le RLS forcé, la politique cloisonnement_team et les droits du rôle applicatif",
-      garageSansRls.length === 0 && tablesGarage.length === 15,
+      "les seize tables garage_ ont le RLS forcé, la politique cloisonnement_team et les droits du rôle applicatif",
+      garageSansRls.length === 0 && tablesGarage.length === 16,
       garageSansRls.map((r) => r.table_name).join(", "),
     )
 

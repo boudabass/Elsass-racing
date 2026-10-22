@@ -36,13 +36,50 @@ export function dureesEffectives(piece: DureesVie, organe: DureesVie): DureesVie
 
 const borner = (valeur: number): number => Math.max(0, Math.min(100, valeur))
 
+// Saisie de l'état après réparation (954 v1.3, §4) : l'état saisi à la main, et les cumuls de la pièce au moment de la
+// saisie. Une ligne du journal garage_part_etat ; la plus récente d'une pièce compte seule.
+export type SaisieEtat = { etatPct: number; kmAuSaisie: number; epreuvesAuSaisie: number; saisiLe: Date }
+
+// Un état saisi est un pourcentage entier, de 0 à 100 (la base le vérifie aussi).
+export function etatSaisiValide(valeur: number): boolean {
+  return Number.isInteger(valeur) && valeur >= 0 && valeur <= 100
+}
+
+// Dernière saisie d'une pièce, ou null sans saisie. L'ordre d'arrivée des lignes ne compte pas, seule la date.
+export function derniereSaisie(saisies: SaisieEtat[]): SaisieEtat | null {
+  let dernier: SaisieEtat | null = null
+  for (const saisie of saisies) {
+    if (dernier === null || saisie.saisiLe.getTime() > dernier.saisiLe.getTime()) dernier = saisie
+  }
+  return dernier
+}
+
+// Dernière saisie de chaque pièce, par identifiant de pièce. Une pièce sans saisie n'apparaît pas.
+export function saisieParPiece(lignes: Array<SaisieEtat & { partId: string }>): Map<string, SaisieEtat> {
+  const parPiece = new Map<string, SaisieEtat[]>()
+  for (const { partId, ...saisie } of lignes) {
+    parPiece.set(partId, [...(parPiece.get(partId) ?? []), saisie])
+  }
+  const resultat = new Map<string, SaisieEtat>()
+  for (const [partId, saisies] of Array.from(parPiece)) {
+    const dernier = derniereSaisie(saisies)
+    if (dernier) resultat.set(partId, dernier)
+  }
+  return resultat
+}
+
 // État d'une pièce en pourcentage, borné à 0 (une pièce usée au-delà de sa vie est à 0 %, jamais négative).
 // Mode km : 100 − km ÷ durée. Mode épreuves : 100 − épreuves ÷ durée. Les deux : le plus bas des deux,
 // les deux durées sont alors requises. Renvoie null (« À renseigner ») si une durée requise manque.
-export function etatPiece(mode: ModeUsure, durees: DureesVie, usure: Usure): number | null {
-  const etatKm = durees.km !== null && durees.km > 0 ? borner(100 - (usure.km / durees.km) * 100) : null
+// Avec une saisie après réparation (954 v1.3, §4), l'état part de l'état saisi, et l'usure compte depuis la saisie :
+// même formule, même durée, même mode. Sans saisie, rien ne change.
+export function etatPiece(mode: ModeUsure, durees: DureesVie, usure: Usure, saisie: SaisieEtat | null = null): number | null {
+  const base = saisie ? saisie.etatPct : 100
+  const depuisKm = saisie ? Math.max(0, usure.km - saisie.kmAuSaisie) : usure.km
+  const depuisEpreuves = saisie ? Math.max(0, usure.epreuves - saisie.epreuvesAuSaisie) : usure.epreuves
+  const etatKm = durees.km !== null && durees.km > 0 ? borner(base - (depuisKm / durees.km) * 100) : null
   const etatEpreuves =
-    durees.epreuves !== null && durees.epreuves > 0 ? borner(100 - (usure.epreuves / durees.epreuves) * 100) : null
+    durees.epreuves !== null && durees.epreuves > 0 ? borner(base - (depuisEpreuves / durees.epreuves) * 100) : null
 
   if (mode === "km") return etatKm
   if (mode === "epreuves") return etatEpreuves
@@ -60,16 +97,20 @@ export function zoneDeEtat(etat: number | null, seuils: Seuils): Zone {
 }
 
 // Km restants avant la zone rouge. Null en mode épreuves seul, sans durée de km, ou à renseigner.
-// Zone rouge : usure > durée × (1 − seuil rouge ÷ 100). Jamais négatif.
+// Zone rouge : usure > durée × (1 − seuil rouge ÷ 100). Jamais négatif. Avec une saisie, la marge part de l'état saisi
+// et compte l'usure depuis la saisie (même logique que etatPiece).
 export function kmRestantsAvantRouge(
   mode: ModeUsure,
   durees: DureesVie,
   usure: Usure,
   seuilRouge: number,
+  saisie: SaisieEtat | null = null,
 ): number | null {
   if (mode === "epreuves") return null
   if (durees.km === null || durees.km <= 0) return null
-  const restants = durees.km * (1 - seuilRouge / 100) - usure.km
+  const base = saisie ? saisie.etatPct : 100
+  const depuisKm = saisie ? Math.max(0, usure.km - saisie.kmAuSaisie) : usure.km
+  const restants = durees.km * ((base - seuilRouge) / 100) - depuisKm
   return Math.max(0, Math.round(restants * 10) / 10)
 }
 

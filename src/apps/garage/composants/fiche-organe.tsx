@@ -7,7 +7,8 @@ import Link from "next/link"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 import { BOUTON_SECONDAIRE, LIEN } from "@/lib/classes-formulaire"
 
-import type { FicheOrgane, PoseOrgane, UsureOrgane } from "../lectures-serveur"
+import type { FicheOrgane, PoseOrgane, ReparationOrgane, UsureOrgane } from "../lectures-serveur"
+import { libellePosition } from "../emplacements"
 import {
   LIBELLE_MODE_USURE,
   LIBELLE_MOTIF_DEPOSE,
@@ -16,16 +17,27 @@ import {
 } from "../libelles"
 import { dateAtelier, kmAtelier, libelleZone, phraseKmRestants, pourcentage } from "../mise-en-forme"
 
-import { FormulaireRegler, FormulaireRemplacer, FormulaireRetirer } from "./formulaires-organe"
+import { FormulaireRegler, FormulaireRemplacer, FormulaireReparer, FormulaireRetirer } from "./formulaires-organe"
 
 const libelleQualite = (qualite: string) => LIBELLE_QUALITE[qualite as keyof typeof LIBELLE_QUALITE] ?? qualite
 
-function Historique({ poses, usures }: { poses: PoseOrgane[]; usures: UsureOrgane[] }) {
-  if (poses.length === 0 && usures.length === 0) {
+function Historique({ poses, usures, reparations }: { poses: PoseOrgane[]; usures: UsureOrgane[]; reparations: ReparationOrgane[] }) {
+  if (poses.length === 0 && usures.length === 0 && reparations.length === 0) {
     return <p className="text-sm text-texte-discret">Aucun historique pour cet organe.</p>
   }
   return (
     <div className="flex flex-col gap-4 text-sm">
+      {reparations.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {reparations.map((reparation) => (
+            <li key={reparation.id} className="flex flex-col">
+              <span className="font-medium">
+                Réparé le {dateAtelier(reparation.saisiLe)}, état saisi : {reparation.etatPct} %
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       {poses.length > 0 && (
         <ul className="flex flex-col gap-2">
           {poses.map((pose) => (
@@ -74,7 +86,7 @@ export function FicheOrganeEcran({ fiche, niveau }: { fiche: FicheOrgane; niveau
           Atelier{titreVoiture}
         </Link>
         <h1 className="titre-rallye text-3xl">{organe.nom}</h1>
-        {organe.position && <p className="text-texte-discret">{organe.position}</p>}
+        {libellePosition(organe.position) && <p className="text-texte-discret">{libellePosition(organe.position)}</p>}
       </header>
 
       <section aria-labelledby="piece-montee" className="flex flex-col gap-3">
@@ -110,6 +122,18 @@ export function FicheOrganeEcran({ fiche, niveau }: { fiche: FicheOrgane; niveau
           <p className="text-sm">Train monté : {organe.trainMonte.marque}</p>
         ) : (
           <p className="text-sm text-texte-discret">Aucune pièce montée.</p>
+        )}
+
+        {/* Réparer avant Remplacer (954 v1.2, Décisions intégrées : « Réparation passe avant Remplacer »). Chacun dans son tiroir. */}
+        {peutEcrire ? (
+          <FormulaireReparer organeId={organe.id} nom={organe.nom} vehicleId={fiche.vehicleId} />
+        ) : (
+          <div className="flex flex-col items-start gap-2">
+            <button type="button" disabled className="cible-tactile inline-flex items-center rounded-md border border-bordure px-4 opacity-60">
+              Réparer
+            </button>
+            <p className="text-sm text-texte-discret">Seul l&apos;équipage peut réparer un organe.</p>
+          </div>
         )}
 
         {!organe.trainMonte &&
@@ -194,7 +218,7 @@ export function FicheOrganeEcran({ fiche, niveau }: { fiche: FicheOrgane; niveau
         <h2 id="historique" className="text-lg font-semibold">
           Historique
         </h2>
-        <Historique poses={fiche.poses} usures={fiche.usures} />
+        <Historique poses={fiche.poses} usures={fiche.usures} reparations={fiche.reparations} />
       </section>
 
       <section aria-labelledby="retirer" className="flex flex-col gap-3 border-t border-bordure pt-6">

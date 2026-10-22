@@ -300,6 +300,7 @@ model CoreTeam {
   garageVehicleComponents  GarageVehicleComponent[]
   garageParts              GaragePart[]
   garagePartMounts         GaragePartMount[]
+  garagePartEtats          GaragePartEtat[]
   garageWearLogs           GarageWearLog[]
   garageWorkOrders         GarageWorkOrder[]
   garageWorkOrderParts     GarageWorkOrderPart[]
@@ -3064,6 +3065,7 @@ model GaragePart {
   commandeLigne  GaragePurchaseLine? @relation("PieceCommandee", fields: [commandeLigneId], references: [id], onDelete: SetNull)
   mounts         GaragePartMount[]
   wearLogs       GarageWearLog[]
+  partEtats      GaragePartEtat[]
   workOrderParts GarageWorkOrderPart[]
   incidentParts  GarageIncidentPart[]
   purchaseLines  GaragePurchaseLine[] @relation("PieceAchetee")
@@ -3103,6 +3105,34 @@ model GaragePartMount {
   @@index([partId])
   @@index([vehicleComponentId])
   @@map("garage_part_mount")
+}
+
+// État saisi à la main après une réparation (954 v1.3, §3 et §4). Un journal : une ligne par saisie. L'état courant d'une
+// pièce part de sa dernière ligne ; l'usure qui suit le fait baisser. Pourcentage entier, 0 à 100 (CHECK en migration).
+model GaragePartEtat {
+  id               String   @id @db.Uuid
+  teamId           String   @map("team_id") @db.Uuid
+  partId           String   @map("part_id") @db.Uuid
+  workOrderId      String   @map("work_order_id") @db.Uuid
+  etatPct          Int      @map("etat_pct")
+  kmAuSaisie       Decimal  @default(0) @map("km_au_saisie") @db.Decimal(8, 1)
+  epreuvesAuSaisie Int      @default(0) @map("epreuves_au_saisie")
+  saisiLe          DateTime @default(now()) @map("saisi_le") @db.Timestamptz(3)
+
+  createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
+  updatedAt DateTime  @map("updated_at") @db.Timestamptz(3) @updatedAt
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team      CoreTeam        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  part      GaragePart      @relation(fields: [partId], references: [id], onDelete: Restrict)
+  workOrder GarageWorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([partId, saisiLe])
+  @@map("garage_part_etat")
 }
 
 // Usure ajoutée à une pièce ou à un train de pneus (exactement un des deux : CHECK en migration).
@@ -3173,6 +3203,7 @@ model GarageWorkOrder {
   parts            GarageWorkOrderPart[]
   persons          GarageWorkOrderPerson[]
   incidents        GarageIncident[]
+  partEtats        GaragePartEtat[]
 
   @@index([teamId])
   @@index([teamId, deletedAt])
