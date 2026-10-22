@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   enumererOrganes,
+  etatCarte,
   libelleZone,
   motIndice,
   ordreDesOrganes,
@@ -164,6 +165,36 @@ describe("phrases de l'atelier", () => {
       "Il manque une pièce montée sur : ",
       "Renseigne la durée de vie de : ",
     ])
+  })
+})
+
+describe("ligne de la carte", () => {
+  const ZONES = ["vert", "orange", "rouge", "a_renseigner"] as const
+
+  it("à zéro km, la durée de vie prévue est atteinte", () => {
+    expect(etatCarte("rouge", 0)).toBe("durée de vie prévue atteinte")
+  })
+
+  it("en zone rouge avec des km restants, rien ne s'ajoute : la zone le dit déjà", () => {
+    expect(etatCarte("rouge", 500)).toBeNull()
+  })
+
+  it("sans durée, rien ; hors zone rouge, les km avant la zone rouge", () => {
+    expect(etatCarte("vert", null)).toBeNull()
+    expect(etatCarte("vert", 12000)).toBe(phraseKmRestants(12000))
+    expect(etatCarte("vert", 12000)).toMatch(/avant la zone rouge$/)
+  })
+
+  // Une même ligne n'écrit jamais deux fois le mot de sa zone (« Zone rouge · Zone rouge atteinte » ne doit plus arriver).
+  it("une ligne de carte ne répète jamais le mot de sa zone", () => {
+    for (const zone of ZONES) {
+      for (const km of [null, 0, 500, 12000]) {
+        const mot = libelleZone(zone)
+        const ligne = [mot, etatCarte(zone, km)].filter((partie): partie is string => partie !== null).join(" · ")
+        const occurrences = ligne.split(mot).length - 1
+        expect(occurrences, `${zone}, ${km} km : « ${ligne} »`).toBeLessThanOrEqual(1)
+      }
+    }
   })
 })
 

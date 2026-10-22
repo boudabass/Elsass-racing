@@ -11,8 +11,15 @@ import { LIEN } from "@/lib/classes-formulaire"
 
 import { libellePosition } from "../emplacements"
 import type { OrganeAtelier, SchemaAtelier, VehiculeChoisi } from "../lectures-serveur"
-import { libelleZone, ordreDesOrganes, phraseKmRestants, pourcentage, type PhraseAtelier } from "../mise-en-forme"
-import { CADRE_DESSUS, RAYON_CONTACT_BUREAU, RAYON_CONTACT_TELEPHONE, type PointSilhouette } from "../positions"
+import { etatCarte, libelleZone, ordreDesOrganes, pourcentage, type PhraseAtelier } from "../mise-en-forme"
+import {
+  CADRE_DESSUS,
+  decalageTexteRepere,
+  RAYON_CONTACT_BUREAU,
+  RAYON_CONTACT_TELEPHONE,
+  TRIANGLE_REPERE,
+  type PointSilhouette,
+} from "../positions"
 import { droitPreparerAtelier, type Zone } from "../regles"
 
 import { BoutonPreparerAtelier } from "./preparer-atelier"
@@ -133,7 +140,8 @@ const COULEUR_REPERE: Record<Zone, { fond: string; texte: string }> = {
 // Forme de la zone : rond (vert), triangle (orange), losange (rouge), rond pointillé (à renseigner).
 function formeDuRepere(zone: Zone, x: number, y: number, r: number) {
   if (zone === "orange") {
-    return <polygon points={`${x},${y - r} ${x + r},${y + r * 0.8} ${x - r},${y + r * 0.8}`} />
+    const { haut, bas, demiBase } = TRIANGLE_REPERE
+    return <polygon points={`${x},${y + haut * r} ${x + demiBase * r},${y + bas * r} ${x - demiBase * r},${y + bas * r}`} />
   }
   if (zone === "rouge") {
     return <polygon points={`${x},${y - r} ${x + r},${y} ${x},${y + r} ${x - r},${y}`} />
@@ -154,7 +162,7 @@ function Repere({ organe, point, rayon, rayonContact, taille }: { organe: Organe
       <g style={{ fill: couleur.fond, stroke: "var(--texte)", strokeWidth: 1.6 }}>{formeDuRepere(organe.zone, point.x, point.y, rayon)}</g>
       <text
         x={point.x}
-        y={point.y}
+        y={point.y + decalageTexteRepere(organe.zone, rayon)}
         textAnchor="middle"
         dominantBaseline="central"
         className="chiffre"
@@ -223,7 +231,7 @@ function Montage({ organe }: { organe: OrganeAtelier }) {
 
 function CarteOrgane({ organe, peutEcrire }: { organe: OrganeAtelier; peutEcrire: boolean }) {
   const pct = pourcentage(organe.etat)
-  const km = phraseKmRestants(organe.kmRestants)
+  const km = etatCarte(organe.zone, organe.kmRestants)
   return (
     <li className="flex flex-col gap-3 rounded-lg border border-bordure bg-surface p-4">
       <div className="flex items-start justify-between gap-3">

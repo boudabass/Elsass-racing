@@ -39,6 +39,15 @@ export function phraseKmRestants(km: number | null): string | null {
   return `${new Intl.NumberFormat("fr-FR").format(Math.round(km))} km avant la zone rouge`
 }
 
+// Ce que la carte d'un organe écrit après le mot de sa zone. Le mot de zone n'est jamais répété : à zéro km, la durée de vie
+// prévue est atteinte ; en zone rouge avec des km restants, rien ne s'ajoute (la zone le dit déjà). Null sans durée.
+export function etatCarte(zone: Zone, km: number | null): string | null {
+  if (km === null) return null
+  if (km <= 0) return "durée de vie prévue atteinte"
+  if (zone === "rouge") return null
+  return phraseKmRestants(km)
+}
+
 // Organe vu par le mot de l'indice : seuls comptent les critiques avec une pièce montée et un état connu (comme la moyenne).
 export type OrganeMot = { nom: string; critique: boolean; pieceMontee: boolean; zone: Zone }
 

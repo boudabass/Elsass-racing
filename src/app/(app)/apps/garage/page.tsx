@@ -53,7 +53,7 @@ export default async function PageAtelier({ searchParams }: { searchParams: Prom
 
           {/* La vue de dessus à gauche, la liste des emplacements à droite ; en dessous sur téléphone. */}
           <div className="flex flex-col gap-6 md:flex-row md:items-start">
-            <div className="flex w-full max-w-[260px] flex-col gap-3 md:w-60 md:max-w-none md:shrink-0">
+            <div className="mx-auto flex w-full max-w-[260px] flex-col gap-3 md:mx-0 md:w-60 md:max-w-none md:shrink-0">
               <SilhouetteAtelier vehicule={choisi.nomCourt} schema={atelier.schema} organes={atelier.organes} />
               {atelier.schema.sansGabarit && <SansSilhouette vehicleId={choisi.id} />}
             </div>
