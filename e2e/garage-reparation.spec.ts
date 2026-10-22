@@ -60,7 +60,8 @@ test("responsable · réparer la boîte : l'ordre passe dans les travaux, sa fin
   await expect(page.getByLabel("État de la pièce après réparation (%)")).toBeVisible()
   await page.getByLabel("État de la pièce après réparation (%)").fill("80")
   await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Terminer l'ordre", exact: true }))
-  await expect(page.getByText("Cet ordre est terminé : il ne se modifie plus.")).toBeVisible()
+  // Le texte existe deux fois (contenu et zone Actions) : il suffit qu'il soit visible.
+  await expect(page.getByText("Cet ordre est terminé : il ne se modifie plus.").first()).toBeVisible()
 
   // La fiche de la boîte garde la trace et affiche l'état saisi.
   await page.goto(`/apps/garage/organes/${organes.boite}`)

@@ -138,6 +138,8 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   await page.getByRole("dialog").getByLabel("Main-d'œuvre, en euros (facultatif)").fill("80")
   await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }))
   await page.getByRole("button", { name: "Terminer l'ordre", exact: true }).click()
+  // Une réparation sur un organe avec pièce montée demande l'état de la pièce après réparation (954 v1.3, §4).
+  await page.getByRole("dialog").getByLabel("État de la pièce après réparation (%)").fill("80")
   await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Terminer l'ordre", exact: true }))
   await expect(page.getByText("Terminé", { exact: true }).filter({ visible: true }).first()).toBeVisible()
 
