@@ -54,11 +54,28 @@ export function pointPourOrgane(
   return POSITIONS_PAR_GABARIT[gabaritCle]?.[organe.cle] ?? null
 }
 
-// Repères de la vue de dessus (brief 4.3e, section 2.2), dans le même viewBox que la vue droite. Un repère par
-// emplacement (`emplacements.ts`), en coordonnées du dessin `dessus` de la Saxo : centres des roues (x 66 à l'arrière,
-// x 283 à l'avant ; y 13 pour le côté gauche, y 137 pour le côté droit), amortisseurs à 230 (avant) et 120 (arrière),
-// transmissions à 175, pneus au centre, boîte et embrayage sur l'axe, moteur sous le capot. Pas de chevauchement : deux
-// repères sont distants d'au moins 53 unités, au-delà de 2 × RAYON_CONTACT_TELEPHONE.
+// Vue de dessus, nez vers le haut (brief 4.3e, section 4 ; 954 v1.2, « Emplacements et vue du dessus »). Le dessin du
+// gabarit est en nez à droite : on le tourne d'un quart de tour. Un point (x, y) du dessin va en (y + 14, 370 − x), soit
+// la transformation SVG `matrix(0 -1 1 0 14 370)` posée sur le dessin, et `versCadreDessus` pour les repères. Le côté
+// gauche de la voiture reste à gauche de l'écran. Le cadre (176 × 370) laisse entier, à 25 unités, le cercle de contact
+// des repères les plus à l'extérieur (x 27 et 151) : il ne sort pas de la vue.
+const DECALAGE_DESSUS_X = 14
+const DECALAGE_DESSUS_Y = 370
+
+export const CADRE_DESSUS = {
+  viewBox: "0 0 176 370",
+  transformation: `matrix(0 -1 1 0 ${DECALAGE_DESSUS_X} ${DECALAGE_DESSUS_Y})`,
+}
+
+// Un point du dessin (nez à droite) dans le cadre de la vue de dessus (nez en haut).
+export function versCadreDessus(point: PointSilhouette): PointSilhouette {
+  return { x: point.y + DECALAGE_DESSUS_X, y: DECALAGE_DESSUS_Y - point.x }
+}
+
+// Repères de la vue de dessus (brief 4.3e, section 2.2), dans le repère du dessin `dessus` de la Saxo, nez à droite. Un
+// repère par emplacement (`emplacements.ts`) : centres des roues (x 66 à l'arrière, x 283 à l'avant ; y 13 pour le côté
+// gauche, y 137 pour le côté droit), amortisseurs à 230 (avant) et 120 (arrière), transmissions à 175, pneus au centre,
+// boîte et embrayage sur l'axe, moteur sous le capot. `pointPourEmplacement` les tourne dans le cadre.
 const POSITIONS_DESSUS_SAXO: Record<string, Record<string, PointSilhouette>> = {
   moteur: { unique: { x: 338, y: 75 } },
   embrayage: { unique: { x: 283, y: 75 } },
@@ -84,11 +101,13 @@ const POSITIONS_DESSUS_PAR_GABARIT: Record<string, Record<string, Record<string,
   voiture_generique: POSITIONS_DESSUS_SAXO,
 }
 
-// Point d'un emplacement sur la vue de dessus d'un gabarit. Null sans gabarit, sans type par défaut ou sans position.
+// Point d'un emplacement dans le cadre de la vue de dessus d'un gabarit (nez en haut). Null sans gabarit, sans type par
+// défaut ou sans position.
 export function pointPourEmplacement(
   gabaritCle: string | null,
   organe: { cle: string | null; position: string | null },
 ): PointSilhouette | null {
   if (!gabaritCle || !organe.cle || !organe.position) return null
-  return POSITIONS_DESSUS_PAR_GABARIT[gabaritCle]?.[organe.cle]?.[organe.position] ?? null
+  const point = POSITIONS_DESSUS_PAR_GABARIT[gabaritCle]?.[organe.cle]?.[organe.position]
+  return point ? versCadreDessus(point) : null
 }

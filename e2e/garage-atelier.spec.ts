@@ -33,15 +33,17 @@ test("captures · l'atelier de la Saxo, à 1440 et à 360 px", async ({ page, eq
   await page.setViewportSize(BUREAU)
   await page.goto(`/apps/garage?vehicule=${vehicleId}`)
   await expect(page.getByRole("heading", { name: "Atelier", exact: true })).toBeVisible()
-  await expect(page.getByRole("group", { name: /^Silhouette de Saxo 2, vue droite/ })).toBeVisible()
-  await expect(page.getByText("À changer : embrayage", { exact: true })).toBeVisible()
-  await expect(page.getByRole("link", { name: "Embrayage, À changer, 2%" })).toBeVisible()
+  // La vue de dessus, nez en haut, avec ses repères. Aucune clé technique (« unique », « avant_gauche ») à l'écran.
+  await expect(page.getByRole("group", { name: /^Silhouette de Saxo 2, vue de dessus/ })).toBeVisible()
+  await expect(page.getByText("Zone rouge : embrayage", { exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Embrayage, Zone rouge, 2%" })).toBeVisible()
+  await expect(page.getByText(/avant_gauche|avant_droit|unique|train/)).toHaveCount(0)
   await capturer(page, "garage-atelier-1440.png")
 
   await page.setViewportSize(TELEPHONE)
   await expect(page.getByRole("heading", { name: "Atelier", exact: true })).toBeVisible()
-  // Téléphone : le repère porte la forme seule, et sa zone de contact fait au moins 44 px.
-  const repere = page.getByRole("link", { name: "Embrayage, À changer, 2%" })
+  // Téléphone : le repère porte la forme et le pourcentage, et sa zone de contact fait au moins 44 px.
+  const repere = page.getByRole("link", { name: "Embrayage, Zone rouge, 2%" })
   await expect(repere).toBeVisible()
   const cible = await repere.boundingBox()
   expect(cible?.width ?? 0, "cible du repère à 360 px").toBeGreaterThanOrEqual(44)

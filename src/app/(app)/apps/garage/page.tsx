@@ -51,13 +51,16 @@ export default async function PageAtelier({ searchParams }: { searchParams: Prom
         <>
           <IndiceBloc indice={atelier.indice} mot={mot} phrases={phrases} />
 
-          {atelier.silhouette ? (
-            <SilhouetteAtelier vehicule={choisi.nomCourt} silhouette={atelier.silhouette} organes={atelier.organes} />
-          ) : (
-            <SansSilhouette vehicleId={choisi.id} />
-          )}
-
-          <CartesOrganes organes={atelier.organes} niveau={acces.niveau} />
+          {/* La vue de dessus à gauche, la liste des emplacements à droite ; en dessous sur téléphone. */}
+          <div className="flex flex-col gap-6 md:flex-row md:items-start">
+            <div className="flex w-full max-w-[260px] flex-col gap-3 md:w-60 md:max-w-none md:shrink-0">
+              <SilhouetteAtelier vehicule={choisi.nomCourt} schema={atelier.schema} organes={atelier.organes} />
+              {atelier.schema.sansGabarit && <SansSilhouette vehicleId={choisi.id} />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <CartesOrganes organes={atelier.organes} niveau={acces.niveau} />
+            </div>
+          </div>
         </>
       )}
     </section>

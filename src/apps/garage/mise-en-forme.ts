@@ -4,10 +4,11 @@
 import { SEUILS_DEFAUT, zoneDeEtat, type Zone } from "./regles"
 
 // Mot de la zone : ce que l'écran écrit à côté de l'état. La zone se lit aussi par la forme, jamais par la couleur seule.
+// Le rouge ne dit pas « à changer » : le Garage informe, il ne pousse pas à l'achat (brief 4.3e, section 8).
 export const LIBELLE_ZONE: Record<Zone, string> = {
   vert: "Bon",
   orange: "À surveiller",
-  rouge: "À changer",
+  rouge: "Zone rouge",
   a_renseigner: "À renseigner",
 }
 

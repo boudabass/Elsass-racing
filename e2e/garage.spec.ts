@@ -92,7 +92,7 @@ test("responsable · tuile, durée, pièces, remplacement et roulage jusqu'à la
   // Remplacer l'embrayage : depuis son repère à l'atelier, la fiche de l'organe, puis le tiroir.
   await page.getByRole("link", { name: "Atelier", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Atelier", exact: true })).toBeVisible()
-  await page.getByRole("link", { name: "Embrayage, À changer, 2%" }).click()
+  await page.getByRole("link", { name: "Embrayage, Zone rouge, 2%" }).click()
   await expect(page).toHaveURL(new RegExp(`/apps/garage/organes/${organes.embrayage}$`))
   await page.getByRole("button", { name: "Remplacer", exact: true }).click()
   await expect(page.getByRole("dialog")).toBeVisible()
@@ -113,8 +113,8 @@ test("responsable · tuile, durée, pièces, remplacement et roulage jusqu'à la
   await expect(page).toHaveURL(/\/apps\/garage\?vehicule=/)
 
   // La boîte passe en zone rouge (8 000 km restants sur 120 000 : 7 %). Le mot de l'indice la nomme.
-  await expect(page.getByRole("link", { name: "Boîte de vitesses, À changer, 7%" })).toBeVisible()
-  await expect(page.getByText("À changer : boîte de vitesses", { exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Boîte de vitesses, Zone rouge, 7%" })).toBeVisible()
+  await expect(page.getByText("Zone rouge : boîte de vitesses", { exact: true })).toBeVisible()
   expect(await kmPieceMonteeEnBase(organes.boite), "km de la boîte en base").toBe(112000)
   expect(await kmPieceMonteeEnBase(organes.embrayage), "km de la rechange en base").toBe(16000)
 
@@ -162,7 +162,7 @@ test("assistance · lecture de l'atelier et du stock, aucun prix, aucun bouton d
 
   // La fiche d'un organe : aucun bouton d'écriture actif.
   await page.getByRole("link", { name: "Atelier", exact: true }).click()
-  await page.getByRole("link", { name: "Embrayage, À changer, 2%" }).click()
+  await page.getByRole("link", { name: "Embrayage, Zone rouge, 2%" }).click()
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
   await expect(page.locator("button:enabled").filter({ hasText: /Remplacer|Régler|Retirer/ })).toHaveCount(0)
 })

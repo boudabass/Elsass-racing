@@ -24,6 +24,8 @@ export interface SilhouetteProps {
   elements: ElementDessin[]
   // Vue en miroir (le côté gauche) : le dessin droit, retourné autour de l'axe vertical du viewBox.
   retourne?: boolean
+  // Transformation SVG du dessin (vue de dessus tournée, nez en haut). Prime sur `retourne`.
+  transformation?: string
   nomAccessible: string
   ref?: Ref<SVGSVGElement>
   style?: CSSProperties
@@ -41,13 +43,14 @@ export function elementsDessines(elements: ElementDessin[]): ElementDessin[] {
   return elements.filter((element) => !estFilet(element))
 }
 
-export function Silhouette({ viewBox, elements, retourne = false, nomAccessible, ref, style, children }: SilhouetteProps) {
+export function Silhouette({ viewBox, elements, retourne = false, transformation, nomAccessible, ref, style, children }: SilhouetteProps) {
   const [x, , largeur] = viewBox.trim().split(/\s+/).map(Number)
   const dessines = elementsDessines(elements)
+  const transform = transformation ?? (retourne ? `translate(${x + largeur} 0) scale(-1 1)` : undefined)
   return (
     <svg ref={ref} viewBox={viewBox} role="group" aria-label={nomAccessible} className="block h-auto w-full" style={style}>
       {dessines.length > 0 && (
-        <g transform={retourne ? `translate(${x + largeur} 0) scale(-1 1)` : undefined}>
+        <g transform={transform}>
           {dessines.map((element, index) => (
             <TraitDessin key={index} element={element} />
           ))}

@@ -2,7 +2,8 @@
 // pièce. Lecture seule, sous accesGarage("lecture"). Les prix n'existent dans les objets renvoyés qu'à partir du
 // niveau écriture : l'assistance (contribution) n'en reçoit aucun (point 1 du brief). Un test le vérifie.
 
-import { silhouetteDuVehicule, type SilhouetteVehicule } from "@/apps/voiture/lectures-partagees"
+import { CLE_GABARIT_GENERIQUE, gabarit, type ElementDessin } from "@/apps/voiture/gabarits"
+import { silhouetteDuVehicule } from "@/apps/voiture/lectures-partagees"
 import type { ContexteTeam } from "@/core/contexte"
 import { aAuMoins } from "@/core/droits/niveaux"
 import { prismaPourTeam } from "@/lib/prisma"
@@ -19,7 +20,7 @@ import {
   type Zone,
 } from "./regles"
 import { accesGarage } from "./services-serveur"
-import { pointPourOrgane, type PointSilhouette } from "./positions"
+import { pointPourEmplacement, type PointSilhouette } from "./positions"
 import type { PieceStock } from "./mise-en-forme"
 import { comparerOrdres, type PrioriteTravail, type StatutOrdre, type TypeOrdre } from "./travaux"
 import { dateDeParis, type StatutCommande } from "./commandes"
@@ -48,13 +49,20 @@ export type OrganeAtelier = {
   trainMonte: { id: string; marque: string; usureEstimeePct: number | null } | null
   // Pièces de rechange en stock sur ce véhicule, du même type.
   rechanges: PieceAtelier[]
-  // Point sur la silhouette (null sans gabarit, ou sans position pour cet organe).
-  pointSilhouette: PointSilhouette | null
+  // Repère sur la vue de dessus, nez en haut (null sans position pour cet organe).
+  pointDessus: PointSilhouette | null
+}
+
+// Vue de dessus de l'atelier : celle du gabarit de la voiture, ou le schéma générique sans gabarit (repères compris).
+export type SchemaAtelier = {
+  gabaritCle: string
+  sansGabarit: boolean
+  dessin: ElementDessin[]
 }
 
 export type VehiculeAtelier = {
   vehicleId: string
-  silhouette: SilhouetteVehicule | null
+  schema: SchemaAtelier
   organes: OrganeAtelier[]
   indice: number | null
   // Organes critiques sans pièce montée : signalés à part, jamais comptés à 0.
@@ -64,6 +72,12 @@ export type VehiculeAtelier = {
 }
 
 type Client = ReturnType<typeof prismaPourTeam>
+
+// Sans gabarit, l'atelier montre le schéma générique vu de dessus : les repères gardent leur place.
+function schemaGenerique(): SchemaAtelier {
+  const dessin: ElementDessin[] = gabarit(CLE_GABARIT_GENERIQUE)?.vuesDessinees.find((v) => v.vue === "dessus")?.dessin ?? []
+  return { gabaritCle: CLE_GABARIT_GENERIQUE, sansGabarit: true, dessin }
+}
 
 async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: boolean): Promise<VehiculeAtelier | null> {
   const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
@@ -89,6 +103,9 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
   })
 
   const silhouette = await silhouetteDuVehicule(ctx, vehicleId)
+  const schema = silhouette
+    ? { gabaritCle: silhouette.gabaritCle, sansGabarit: false, dessin: silhouette.dessus }
+    : schemaGenerique()
   const organesIndice: OrganeIndice[] = []
   const lignes: OrganeAtelier[] = organes.map((organe) => {
     const critique = organe.componentType.critique
@@ -120,7 +137,7 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
         piece: null,
         trainMonte: train ? { id: train.id, marque: train.marque, usureEstimeePct: train.usureEstimeePct } : null,
         rechanges,
-        pointSilhouette: pointPourOrgane(silhouette?.gabaritCle ?? null, organe.componentType),
+        pointDessus: pointPourEmplacement(schema.gabaritCle, { cle: organe.componentType.cle, position: organe.position }),
       }
     }
 
@@ -157,14 +174,14 @@ async function lireVehiculeDans(ctx: ContexteTeam, vehicleId: string, avecPrix: 
           : null,
       trainMonte: null,
       rechanges,
-      pointSilhouette: pointPourOrgane(silhouette?.gabaritCle ?? null, organe.componentType),
+      pointDessus: pointPourEmplacement(schema.gabaritCle, { cle: organe.componentType.cle, position: organe.position }),
     }
   })
 
   const indice = indiceFiabilite(organesIndice)
   return {
     vehicleId,
-    silhouette,
+    schema,
     organes: lignes,
     indice: indice.indice,
     sansPiece: indice.sansPiece,

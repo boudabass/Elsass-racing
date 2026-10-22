@@ -9,12 +9,11 @@ import { gabarit } from "./gabarits"
 import type { ElementDessin } from "./gabarits/types"
 import { statutEmplacement, type StatutEmplacement } from "./regles"
 
-// Silhouette d'un véhicule pour Garage (tâche 4.1, brief §1) : la clé du gabarit, sa viewBox et le dessin de la vue
-// droite. Rien d'autre : aucune donnée de déco. Un véhicule sans gabarit renvoie null.
+// Silhouette d'un véhicule pour Garage (tâche 4.1, brief §1 ; vue de dessus depuis 4.3e) : la clé du gabarit et le dessin
+// de la vue de dessus. Rien d'autre : aucune donnée de déco. Un véhicule sans gabarit renvoie null.
 export type SilhouetteVehicule = {
   gabaritCle: string
-  viewBox: string
-  dessin: ElementDessin[]
+  dessus: ElementDessin[]
 }
 
 export async function silhouetteDuVehicule(ctx: ContexteTeam, vehicleId: string): Promise<SilhouetteVehicule | null> {
@@ -26,8 +25,8 @@ export async function silhouetteDuVehicule(ctx: ContexteTeam, vehicleId: string)
   if (!fiche?.gabaritCle) return null
   const modele = gabarit(fiche.gabaritCle)
   if (!modele) return null
-  const droite = modele.vuesDessinees.find((v) => v.vue === "droite")
-  return { gabaritCle: modele.cle, viewBox: modele.viewBox, dessin: droite?.dessin ?? [] }
+  const dessus = modele.vuesDessinees.find((v) => v.vue === "dessus")
+  return { gabaritCle: modele.cle, dessus: dessus?.dessin ?? [] }
 }
 
 export type EmplacementPourPartenaire = {

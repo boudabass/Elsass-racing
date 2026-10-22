@@ -25,14 +25,15 @@ function bd(): Pool {
 // Organes de l'atelier de test, par clé de type. `ref` : durée de vie de référence de l'organe (km), `usure` : km de la
 // pièce montée, `piece` : false pour un organe sans pièce. Les freins ont une pièce sans durée : « À renseigner ».
 // Le mode « km » donne un état sans durée en épreuves ; le mode par défaut (« les deux ») attend les deux durées.
-const ORGANES: Record<string, { position?: string; mode?: "km"; ref: number | null; usure: number; piece: boolean; designation?: string; marque?: string; reference?: string }> = {
-  moteur: { mode: "km", ref: 150000, usure: 30000, piece: true, designation: "Moteur reconditionné", marque: "Renault", reference: "K7M" },
-  boite: { mode: "km", ref: 120000, usure: 96000, piece: true, designation: "Boîte 5 vitesses", marque: "Renault", reference: "JB1" },
-  embrayage: { mode: "km", ref: 60000, usure: 59000, piece: true, designation: "Kit d'embrayage", marque: "Valeo", reference: "826578" },
-  transmissions: { ref: null, usure: 0, piece: false },
-  freins: { position: "Avant droit", ref: null, usure: 0, piece: true, designation: "Disque et plaquettes", marque: "Brembo" },
-  amortisseurs: { mode: "km", ref: 80000, usure: 8000, piece: true, designation: "Amortisseurs avant", marque: "Bilstein" },
-  pneus: { ref: null, usure: 0, piece: false },
+// La position est un emplacement de `emplacements.ts` (clé technique, comme le fait l'app à la préparation).
+const ORGANES: Record<string, { position: string; mode?: "km"; ref: number | null; usure: number; piece: boolean; designation?: string; marque?: string; reference?: string }> = {
+  moteur: { position: "unique", mode: "km", ref: 150000, usure: 30000, piece: true, designation: "Moteur reconditionné", marque: "Renault", reference: "K7M" },
+  boite: { position: "unique", mode: "km", ref: 120000, usure: 96000, piece: true, designation: "Boîte 5 vitesses", marque: "Renault", reference: "JB1" },
+  embrayage: { position: "unique", mode: "km", ref: 60000, usure: 59000, piece: true, designation: "Kit d'embrayage", marque: "Valeo", reference: "826578" },
+  transmissions: { position: "gauche", ref: null, usure: 0, piece: false },
+  freins: { position: "avant_droit", ref: null, usure: 0, piece: true, designation: "Disque et plaquettes", marque: "Brembo" },
+  amortisseurs: { position: "avant_gauche", mode: "km", ref: 80000, usure: 8000, piece: true, designation: "Amortisseurs avant", marque: "Bilstein" },
+  pneus: { position: "train", ref: null, usure: 0, piece: false },
 }
 
 // Prépare l'atelier de la voiture : gabarit Saxo, les types de la team, un organe par type, une pièce montée sur les

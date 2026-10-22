@@ -33,15 +33,15 @@ describe("mot de l'indice", () => {
     expect(motIndice([organe("Moteur", "vert"), organe("Freins", "vert")])).toBe("Bon")
   })
 
-  it("un rouge nomme l'organe : « À changer : embrayage »", () => {
-    expect(motIndice([organe("Moteur", "vert"), organe("Embrayage", "rouge")])).toBe("À changer : embrayage")
+  it("un rouge nomme l'organe : « Zone rouge : embrayage »", () => {
+    expect(motIndice([organe("Moteur", "vert"), organe("Embrayage", "rouge")])).toBe("Zone rouge : embrayage")
   })
 
   it("plusieurs rouges se comptent : « embrayage et 1 autre », « et 2 autres »", () => {
     const deux = [organe("Embrayage", "rouge"), organe("Freins", "rouge"), organe("Moteur", "vert")]
-    expect(motIndice(deux)).toBe("À changer : embrayage et 1 autre")
+    expect(motIndice(deux)).toBe("Zone rouge : embrayage et 1 autre")
     const trois = [...deux, organe("Boîte de vitesses", "rouge")]
-    expect(motIndice(trois)).toBe("À changer : embrayage et 2 autres")
+    expect(motIndice(trois)).toBe("Zone rouge : embrayage et 2 autres")
   })
 
   it("un orange, sans rouge : « À surveiller : boîte de vitesses »", () => {
@@ -50,7 +50,7 @@ describe("mot de l'indice", () => {
 
   it("le rouge l'emporte sur l'orange, qui n'est pas nommé", () => {
     const organes = [organe("Boîte de vitesses", "orange"), organe("Embrayage", "rouge")]
-    expect(motIndice(organes)).toBe("À changer : embrayage")
+    expect(motIndice(organes)).toBe("Zone rouge : embrayage")
   })
 
   it("un organe non critique, ou sans pièce montée, ne compte pas", () => {
@@ -58,14 +58,14 @@ describe("mot de l'indice", () => {
     expect(motIndice([organe("Transmissions", "rouge", { pieceMontee: false }), organe("Moteur", "vert")])).toBe("Bon")
   })
 
-  it("l'exemple de la capture : 34 % et « À changer : embrayage »", () => {
+  it("l'exemple de la capture : « Zone rouge : embrayage », l'orange n'est pas nommé", () => {
     const capture = [
       organe("Moteur", "vert"),
       organe("Boîte de vitesses", "orange"),
       organe("Embrayage", "rouge"),
       organe("Amortisseurs", "vert", { critique: false }),
     ]
-    expect(motIndice(capture)).toBe("À changer : embrayage")
+    expect(motIndice(capture)).toBe("Zone rouge : embrayage")
   })
 
   it("enumererOrganes : un nom seul, puis le premier et le nombre d'autres", () => {
@@ -79,8 +79,15 @@ describe("mot de la zone", () => {
   it("écrit le mot de chaque zone, sur les seuils par défaut des pièces", () => {
     expect(libelleZone("vert")).toBe("Bon")
     expect(libelleZone("orange")).toBe("À surveiller")
-    expect(libelleZone("rouge")).toBe("À changer")
+    expect(libelleZone("rouge")).toBe("Zone rouge")
     expect(libelleZone("a_renseigner")).toBe("À renseigner")
+  })
+
+  // Aucun mot de la zone n'appelle l'achat : pas de « à changer », ni de « à remplacer ».
+  it("aucun mot de zone ne dit « à changer » ni « à remplacer »", () => {
+    for (const zone of ["vert", "orange", "rouge", "a_renseigner"] as const) {
+      expect(libelleZone(zone)).not.toMatch(/changer|remplacer/i)
+    }
   })
 
   it("donne la zone de l'indice : 30 % et 10 % comme seuils, sans indice à renseigner", () => {

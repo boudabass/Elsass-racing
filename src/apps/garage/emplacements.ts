@@ -36,6 +36,16 @@ export function emplacementsDuType(cle: string | null): Emplacement[] {
   return EMPLACEMENTS_PAR_TYPE[cle] ?? []
 }
 
+// Position lisible à l'écran : le libellé de l'emplacement (« avant gauche »), le texte saisi par la team pour un organe
+// ajouté, et rien pour une position sans nom (« unique », « train »). Jamais la clé technique.
+export function libellePosition(position: string | null): string | null {
+  if (!position || position === POSITION_UNIQUE || position === POSITION_TRAIN) return null
+  const emplacement = Object.values(EMPLACEMENTS_PAR_TYPE)
+    .flat()
+    .find((e) => e.position === position)
+  return emplacement ? emplacement.libelle : position
+}
+
 // Nombre total d'emplacements sur une voiture équipée des organes par défaut.
 export function nombreEmplacementsParDefaut(): number {
   return Object.values(EMPLACEMENTS_PAR_TYPE).reduce((total, liste) => total + liste.length, 0)

@@ -1,6 +1,7 @@
-// Atelier (tâche 4.2, brief §1) : le choix de la voiture, l'indice de fiabilité, la silhouette avec un repère par organe,
-// puis une carte par organe. Rendu serveur ; seul le tiroir de durée de vie est un composant client. La forme du repère
-// porte la zone, le pourcentage (au bureau) et le mot portent l'état ; jamais la couleur seule.
+// Atelier (tâche 4.2, brief §1 ; vue de dessus depuis 4.3e) : le choix de la voiture, l'indice de fiabilité, la vue de
+// dessus avec un repère par emplacement à côté de la liste des organes, puis une carte par organe. Rendu serveur ; seul
+// le tiroir de durée de vie est un composant client. La forme du repère porte la zone, la couleur et le pourcentage le
+// rendent visible, le mot porte l'état ; jamais la couleur seule.
 
 import Link from "next/link"
 
@@ -8,9 +9,10 @@ import { Silhouette } from "@/components/silhouette/silhouette"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 import { LIEN } from "@/lib/classes-formulaire"
 
-import type { OrganeAtelier, VehiculeAtelier, VehiculeChoisi } from "../lectures-serveur"
+import { libellePosition } from "../emplacements"
+import type { OrganeAtelier, SchemaAtelier, VehiculeChoisi } from "../lectures-serveur"
 import { libelleZone, ordreDesOrganes, phraseKmRestants, pourcentage, type PhraseAtelier } from "../mise-en-forme"
-import { RAYON_CONTACT_BUREAU, RAYON_CONTACT_TELEPHONE, type PointSilhouette } from "../positions"
+import { CADRE_DESSUS, RAYON_CONTACT_BUREAU, RAYON_CONTACT_TELEPHONE, type PointSilhouette } from "../positions"
 import { droitPreparerAtelier, type Zone } from "../regles"
 
 import { BoutonPreparerAtelier } from "./preparer-atelier"
@@ -115,9 +117,18 @@ export function IndiceBloc({ indice, mot, phrases }: { indice: number | null; mo
 
 // --- Silhouette et repères -----------------------------------------------------------------
 
-// Rayon visible du repère, en unités du plan : plus gros sur téléphone, où il ne porte que sa forme.
+// Rayon visible du repère, en unités du plan. Sur téléphone il est plus gros (la forme et le pourcentage y tiennent).
 const RAYON_REPERE_BUREAU = 12
 const RAYON_REPERE_TELEPHONE = 16
+
+// Couleur du repère, par zone : le fond est le jeton de la zone, le texte a un contraste d'au moins 4,5:1 dans les deux
+// thèmes. La zone se lit aussi par la forme et par le mot : la couleur seule ne porte rien.
+const COULEUR_REPERE: Record<Zone, { fond: string; texte: string }> = {
+  vert: { fond: "var(--etat-ok)", texte: "var(--fond)" },
+  orange: { fond: "var(--etat-orange)", texte: "var(--fond)" },
+  rouge: { fond: "var(--etat-rouge)", texte: "var(--etat-rouge-texte)" },
+  a_renseigner: { fond: "var(--surface)", texte: "var(--texte)" },
+}
 
 // Forme de la zone : rond (vert), triangle (orange), losange (rouge), rond pointillé (à renseigner).
 function formeDuRepere(zone: Zone, x: number, y: number, r: number) {
@@ -133,46 +144,53 @@ function formeDuRepere(zone: Zone, x: number, y: number, r: number) {
   return <circle cx={x} cy={y} r={r} />
 }
 
+// Le repère dessiné : zone de contact, forme de la zone à la couleur de la zone, pourcentage au centre.
+function Repere({ organe, point, rayon, rayonContact, taille }: { organe: OrganeAtelier; point: PointSilhouette; rayon: number; rayonContact: number; taille: number }) {
+  const pct = organe.etat === null ? null : `${Math.round(organe.etat)}%`
+  const couleur = COULEUR_REPERE[organe.zone]
+  return (
+    <>
+      <circle cx={point.x} cy={point.y} r={rayonContact} fill="transparent" />
+      <g style={{ fill: couleur.fond, stroke: "var(--texte)", strokeWidth: 1.6 }}>{formeDuRepere(organe.zone, point.x, point.y, rayon)}</g>
+      <text
+        x={point.x}
+        y={point.y}
+        textAnchor="middle"
+        dominantBaseline="central"
+        className="chiffre"
+        style={{ fontSize: taille, fontWeight: 600, fill: couleur.texte }}
+        aria-hidden="true"
+      >
+        {pct ?? "–"}
+      </text>
+    </>
+  )
+}
+
 // Un repère est un lien vers la fiche de l'organe. Le nom, le mot de la zone et le pourcentage sont dans son nom
-// accessible, à toutes les tailles. Deux variantes, une seule affichée : téléphone (plus gros, sans texte) et bureau.
+// accessible. Deux variantes, une seule affichée : téléphone (repère plus gros, zone de contact de 25 unités) et bureau.
 function RepereOrgane({ organe, point }: { organe: OrganeAtelier; point: PointSilhouette }) {
   const pct = organe.etat === null ? null : `${Math.round(organe.etat)}%`
   const libelle = `${organe.nom}, ${libelleZone(organe.zone)}${pct ? `, ${pct}` : ""}`
-  const style = {
-    fill: organe.zone === "rouge" ? "var(--marque)" : "var(--surface)",
-    stroke: "var(--texte)",
-    strokeWidth: 1.6,
-  }
   return (
     <a href={`/apps/garage/organes/${organe.id}`} aria-label={libelle}>
       <g className="md:hidden">
-        <circle cx={point.x} cy={point.y} r={RAYON_CONTACT_TELEPHONE} fill="transparent" />
-        <g style={style}>{formeDuRepere(organe.zone, point.x, point.y, RAYON_REPERE_TELEPHONE)}</g>
+        <Repere organe={organe} point={point} rayon={RAYON_REPERE_TELEPHONE} rayonContact={RAYON_CONTACT_TELEPHONE} taille={7} />
       </g>
       <g className="hidden md:block">
-        <circle cx={point.x} cy={point.y} r={RAYON_CONTACT_BUREAU} fill="transparent" />
-        <g style={style}>{formeDuRepere(organe.zone, point.x, point.y, RAYON_REPERE_BUREAU)}</g>
-        <text
-          x={point.x}
-          y={point.y}
-          textAnchor="middle"
-          dominantBaseline="central"
-          className="chiffre"
-          style={{ fontSize: 8, fontWeight: 600, fill: organe.zone === "rouge" ? "var(--marque-texte)" : "var(--texte)" }}
-          aria-hidden="true"
-        >
-          {pct ?? "–"}
-        </text>
+        <Repere organe={organe} point={point} rayon={RAYON_REPERE_BUREAU} rayonContact={RAYON_CONTACT_BUREAU} taille={8} />
       </g>
     </a>
   )
 }
 
-export function SilhouetteAtelier({ vehicule, silhouette, organes }: { vehicule: string; silhouette: NonNullable<VehiculeAtelier["silhouette"]>; organes: OrganeAtelier[] }) {
+// La vue de dessus, nez en haut, avec un repère par emplacement. Sans gabarit : le schéma générique, même cadre.
+export function SilhouetteAtelier({ vehicule, schema, organes }: { vehicule: string; schema: SchemaAtelier; organes: OrganeAtelier[] }) {
+  const nomAccessible = schema.sansGabarit ? "Schéma générique de la voiture, vue de dessus" : `Silhouette de ${vehicule}, vue de dessus`
   return (
-    <Silhouette viewBox={silhouette.viewBox} elements={silhouette.dessin} nomAccessible={`Silhouette de ${vehicule}, vue droite`}>
+    <Silhouette viewBox={CADRE_DESSUS.viewBox} transformation={CADRE_DESSUS.transformation} elements={schema.dessin} nomAccessible={nomAccessible}>
       {organes.map((organe) =>
-        organe.pointSilhouette ? <RepereOrgane key={organe.id} organe={organe} point={organe.pointSilhouette} /> : null,
+        organe.pointDessus ? <RepereOrgane key={organe.id} organe={organe} point={organe.pointDessus} /> : null,
       )}
     </Silhouette>
   )
@@ -214,7 +232,7 @@ function CarteOrgane({ organe, peutEcrire }: { organe: OrganeAtelier; peutEcrire
             <Link href={`/apps/garage/organes/${organe.id}`} className="cible-tactile inline-flex items-center underline underline-offset-4">
               {organe.nom}
             </Link>
-            {organe.position && <span className="font-normal text-texte-discret"> · {organe.position}</span>}
+            {libellePosition(organe.position) && <span className="font-normal text-texte-discret"> · {libellePosition(organe.position)}</span>}
           </p>
         </div>
         {pct && <span className="chiffre shrink-0 text-xl font-semibold">{pct}</span>}

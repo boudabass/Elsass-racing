@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { EMPLACEMENTS_PAR_TYPE } from "./emplacements"
-import { pointPourEmplacement, pointPourOrgane, pointValide, RAYON_CONTACT_TELEPHONE } from "./positions"
+import { CADRE_DESSUS, pointPourEmplacement, pointPourOrgane, pointValide, RAYON_CONTACT_TELEPHONE, versCadreDessus } from "./positions"
 import { TYPES_DEFAUT } from "./types-defaut"
 
 // viewBox de la vue droite de la Saxo : « 0 -14 370 173 ». Les gabarits partagent ce dessin.
@@ -88,23 +88,57 @@ describe("repères de la vue de dessus (emplacements)", () => {
     }
   })
 
-  it("chaque repère reste dans la viewBox", () => {
-    for (const { cle, position, point } of emplacements("citadine_3p_saxo")) {
-      expect(point!.x, `${cle} ${position}`).toBeGreaterThanOrEqual(LARGEUR_MIN)
-      expect(point!.x, `${cle} ${position}`).toBeLessThanOrEqual(LARGEUR_MAX)
-      expect(point!.y, `${cle} ${position}`).toBeGreaterThanOrEqual(HAUTEUR_MIN)
-      expect(point!.y, `${cle} ${position}`).toBeLessThanOrEqual(HAUTEUR_MAX)
+  it("chaque repère reste dans le cadre de la vue de dessus, sur la Saxo et le générique", () => {
+    const [largeur, hauteur] = CADRE_DESSUS.viewBox.split(" ").slice(2).map(Number)
+    for (const gabarit of ["citadine_3p_saxo", "voiture_generique"]) {
+      for (const { cle, position, point } of emplacements(gabarit)) {
+        expect(point!.x, `${gabarit} ${cle} ${position}`).toBeGreaterThanOrEqual(RAYON_CONTACT_TELEPHONE)
+        expect(point!.x, `${gabarit} ${cle} ${position}`).toBeLessThanOrEqual(largeur - RAYON_CONTACT_TELEPHONE)
+        expect(point!.y, `${gabarit} ${cle} ${position}`).toBeGreaterThanOrEqual(RAYON_CONTACT_TELEPHONE)
+        expect(point!.y, `${gabarit} ${cle} ${position}`).toBeLessThanOrEqual(hauteur - RAYON_CONTACT_TELEPHONE)
+      }
     }
   })
 
-  it("à la taille téléphone, deux repères de la vue de dessus ne se coupent pas", () => {
-    const points = emplacements("citadine_3p_saxo")
-    for (let i = 0; i < points.length; i++) {
-      for (let j = i + 1; j < points.length; j++) {
-        const distance = Math.hypot(points[i].point!.x - points[j].point!.x, points[i].point!.y - points[j].point!.y)
-        expect(distance, `${points[i].cle} ${points[i].position} et ${points[j].cle} ${points[j].position}`).toBeGreaterThan(
-          2 * RAYON_CONTACT_TELEPHONE,
-        )
+  // Nez vers le haut : l'avant est en haut du cadre, l'arrière en bas. Le côté gauche de la voiture est à gauche de l'écran.
+  it("nez vers le haut : les organes avant sont au-dessus des arrière, le moteur en tête", () => {
+    const avant = pointPourEmplacement("citadine_3p_saxo", { cle: "freins", position: "avant_gauche" })!
+    const arriere = pointPourEmplacement("citadine_3p_saxo", { cle: "freins", position: "arriere_gauche" })!
+    expect(avant.y).toBeLessThan(arriere.y)
+    const moteur = pointPourEmplacement("citadine_3p_saxo", { cle: "moteur", position: "unique" })!
+    const pneus = pointPourEmplacement("citadine_3p_saxo", { cle: "pneus", position: "train" })!
+    expect(moteur.y).toBeLessThan(pneus.y)
+  })
+
+  it("le côté gauche de la voiture est à gauche de l'écran", () => {
+    for (const cle of ["freins", "amortisseurs"]) {
+      const gauche = pointPourEmplacement("citadine_3p_saxo", { cle, position: "avant_gauche" })!
+      const droite = pointPourEmplacement("citadine_3p_saxo", { cle, position: "avant_droit" })!
+      expect(gauche.x, cle).toBeLessThan(droite.x)
+    }
+    const gaucheT = pointPourEmplacement("citadine_3p_saxo", { cle: "transmissions", position: "gauche" })!
+    const droiteT = pointPourEmplacement("citadine_3p_saxo", { cle: "transmissions", position: "droite" })!
+    expect(gaucheT.x).toBeLessThan(droiteT.x)
+  })
+
+  // Le dessin tourné et les repères suivent la même transformation : le nez du dessin (x 370) tombe en haut, au centre.
+  it("la transformation du dessin et les repères donnent le même cadre", () => {
+    expect(CADRE_DESSUS.transformation).toBe("matrix(0 -1 1 0 14 370)")
+    expect(versCadreDessus({ x: 370, y: 75 })).toEqual({ x: 89, y: 0 })
+    expect(versCadreDessus({ x: 0, y: -14 })).toEqual({ x: 0, y: 370 })
+  })
+
+  it("à la taille téléphone, deux repères de la vue de dessus ne se coupent pas, sur la Saxo et le générique", () => {
+    for (const gabarit of ["citadine_3p_saxo", "voiture_generique"]) {
+      const points = emplacements(gabarit)
+      expect(points).toHaveLength(14)
+      for (let i = 0; i < points.length; i++) {
+        for (let j = i + 1; j < points.length; j++) {
+          const distance = Math.hypot(points[i].point!.x - points[j].point!.x, points[i].point!.y - points[j].point!.y)
+          expect(distance, `${gabarit} : ${points[i].cle} ${points[i].position} et ${points[j].cle} ${points[j].position}`).toBeGreaterThan(
+            2 * RAYON_CONTACT_TELEPHONE,
+          )
+        }
       }
     }
   })

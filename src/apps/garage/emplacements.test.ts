@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { emplacementsDuType, EMPLACEMENTS_PAR_TYPE, nombreEmplacementsParDefaut, POSITION_TRAIN, POSITION_UNIQUE } from "./emplacements"
+import { emplacementsDuType, EMPLACEMENTS_PAR_TYPE, libellePosition, nombreEmplacementsParDefaut, POSITION_TRAIN, POSITION_UNIQUE } from "./emplacements"
 import { TYPES_DEFAUT } from "./types-defaut"
 
 describe("emplacements des organes par défaut", () => {
@@ -39,5 +39,23 @@ describe("emplacements des organes par défaut", () => {
   it("un type inconnu, une clé absente ou la team n'ont pas d'emplacement", () => {
     expect(emplacementsDuType(null)).toEqual([])
     expect(emplacementsDuType("type_de_la_team")).toEqual([])
+  })
+})
+
+describe("libellé de la position à l'écran", () => {
+  it("une clé d'emplacement s'écrit en français : « avant gauche », « gauche »", () => {
+    expect(libellePosition("avant_gauche")).toBe("avant gauche")
+    expect(libellePosition("arriere_droit")).toBe("arrière droit")
+    expect(libellePosition("gauche")).toBe("gauche")
+  })
+
+  it("« unique » et « train » ne s'écrivent pas : rien à afficher", () => {
+    expect(libellePosition(POSITION_UNIQUE)).toBeNull()
+    expect(libellePosition(POSITION_TRAIN)).toBeNull()
+    expect(libellePosition(null)).toBeNull()
+  })
+
+  it("une position saisie par la team reste telle quelle", () => {
+    expect(libellePosition("Arrière, côté passager")).toBe("Arrière, côté passager")
   })
 })
