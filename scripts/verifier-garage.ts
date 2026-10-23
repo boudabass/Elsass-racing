@@ -64,6 +64,17 @@ async function main() {
     await proprietaire.coreVehicle.create({
       data: { id: vehicule, teamId: team.id, type: "course", nomCourt: `Saxo ${suffixe}` },
     })
+    // Garage émet, Budget écoute (garage.piece_achetee) : les deux apps activées, pour que la proposition soit faite (section 11).
+    await proprietaire.coreTeamApp.createMany({
+      data: ["budget", "garage"].map((appCle, index) => ({
+        id: randomUUID(),
+        teamId: team.id,
+        appCle,
+        activee: true,
+        versionInstallee: "0.1.0",
+        ordre: index + 1,
+      })),
+    })
 
     // 1. Initialisation : sept types par défaut, un organe par emplacement (quatorze), sans doublon à la deuxième écriture.
     await executerPourTeam(team.id, utilisateur.id, (tx) => services.initialiserGarageDans(tx, ctx, vehicule))
@@ -87,7 +98,7 @@ async function main() {
     controle("le train d'origine est sur l'organe pneus", trainOrigine[0]?.vehicleComponentId === monteSurPneus?.id)
     const poseMoteur = await proprietaire.garagePartMount.findFirst({ where: { teamId: team.id, vehicleComponentId: organes.find((o) => o.componentTypeId === types.find((t) => t.cle === "moteur")!.id)!.id, deposeeLe: null } })
     controle("le moteur a sa pièce d'origine montée", poseMoteur !== null)
-    await services.deposerPieceDans(ctx, poseMoteur!.id, "preventif")
+    await services.deposerPieceDans(ctx, poseMoteur!.id, "preventif", "reserve")
 
     // 1 bis. Course (correction E) : deux initialisations simultanées sur une team neuve et un véhicule neuf.
     // Les types sont copiés une seule fois et chaque emplacement n'a qu'un organe, sans erreur de clé étrangère.
@@ -123,14 +134,18 @@ async function main() {
     controle("une pièce d'un autre type d'organe est refusée", refusType?.includes("ne va pas sur ce type d'organe") === true, refusType ?? "aucun refus")
     const refusSansMotif = await refuse(services.poserPieceDans(ctx, organeDe("moteur"), piece2))
     controle("une pose sur un organe occupé exige le motif de la dépose", refusSansMotif?.includes("motif") === true, refusSansMotif ?? "aucun refus")
-    const refusDejaMontee = await refuse(services.poserPieceDans(ctx, organeDe("moteur"), piece1, { motifDepose: "usure" }))
+    const refusSansDestination = await refuse(services.poserPieceDans(ctx, organeDe("moteur"), piece2, { motifDepose: "usure" }))
+    controle("une pose sur un organe occupé exige ce que devient l'ancienne pièce", refusSansDestination?.includes("ce que devient") === true, refusSansDestination ?? "aucun refus")
+    const refusDejaMontee = await refuse(services.poserPieceDans(ctx, organeDe("moteur"), piece1, { motifDepose: "usure", destinationAncienne: "reserve" }))
     controle("une pièce déjà montée ne se pose pas une seconde fois", refusDejaMontee?.includes("déjà montée") === true, refusDejaMontee ?? "aucun refus")
 
-    // 4. Pose avec motif : la pièce en place passe à « usée », la nouvelle est montée.
-    await services.poserPieceDans(ctx, organeDe("moteur"), piece2, { motifDepose: "usure" })
+    // 4. Pose avec motif et destination : la pièce en place va en réserve (statut « en stock ») et garde son motif ; la nouvelle est montée.
+    await services.poserPieceDans(ctx, organeDe("moteur"), piece2, { motifDepose: "usure", destinationAncienne: "reserve" })
     const ancienne = await proprietaire.garagePart.findUnique({ where: { id: piece1 } })
     const nouvelle = await proprietaire.garagePart.findUnique({ where: { id: piece2 } })
-    controle("la pièce déposée pour usure passe à « usée »", ancienne?.statut === "usee", ancienne?.statut)
+    controle("la pièce déposée va en réserve : statut « en stock », quel que soit le motif", ancienne?.statut === "en_stock", ancienne?.statut)
+    const motifDeLaPose = await proprietaire.garagePartMount.findFirst({ where: { partId: piece1, deposeeLe: { not: null } } })
+    controle("le motif de la dépose reste enregistré sur la pose", motifDeLaPose?.motifDepose === "usure", `${motifDeLaPose?.motifDepose}`)
     controle("la nouvelle pièce est montée", nouvelle?.statut === "montee", nouvelle?.statut)
     const poseActive = await proprietaire.garagePartMount.count({
       where: { vehicleComponentId: organeDe("moteur"), deposeeLe: null, deletedAt: null },
@@ -259,7 +274,7 @@ async function main() {
       select: { id: true, vehicleComponentId: true, vehicleComponent: { select: { componentTypeId: true } } },
     })
     controle("une pièce montée peut être déposée pour la réparation", pose !== null)
-    await services.deposerPieceDans(ctx, pose!.id, "preventif")
+    await services.deposerPieceDans(ctx, pose!.id, "preventif", "reserve")
     const organeLibre = { id: pose!.vehicleComponentId, componentTypeId: pose!.vehicleComponent.componentTypeId }
     await services.modifierOrganeDans(ctx, organeLibre.id, { modeUsure: "km" })
     const pieceReparee = await services.creerPieceDans(ctx, vehicule, { componentTypeId: organeLibre.componentTypeId, designation: "Pièce réparée", dureeVieKm: 1000 })
@@ -298,14 +313,102 @@ async function main() {
       proprietaire.garagePartEtat.create({ data: { id: randomUUID(), teamId: team.id, partId: pieceReparee, workOrderId: ordreReparation, etatPct: 101 } }),
     )
     controle("la base refuse un état hors de 0 à 100", etatHorsBornes !== null, "insertion acceptée")
+
+    // 11. Remplacer avec prix (954 v1.2, §2 ; Budget, option A). Un prix passe par une commande reçue tout de suite : la pièce
+    // reçue est celle qui se pose, un seul garage.piece_achetee part, et Budget en fait une proposition à confirmer. Un refus
+    // (fournisseur absent) n'écrit rien ; un remplacement sans prix ne crée ni commande, ni événement, ni proposition.
+    const organeFreins = organeDe("freins")
+    if ((await proprietaire.garagePartMount.count({ where: { vehicleComponentId: organeFreins, deposeeLe: null, deletedAt: null } })) === 0) {
+      const depart = await services.creerPieceDans(ctx, vehicule, { componentTypeId: typeDe("freins"), designation: "Disque de départ" })
+      await services.poserPieceDans(ctx, organeFreins, depart)
+    }
+    const enPlaceAvant = await proprietaire.garagePartMount.findFirstOrThrow({ where: { vehicleComponentId: organeFreins, deposeeLe: null, deletedAt: null } })
+    const fournisseur = randomUUID()
+    await proprietaire.coreContact.create({ data: { id: fournisseur, teamId: team.id, nom: `Fournisseur ${suffixe}` } })
+
+    const comptes = async () => ({
+      achats: await proprietaire.garagePurchase.count({ where: { teamId: team.id } }),
+      evenements: await proprietaire.coreDomainEvent.count({ where: { teamId: team.id, nom: "garage.piece_achetee" } }),
+      propositions: await proprietaire.budgetSuggestion.count({ where: { teamId: team.id, deletedAt: null } }),
+      pieces: await proprietaire.garagePart.count({ where: { teamId: team.id } }),
+      poses: await proprietaire.garagePartMount.count({ where: { teamId: team.id } }),
+    })
+    const avantRefus = await comptes()
+    const refusSansFournisseur = await refuse(
+      services.poserNouvellePieceDans(ctx, organeFreins, { designation: "Disque avant", prixCents: 4500 }, { motifDepose: "usure", destinationAncienne: "reserve" }),
+    )
+    controle("un remplacement avec prix sans fournisseur est refusé, avec sa raison", refusSansFournisseur?.includes("fournisseur") === true, refusSansFournisseur ?? "aucun refus")
+    controle("ce refus n'écrit rien en base", JSON.stringify(await comptes()) === JSON.stringify(avantRefus), JSON.stringify(await comptes()))
+
+    const pieceRecue = await services.poserNouvellePieceDans(
+      ctx,
+      organeFreins,
+      { designation: "Disque avant", marque: "Brembo", prixCents: 4500, fournisseurContactId: fournisseur },
+      { motifDepose: "usure", destinationAncienne: "reserve" },
+    )
+    const commande = await proprietaire.garagePurchase.findFirstOrThrow({ where: { teamId: team.id, supplierContactId: fournisseur } })
+    controle("la commande du remplacement est reçue tout de suite", commande.statut === "recue", commande.statut)
+    const lignes = await proprietaire.garagePurchaseLine.findMany({ where: { purchaseId: commande.id } })
+    controle("une seule ligne, une unité, au prix saisi", lignes.length === 1 && lignes[0].quantite === 1 && lignes[0].prixUnitaireCents === 4500, JSON.stringify(lignes.map((l) => [l.quantite, l.prixUnitaireCents])))
+    const reçue = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: pieceRecue } })
+    controle("la pièce créée par la réception est celle qui se pose", reçue.commandeLigneId === lignes[0].id, `${reçue.commandeLigneId}`)
+    const posee = await proprietaire.garagePartMount.findFirstOrThrow({ where: { vehicleComponentId: organeFreins, deposeeLe: null, deletedAt: null } })
+    controle("la pose active porte la pièce reçue", posee.partId === pieceRecue, `${posee.partId}`)
+    const ancienneReserve = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: enPlaceAvant.partId } })
+    controle("l'ancienne pièce va en réserve : statut « en stock »", ancienneReserve.statut === "en_stock", ancienneReserve.statut)
+
+    const evenementsCommande = (await proprietaire.coreDomainEvent.findMany({ where: { teamId: team.id, nom: "garage.piece_achetee" } })).filter(
+      (evenement) => (evenement.donnees as { purchaseId?: string }).purchaseId === commande.id,
+    )
+    controle(
+      "un seul garage.piece_achetee pour la commande, du bon montant",
+      evenementsCommande.length === 1 && (evenementsCommande[0].donnees as { totalCents?: number }).totalCents === 4500,
+      `${evenementsCommande.length} événement(s)`,
+    )
+    const propositions = await proprietaire.budgetSuggestion.findMany({ where: { teamId: team.id, origineRef: `garage_purchase:${commande.id}`, deletedAt: null } })
+    controle(
+      "Budget propose une seule dépense, du bon montant, en attente",
+      propositions.length === 1 && propositions[0].montant === 4500 && propositions[0].statut === "en_attente",
+      JSON.stringify(propositions.map((p) => [p.montant, p.statut])),
+    )
+    const action = await proprietaire.coreAction.findFirst({ where: { teamId: team.id, cleUnicite: propositions[0]?.actionCle ?? "" } })
+    controle("la proposition a sa core_action à confirmer", action?.type === "mouvement_a_confirmer" && action.statut === "en_attente", `${action?.type} ${action?.statut}`)
+
+    // Sans prix : rien de plus côté achats, événements ou Budget. La pièce posée est la nouvelle, l'ancienne (reçue) part au rebut.
+    const avantSansPrix = await comptes()
+    const sansPrix = await services.poserNouvellePieceDans(ctx, organeFreins, { designation: "Disque arrière" }, { motifDepose: "casse", destinationAncienne: "rebut" })
+    const apresSansPrix = await comptes()
+    controle(
+      "un remplacement sans prix ne crée ni commande, ni événement, ni proposition",
+      apresSansPrix.achats === avantSansPrix.achats && apresSansPrix.evenements === avantSansPrix.evenements && apresSansPrix.propositions === avantSansPrix.propositions,
+      JSON.stringify([avantSansPrix, apresSansPrix]),
+    )
+    const poseeSansPrix = await proprietaire.garagePartMount.findFirstOrThrow({ where: { vehicleComponentId: organeFreins, deposeeLe: null, deletedAt: null } })
+    controle("la pièce sans prix est posée", poseeSansPrix.partId === sansPrix, `${poseeSansPrix.partId}`)
+    const auRebut = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: pieceRecue } })
+    controle("la pièce reçue, déposée au rebut, passe à « cassée »", auRebut.statut === "cassee", auRebut.statut)
   } finally {
-    // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères, pour les deux teams.
+    // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères, pour les deux teams. Budget et les actions
+    // d'abord : ils ne dépendent pas des tables du Garage.
+    await proprietaire.budgetReimbursementLine.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.budgetReimbursement.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.budgetSuggestion.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.budgetForecast.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.budgetIncome.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.budgetExpense.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.budgetPayer.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.budgetCategory.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.coreAction.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageWearLog.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garagePartMount.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garagePartEtat.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageWorkOrder.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageTyreSet.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garagePart.deleteMany({ where: { teamId: { in: equipes } } })
+    // Achats : les lignes d'abord (elles tiennent la commande), puis les commandes, puis le fournisseur qu'elles citent.
+    await proprietaire.garagePurchaseLine.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garagePurchase.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.coreContact.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageVehicleComponent.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageComponentType.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreEventEntry.deleteMany({ where: { teamId: { in: equipes } } })
@@ -314,8 +417,10 @@ async function main() {
     await proprietaire.coreVehicle.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreEventDelivery.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreDomainEvent.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.coreAppAccess.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreMembership.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreUser.deleteMany({ where: { email: { endsWith: `-${suffixe}@exemple.invalid` } } })
+    await proprietaire.coreTeamApp.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreTeam.deleteMany({ where: { id: { in: equipes } } })
     await proprietaire.$disconnect()
   }
