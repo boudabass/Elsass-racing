@@ -662,15 +662,23 @@ export async function lireOrdre(id: string): Promise<FicheOrdre | null> {
 // demande ce niveau). Les pièces portent le nom de leur organe, pour les grouper dans le formulaire.
 export async function lireChoixIntervention(vehicleId: string): Promise<{
   organes: Array<{ id: string; nom: string }>
+  // Organes qui ont une pièce en place : une pose y demande la destination de l'ancienne pièce (954 v1.2, §2).
+  organesOccupes: string[]
   pieces: Array<{ id: string; designation: string; organeNom: string }> | null
 }> {
   const { ctx, niveau } = await accesGarage("lecture")
   const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
-  const organes = await client.garageVehicleComponent.findMany({
-    where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
-    select: { id: true, componentType: { select: { nom: true, ordre: true } } },
-    orderBy: { componentType: { ordre: "asc" } },
-  })
+  const [organes, montees] = await Promise.all([
+    client.garageVehicleComponent.findMany({
+      where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
+      select: { id: true, componentType: { select: { nom: true, ordre: true } } },
+      orderBy: { componentType: { ordre: "asc" } },
+    }),
+    client.garagePartMount.findMany({
+      where: { teamId: ctx.teamId, deposeeLe: null, deletedAt: null, vehicleComponent: { vehicleId } },
+      select: { vehicleComponentId: true },
+    }),
+  ])
   const pieces = aAuMoins(niveau, "ecriture")
     ? await client.garagePart.findMany({
         where: { teamId: ctx.teamId, vehicleId, deletedAt: null, statut: { not: "montee" } },
@@ -680,6 +688,7 @@ export async function lireChoixIntervention(vehicleId: string): Promise<{
     : null
   return {
     organes: organes.map((o) => ({ id: o.id, nom: o.componentType.nom })),
+    organesOccupes: montees.map((m) => m.vehicleComponentId),
     pieces: pieces?.map((p) => ({ id: p.id, designation: p.designation, organeNom: p.componentType.nom })) ?? null,
   }
 }

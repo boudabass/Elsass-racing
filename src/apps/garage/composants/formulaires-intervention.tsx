@@ -14,16 +14,19 @@ import { useEtatSynchro, useMoteurSynchro } from "@/core/synchro/client/react"
 import { CHAMP } from "@/lib/classes-formulaire"
 
 import { creerInterventionAction } from "../actions"
-import { LIBELLE_MOTIF_DEPOSE } from "../libelles"
+
+import { ChampsPieceEnPlace } from "./formulaires-organe"
 
 export interface FormulaireInterventionProps {
   vehicleId: string
   organes: Array<{ id: string; nom: string }>
+  // Organes qui ont une pièce en place : la destination de l'ancienne pièce s'y demande (954 v1.2, §2).
+  organesOccupes: string[]
   // Présentes seulement au niveau écriture.
   pieces: Array<{ id: string; designation: string; organeNom: string }> | null
 }
 
-export function FormulaireIntervention({ vehicleId, organes, pieces }: FormulaireInterventionProps) {
+export function FormulaireIntervention({ vehicleId, organes, organesOccupes, pieces }: FormulaireInterventionProps) {
   const router = useRouter()
   const [resultat, action, enCours] = useActionState<Resultat | null, FormData>(creerInterventionAction, null)
   const retour = `/apps/garage/travaux?vehicule=${vehicleId}`
@@ -31,6 +34,11 @@ export function FormulaireIntervention({ vehicleId, organes, pieces }: Formulair
   const moteur = useMoteurSynchro()
   const [local, setLocal] = useState<{ ok: boolean; texte: string } | null>(null)
   const [enregistrementLocal, setEnregistrementLocal] = useState(false)
+  const [organeChoisi, setOrganeChoisi] = useState("")
+  const [pieceChoisie, setPieceChoisie] = useState("")
+  // Sur un organe occupé, poser une pièce demande l'ancienne pièce : motif et destination, comme dans Remplacer.
+  const organeOccupe = organesOccupes.includes(organeChoisi)
+  const pose = organeOccupe && pieceChoisie !== ""
 
   useEffect(() => {
     if (resultat?.ok) router.push(retour)
@@ -59,6 +67,8 @@ export function FormulaireIntervention({ vehicleId, organes, pieces }: Formulair
         },
       })
       formulaire.reset()
+      setOrganeChoisi("")
+      setPieceChoisie("")
       setLocal({ ok: true, texte: "Intervention enregistrée sur cet appareil. Elle part dès que l'appareil est connecté." })
     } catch {
       setLocal({ ok: false, texte: "L'intervention n'a pas pu être enregistrée sur cet appareil." })
@@ -79,7 +89,7 @@ export function FormulaireIntervention({ vehicleId, organes, pieces }: Formulair
         <input type="hidden" name="vehicleId" value={vehicleId} />
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Organe</span>
-          <select name="vehicleComponentId" required defaultValue="" className={CHAMP}>
+          <select name="vehicleComponentId" required defaultValue="" onChange={(evenement) => setOrganeChoisi(evenement.target.value)} className={CHAMP}>
             <option value="" disabled>
               Choisir l&apos;organe
             </option>
@@ -98,7 +108,7 @@ export function FormulaireIntervention({ vehicleId, organes, pieces }: Formulair
           <>
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">Pièce utilisée (facultative)</span>
-              <select name="partId" defaultValue="" className={CHAMP}>
+              <select name="partId" defaultValue="" onChange={(evenement) => setPieceChoisie(evenement.target.value)} className={CHAMP}>
                 <option value="">Aucune pièce</option>
                 {Array.from(parOrgane.entries()).map(([organeNom, liste]) => (
                   <optgroup key={organeNom} label={organeNom}>
@@ -112,17 +122,7 @@ export function FormulaireIntervention({ vehicleId, organes, pieces }: Formulair
               </select>
               <span className="text-texte-discret">Avec une pièce, elle est posée sur l&apos;organe. Sans pièce, l&apos;ordre est une réparation.</span>
             </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">Motif de dépose de la pièce en place (s&apos;il y en a une)</span>
-              <select name="motifDepose" defaultValue="" className={CHAMP}>
-                <option value="">Aucun, ou pas de pièce en place</option>
-                {Object.entries(LIBELLE_MOTIF_DEPOSE).map(([cle, libelle]) => (
-                  <option key={cle} value={cle}>
-                    {libelle}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {organeOccupe && <ChampsPieceEnPlace requis={pose} />}
           </>
         )}
       </form>

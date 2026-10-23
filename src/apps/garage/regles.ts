@@ -194,3 +194,9 @@ export function prixImposeFournisseur(prixCents: number | null, fournisseurId: s
 // Une pièce en place se remplace avec sa destination : la pose et la fin d'un ordre de remplacement refusent sans elle.
 // Sans pièce en place, rien n'est demandé.
 export const MESSAGE_DESTINATION_REQUISE = "Indiquez ce que devient l'ancienne pièce : réserve, rebut ou vendue."
+
+// Intervention avec une pièce sur un organe qui en a déjà une : la destination de l'ancienne pièce est demandée (954 v1.2,
+// §2). Sans pose, rien n'est demandé. Renvoie la raison affichée, ou null si la saisie passe.
+export function destinationManqueePourIntervention(pieceChoisie: boolean, organeOccupe: boolean, destination: DestinationAncienne | null): string | null {
+  return pieceChoisie && organeOccupe && destination === null ? MESSAGE_DESTINATION_REQUISE : null
+}

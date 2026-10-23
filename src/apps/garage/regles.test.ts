@@ -5,6 +5,7 @@ import {
   additionnerKm,
   dureesEffectives,
   derniereSaisie,
+  destinationManqueePourIntervention,
   droitPreparerAtelier,
   etatPiece,
   etatPneus,
@@ -361,5 +362,20 @@ describe("remplacement : destination de l'ancienne pièce et prix", () => {
   it("un prix avec fournisseur passe, et une pièce sans prix ne demande pas de fournisseur", () => {
     expect(prixImposeFournisseur(1250, "fournisseur-1")).toBeNull()
     expect(prixImposeFournisseur(null, null)).toBeNull()
+  })
+})
+
+describe("destination de l'ancienne pièce à l'intervention rapide", () => {
+  it("une pose sur un organe occupé sans destination est refusée, avec sa raison", () => {
+    expect(destinationManqueePourIntervention(true, true, null)).toBe("Indiquez ce que devient l'ancienne pièce : réserve, rebut ou vendue.")
+  })
+
+  it("avec une destination, la pose passe", () => {
+    expect(destinationManqueePourIntervention(true, true, "rebut")).toBeNull()
+  })
+
+  it("sans pièce, ou sur un organe libre, rien n'est demandé", () => {
+    expect(destinationManqueePourIntervention(false, true, null)).toBeNull()
+    expect(destinationManqueePourIntervention(true, false, null)).toBeNull()
   })
 })

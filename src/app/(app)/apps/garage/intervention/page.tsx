@@ -38,7 +38,13 @@ export default async function PageIntervention({ searchParams }: { searchParams:
       {choix.organes.length === 0 ? (
         <VoitureNonSuivie vehicleId={choisi.id} />
       ) : (
-        <FormulaireIntervention key={choisi.id} vehicleId={choisi.id} organes={choix.organes} pieces={choix.pieces} />
+        <FormulaireIntervention
+          key={choisi.id}
+          vehicleId={choisi.id}
+          organes={choix.organes}
+          organesOccupes={choix.organesOccupes}
+          pieces={choix.pieces}
+        />
       )}
     </section>
   )

@@ -387,6 +387,43 @@ async function main() {
     controle("la pièce sans prix est posée", poseeSansPrix.partId === sansPrix, `${poseeSansPrix.partId}`)
     const auRebut = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: pieceRecue } })
     controle("la pièce reçue, déposée au rebut, passe à « cassée »", auRebut.statut === "cassee", auRebut.statut)
+
+    // 12. Intervention rapide avec pièce (954 v1.2, §2 ; décision de l'orchestrateur) : une pose sur un organe occupé exige la
+    // destination de l'ancienne pièce. Sans elle, refus avec sa raison, et rien n'est écrit. Avec « rebut », l'ancienne passe à « cassée ».
+    // Le compte a sa fiche personne : sans elle, l'intervention est refusée (comme pour le responsable d'une vraie team).
+    await proprietaire.corePerson.create({ data: { id: randomUUID(), teamId: team.id, nom: "Verif", prenom: `Garage ${suffixe}`, userId: utilisateur.id } })
+    const titreIntervention = `Intervention verif ${suffixe}`
+    const pieceIntervention = await services.creerPieceDans(ctx, vehicule, { componentTypeId: typeDe("freins"), designation: "Plaquette d'intervention" })
+    const occupeAvantIntervention = await proprietaire.garagePartMount.findFirstOrThrow({ where: { vehicleComponentId: organeFreins, deposeeLe: null, deletedAt: null } })
+    const refusIntervention = await refuse(
+      services.creerInterventionDans(ctx, vehicule, { vehicleComponentId: organeFreins, titre: titreIntervention, partId: pieceIntervention, motifDepose: "usure" }),
+    )
+    controle(
+      "une intervention avec pièce sur un organe occupé exige la destination de l'ancienne pièce",
+      refusIntervention?.includes("ce que devient") === true,
+      refusIntervention ?? "aucun refus",
+    )
+    const ordresRefuses = await proprietaire.garageWorkOrder.count({ where: { teamId: team.id, titre: titreIntervention } })
+    const poseApresRefus = await proprietaire.garagePartMount.findFirstOrThrow({ where: { vehicleComponentId: organeFreins, deposeeLe: null, deletedAt: null } })
+    controle("ce refus n'écrit ni ordre, ni pose", ordresRefuses === 0 && poseApresRefus.id === occupeAvantIntervention.id, `${ordresRefuses} ordre(s)`)
+
+    await services.creerInterventionDans(ctx, vehicule, {
+      vehicleComponentId: organeFreins,
+      titre: titreIntervention,
+      partId: pieceIntervention,
+      motifDepose: "casse",
+      destinationAncienne: "rebut",
+    })
+    const ordreIntervention = await proprietaire.garageWorkOrder.findFirstOrThrow({ where: { teamId: team.id, titre: titreIntervention } })
+    controle(
+      "l'intervention avec pièce est un remplacement terminé",
+      ordreIntervention.type === "remplacement" && ordreIntervention.statut === "termine",
+      `${ordreIntervention.type} ${ordreIntervention.statut}`,
+    )
+    const poseIntervention = await proprietaire.garagePartMount.findFirstOrThrow({ where: { vehicleComponentId: organeFreins, deposeeLe: null, deletedAt: null } })
+    controle("la pièce de l'intervention est posée sur l'organe", poseIntervention.partId === pieceIntervention, `${poseIntervention.partId}`)
+    const cassee = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: occupeAvantIntervention.partId } })
+    controle("l'ancienne pièce, déposée au rebut, passe à « cassée »", cassee.statut === "cassee", cassee.statut)
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères, pour les deux teams. Budget et les actions
     // d'abord : ils ne dépendent pas des tables du Garage.
@@ -402,6 +439,8 @@ async function main() {
     await proprietaire.garageWearLog.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garagePartMount.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garagePartEtat.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageWorkOrderPart.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageWorkOrderPerson.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageWorkOrder.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageTyreSet.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garagePart.deleteMany({ where: { teamId: { in: equipes } } })
@@ -419,6 +458,7 @@ async function main() {
     await proprietaire.coreDomainEvent.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreAppAccess.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreMembership.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.corePerson.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreUser.deleteMany({ where: { email: { endsWith: `-${suffixe}@exemple.invalid` } } })
     await proprietaire.coreTeamApp.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreTeam.deleteMany({ where: { id: { in: equipes } } })

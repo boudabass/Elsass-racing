@@ -21,6 +21,7 @@ import { MODE_USURE_DEFAUT, TYPES_DEFAUT } from "./types-defaut"
 import {
   DESTINATIONS_ANCIENNE,
   MESSAGE_DESTINATION_REQUISE,
+  destinationManqueePourIntervention,
   dureesEffectives,
   etatPiece,
   etatPneus,
@@ -1348,6 +1349,7 @@ const schemaIntervention = z
     titre: z.string().trim().min(1, "Dites ce qui a été fait.").max(200),
     partId: z.string().min(1).nullable().optional(),
     motifDepose: z.enum(MOTIFS).nullable().optional(),
+    destinationAncienne: z.enum(DESTINATIONS_ANCIENNE).nullable().optional(),
   })
   .strict()
 
@@ -1377,6 +1379,14 @@ export async function creerInterventionDans(
     const personneId = await personneDuCompte(tx, ctx)
     if (!personneId) refus("Votre compte n'a pas de fiche personne dans la team : le responsable doit la créer.")
 
+    // Une pièce posée sur un organe occupé exige la destination de l'ancienne. Vérifié avant l'écriture de l'ordre : un refus
+    // n'écrit rien (la transaction annulerait de toute façon).
+    if (partId) {
+      const enPlace = await tx.garagePartMount.findFirst({ where: { vehicleComponentId: organe.id, deposeeLe: null, deletedAt: null }, select: { id: true } })
+      const manque = destinationManqueePourIntervention(true, enPlace !== null, donnees.destinationAncienne ?? null)
+      if (manque) refus(manque)
+    }
+
     await tx.garageWorkOrder.create({
       data: {
         id,
@@ -1400,9 +1410,7 @@ export async function creerInterventionDans(
       await tx.garageWorkOrderPart.create({
         data: { id: newId(), teamId: ctx.teamId, workOrderId: id, partId, createdBy: ctx.userId, updatedBy: ctx.userId },
       })
-      // Intervention rapide : son formulaire ne demande pas encore la destination. Pièce en place sans destination = refus
-      // (signalé à l'orchestrateur, aucune valeur inventée).
-      await poserPieceTx(tx, ctx, newId(), organe.id, partId, donnees.motifDepose ?? null, null)
+      await poserPieceTx(tx, ctx, newId(), organe.id, partId, donnees.motifDepose ?? null, donnees.destinationAncienne ?? null)
     }
   })
 

@@ -180,37 +180,43 @@ export function FormulaireRemplacer({ organeId, nom, pieceEnPlace, rechanges, fo
         </>
       )}
 
-      {pieceEnPlace && (
-        <>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Motif de dépose de la pièce en place</span>
-            <select name="motifDepose" required defaultValue="" className={CHAMP}>
-              <option value="" disabled>
-                Choisir le motif
-              </option>
-              {MOTIFS.map((motif) => (
-                <option key={motif} value={motif}>
-                  {LIBELLE_MOTIF_DEPOSE[motif]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Ce que devient l&apos;ancienne pièce</span>
-            <select name="destinationAncienne" required defaultValue="" className={CHAMP}>
-              <option value="" disabled>
-                Choisir la destination
-              </option>
-              {DESTINATIONS_ANCIENNE.map((destination) => (
-                <option key={destination} value={destination}>
-                  {LIBELLE_DESTINATION_ANCIENNE[destination]}
-                </option>
-              ))}
-            </select>
-          </label>
-        </>
-      )}
+      {pieceEnPlace && <ChampsPieceEnPlace requis />}
     </TiroirAction>
+  )
+}
+
+// Motif de dépose et destination de l'ancienne pièce : la même paire pour Remplacer et pour l'intervention rapide (954 v1.2,
+// §2). Requise quand une pose s'y fait, sans valeur par défaut. Hors d'une pose, l'option vide dit qu'il n'y a rien à faire.
+export function ChampsPieceEnPlace({ requis }: { requis: boolean }) {
+  return (
+    <>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium">Motif de dépose de la pièce en place</span>
+        <select name="motifDepose" required={requis} defaultValue="" className={CHAMP}>
+          <option value="" disabled={requis}>
+            {requis ? "Choisir le motif" : "Aucun, ou pas de pose"}
+          </option>
+          {MOTIFS.map((motif) => (
+            <option key={motif} value={motif}>
+              {LIBELLE_MOTIF_DEPOSE[motif]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium">Ce que devient l&apos;ancienne pièce</span>
+        <select name="destinationAncienne" required={requis} defaultValue="" className={CHAMP}>
+          <option value="" disabled={requis}>
+            {requis ? "Choisir la destination" : "Aucune pose"}
+          </option>
+          {DESTINATIONS_ANCIENNE.map((destination) => (
+            <option key={destination} value={destination}>
+              {LIBELLE_DESTINATION_ANCIENNE[destination]}
+            </option>
+          ))}
+        </select>
+      </label>
+    </>
   )
 }
 

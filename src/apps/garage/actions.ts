@@ -286,6 +286,7 @@ export async function creerInterventionAction(_etat: Resultat | null, donnees: F
       titre: texte(donnees, "titre"),
       partId: texteOuNull(donnees, "partId"),
       motifDepose: (texteOuNull(donnees, "motifDepose") as MotifDepose | null) ?? null,
+      destinationAncienne: (texteOuNull(donnees, "destinationAncienne") as DestinationAncienne | null) ?? null,
     }),
   )
 }
