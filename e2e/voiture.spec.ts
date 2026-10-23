@@ -15,8 +15,10 @@ const BUREAU = { width: 1440, height: 900 }
 const TELEPHONE = { width: 360, height: 740 }
 
 // Date civile de Paris, décalée de n jours : les échéances des papiers sont des dates sans heure.
+// Décalage en jours du calendrier, pas en 24 h × n (même piège que jourDans au changement d'heure).
 function jourCivil(decalage: number): string {
-  return new Date(Date.now() + decalage * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Paris" })
+  const [annee, mois, jour] = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Paris" }).format(new Date()).split("-").map(Number)
+  return new Date(Date.UTC(annee, mois - 1, jour + decalage)).toISOString().slice(0, 10)
 }
 
 // Aucun défilement horizontal sur la page, à la largeur courante (brief 3.3, point 8).

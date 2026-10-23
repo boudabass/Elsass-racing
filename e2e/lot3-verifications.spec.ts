@@ -22,9 +22,11 @@ import {
   type Equipe,
 } from "./aide/session"
 
-// Jour civil (AAAA-MM-JJ) à Paris, à un nombre de jours d'aujourd'hui.
+// Jour civil (AAAA-MM-JJ) à Paris, à un nombre de jours d'aujourd'hui. On compte en jours du calendrier, pas en 24 h × n :
+// le changement d'heure fait tomber 72 h à minuit Paris sur la veille.
 function jourDans(jours: number): string {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Paris" }).format(new Date(Date.now() + jours * 86_400_000))
+  const [annee, mois, jour] = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Paris" }).format(new Date()).split("-").map(Number)
+  return new Date(Date.UTC(annee, mois - 1, jour + jours)).toISOString().slice(0, 10)
 }
 
 // Crée un lien de page partenaire par l'interface ; renvoie le jeton, affiché une seule fois (comme partenaire-page.spec).

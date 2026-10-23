@@ -17,9 +17,11 @@ const PHOTO = path.join(__dirname, "fichiers", "logo.png")
 const BUREAU = { width: 1440, height: 900 }
 const TELEPHONE = { width: 360, height: 740 }
 
-// Jour civil (AAAA-MM-JJ) dans n jours, à Paris : la locale suédoise donne ce format.
+// Jour civil (AAAA-MM-JJ) dans n jours, à Paris : la locale suédoise donne ce format. On compte en jours du calendrier :
+// ajouter 24 h × n à l'instant passe mal l'heure d'été (72 h à minuit Paris tombent la veille le week-end du changement).
 function jourDans(jours: number): string {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Paris" }).format(new Date(Date.now() + jours * 86_400_000))
+  const [annee, mois, jour] = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Paris" }).format(new Date()).split("-").map(Number)
+  return new Date(Date.UTC(annee, mois - 1, jour + jours)).toISOString().slice(0, 10)
 }
 
 // Aucun défilement horizontal sur la page, à la largeur courante.
