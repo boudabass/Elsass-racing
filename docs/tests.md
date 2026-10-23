@@ -10,6 +10,8 @@ Le workflow est `.github/workflows/verifications.yml`, en deux jobs :
 - `rapide` (environ 3 min) : installation, typecheck, tests unitaires.
 - `complet` (après `rapide`) : PostgreSQL 18 en service, rôle applicatif créé comme `docker/init/01-role-app.sql`, `db:deploy`, `db:seed`, `db:verifier-rls`, `db:verifier-bus`, `db:verifier-synchro`, `db:verifier-garage`, puis `pnpm test:e2e` sur le build de production (port 3101), comme en local.
 
+Minutes : le quota du plan Free (2 000 minutes par mois) a été épuisé le 23/10/2026, en trois jours de lot 4 (environ 80 runs de 25 minutes). Le dépôt est public depuis, ce qui rend les minutes illimitées sur les runners standard. Il repassera en privé après la V1 : il faudra alors limiter `verif` aux unitaires, aux `db:verifier-*` et aux specs de l'app touchée, et garder la suite complète pour l'envoi sur `dev`. Un push, un run : regrouper les commits avant de pousser. Le workflow ne se déclenche que sur push et à la main, jamais sur une pull request venue d'un fork.
+
 Déclenchement : push sur `verif`, `dev` et `main`, ou à la main (onglet Actions, « Vérifications », Run workflow). Pour un seul spec à la main, renseigner le champ `e2e` (par exemple `e2e/garage.spec.ts`).
 
 La branche `verif` est le contrôle avant `dev`. Coolify ne déploie que `dev` et `main` : pousser sur `verif` ne touche pas à l'app dev. On ne pousse sur `dev` qu'une fois `verif` vert, avec le feu vert de l'orchestrateur.
