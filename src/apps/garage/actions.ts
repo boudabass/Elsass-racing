@@ -261,6 +261,7 @@ export async function terminerOrdreAction(_etat: Resultat | null, donnees: FormD
   return executerGarage(() =>
     terminerOrdre(texte(donnees, "ordreId"), {
       motifDepose: (texteOuNull(donnees, "motifDepose") as MotifDepose | null) ?? null,
+      destinationAncienne: (texteOuNull(donnees, "destinationAncienne") as DestinationAncienne | null) ?? null,
       etatApresPct: etatApresOuNull(donnees),
     }),
   )

@@ -20,7 +20,8 @@ import {
   retirerPieceOrdreAction,
   terminerOrdreAction,
 } from "../actions"
-import { LIBELLE_MOTIF_DEPOSE } from "../libelles"
+import { LIBELLE_DESTINATION_ANCIENNE, LIBELLE_MOTIF_DEPOSE } from "../libelles"
+import { DESTINATIONS_ANCIENNE } from "../regles"
 import type { FicheOrdre, lireChoixTravaux } from "../lectures-serveur"
 import { LIBELLE_PRIORITE, LIBELLE_STATUT_ORDRE, LIBELLE_TYPE_ORDRE, PRIORITES_TRAVAIL, TYPES_ORDRE } from "../travaux"
 
@@ -349,17 +350,37 @@ export function FicheOrdreEcran({ fiche, choix, stock, peutAvancer }: FicheOrdre
                   <input name="etatApresPct" type="number" inputMode="numeric" min={0} max={100} step={1} required placeholder="0 à 100" className={CHAMP} />
                 </label>
               )}
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium">Motif de dépose de la pièce en place (si une pièce est montée)</span>
-                <select name="motifDepose" defaultValue="" className={CHAMP}>
-                  <option value="">Aucun, ou pas de pièce en place</option>
-                  {Object.entries(LIBELLE_MOTIF_DEPOSE).map(([cle, libelle]) => (
-                    <option key={cle} value={cle}>
-                      {libelle}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {/* Un remplacement pose une pièce : si une pièce est en place, son motif et sa destination sont demandés. */}
+              {fiche.pieceEnPlace && ordre.type === "remplacement" && (
+                <>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="font-medium">Motif de dépose de la pièce en place</span>
+                    <select name="motifDepose" required defaultValue="" className={CHAMP}>
+                      <option value="" disabled>
+                        Choisir le motif
+                      </option>
+                      {Object.entries(LIBELLE_MOTIF_DEPOSE).map(([cle, libelle]) => (
+                        <option key={cle} value={cle}>
+                          {libelle}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="font-medium">Ce que devient l&apos;ancienne pièce</span>
+                    <select name="destinationAncienne" required defaultValue="" className={CHAMP}>
+                      <option value="" disabled>
+                        Choisir la destination
+                      </option>
+                      {DESTINATIONS_ANCIENNE.map((destination) => (
+                        <option key={destination} value={destination}>
+                          {LIBELLE_DESTINATION_ANCIENNE[destination]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
             </TiroirAction>
           )}
         </div>

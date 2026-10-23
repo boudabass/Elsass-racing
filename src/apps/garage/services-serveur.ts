@@ -20,6 +20,7 @@ import { emplacementsDuType } from "./emplacements"
 import { MODE_USURE_DEFAUT, TYPES_DEFAUT } from "./types-defaut"
 import {
   DESTINATIONS_ANCIENNE,
+  MESSAGE_DESTINATION_REQUISE,
   dureesEffectives,
   etatPiece,
   etatPneus,
@@ -598,14 +599,6 @@ export async function changerStatutPieceDans(
 
 // --- Pose et dépose -----------------------------------------------------------------------
 
-// Statut d'une pièce déposée, selon le motif : usée, cassée, de retour en stock, ou en révision.
-const STATUT_APRES_DEPOSE: Record<(typeof MOTIFS)[number], "usee" | "cassee" | "en_stock" | "en_revision"> = {
-  usure: "usee",
-  casse: "cassee",
-  preventif: "en_stock",
-  revision: "en_revision",
-}
-
 // Options de la pose : le motif et la destination de l'ancienne pièce, si une pièce est en place. Les deux sont demandés
 // par le tiroir Remplacer (954 v1.2, §2) ; la destination n'a pas de valeur par défaut.
 export interface OptionsPose {
@@ -626,14 +619,7 @@ export async function poserPieceDans(ctx: ContexteTeam, vehicleComponentId: stri
   const vehicleId = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => (await organeDans(tx, ctx.teamId, vehicleComponentId)).vehicleId)
   const id = newId()
 
-  await ecrireEtEmettre(ctx, vehicleId, async (tx) => {
-    const enPlace = await tx.garagePartMount.findFirst({
-      where: { vehicleComponentId, deposeeLe: null, deletedAt: null },
-      select: { id: true },
-    })
-    if (enPlace && destination === null) refus("Indiquez ce que devient l'ancienne pièce : réserve, rebut ou vendue.")
-    await poserPieceTx(tx, ctx, id, vehicleComponentId, partId, motif, destination)
-  })
+  await ecrireEtEmettre(ctx, vehicleId, (tx) => poserPieceTx(tx, ctx, id, vehicleComponentId, partId, motif, destination))
   return id
 }
 
@@ -722,8 +708,8 @@ export async function poserNouvellePieceDans(
 }
 
 // Pose dans une transaction déjà ouverte. Sert aussi à la fin d'un ordre de remplacement (Garage 4.3, D1 et D7) :
-// la pose et la fin de l'ordre s'écrivent ensemble, ou pas du tout. Sans destination (fin d'ordre), le statut de la
-// pièce déposée suit son motif.
+// la pose et la fin de l'ordre s'écrivent ensemble, ou pas du tout. La destination de l'ancienne pièce est exigée dès
+// qu'une pièce est en place : l'appelant la passe toujours, même vide (null), et n'invente aucune valeur.
 export async function poserPieceTx(
   tx: Tx,
   ctx: ContexteTeam,
@@ -731,7 +717,7 @@ export async function poserPieceTx(
   vehicleComponentId: string,
   partId: string,
   motif: (typeof MOTIFS)[number] | null,
-  destination: DestinationAncienne | null = null,
+  destination: DestinationAncienne | null,
 ): Promise<void> {
   const organe = await organeDans(tx, ctx.teamId, vehicleComponentId)
   const piece = await pieceDans(tx, ctx.teamId, partId)
@@ -745,6 +731,7 @@ export async function poserPieceTx(
   })
   if (enPlace) {
     if (!motif) refus("Un autre pièce est en place : indiquez le motif de sa dépose.")
+    if (destination === null) refus(MESSAGE_DESTINATION_REQUISE)
     await deposerDans(tx, ctx, enPlace.id, motif, destination)
   }
 
@@ -766,13 +753,13 @@ export async function poserPieceTx(
   })
 }
 
-// Le motif reste la raison de la dépose. Le statut suit la destination si elle est donnée (Remplacer), sinon le motif.
+// Le motif reste la raison de la dépose ; le statut suit la destination (réserve, rebut, vendue).
 async function deposerDans(
   tx: Tx,
   ctx: ContexteTeam,
   mountId: string,
   motif: (typeof MOTIFS)[number],
-  destination: DestinationAncienne | null = null,
+  destination: DestinationAncienne,
 ): Promise<void> {
   const pose = await tx.garagePartMount.findFirst({
     where: { id: mountId, teamId: ctx.teamId, deletedAt: null },
@@ -786,20 +773,26 @@ async function deposerDans(
   await tx.garagePart.updateMany({
     where: { id: pose.partId, teamId: ctx.teamId },
     data: {
-      statut: destination ? statutDeDestination(destination) : STATUT_APRES_DEPOSE[motif],
+      statut: statutDeDestination(destination),
       rev: { increment: 1 },
       updatedBy: ctx.userId,
     },
   })
 }
 
-export async function deposerPiece(mountId: string, motif: (typeof MOTIFS)[number]): Promise<void> {
+export async function deposerPiece(mountId: string, motif: (typeof MOTIFS)[number], destination: DestinationAncienne): Promise<void> {
   const { ctx } = await accesGarage("ecriture")
-  return deposerPieceDans(ctx, mountId, motif)
+  return deposerPieceDans(ctx, mountId, motif, destination)
 }
 
-export async function deposerPieceDans(ctx: ContexteTeam, mountId: string, motif: (typeof MOTIFS)[number]): Promise<void> {
+export async function deposerPieceDans(
+  ctx: ContexteTeam,
+  mountId: string,
+  motif: (typeof MOTIFS)[number],
+  destination: DestinationAncienne,
+): Promise<void> {
   if (!MOTIFS.includes(motif)) refus("Motif de dépose inconnu.")
+  if (!DESTINATIONS_ANCIENNE.includes(destination)) refus("Destination de l'ancienne pièce inconnue.")
   const vehicleId = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
     const pose = await tx.garagePartMount.findFirst({
       where: { id: mountId, teamId: ctx.teamId, deletedAt: null },
@@ -810,7 +803,7 @@ export async function deposerPieceDans(ctx: ContexteTeam, mountId: string, motif
   })
 
   await ecrireEtEmettre(ctx, vehicleId, async (tx) => {
-    await deposerDans(tx, ctx, mountId, motif)
+    await deposerDans(tx, ctx, mountId, motif, destination)
   })
 }
 
@@ -1236,7 +1229,11 @@ export async function retirerPieceOrdreDans(ctx: ContexteTeam, workOrderId: stri
 // de la pièce sur son organe, avec le motif de dépose de la pièce en place. Les événements partent après la transaction.
 // Options de fin : le motif de dépose, et l'état de la pièce après réparation (954 v1.3, §4) quand l'ordre est une
 // réparation sur un organe avec pièce montée.
-export type OptionsFin = { motifDepose?: (typeof MOTIFS)[number] | null; etatApresPct?: number | null }
+export type OptionsFin = {
+  motifDepose?: (typeof MOTIFS)[number] | null
+  destinationAncienne?: DestinationAncienne | null
+  etatApresPct?: number | null
+}
 
 export async function terminerOrdre(id: string, options: OptionsFin = {}): Promise<void> {
   const { ctx, niveau } = await accesGarage("contribution")
@@ -1261,7 +1258,9 @@ export async function terminerOrdreDans(
   niveau: Niveau = "ecriture",
 ): Promise<void> {
   const motif = options.motifDepose ?? null
+  const destination = options.destinationAncienne ?? null
   if (motif !== null && !MOTIFS.includes(motif)) refus("Motif de dépose inconnu.")
+  if (destination !== null && !DESTINATIONS_ANCIENNE.includes(destination)) refus("Destination de l'ancienne pièce inconnue.")
 
   const { ordre, pieces, organe } = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
     const ordreLu = await ordreDans(tx, ctx.teamId, id)
@@ -1309,7 +1308,7 @@ export async function terminerOrdreDans(
       })
     }
     if (organe && poses.length === 1) {
-      await poserPieceTx(tx, ctx, newId(), organe.id, poses[0].partId, motif)
+      await poserPieceTx(tx, ctx, newId(), organe.id, poses[0].partId, motif, destination)
     }
   })
 
@@ -1401,7 +1400,9 @@ export async function creerInterventionDans(
       await tx.garageWorkOrderPart.create({
         data: { id: newId(), teamId: ctx.teamId, workOrderId: id, partId, createdBy: ctx.userId, updatedBy: ctx.userId },
       })
-      await poserPieceTx(tx, ctx, newId(), organe.id, partId, donnees.motifDepose ?? null)
+      // Intervention rapide : son formulaire ne demande pas encore la destination. Pièce en place sans destination = refus
+      // (signalé à l'orchestrateur, aucune valeur inventée).
+      await poserPieceTx(tx, ctx, newId(), organe.id, partId, donnees.motifDepose ?? null, null)
     }
   })
 

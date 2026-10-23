@@ -190,3 +190,7 @@ export function prixImposeFournisseur(prixCents: number | null, fournisseurId: s
   if (prixCents !== null && fournisseurId === null) return "Une pièce avec un prix demande son fournisseur."
   return null
 }
+
+// Une pièce en place se remplace avec sa destination : la pose et la fin d'un ordre de remplacement refusent sans elle.
+// Sans pièce en place, rien n'est demandé.
+export const MESSAGE_DESTINATION_REQUISE = "Indiquez ce que devient l'ancienne pièce : réserve, rebut ou vendue."

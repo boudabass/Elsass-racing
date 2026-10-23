@@ -610,6 +610,8 @@ export type FicheOrdre = {
   pieces: Array<{ partId: string; designation: string }>
   // Réparation d'un organe avec pièce montée : la clôture demande l'état de la pièce après réparation (954 v1.3, §4).
   etatRequis: boolean
+  // Une pièce est montée sur l'organe de l'ordre (tout type) : la fin demande son motif et ce qu'elle devient.
+  pieceEnPlace: boolean
   peutEcrire: boolean
 }
 
@@ -638,7 +640,7 @@ export async function lireOrdre(id: string): Promise<FicheOrdre | null> {
     },
   })
   if (!o) return null
-  const pieceMontee = o.type === "reparation" && o.vehicleComponentId
+  const pieceMontee = o.vehicleComponentId
     ? await client.garagePartMount.count({ where: { vehicleComponentId: o.vehicleComponentId, teamId: ctx.teamId, deposeeLe: null, deletedAt: null } })
     : 0
 
@@ -650,7 +652,8 @@ export async function lireOrdre(id: string): Promise<FicheOrdre | null> {
     dureeEstimeeMinutes: o.dureeEstimeeMinutes,
     personIds: o.persons.map((lien) => lien.personId),
     pieces: o.parts.map((lien) => ({ partId: lien.partId, designation: lien.part.designation })),
-    etatRequis: pieceMontee > 0,
+    etatRequis: o.type === "reparation" && pieceMontee > 0,
+    pieceEnPlace: pieceMontee > 0,
     peutEcrire,
   }
 }
