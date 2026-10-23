@@ -473,3 +473,12 @@
 - Vérifications : typecheck propre ; 811 tests unitaires verts sur le poste. Les vérifications lourdes tournent sur GitHub Actions (`verif`).
 - Run 40029446930 (702c1a3) : le parcours passe (143 e2e verts sur 144), mais `partenaires.spec.ts:160` tombe sur « dans 3 jours » (affiché « dans 2 jours »). Cause : les helpers de date des tests ajoutaient 72 h à l'instant (`jourDans`, `jourCivil`) ; entre 00:00 et 01:00 à Paris, le changement d'heure du 25/10 fait tomber la date la veille. Aucun écart côté app (les deux calculent le jour de Paris). Corrigé dans les trois helpers (`partenaires`, `lot3-verifications`, `voiture`) : on compte en jours du calendrier.
 - Ouvert : étape 6 (Remplacer et Budget), section 7 du brief.
+
+## 24/10/2026 : Garage, Remplacer (brief 4.3e, étape 6)
+
+- Remplacer propose une rechange du stock ou une nouvelle pièce (désignation, marque, qualité, prix, fournisseur, durées de vie, tous facultatifs sauf la désignation). Avec un prix, la pièce passe par une commande saisie, expédiée et reçue tout de suite : la réception crée la pièce en stock et émet `garage.piece_achetee`, donc la dépense arrive dans « À confirmer » du Budget. Sans prix, elle entre au stock directement. Le prix impose le fournisseur, avec sa raison affichée.
+- L'ancienne pièce : le motif et ce qu'elle devient (en réserve, au rebut, vendue) sont demandés, sans valeur par défaut. La destination fixe le statut (en stock, cassée, vendue) ; le motif reste la raison de la dépose.
+- Ordre des vérifications : le motif, la destination et le prix sont contrôlés avant la première écriture. Une pièce achetée puis refusée à la pose laisserait une commande reçue, et un second envoi en créerait une deuxième.
+- Le bouton Remplacer n'est plus bloqué quand il n'y a aucune rechange : la voie « nouvelle pièce » reste ouverte.
+- Commit : 295c9d3. Tests unitaires : 814 verts (règles : destination, prix sans fournisseur). Typecheck propre. Nouveau spec e2e `garage-remplacement.spec.ts` (avec prix, sans prix, base vérifiée) ; `garage.spec.ts` choisit désormais motif et destination.
+- Ouvert : l'ordre de remplacement de Travaux pose encore selon le motif seul (pas de destination demandée) ; la proposition Budget n'est pas vérifiée en e2e ; la commande et la pose sont deux écritures (la pose refusée après la réception laisse la pièce en stock, sans doublon).
