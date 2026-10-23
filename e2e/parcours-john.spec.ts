@@ -188,6 +188,7 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   await page.setViewportSize(TELEPHONE)
   await tuile(page, "garage").click()
   await arriver(page, /\/apps\/garage$/, /^Atelier$/)
-  await expect(page.getByRole("link", { name: "Freins, Bon, 100%" })).toBeVisible()
+  // Freins réparés à l'étape 6 avec un état saisi de 80 % : c'est cet état qui s'affiche (954 v1.3, §4), pas le calcul à 100 %.
+  await expect(page.getByRole("link", { name: "Freins, Bon, 80%" })).toBeVisible()
   await sansDefilementHorizontal(page)
 })
