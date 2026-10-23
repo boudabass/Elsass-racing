@@ -116,7 +116,7 @@ export async function piecesDeCommandeEnBase(
 ): Promise<Array<{ prix_cents: number | null; statut: string; fournisseur_contact_id: string | null; commande_ligne_id: string | null }>> {
   const { rows } = await bd().query(
     `SELECT prix_cents, statut, fournisseur_contact_id, commande_ligne_id FROM garage_part
-      WHERE team_id = $1 AND designation = $2 AND deleted_at IS NULL ORDER BY created_at`,
+      WHERE team_id = $1 AND designation = $2 AND commande_ligne_id IS NOT NULL AND deleted_at IS NULL ORDER BY created_at`,
     [equipe.teamId, designation],
   )
   return rows

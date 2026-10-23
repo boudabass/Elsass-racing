@@ -25,8 +25,9 @@ test("responsable · nouvelle pièce avec prix : commande reçue, pièce posée,
   await tiroir.getByLabel("Désignation").fill("Disques avant neufs")
   await tiroir.getByLabel("Marque (facultatif)").fill("Brembo")
   await tiroir.getByLabel("Prix, en euros (facultatif)").fill("45,00")
-  // Le prix rend le fournisseur obligatoire : le champ l'annonce dans son libellé.
-  await tiroir.getByLabel("Fournisseur", { exact: true }).selectOption(fournisseurId)
+  // Le prix rend le fournisseur obligatoire : le libellé passe de « Fournisseur (facultatif) » à « Fournisseur ». Le libellé
+  // contient aussi les options du select : on le repère par son nom de champ, pas par son texte exact.
+  await tiroir.locator('select[name="fournisseurContactId"]').selectOption(fournisseurId)
   await tiroir.getByLabel("Motif de dépose de la pièce en place").selectOption("usure")
   await tiroir.getByLabel("Ce que devient l'ancienne pièce").selectOption({ label: "En réserve (en stock)" })
   await envoyer(page, tiroir.getByRole("button", { name: "Remplacer la pièce", exact: true }))
