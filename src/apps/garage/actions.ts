@@ -7,6 +7,7 @@ import { executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-
 
 import { refus } from "./erreurs"
 import type { MotifDepose } from "./libelles"
+import type { DestinationAncienne } from "./regles"
 import {
   affecterOrdre,
   ajouterPieceOrdre,
@@ -22,6 +23,7 @@ import {
   modifierCoutOrdre,
   modifierOrdre,
   modifierOrgane,
+  poserNouvellePiece,
   poserPiece,
   preparerAtelier,
   recevoirCommande,
@@ -31,6 +33,7 @@ import {
   terminerOrdre,
   type EntreeCommande,
   type EntreeModificationOrdre,
+  type EntreeNouvellePiece,
   type EntreeOrdre,
   type EntreeOrgane,
   type EntreePiece,
@@ -69,11 +72,29 @@ export async function preparerAtelierAction(_etat: Resultat | null, donnees: For
   return executerGarage(() => preparerAtelier(texte(donnees, "vehicleId")))
 }
 
-// Remplacer : la pièce en place (si elle existe) part avec le motif de dépose, la rechange se pose, en une seule écriture.
+// Remplacer : la pièce en place (si elle existe) part avec son motif et sa destination. La pièce posée est une rechange
+// du stock (source « rechange ») ou une nouvelle pièce, achetée avec un prix ou entrée au stock sans prix (source « nouvelle »).
 export async function remplacerPieceAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerGarage(async () => {
-    const motif = texteOuNull(donnees, "motifDepose") as MotifDepose | null
-    await poserPiece(texte(donnees, "organeId"), texte(donnees, "partId"), { motifDepose: motif })
+    const organeId = texte(donnees, "organeId")
+    const options = {
+      motifDepose: texteOuNull(donnees, "motifDepose") as MotifDepose | null,
+      destinationAncienne: texteOuNull(donnees, "destinationAncienne") as DestinationAncienne | null,
+    }
+    if (texteOuNull(donnees, "source") === "nouvelle") {
+      const entree: EntreeNouvellePiece = {
+        designation: texte(donnees, "designation"),
+        marque: texteOuNull(donnees, "marque"),
+        qualite: (texteOuNull(donnees, "qualite") ?? "origine") as EntreePiece["qualite"],
+        dureeVieKm: entierOuNull(donnees, "dureeVieKm", "La durée en kilomètres"),
+        dureeVieEpreuves: entierOuNull(donnees, "dureeVieEpreuves", "La durée en épreuves"),
+        prixCents: centimesOuNull(donnees, "prixCents"),
+        fournisseurContactId: texteOuNull(donnees, "fournisseurContactId"),
+      }
+      await poserNouvellePiece(organeId, entree, options)
+      return
+    }
+    await poserPiece(organeId, texte(donnees, "partId"), options)
   })
 }
 

@@ -71,7 +71,15 @@ function Historique({ poses, usures, reparations }: { poses: PoseOrgane[]; usure
   )
 }
 
-export function FicheOrganeEcran({ fiche, niveau }: { fiche: FicheOrgane; niveau: Niveau }) {
+export function FicheOrganeEcran({
+  fiche,
+  niveau,
+  fournisseurs,
+}: {
+  fiche: FicheOrgane
+  niveau: Niveau
+  fournisseurs: Array<{ id: string; nom: string }>
+}) {
   const { organe } = fiche
   const peutEcrire = aAuMoins(niveau, "ecriture")
   const piece = organe.piece
@@ -138,7 +146,13 @@ export function FicheOrganeEcran({ fiche, niveau }: { fiche: FicheOrgane; niveau
 
         {!organe.trainMonte &&
           (peutEcrire ? (
-            <FormulaireRemplacer organeId={organe.id} nom={organe.nom} pieceEnPlace={Boolean(piece)} rechanges={organe.rechanges} />
+            <FormulaireRemplacer
+              organeId={organe.id}
+              nom={organe.nom}
+              pieceEnPlace={Boolean(piece)}
+              rechanges={organe.rechanges}
+              fournisseurs={fournisseurs}
+            />
           ) : (
             <div className="flex flex-col items-start gap-2">
               <button type="button" disabled className="cible-tactile inline-flex items-center rounded-md border border-bordure px-4 opacity-60">

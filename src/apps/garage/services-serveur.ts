@@ -19,6 +19,7 @@ import { ErreurGarage, refus } from "./erreurs"
 import { emplacementsDuType } from "./emplacements"
 import { MODE_USURE_DEFAUT, TYPES_DEFAUT } from "./types-defaut"
 import {
+  DESTINATIONS_ANCIENNE,
   dureesEffectives,
   etatPiece,
   etatPneus,
@@ -26,9 +27,12 @@ import {
   fiabiliteChangee,
   franchitZoneRouge,
   indiceFiabilite,
+  prixImposeFournisseur,
   saisieParPiece,
   SEUILS_DEFAUT,
   seuilsValides,
+  statutDeDestination,
+  type DestinationAncienne,
   type ModeUsure,
   type OrganeIndice,
   type SaisieEtat,
@@ -602,32 +606,124 @@ const STATUT_APRES_DEPOSE: Record<(typeof MOTIFS)[number], "usee" | "cassee" | "
   revision: "en_revision",
 }
 
-export async function poserPiece(
-  vehicleComponentId: string,
-  partId: string,
-  options: { motifDepose?: (typeof MOTIFS)[number] | null } = {},
-): Promise<string> {
+// Options de la pose : le motif et la destination de l'ancienne pièce, si une pièce est en place. Les deux sont demandés
+// par le tiroir Remplacer (954 v1.2, §2) ; la destination n'a pas de valeur par défaut.
+export interface OptionsPose {
+  motifDepose?: (typeof MOTIFS)[number] | null
+  destinationAncienne?: DestinationAncienne | null
+}
+
+export async function poserPiece(vehicleComponentId: string, partId: string, options: OptionsPose = {}): Promise<string> {
   const { ctx } = await accesGarage("ecriture")
   return poserPieceDans(ctx, vehicleComponentId, partId, options)
 }
 
-export async function poserPieceDans(
-  ctx: ContexteTeam,
-  vehicleComponentId: string,
-  partId: string,
-  options: { motifDepose?: (typeof MOTIFS)[number] | null } = {},
-): Promise<string> {
+export async function poserPieceDans(ctx: ContexteTeam, vehicleComponentId: string, partId: string, options: OptionsPose = {}): Promise<string> {
   const motif = options.motifDepose ?? null
+  const destination = options.destinationAncienne ?? null
   if (motif !== null && !MOTIFS.includes(motif)) refus("Motif de dépose inconnu.")
+  if (destination !== null && !DESTINATIONS_ANCIENNE.includes(destination)) refus("Destination de l'ancienne pièce inconnue.")
   const vehicleId = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => (await organeDans(tx, ctx.teamId, vehicleComponentId)).vehicleId)
   const id = newId()
 
-  await ecrireEtEmettre(ctx, vehicleId, (tx) => poserPieceTx(tx, ctx, id, vehicleComponentId, partId, motif))
+  await ecrireEtEmettre(ctx, vehicleId, async (tx) => {
+    const enPlace = await tx.garagePartMount.findFirst({
+      where: { vehicleComponentId, deposeeLe: null, deletedAt: null },
+      select: { id: true },
+    })
+    if (enPlace && destination === null) refus("Indiquez ce que devient l'ancienne pièce : réserve, rebut ou vendue.")
+    await poserPieceTx(tx, ctx, id, vehicleComponentId, partId, motif, destination)
+  })
   return id
 }
 
+// Remplacer avec une nouvelle pièce (954, Remplacer, voie 2). Avec un prix, la pièce passe par une commande saisie,
+// expédiée et reçue tout de suite : la réception crée la pièce en stock et émet garage.piece_achetee (Budget). Sans prix,
+// elle entre en stock directement. Dans les deux cas elle est ensuite posée, et l'ancienne pièce part selon sa destination.
+export interface EntreeNouvellePiece {
+  designation: string
+  marque?: string | null
+  qualite?: EntreePiece["qualite"]
+  dureeVieKm?: number | null
+  dureeVieEpreuves?: number | null
+  prixCents?: number | null
+  fournisseurContactId?: string | null
+}
+
+// Date civile du jour à Paris, « AAAA-MM-JJ ».
+const jourParis = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())
+
+export async function poserNouvellePiece(vehicleComponentId: string, entree: EntreeNouvellePiece, options: OptionsPose = {}): Promise<string> {
+  const { ctx } = await accesGarage("ecriture")
+  return poserNouvellePieceDans(ctx, vehicleComponentId, entree, options)
+}
+
+export async function poserNouvellePieceDans(
+  ctx: ContexteTeam,
+  vehicleComponentId: string,
+  entree: EntreeNouvellePiece,
+  options: OptionsPose = {},
+): Promise<string> {
+  const prix = entree.prixCents ?? null
+  const fournisseur = entree.fournisseurContactId ?? null
+  const refusPrix = prixImposeFournisseur(prix, fournisseur)
+  if (refusPrix) refus(refusPrix)
+
+  // Tout ce qui peut refuser se vérifie avant la première écriture : une pièce achetée puis refusée à la pose laisserait
+  // une commande reçue, et un second envoi en créerait une deuxième.
+  const organe = await executerPourTeam(ctx.teamId, ctx.userId, (tx) => organeDans(tx, ctx.teamId, vehicleComponentId))
+  const enPlace = await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+    tx.garagePartMount.findFirst({ where: { vehicleComponentId, deposeeLe: null, deletedAt: null }, select: { id: true } }),
+  )
+  if (enPlace && (!options.motifDepose || !options.destinationAncienne)) {
+    refus("Indiquez le motif de dépose et ce que devient l'ancienne pièce.")
+  }
+
+  let partId: string
+  if (prix !== null && fournisseur !== null) {
+    const commandeId = await creerCommandeDans(ctx, organe.vehicleId, {
+      supplierContactId: fournisseur,
+      commandeeLe: jourParis(),
+      lignes: [
+        {
+          designation: entree.designation,
+          componentTypeId: organe.componentTypeId,
+          quantite: 1,
+          prixUnitaireCents: prix,
+          qualite: entree.qualite ?? "origine",
+        },
+      ],
+    })
+    await expedierCommandeDans(ctx, commandeId)
+    const [pieceId] = await recevoirCommandeDans(ctx, commandeId)
+    if (!pieceId) refus("La réception n'a créé aucune pièce.")
+    partId = pieceId
+    // La réception ne porte ni la marque ni les durées de vie : elles se complètent sur la pièce reçue.
+    if (entree.marque || entree.dureeVieKm || entree.dureeVieEpreuves) {
+      await modifierPieceDans(ctx, partId, {
+        marque: entree.marque ?? null,
+        dureeVieKm: entree.dureeVieKm ?? null,
+        dureeVieEpreuves: entree.dureeVieEpreuves ?? null,
+      })
+    }
+  } else {
+    partId = await creerPieceDans(ctx, organe.vehicleId, {
+      componentTypeId: organe.componentTypeId,
+      designation: entree.designation,
+      marque: entree.marque ?? null,
+      qualite: entree.qualite ?? "origine",
+      dureeVieKm: entree.dureeVieKm ?? null,
+      dureeVieEpreuves: entree.dureeVieEpreuves ?? null,
+    })
+  }
+
+  await poserPieceDans(ctx, vehicleComponentId, partId, options)
+  return partId
+}
+
 // Pose dans une transaction déjà ouverte. Sert aussi à la fin d'un ordre de remplacement (Garage 4.3, D1 et D7) :
-// la pose et la fin de l'ordre s'écrivent ensemble, ou pas du tout.
+// la pose et la fin de l'ordre s'écrivent ensemble, ou pas du tout. Sans destination (fin d'ordre), le statut de la
+// pièce déposée suit son motif.
 export async function poserPieceTx(
   tx: Tx,
   ctx: ContexteTeam,
@@ -635,6 +731,7 @@ export async function poserPieceTx(
   vehicleComponentId: string,
   partId: string,
   motif: (typeof MOTIFS)[number] | null,
+  destination: DestinationAncienne | null = null,
 ): Promise<void> {
   const organe = await organeDans(tx, ctx.teamId, vehicleComponentId)
   const piece = await pieceDans(tx, ctx.teamId, partId)
@@ -648,7 +745,7 @@ export async function poserPieceTx(
   })
   if (enPlace) {
     if (!motif) refus("Un autre pièce est en place : indiquez le motif de sa dépose.")
-    await deposerDans(tx, ctx, enPlace.id, motif)
+    await deposerDans(tx, ctx, enPlace.id, motif, destination)
   }
 
   await tx.garagePartMount.create({
@@ -669,7 +766,14 @@ export async function poserPieceTx(
   })
 }
 
-async function deposerDans(tx: Tx, ctx: ContexteTeam, mountId: string, motif: (typeof MOTIFS)[number]): Promise<void> {
+// Le motif reste la raison de la dépose. Le statut suit la destination si elle est donnée (Remplacer), sinon le motif.
+async function deposerDans(
+  tx: Tx,
+  ctx: ContexteTeam,
+  mountId: string,
+  motif: (typeof MOTIFS)[number],
+  destination: DestinationAncienne | null = null,
+): Promise<void> {
   const pose = await tx.garagePartMount.findFirst({
     where: { id: mountId, teamId: ctx.teamId, deletedAt: null },
     select: { id: true, partId: true, deposeeLe: true },
@@ -681,7 +785,11 @@ async function deposerDans(tx: Tx, ctx: ContexteTeam, mountId: string, motif: (t
   })
   await tx.garagePart.updateMany({
     where: { id: pose.partId, teamId: ctx.teamId },
-    data: { statut: STATUT_APRES_DEPOSE[motif], rev: { increment: 1 }, updatedBy: ctx.userId },
+    data: {
+      statut: destination ? statutDeDestination(destination) : STATUT_APRES_DEPOSE[motif],
+      rev: { increment: 1 },
+      updatedBy: ctx.userId,
+    },
   })
 }
 
@@ -1405,12 +1513,13 @@ export async function expedierCommandeDans(ctx: ContexteTeam, id: string): Promi
 
 export async function recevoirCommande(id: string): Promise<void> {
   const { ctx } = await accesGarage("ecriture")
-  return recevoirCommandeDans(ctx, id)
+  await recevoirCommandeDans(ctx, id)
 }
 
 // Réception : une transaction. Le verrou sur le statut (updateMany « pas encore reçue ») passe avant tout le reste : une
 // seconde réception concurrente ne voit aucune ligne et ne crée rien. Une ligne sans organe bloque la réception.
-export async function recevoirCommandeDans(ctx: ContexteTeam, id: string): Promise<void> {
+// Renvoie les identifiants des pièces créées, une par unité : Remplacer s'en sert pour poser la pièce achetée.
+export async function recevoirCommandeDans(ctx: ContexteTeam, id: string): Promise<string[]> {
   const recueLe = new Date()
   const bilan = await avecReprisePourConflit(() =>
     executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
@@ -1432,13 +1541,19 @@ export async function recevoirCommandeDans(ctx: ContexteTeam, id: string): Promi
         orderBy: { createdAt: "asc" },
       })
       const pieces: Prisma.GaragePartCreateManyInput[] = []
+      const idsPieces: string[] = []
+      const idPiece = () => {
+        const idNouvelle = newId()
+        idsPieces.push(idNouvelle)
+        return idNouvelle
+      }
       let totalCents = 0
       for (const ligne of lignes) {
         if (!ligne.componentTypeId) refus(`La ligne « ${ligne.designation} » n'a pas d'organe : complétez-la avant la réception.`)
         totalCents += ligne.quantite * ligne.prixUnitaireCents
         for (let unite = 0; unite < ligne.quantite; unite += 1) {
           pieces.push({
-            id: newId(),
+            id: idPiece(),
             teamId: ctx.teamId,
             vehicleId: commande.vehicleId,
             componentTypeId: ligne.componentTypeId,
@@ -1457,7 +1572,13 @@ export async function recevoirCommandeDans(ctx: ContexteTeam, id: string): Promi
         }
       }
       if (pieces.length > 0) await tx.garagePart.createMany({ data: pieces })
-      return { vehicleId: commande.vehicleId, supplierContactId: commande.supplierContactId, totalCents, devise: lignes[0]?.devise ?? "EUR" }
+      return {
+        vehicleId: commande.vehicleId,
+        supplierContactId: commande.supplierContactId,
+        totalCents,
+        devise: lignes[0]?.devise ?? "EUR",
+        idsPieces,
+      }
     }),
   )
 
@@ -1476,4 +1597,5 @@ export async function recevoirCommandeDans(ctx: ContexteTeam, id: string): Promi
       }),
     )
   }
+  return bilan.idsPieces
 }

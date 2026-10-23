@@ -3,8 +3,9 @@ import { Lock } from "lucide-react"
 
 import { accesEcran } from "@/apps/garage/ecran"
 import { FicheOrganeEcran } from "@/apps/garage/composants/fiche-organe"
-import { lireFicheOrgane } from "@/apps/garage/lectures-serveur"
+import { lireFicheOrgane, listerFournisseurs } from "@/apps/garage/lectures-serveur"
 import { EcranVide } from "@/components/qg/ecran-vide"
+import { aAuMoins } from "@/core/droits/niveaux"
 
 // Fiche d'un organe du Garage (tâche 4.2, §2). Un organe absent de la team renvoie 404.
 export default async function PageOrgane({ params }: { params: Promise<{ id: string }> }) {
@@ -15,5 +16,7 @@ export default async function PageOrgane({ params }: { params: Promise<{ id: str
   const { id } = await params
   const fiche = await lireFicheOrgane(id)
   if (!fiche) notFound()
-  return <FicheOrganeEcran fiche={fiche} niveau={acces.niveau} />
+  // Les fournisseurs ne servent qu'au tiroir Remplacer, réservé à l'écriture : l'assistance ne les reçoit pas.
+  const fournisseurs = aAuMoins(acces.niveau, "ecriture") ? await listerFournisseurs() : []
+  return <FicheOrganeEcran fiche={fiche} niveau={acces.niveau} fournisseurs={fournisseurs} />
 }

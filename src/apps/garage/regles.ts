@@ -172,3 +172,21 @@ export function seuilsValides(seuils: Seuils): boolean {
   return Number.isInteger(seuils.rouge) && Number.isInteger(seuils.orange)
     && seuils.rouge >= 0 && seuils.rouge < seuils.orange && seuils.orange <= 100
 }
+
+// Ce que devient l'ancienne pièce quand on la remplace (954 v1.2, §2 Remplacer : toujours demandé, sans valeur par défaut).
+// Le statut de la pièce déposée suit ce choix : réserve (en stock), rebut (cassée), vendue.
+export const DESTINATIONS_ANCIENNE = ["reserve", "rebut", "vendue"] as const
+export type DestinationAncienne = (typeof DESTINATIONS_ANCIENNE)[number]
+
+const STATUT_DESTINATION = { reserve: "en_stock", rebut: "cassee", vendue: "vendue" } as const
+
+export function statutDeDestination(destination: DestinationAncienne): (typeof STATUT_DESTINATION)[DestinationAncienne] {
+  return STATUT_DESTINATION[destination]
+}
+
+// Une pièce saisie avec un prix vient d'une commande : son fournisseur est obligatoire (954, « le prix impose le fournisseur »).
+// Renvoie la raison affichée, ou null si la saisie passe.
+export function prixImposeFournisseur(prixCents: number | null, fournisseurId: string | null): string | null {
+  if (prixCents !== null && fournisseurId === null) return "Une pièce avec un prix demande son fournisseur."
+  return null
+}

@@ -3,17 +3,16 @@
 // Tiroirs de la fiche organe (tâche 4.2, §2) : remplacer la pièce, régler l'organe, retirer l'organe. Chacun passe par
 // une Server Action gardée ; les messages de refus du service s'affichent tels quels, dans le tiroir.
 
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 import { TiroirAction } from "@/components/formulaire/tiroir"
 import { useEtatSynchro } from "@/core/synchro/client/react"
-import { BOUTON_SECONDAIRE, CHAMP, LIEN } from "@/lib/classes-formulaire"
+import { BOUTON_SECONDAIRE, CHAMP } from "@/lib/classes-formulaire"
 
 import { remplacerPieceAction, reglerOrganeAction, reparerOrganeAction, retirerOrganeAction } from "../actions"
-import { LIBELLE_MODE_USURE, LIBELLE_MOTIF_DEPOSE, type MotifDepose } from "../libelles"
-import type { ModeUsure } from "../regles"
+import { LIBELLE_DESTINATION_ANCIENNE, LIBELLE_MODE_USURE, LIBELLE_MOTIF_DEPOSE, LIBELLE_QUALITE, type MotifDepose } from "../libelles"
+import { DESTINATIONS_ANCIENNE, type ModeUsure } from "../regles"
 import type { PieceAtelier } from "../vues"
 
 const MOTIFS = Object.keys(LIBELLE_MOTIF_DEPOSE) as MotifDepose[]
@@ -74,29 +73,23 @@ const MODES = Object.keys(LIBELLE_MODE_USURE) as ModeUsure[]
 interface FormulaireRemplacerProps {
   organeId: string
   nom: string
-  // Une pièce est montée : elle part avec un motif de dépose.
+  // Une pièce est montée : elle part avec un motif de dépose et une destination.
   pieceEnPlace: boolean
   rechanges: PieceAtelier[]
+  fournisseurs: Array<{ id: string; nom: string }>
 }
 
-// Choisit une rechange en stock et, s'il y a une pièce en place, son motif de dépose. Sans rechange, le bouton reste
-// visible, désactivé, avec la raison et le lien vers le stock.
-export function FormulaireRemplacer({ organeId, nom, pieceEnPlace, rechanges }: FormulaireRemplacerProps) {
+type SourcePiece = "rechange" | "nouvelle"
+
+// Remplacer (954 v1.2, §2) : une rechange du stock, ou une nouvelle pièce. Avec un prix, la nouvelle pièce est achetée et
+// reçue tout de suite (Budget la reçoit). Si une pièce est en place, son motif et ce qu'elle devient sont demandés, sans
+// valeur par défaut. Sans rechange, la voie « nouvelle pièce » reste ouverte : le bouton n'est jamais bloqué.
+export function FormulaireRemplacer({ organeId, nom, pieceEnPlace, rechanges, fournisseurs }: FormulaireRemplacerProps) {
   const router = useRouter()
   const libelle = pieceEnPlace ? "Remplacer" : "Poser une pièce"
-
-  if (rechanges.length === 0) {
-    return (
-      <div className="flex flex-col items-start gap-2">
-        <button type="button" disabled className={`${BOUTON_SECONDAIRE} opacity-60`}>
-          {libelle}
-        </button>
-        <p className="text-sm text-texte-discret">
-          Aucune pièce de rechange pour cet organe. <Link href="/apps/garage/stock" className={LIEN}>Ajoutez-en une au stock.</Link>
-        </p>
-      </div>
-    )
-  }
+  const [source, setSource] = useState<SourcePiece>(rechanges.length > 0 ? "rechange" : "nouvelle")
+  const [prix, setPrix] = useState("")
+  const fournisseurRequis = prix.trim() !== ""
 
   return (
     <TiroirAction
@@ -108,28 +101,114 @@ export function FormulaireRemplacer({ organeId, nom, pieceEnPlace, rechanges }: 
       onSucces={() => router.refresh()}
     >
       <input type="hidden" name="organeId" value={organeId} />
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium">Pièce de rechange</span>
-        <select name="partId" required defaultValue={rechanges[0].id} className={CHAMP}>
-          {rechanges.map((piece) => (
-            <option key={piece.id} value={piece.id}>
-              {piece.designation}
-              {piece.marque ? ` · ${piece.marque}` : ""}
-            </option>
-          ))}
-        </select>
-      </label>
-      {pieceEnPlace && (
+      {rechanges.length > 0 && (
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Motif de dépose de la pièce en place</span>
-          <select name="motifDepose" required defaultValue="usure" className={CHAMP}>
-            {MOTIFS.map((motif) => (
-              <option key={motif} value={motif}>
-                {LIBELLE_MOTIF_DEPOSE[motif]}
+          <span className="font-medium">Pièce posée</span>
+          <select name="source" value={source} onChange={(evenement) => setSource(evenement.target.value as SourcePiece)} className={CHAMP}>
+            <option value="rechange">Une rechange du stock</option>
+            <option value="nouvelle">Une nouvelle pièce</option>
+          </select>
+        </label>
+      )}
+
+      {source === "rechange" ? (
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">Pièce de rechange</span>
+          <select name="partId" required defaultValue={rechanges[0]?.id} className={CHAMP}>
+            {rechanges.map((piece) => (
+              <option key={piece.id} value={piece.id}>
+                {piece.designation}
+                {piece.marque ? ` · ${piece.marque}` : ""}
               </option>
             ))}
           </select>
         </label>
+      ) : (
+        <>
+          {rechanges.length === 0 && <input type="hidden" name="source" value="nouvelle" />}
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Désignation</span>
+            <input name="designation" required maxLength={200} className={CHAMP} />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Marque (facultatif)</span>
+            <input name="marque" maxLength={120} className={CHAMP} />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Qualité</span>
+            <select name="qualite" defaultValue="origine" className={CHAMP}>
+              {Object.entries(LIBELLE_QUALITE).map(([cle, texte]) => (
+                <option key={cle} value={cle}>
+                  {texte}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Prix, en euros (facultatif)</span>
+            <input
+              name="prixCents"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={prix}
+              onChange={(evenement) => setPrix(evenement.target.value)}
+              className={CHAMP}
+            />
+            <span className="text-texte-discret">Un prix passe par une commande reçue tout de suite, et ouvre une dépense côté Budget.</span>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Fournisseur{fournisseurRequis ? "" : " (facultatif)"}</span>
+            <select name="fournisseurContactId" required={fournisseurRequis} defaultValue="" className={CHAMP}>
+              <option value="">Aucun</option>
+              {fournisseurs.map((fournisseur) => (
+                <option key={fournisseur.id} value={fournisseur.id}>
+                  {fournisseur.nom}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">Durée en kilomètres (facultatif)</span>
+              <input name="dureeVieKm" inputMode="numeric" className={CHAMP} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">Durée en épreuves (facultatif)</span>
+              <input name="dureeVieEpreuves" inputMode="numeric" className={CHAMP} />
+            </label>
+          </div>
+        </>
+      )}
+
+      {pieceEnPlace && (
+        <>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Motif de dépose de la pièce en place</span>
+            <select name="motifDepose" required defaultValue="" className={CHAMP}>
+              <option value="" disabled>
+                Choisir le motif
+              </option>
+              {MOTIFS.map((motif) => (
+                <option key={motif} value={motif}>
+                  {LIBELLE_MOTIF_DEPOSE[motif]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Ce que devient l&apos;ancienne pièce</span>
+            <select name="destinationAncienne" required defaultValue="" className={CHAMP}>
+              <option value="" disabled>
+                Choisir la destination
+              </option>
+              {DESTINATIONS_ANCIENNE.map((destination) => (
+                <option key={destination} value={destination}>
+                  {LIBELLE_DESTINATION_ANCIENNE[destination]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
       )}
     </TiroirAction>
   )

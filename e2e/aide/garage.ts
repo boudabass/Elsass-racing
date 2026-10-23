@@ -156,3 +156,18 @@ export async function personneResponsableDeTest(equipe: Equipe): Promise<string>
   await bd().query(`UPDATE core_membership SET person_id = $1 WHERE id = $2`, [personneId, equipe.responsable.membershipId])
   return personneId
 }
+
+// Poses d'un organe, dépose comprise : la pièce, son statut, et le motif de sa dépose (vide tant qu'elle est montée).
+export async function posesDeLOrganeEnBase(
+  equipe: Equipe,
+  organeId: string,
+): Promise<Array<{ designation: string; statut: string; motif_depose: string | null; deposee: boolean }>> {
+  const { rows } = await bd().query(
+    `SELECT p.designation, p.statut, m.motif_depose, m.deposee_le IS NOT NULL AS deposee FROM garage_part_mount m
+       JOIN garage_part p ON p.id = m.part_id
+      WHERE m.vehicle_component_id = $1 AND m.team_id = $2 AND m.deleted_at IS NULL
+      ORDER BY m.created_at`,
+    [organeId, equipe.teamId],
+  )
+  return rows
+}

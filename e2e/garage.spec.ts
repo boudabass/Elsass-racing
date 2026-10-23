@@ -97,6 +97,9 @@ test("responsable · tuile, durée, pièces, remplacement et roulage jusqu'à la
   await page.getByRole("button", { name: "Remplacer", exact: true }).click()
   await expect(page.getByRole("dialog")).toBeVisible()
   await capturerEcran(page, "garage-remplacer-1440.png")
+  // Motif et destination de l'ancienne pièce : aucun n'est pré-rempli (954 v1.2, §2).
+  await page.getByLabel("Motif de dépose de la pièce en place").selectOption("usure")
+  await page.getByLabel("Ce que devient l'ancienne pièce").selectOption({ label: "En réserve (en stock)" })
   await page.getByRole("button", { name: "Remplacer la pièce", exact: true }).click()
   await expect(page.getByRole("dialog")).toBeHidden()
   // La fiche la nomme deux fois (pièce montée, puis historique de pose) : la première occurrence suffit, la base tranche.

@@ -13,9 +13,11 @@ import {
   franchitZoneRouge,
   indiceFiabilite,
   kmRestantsAvantRouge,
+  prixImposeFournisseur,
   saisieParPiece,
   SEUILS_DEFAUT,
   seuilsValides,
+  statutDeDestination,
   zoneDeEtat,
   type SaisieEtat,
 } from "./regles"
@@ -341,5 +343,23 @@ describe("défauts des seuils, égaux à la migration", () => {
     const rouge = /seuilRougePct\s+Int\s+@default\((\d+)\)/.exec(schema)?.[1]
     expect(Number(orange)).toBe(SEUILS_DEFAUT.orange)
     expect(Number(rouge)).toBe(SEUILS_DEFAUT.rouge)
+  })
+})
+
+describe("remplacement : destination de l'ancienne pièce et prix", () => {
+  it("la destination donne le statut de la pièce déposée : réserve, rebut, vendue", () => {
+    expect(statutDeDestination("reserve")).toBe("en_stock")
+    expect(statutDeDestination("rebut")).toBe("cassee")
+    expect(statutDeDestination("vendue")).toBe("vendue")
+  })
+
+  it("une pièce avec un prix sans fournisseur est refusée, avec sa raison", () => {
+    expect(prixImposeFournisseur(1250, null)).toBe("Une pièce avec un prix demande son fournisseur.")
+    expect(prixImposeFournisseur(0, null)).toBe("Une pièce avec un prix demande son fournisseur.")
+  })
+
+  it("un prix avec fournisseur passe, et une pièce sans prix ne demande pas de fournisseur", () => {
+    expect(prixImposeFournisseur(1250, "fournisseur-1")).toBeNull()
+    expect(prixImposeFournisseur(null, null)).toBeNull()
   })
 })

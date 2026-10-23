@@ -24,6 +24,13 @@ export const LIBELLE_QUALITE = {
   competition: "Compétition",
 } as const satisfies Record<string, string>
 
+// Ce que devient l'ancienne pièce quand on la remplace (954 v1.2, §2). Le statut suit : voir statutDeDestination.
+export const LIBELLE_DESTINATION_ANCIENNE = {
+  reserve: "En réserve (en stock)",
+  rebut: "Au rebut (cassée)",
+  vendue: "Vendue",
+} as const satisfies Record<string, string>
+
 export const LIBELLE_STATUT_PIECE = {
   en_stock: "En stock",
   montee: "Montée",
