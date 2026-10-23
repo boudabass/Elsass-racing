@@ -463,3 +463,12 @@
 - Vérifications : typecheck propre ; 714 tests unitaires verts ; build de vérification vert ; e2e `garage.spec.ts` passe 4 : 2/2 (responsable : tuile, durée des freins, deux pièces, remplacement de l'embrayage, roulage de 16 000 km qui fait passer la boîte à 7 % en zone rouge, km vérifiés en base ; assistance : aucun bouton d'écriture actif, aucun prix). `garage-atelier` vert en passe précédente.
 - Captures (docs/captures/) : garage-atelier-1440 et -360, garage-stock-1440, garage-stock-vide-1440, garage-remplacer-1440, garage-fiche-organe-1440 et -360.
 - Ouvert : intervention rapide (4.3) ; priorité d'ordre de travail (4.3) ; état d'équipement (4.6) ; abandon de Saison (4.4) ; positions de la silhouette à revoir si John le demande.
+
+## 23/10/2026 : Garage, réparation (brief 4.3e, étape 5)
+
+- « Réparer » sur la fiche d'un organe crée un ordre de type réparation, à faire, avec son coût facultatif. Sa fin demande « État de la pièce après réparation (%) » quand l'organe a une pièce montée ; un train de pneus n'a pas ce champ. L'état saisi remplace l'état calculé, puis l'usure des épreuves suivantes le fait baisser (954 v1.3, §4). Chaque saisie est une ligne de `garage_part_etat` (journal, une ligne par saisie), et la fiche garde la trace : « Réparé le …, état saisi : X % ».
+- Hors ligne, « Réparer » est refusé avec sa raison ; la fin d'une réparation avec pièce montée est refusée côté serveur de synchro. Rien n'entre dans le registre de synchro.
+- Commits : ce713aa (réparation), 0755ace (vérifications garage), 09bc7de et 67857dc (e2e : parcours de John et message unique), af91426 (correction du parcours).
+- Le run verif 39887375820 n'était rouge que sur `parcours-john.spec.ts:191` : l'étape 9 attendait « Freins, Bon, 100% » alors que l'étape 6 avait saisi 80 %. L'atelier affichait « Freins, Bon, 80% », conforme à 954 v1.3 ; c'est le test qui était faux. Correction : l'attente porte sur 80 %, avec un commentaire qui renvoie à 954 v1.3, §4. Les autres attentes sur les freins avant réparation (`garage.spec.ts`) n'ont pas changé.
+- Vérifications : typecheck propre ; 811 tests unitaires verts sur le poste. Les vérifications lourdes tournent sur GitHub Actions (`verif`).
+- Ouvert : étape 6 (Remplacer et Budget), section 7 du brief.
