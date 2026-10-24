@@ -55,8 +55,9 @@ export async function ajouterTrain(vehicleId: string, entree: EntreeTrain & { ac
 }
 
 export async function ajouterTrainDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeTrain & { acheteLe?: string | null }): Promise<string> {
-  const train = trainSaisi(entree)
-  const acheteLe = entree.acheteLe ? dateCivile.parse(entree.acheteLe) : null
+  const { acheteLe: acheteLeSaisie, ...saisie } = entree
+  const train = trainSaisi(saisie)
+  const acheteLe = acheteLeSaisie ? dateCivile.parse(acheteLeSaisie) : null
   const id = newId()
   await avecReprisePourConflit(() =>
     executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
