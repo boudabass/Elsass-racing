@@ -6,6 +6,7 @@ import { CLE_GABARIT_GENERIQUE, gabarit, type ElementDessin } from "@/apps/voitu
 import { silhouetteDuVehicule } from "@/apps/voiture/lectures-partagees"
 import type { ContexteTeam } from "@/core/contexte"
 import { aAuMoins } from "@/core/droits/niveaux"
+import type { Prisma } from "@/generated/prisma/client"
 import { prismaPourTeam } from "@/lib/prisma"
 
 import {
@@ -25,6 +26,7 @@ import type { PieceStock } from "./mise-en-forme"
 import { comparerOrdres, type PrioriteTravail, type StatutOrdre, type TypeOrdre } from "./travaux"
 import { dateDeParis, type StatutCommande } from "./commandes"
 import { type PieceAtelier, versPiece } from "./vues"
+import { LIBELLES_STATUT_PNEUS, LIBELLES_TYPE_PNEUS, type StatutPneus, type TypePneus } from "./pneus"
 
 export type OrganeAtelier = {
   id: string
@@ -772,4 +774,104 @@ export async function lireChoixCommande(): Promise<{ fournisseurs: Array<{ id: s
     client.garageComponentType.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true, nom: true }, orderBy: { ordre: "asc" } }),
   ])
   return { fournisseurs, types }
+}
+
+// --- Trains de pneus (tâche 4.4, §2) ------------------------------------------------------------
+
+export interface TrainAtelier {
+  id: string
+  marque: string
+  modele: string | null
+  gomme: string | null
+  type: TypePneus
+  typeLibelle: string
+  dimensions: string | null
+  acheteLe: string | null
+  nombreEpreuves: number
+  kmSpeciale: number
+  usureEstimeePct: number | null
+  statut: StatutPneus
+  statutLibelle: string
+  // Vrai si le train est monté sur l'organe Pneus de la voiture.
+  monte: boolean
+}
+
+export interface UsureTrain {
+  date: string
+  kmAjoutes: number
+  epreuveComptee: boolean
+}
+
+function versTrain(train: {
+  id: string
+  marque: string
+  modele: string | null
+  gomme: string | null
+  type: string
+  dimensions: string | null
+  acheteLe: Date | null
+  nombreEpreuves: number
+  kmSpeciale: Prisma.Decimal
+  usureEstimeePct: number | null
+  statut: string
+  vehicleComponentId: string | null
+}, organePneusId: string | null): TrainAtelier {
+  const type = train.type as TypePneus
+  const statut = train.statut as StatutPneus
+  return {
+    id: train.id,
+    marque: train.marque,
+    modele: train.modele,
+    gomme: train.gomme,
+    type,
+    typeLibelle: LIBELLES_TYPE_PNEUS[type],
+    dimensions: train.dimensions,
+    acheteLe: train.acheteLe ? train.acheteLe.toISOString().slice(0, 10) : null,
+    nombreEpreuves: train.nombreEpreuves,
+    kmSpeciale: Number(train.kmSpeciale),
+    usureEstimeePct: train.usureEstimeePct,
+    statut,
+    statutLibelle: LIBELLES_STATUT_PNEUS[statut],
+    monte: organePneusId !== null && train.vehicleComponentId === organePneusId,
+  }
+}
+
+// Les trains de la voiture : le monté en tête, puis les autres (brief §2). Les usés sont filtrés par l'écran.
+export async function lireTrains(vehicleId: string): Promise<{ trains: TrainAtelier[]; organePneusId: string | null } | null> {
+  const { ctx } = await accesGarage("lecture")
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const voiture = await client.coreVehicle.findFirst({ where: { id: vehicleId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!voiture) return null
+  const organePneus = await client.garageVehicleComponent.findFirst({
+    where: { teamId: ctx.teamId, vehicleId, deletedAt: null, componentType: { cle: "pneus" } },
+    select: { id: true },
+  })
+  const trains = await client.garageTyreSet.findMany({
+    where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+  })
+  const liste = trains.map((t) => versTrain(t, organePneus?.id ?? null))
+  liste.sort((a, b) => Number(b.monte) - Number(a.monte))
+  return { trains: liste, organePneusId: organePneus?.id ?? null }
+}
+
+// Une fiche de train : le train, son organe Pneus et ses lignes d'usure (épreuve ou roulage, km), les plus récentes d'abord.
+export async function lireTrain(id: string): Promise<{ train: TrainAtelier; usures: UsureTrain[]; organePneusId: string | null } | null> {
+  const { ctx } = await accesGarage("lecture")
+  const client: Client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const train = await client.garageTyreSet.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null } })
+  if (!train) return null
+  const organePneus = await client.garageVehicleComponent.findFirst({
+    where: { teamId: ctx.teamId, vehicleId: train.vehicleId, deletedAt: null, componentType: { cle: "pneus" } },
+    select: { id: true },
+  })
+  const usures = await client.garageWearLog.findMany({
+    where: { teamId: ctx.teamId, tyreSetId: id, deletedAt: null },
+    orderBy: { date: "desc" },
+  })
+  return {
+    train: versTrain(train, organePneus?.id ?? null),
+    usures: usures.map((u) => ({ date: u.date.toISOString().slice(0, 10), kmAjoutes: Number(u.kmAjoutes), epreuveComptee: u.epreuveComptee })),
+    organePneusId: organePneus?.id ?? null,
+  }
 }

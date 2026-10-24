@@ -9,39 +9,20 @@ import { executerPourTeam } from "@/lib/prisma"
 import { avecReprisePourConflit } from "@/lib/reprise-conflit"
 
 import { ErreurGarage, refus } from "./erreurs"
-import { LIBELLES_TYPE_PNEUS, statutPneusValide, trainDeLaVoiture, trainValide, usureValide, type StatutPneus } from "./pneus"
+import { LIBELLES_TYPE_PNEUS, separerDateAchat, statutPneusValide, trainDeLaVoiture, usureValide, validerSaisieTrain, type EntreeTrain, type StatutPneus } from "./pneus"
 import { prixImposeFournisseur } from "./regles"
 import { accesGarage, creerCommandeDans, expedierCommandeDans, recevoirCommandeDans, type TrainAchete } from "./services-serveur"
 
 export { ErreurGarage }
 
-const texteFacultatif = (max: number) => z.string().trim().max(max).nullable().optional()
 const dateCivile = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date attendue : AAAA-MM-JJ.")
 
-// Données d'un train saisi à la main. Le type et la marque sont contrôlés par trainValide (messages en français).
-const schemaTrain = z
-  .object({
-    marque: z.string().max(100),
-    modele: texteFacultatif(100),
-    gomme: texteFacultatif(100),
-    type: z.string(),
-    dimensions: texteFacultatif(50),
-  })
-  .strict()
-
-export type EntreeTrain = z.input<typeof schemaTrain>
+export type { EntreeTrain }
 
 function trainSaisi(entree: EntreeTrain): TrainAchete {
-  const donnees = schemaTrain.parse(entree)
-  const erreur = trainValide(donnees)
-  if (erreur) refus(erreur)
-  return {
-    marque: donnees.marque,
-    modele: donnees.modele ?? null,
-    gomme: donnees.gomme ?? null,
-    type: donnees.type as TrainAchete["type"],
-    dimensions: donnees.dimensions ?? null,
-  }
+  const valide = validerSaisieTrain(entree)
+  if ("erreur" in valide) refus(valide.erreur)
+  return valide.train
 }
 
 // Date civile du jour à Paris, « AAAA-MM-JJ ».
@@ -55,7 +36,7 @@ export async function ajouterTrain(vehicleId: string, entree: EntreeTrain & { ac
 }
 
 export async function ajouterTrainDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeTrain & { acheteLe?: string | null }): Promise<string> {
-  const { acheteLe: acheteLeSaisie, ...saisie } = entree
+  const { saisie, acheteLe: acheteLeSaisie } = separerDateAchat(entree)
   const train = trainSaisi(saisie)
   const acheteLe = acheteLeSaisie ? dateCivile.parse(acheteLeSaisie) : null
   const id = newId()

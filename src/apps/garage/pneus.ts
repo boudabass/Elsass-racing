@@ -1,3 +1,5 @@
+import { z } from "zod"
+
 // Règles pures des trains de pneus (tâche 4.4, 954 §2 et §3). Sans accès base : les services sont dans pneus-serveur.ts.
 
 export const TYPES_PNEUS = ["asphalte", "terre", "pluie", "neige"] as const
@@ -45,4 +47,54 @@ export function statutPneusValide(statut: string): statut is StatutPneus {
 // Un train ne se monte que sur la voiture à laquelle il appartient.
 export function trainDeLaVoiture(trainVehicleId: string, vehicleId: string): string | null {
   return trainVehicleId === vehicleId ? null : "Ce train appartient à une autre voiture."
+}
+
+// --- Saisie d'un train -----------------------------------------------------------------------------------------------
+// La saisie du train est validée ici, sans accès base, pour être testée. Le schéma est strict : une clé qui n'en fait pas
+// partie (la date d'achat, par exemple) est refusée. C'est pourquoi la date d'achat se sépare avant (separerDateAchat).
+
+const texteFacultatif = (max: number) => z.string().trim().max(max).nullable().optional()
+
+const schemaSaisieTrain = z
+  .object({
+    marque: z.string().max(100),
+    modele: texteFacultatif(100),
+    gomme: texteFacultatif(100),
+    type: z.string(),
+    dimensions: texteFacultatif(50),
+  })
+  .strict()
+
+export type EntreeTrain = z.input<typeof schemaSaisieTrain>
+
+export interface TrainSaisi {
+  marque: string
+  modele: string | null
+  gomme: string | null
+  type: TypePneus
+  dimensions: string | null
+}
+
+// Sépare la date d'achat (« acheté le ») du reste de la saisie : elle n'est pas une caractéristique du train.
+export function separerDateAchat(entree: EntreeTrain & { acheteLe?: string | null }): { saisie: EntreeTrain; acheteLe: string | null } {
+  const { acheteLe, ...saisie } = entree
+  return { saisie, acheteLe: acheteLe ?? null }
+}
+
+// Valide la saisie du train. Renvoie le train, ou la raison à afficher.
+export function validerSaisieTrain(entree: unknown): { train: TrainSaisi } | { erreur: string } {
+  const analyse = schemaSaisieTrain.safeParse(entree)
+  if (!analyse.success) return { erreur: "Ce train n'est pas enregistrable : vérifiez la saisie." }
+  const donnees = analyse.data
+  const erreur = trainValide({ marque: donnees.marque, type: donnees.type })
+  if (erreur) return { erreur }
+  return {
+    train: {
+      marque: donnees.marque.trim(),
+      modele: donnees.modele?.trim() || null,
+      gomme: donnees.gomme?.trim() || null,
+      type: donnees.type as TypePneus,
+      dimensions: donnees.dimensions?.trim() || null,
+    },
+  }
 }

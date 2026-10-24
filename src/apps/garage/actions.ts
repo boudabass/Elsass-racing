@@ -39,6 +39,7 @@ import {
   type EntreePiece,
   type EntreeUsureManuelle,
 } from "./services-serveur"
+import { ajouterTrain, ajouterTrainAchete, monterTrain, saisirUsureTrain } from "./pneus-serveur"
 
 export type { Resultat }
 
@@ -327,4 +328,46 @@ export async function expedierCommandeAction(_etat: Resultat | null, donnees: Fo
 // Réception : crée les pièces en stock, une par unité, et émet garage.piece_achetee après la transaction.
 export async function recevoirCommandeAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerGarage(() => recevoirCommande(texte(donnees, "id")))
+}
+
+// --- Trains de pneus (tâche 4.4, §2) ------------------------------------------------------------
+
+// Ajouter un train. Avec un prix, le fournisseur est obligatoire et l'achat passe par une commande reçue (ajouterTrainAchete) ;
+// sans prix, le train entre directement à la team.
+export async function creerTrainAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(async () => {
+    const train = {
+      marque: texte(donnees, "marque"),
+      modele: texteOuNull(donnees, "modele"),
+      gomme: texteOuNull(donnees, "gomme"),
+      type: texte(donnees, "type"),
+      dimensions: texteOuNull(donnees, "dimensions"),
+    }
+    const vehicleId = texte(donnees, "vehicleId")
+    const prixCents = centimesOuNull(donnees, "prixCents")
+    if (prixCents === null) {
+      return ajouterTrain(vehicleId, { ...train, acheteLe: texteOuNull(donnees, "acheteLe") })
+    }
+    return ajouterTrainAchete(vehicleId, {
+      train,
+      fournisseurContactId: texteOuNull(donnees, "fournisseurContactId"),
+      prixCents,
+    })
+  })
+}
+
+// Monter : un seul train à la fois sur l'organe Pneus ; le précédent est démonté sans destination.
+export async function monterTrainAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(async () => {
+    await monterTrain(texte(donnees, "tyreSetId"), texte(donnees, "vehicleComponentId"))
+  })
+}
+
+// Usure estimée (0 à 100 %) et statut, saisis à la main.
+export async function saisirUsureTrainAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(async () => {
+    const usureEstimeePct = entierOuNull(donnees, "usureEstimeePct", "L'usure estimée")
+    if (usureEstimeePct === null) refus("Indiquez l'usure estimée, de 0 à 100 %.")
+    await saisirUsureTrain(texte(donnees, "tyreSetId"), { usureEstimeePct, statut: texte(donnees, "statut") })
+  })
 }
