@@ -17,8 +17,10 @@ export default async function PageEquipements({ searchParams }: { searchParams: 
   const { nouveau } = await searchParams
   const { equipements, peutEcrire } = await lireEquipements()
 
+  // Le même écran reçoit « ?nouveau=1 » sans être remonté (même route) : la clé le remonte pour ouvrir l'ajout.
   return (
     <EquipementsEcran
+      key={nouveau === "1" ? "nouveau" : "liste"}
       equipements={equipements}
       peutEcrire={peutEcrire}
       aujourdhui={dateDeParis(new Date())}
