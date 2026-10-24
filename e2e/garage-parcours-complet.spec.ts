@@ -92,6 +92,13 @@ function tuile(page: Page, cle: string) {
   return page.locator(`a[href="/apps/${cle}"]`).filter({ has: page.locator("h2") })
 }
 
+// Ouvre le Garage depuis le QG et attend son atelier avant de cliquer dans son menu : sans cette attente, un clic de menu
+// part pendant le chargement de l'app, et sa navigation peut être reprise par celle de la tuile.
+async function ouvrirGarage(page: Page): Promise<void> {
+  await tuile(page, "garage").click()
+  await expect(page.getByRole("heading", { name: "Atelier", exact: true })).toBeVisible()
+}
+
 // Retour au QG par le lien d'enveloppe, comme John. Sans effet sur le QG.
 async function allerAuQg(page: Page): Promise<void> {
   if (/\/qg$/.test(new URL(page.url()).pathname)) return
@@ -201,7 +208,13 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
     // Budget reçoit une seule proposition pour la commande ; le responsable la confirme dans « À confirmer ».
     await allerAuQg(page)
     await tuile(page, "budget").click()
+    // Première ouverture de Budget par ce membre : l'accueil montre son écran explicatif. On attend qu'il soit là, puis on
+    // passe par « Commencer », comme John. Sans cette attente, le clic sur « À confirmer » part avant la fin de l'accueil,
+    // et la navigation de l'accueil reprend la main (la page reste sur les mouvements).
+    await expect(page.getByRole("button", { name: "Commencer", exact: true })).toBeVisible()
+    await envoyer(page, page.getByRole("button", { name: "Commencer", exact: true }))
     await page.getByRole("link", { name: "À confirmer", exact: true }).click()
+    await expect(page).toHaveURL(/\/apps\/budget\/a-confirmer$/)
     await expect(async () => {
       await page.reload()
       await expect(page.getByRole("heading", { name: PROPOSITION_BUDGET })).toBeVisible({ timeout: 3_000 })
@@ -216,7 +229,7 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
 
   await test.step("3 · remplacement des freins par la pièce achetée, ancienne pièce en réserve", async () => {
     await allerAuQg(page)
-    await tuile(page, "garage").click()
+    await ouvrirGarage(page)
     await page.getByRole("link", { name: "Atelier", exact: true }).click()
     const freins = await organeDeType(equipe, vehicleId, "freins")
     await lienOrgane(page, freins).click()
@@ -305,7 +318,7 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
 
     // Durée de vie courte saisie par le test : 13 km sur les amortisseurs (12,5 km déjà roulés), 10 épreuves.
     await allerAuQg(page)
-    await tuile(page, "garage").click()
+    await ouvrirGarage(page)
     await page.getByRole("link", { name: "Atelier", exact: true }).click()
     const amortisseurs = await organeDeType(equipe, vehicleId, "amortisseurs")
     await lienOrgane(page, amortisseurs).click()
@@ -330,7 +343,7 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
   await test.step("7 · plan avant épreuve de l'épreuve suivante : état actuel, estimation, ordre à faire avant", async () => {
     // L'ordre « à faire avant » est créé dans Travaux, avec l'épreuve suivante comme échéance.
     await allerAuQg(page)
-    await tuile(page, "garage").click()
+    await ouvrirGarage(page)
     await page.getByRole("link", { name: "Travaux", exact: true }).click()
     await page.getByRole("button", { name: "Nouvel ordre", exact: true }).click()
     const tiroir = page.getByRole("dialog")
@@ -355,7 +368,7 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
     const fiabiliteAvant = await fiabiliteDeLaVoiture(page)
 
     await allerAuQg(page)
-    await tuile(page, "garage").click()
+    await ouvrirGarage(page)
     await page.getByRole("link", { name: "Atelier", exact: true }).click()
     await lienOrgane(page, await organeDeType(equipe, vehicleId, "amortisseurs")).click()
     await page.getByRole("button", { name: "Réparer", exact: true }).click()
@@ -413,7 +426,7 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
 
     // Le responsable ouvre la fiche casse au Garage : elle arrive par un événement, donc on la relit jusqu'à ce qu'elle soit là.
     await allerAuQg(page)
-    await tuile(page, "garage").click()
+    await ouvrirGarage(page)
     await page.getByRole("link", { name: "Casses", exact: true }).click()
     const casse = page.getByRole("link", { name: new RegExp(`· ${EPREUVE_ABANDON}`) })
     await expect(async () => {
