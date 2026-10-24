@@ -66,7 +66,8 @@ async function saisirEquipement(
   const tiroir = page.getByRole("dialog")
   await expect(tiroir).toBeVisible()
   await tiroir.getByLabel("Nom", { exact: true }).fill(champs.nom)
-  await tiroir.getByLabel("Catégorie", { exact: true }).selectOption(champs.categorie)
+  // Le libellé « Catégorie » enveloppe le select : son nom accessible contient l'option choisie. On vise le champ par son nom.
+  await tiroir.locator('select[name="categorie"]').selectOption(champs.categorie)
   if (champs.valeur) await tiroir.getByLabel(/Valeur, en euros/).fill(champs.valeur)
   if (champs.prochainControle) await tiroir.getByLabel("Prochain contrôle (facultatif)").fill(champs.prochainControle)
   if (champs.emplacement) await tiroir.getByLabel("Emplacement (facultatif)").fill(champs.emplacement)
