@@ -6,6 +6,7 @@
 
 import { useActionState, useEffect, useId, useState, type ReactNode } from "react"
 
+import { avertirAvantSortie } from "@/components/formulaire/avertissement-sortie"
 import { Message } from "@/components/formulaire/message"
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
 import type { Resultat } from "@/core/sdk/actions-serveur"
@@ -185,6 +186,14 @@ function FormulaireTiroir({
     onOuvertChange(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- seule la réponse du serveur déclenche la fermeture.
   }, [etat])
+
+  // Un envoi en cours (server action) est coupé par un rechargement ou une sortie de page : on le dit avant (brief 4.7).
+  useEffect(() => {
+    if (!enCours) return
+    const avantSortie = (evenement: BeforeUnloadEvent) => avertirAvantSortie(evenement, true)
+    window.addEventListener("beforeunload", avantSortie)
+    return () => window.removeEventListener("beforeunload", avantSortie)
+  }, [enCours])
 
   return (
     <Tiroir
