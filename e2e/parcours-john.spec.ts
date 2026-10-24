@@ -313,6 +313,8 @@ test("parcours de John : le QG, l'atelier du rouge au vert, Commandes, Budget, l
   await envoyer(page, page.getByRole("button", { name: "Valider", exact: true }).first())
   await expect(page.getByRole("button", { name: "Valider", exact: true })).toHaveCount(0)
 
+  // Les tuiles du QG ne sont pas sur la page de l'épreuve : retour au QG par son lien d'enveloppe, puis la tuile Garage.
+  await retourAuQg(page)
   await tuile(page, "garage").click()
   await arriver(page, /\/apps\/garage$/, /^Atelier$/)
   await page.getByRole("link", { name: "Casses", exact: true }).click()
