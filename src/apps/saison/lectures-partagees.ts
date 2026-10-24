@@ -6,6 +6,8 @@ import type { ContexteTeam } from "@/core/contexte"
 import type { Prisma } from "@/generated/prisma/client"
 import { prismaPourTeam } from "@/lib/prisma"
 
+import { kmPrevusDesSpeciales } from "./avant-epreuve"
+
 export type ResultatValideVehicule = {
   entryId: string
   eventId: string
@@ -119,6 +121,59 @@ export async function lireAbandonEngagement(ctx: ContexteTeam, entryId: string, 
     dateDebut: engagement.event.dateDebut,
     specialeNom: speciale?.nom ?? null,
   }
+}
+
+// --- Tâche 4.5 : engagements à venir d'un véhicule, pour le plan avant épreuve de Garage ----------
+
+export type EngagementAVenir = {
+  entryId: string
+  eventId: string
+  epreuveNom: string
+  dateDebut: Date
+  statut: string
+  // Km de spéciale prévus (longueur × passages) ; null si aucune longueur n'est saisie.
+  kmPrevus: number | null
+}
+
+// Engagements à venir d'une voiture : statuts envisagé, inscrit, payé ; épreuve envisagée ou en cours. Du plus proche
+// au plus lointain. Sans garde : l'app appelante contrôle son accès.
+export async function lireEngagementsAVenir(ctx: ContexteTeam, vehicleId: string): Promise<EngagementAVenir[]> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const engagements = await client.coreEventEntry.findMany({
+    where: {
+      teamId: ctx.teamId,
+      vehicleId,
+      deletedAt: null,
+      statut: { in: ["envisage", "inscrit", "paye"] },
+      event: { deletedAt: null, statut: { in: ["envisagee", "en_cours"] } },
+    },
+    select: {
+      id: true,
+      statut: true,
+      event: {
+        select: {
+          id: true,
+          nom: true,
+          dateDebut: true,
+          saisonStages: { where: { deletedAt: null }, select: { longueurKm: true, nbPassages: true } },
+        },
+      },
+    },
+    orderBy: [{ event: { dateDebut: "asc" } }, { id: "asc" }],
+  })
+  return engagements.map((entree) => ({
+    entryId: entree.id,
+    eventId: entree.event.id,
+    epreuveNom: entree.event.nom,
+    dateDebut: entree.event.dateDebut,
+    statut: entree.statut,
+    kmPrevus: kmPrevusDesSpeciales(
+      entree.event.saisonStages.map((stage) => ({
+        longueurKm: stage.longueurKm === null ? null : Number(stage.longueurKm),
+        nbPassages: stage.nbPassages,
+      })),
+    ),
+  }))
 }
 
 // Lectures pour la page partenaire (brief 3.7, §3) : elles prennent le client de la transaction publique, sans

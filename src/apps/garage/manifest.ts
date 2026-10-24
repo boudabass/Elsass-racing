@@ -15,6 +15,7 @@ export const manifesteGarage: ManifesteApp = {
     { libelle: "Stock", chemin: "/stock" },
     { libelle: "Pneus", chemin: "/pneus" },
     { libelle: "Casses", chemin: "/casses" },
+    { libelle: "Plan avant épreuve", chemin: "/plan" },
     { libelle: "Travaux", chemin: "/travaux" },
     { libelle: "Commandes", chemin: "/commandes", niveauMinimum: "ecriture" },
   ],
