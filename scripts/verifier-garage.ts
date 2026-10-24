@@ -680,6 +680,65 @@ async function main() {
       liensAutreTeam === 0 && piecesAutreTeam === 0,
       `${liensAutreTeam} organe(s), ${piecesAutreTeam} pièce(s)`,
     )
+
+    // 15. Plan avant épreuve (tâche 4.5, brief §2 et §5 ; 954 v1.4 §2). Constat seul : un ordre prévu avant l'épreuve
+    // engagée est compté ; un ordre d'une autre épreuve et un ordre terminé ne le sont pas. Hors niveau écriture, aucun
+    // coût n'est renvoyé. Les lectures partagées sont closes pour une autre team.
+    const partagees = await import("../src/apps/garage/lectures-partagees")
+    const saisonPartagee = await import("../src/apps/saison/lectures-partagees")
+    const epreuveAutre = await proprietaire.coreEvent.create({
+      data: { id: randomUUID(), teamId: team.id, seasonId: saison.id, type: "rallye", nom: `Autre ${suffixe}`, dateDebut: new Date("2026-07-01"), dateFin: new Date("2026-07-02") },
+    })
+    const organePlan = await proprietaire.garageVehicleComponent.findFirstOrThrow({ where: { teamId: team.id, vehicleId: vehicule, deletedAt: null } })
+    const ordrePrevu = await services.creerOrdreDans(ctx, vehicule, {
+      type: "reparation",
+      titre: "Avant épreuve",
+      vehicleComponentId: organePlan.id,
+      aFaireAvantEventId: evenement.id,
+      dureeEstimeeMinutes: 60,
+    })
+    await services.modifierCoutOrdreDans(ctx, ordrePrevu, { coutMainOeuvreCents: 5000, prestataireContactId: null })
+    await services.creerOrdreDans(ctx, vehicule, {
+      type: "reparation",
+      titre: "Autre épreuve",
+      vehicleComponentId: organePlan.id,
+      aFaireAvantEventId: epreuveAutre.id,
+      dureeEstimeeMinutes: 30,
+    })
+    const ordreTermine = await services.creerOrdreDans(ctx, vehicule, {
+      type: "reparation",
+      titre: "Déjà fait",
+      vehicleComponentId: organePlan.id,
+      aFaireAvantEventId: evenement.id,
+      dureeEstimeeMinutes: 15,
+    })
+    await proprietaire.garageWorkOrder.update({ where: { id: ordreTermine }, data: { statut: "termine" } })
+
+    const engagementsVehicule = await saisonPartagee.lireEngagementsAVenir(ctx, vehicule)
+    controle("la lecture des engagements à venir voit l'engagement de la voiture", engagementsVehicule.some((e) => e.entryId === engagement))
+    const plan = await partagees.lirePlanAvantEpreuve(ctx, vehicule, null, false)
+    const ordresPlan = plan ? [...plan.lignes.flatMap((ligne) => ligne.ordres), ...plan.ordresSansOrgane] : []
+    controle("le plan prend la prochaine épreuve engagée de la voiture", plan?.epreuve?.eventId === evenement.id, plan?.epreuve?.eventId ?? "aucune")
+    controle(
+      "le plan ne compte que l'ordre prévu avant cette épreuve (ni autre épreuve, ni ordre terminé)",
+      ordresPlan.length === 1 && ordresPlan[0].id === ordrePrevu,
+      `${ordresPlan.length} ordre(s)`,
+    )
+    controle(
+      "hors niveau écriture, le plan ne renvoie aucun coût",
+      plan?.coutCents === null && ordresPlan.every((ordre) => ordre.coutMainOeuvreCents === null),
+      `${plan?.coutCents}`,
+    )
+    const planAvecPrix = await partagees.lirePlanAvantEpreuve(ctx, vehicule, null, true)
+    controle(
+      "au niveau écriture, le plan somme la durée et le coût des ordres prévus",
+      planAvecPrix?.coutCents === 5000 && planAvecPrix.dureeMinutes === 60,
+      `${planAvecPrix?.coutCents} centimes, ${planAvecPrix?.dureeMinutes} min`,
+    )
+    const planAutreTeam = await partagees.lirePlanAvantEpreuve({ teamId: equipe2.id, userId: utilisateur.id, membership: ctx.membership }, vehicule, null, true)
+    controle("une autre team ne voit pas le plan de la voiture (RLS)", planAutreTeam === null)
+    const engagementsAutreTeam = await saisonPartagee.lireEngagementsAVenir({ teamId: equipe2.id, userId: utilisateur.id, membership: ctx.membership }, vehicule)
+    controle("une autre team ne voit pas les engagements à venir de la voiture (RLS)", engagementsAutreTeam.length === 0, `${engagementsAutreTeam.length}`)
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères, pour les deux teams. Budget et les actions
     // d'abord : ils ne dépendent pas des tables du Garage.
