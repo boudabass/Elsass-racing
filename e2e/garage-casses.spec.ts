@@ -64,7 +64,7 @@ test("casse de bout en bout : abandon validé dans Saison, fiche au Garage, comp
   const saisonId = await preparerSaison(equipe, ANNEE)
   const epreuve = await ajouterEpreuveEnBase(equipe, saisonId, "Rallye casse e2e", DATE_CASSE, `${ANNEE}-05-11`)
   await ajouterSpecialeEnBase(equipe, epreuve, 1, "ES 3 casse", 12.5, 1)
-  await engagerVehiculeEnBase(equipe, epreuve, vehicleId)
+  await engagerVehiculeEnBase(equipe, epreuve, vehicleId, "parti")
   await passerEpreuveDansLePasseEnBase(equipe, epreuve, DATE_CASSE, `${ANNEE}-05-11`)
 
   const equipierA = await ajouterMembreConnectable(equipe, "equipage")

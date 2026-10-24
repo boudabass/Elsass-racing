@@ -40,9 +40,9 @@ test("responsable · un train de pneus : ajouté, monté, usure saisie, filtre d
   await connecterParLien(page, equipe)
   await page.setViewportSize(BUREAU)
 
-  // Entrée depuis la tuile Garage, puis le menu Pneus.
+  // Entrée depuis la tuile Garage, puis le menu Pneus. Le lien se repère à son adresse : l'atelier affiche aussi un lien « Pneus » vers l'organe.
   await page.locator('a[href="/apps/garage"]').filter({ has: page.locator("h2") }).click()
-  await page.getByRole("link", { name: "Pneus", exact: true }).click()
+  await page.locator('a[href="/apps/garage/pneus"]').click()
   await expect(page).toHaveURL(/\/apps\/garage\/pneus/)
   await expect(page.getByRole("heading", { name: "Pneus", exact: true, level: 1 })).toBeVisible()
 
@@ -70,7 +70,7 @@ test("responsable · un train de pneus : ajouté, monté, usure saisie, filtre d
   await capturerPage(page, "garage-pneus-fiche-1440.png")
 
   // Un train usé quitte la liste des trains en service, et se retrouve dans le filtre des usés.
-  await page.getByRole("link", { name: "Pneus", exact: true }).click()
+  await page.locator('a[href="/apps/garage/pneus"]').click()
   await expect(page.getByText("Michelin")).toHaveCount(0)
   await page.getByRole("link", { name: "Voir les trains usés", exact: true }).click()
   await expect(page.getByText("Michelin").first()).toBeVisible()

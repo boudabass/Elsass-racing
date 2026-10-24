@@ -543,11 +543,12 @@ export async function livraisonsEnBase(equipe: Equipe): Promise<string[]> {
 // --- Brief 3.9, §5 : données des vérifications du lot 3 (historique Voiture, papiers, résultat annulé) -----------
 
 // Engagement d'un véhicule à une épreuve, inscrit. Renvoie l'identifiant de l'engagement.
-export async function engagerVehiculeEnBase(equipe: Equipe, eventId: string, vehicleId: string): Promise<string> {
+// Statut « parti » : l'engagement apparaît dans l'onglet Résultats, où l'on saisit un résultat.
+export async function engagerVehiculeEnBase(equipe: Equipe, eventId: string, vehicleId: string, statut: "inscrit" | "parti" = "inscrit"): Promise<string> {
   const id = newId()
   await bd().query(
-    `INSERT INTO core_event_entry (id, team_id, event_id, vehicle_id, statut, updated_at) VALUES ($1, $2, $3, $4, 'inscrit', now())`,
-    [id, equipe.teamId, eventId, vehicleId],
+    `INSERT INTO core_event_entry (id, team_id, event_id, vehicle_id, statut, updated_at) VALUES ($1, $2, $3, $4, $5, now())`,
+    [id, equipe.teamId, eventId, vehicleId, statut],
   )
   return id
 }

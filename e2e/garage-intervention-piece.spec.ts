@@ -5,12 +5,15 @@ import { preparerAtelierSaxo, pieceEnStockDeTest, posesDeLOrganeEnBase } from ".
 import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
-import { ajouterVoitureSaxo } from "./aide/session"
+import { ajouterVoitureSaxo, rattacherPersonne } from "./aide/session"
 
 const BUREAU = { width: 1440, height: 900 }
 
 test("responsable · intervention rapide avec pièce sur un organe occupé : motif et destination demandés, pose en base", async ({ page, equipe }) => {
   test.setTimeout(180_000)
+  // Une intervention se rattache à la fiche personne du compte : sans elle, le serveur la refuse (services-serveur.ts). La team
+  // de test n'en a pas : on la crée comme le fait team:creer pour le responsable.
+  await rattacherPersonne(equipe, equipe.responsable, "John", "Responsable")
   const vehicleId = await ajouterVoitureSaxo(equipe, "Saxo intervention pièce e2e")
   const organes = await preparerAtelierSaxo(equipe, vehicleId)
   // Les freins ont une pièce montée (« Disque et plaquettes ») : l'organe est occupé. La pièce de rechange est en stock.
