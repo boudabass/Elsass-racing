@@ -256,6 +256,13 @@ Règle : après un envoi (bouton d'un tiroir ou d'un formulaire, qui déclenche 
 
 Rien n'est supprimé à ce stade : l'inventaire vient d'abord. Les aides marquées « à vérifier » sont à reprendre une par une, en remplaçant chacune par un parcours d'interface quand il existe.
 
+## Garage : pneus et casses (tâche 4.4)
+
+- **Unitaires** : `src/apps/garage/pneus.test.ts` (validation d'un train, bornes de l'usure, libellés « Neuf », « Utilisé », « Usé », train d'une autre voiture refusé, message d'achat sans jargon, prix sans fournisseur refusé) ; `src/apps/garage/casses.test.ts` (types de casse, règle « à compléter », calcul des pièces montées à la date de la casse, titre de la réparation).
+- **Base** : `pnpm db:verifier-garage`, étendu en 4.4 (joué par la CI, job `complet`) : montage d'un train qui démonte le précédent, course de deux montages, index unique du train monté ; train acheté par commande reçue, un seul `garage.piece_achetee` ; ligne Pneus refusée depuis Commandes et réception sans données de train refusée, sans écriture ; `saison.abandon_declare` : une fiche, cause et spéciale reprises, second traitement sans doublon, engagement introuvable ou supprimé sans fiche ni erreur ; fiche à la main ; complétion et liens organes et pièces ; réparation liée une seule fois ; RLS entre teams sur `garage_incident`, `garage_incident_component` et `garage_incident_part`. Le compte des tables `garage_` reste à seize (`db:verifier-rls`, pas de nouvelle table en 4.4).
+- **e2e** : `e2e/garage-pneus.spec.ts` (train ajouté, monté, usure saisie, filtre des trains usés, à 1440 et 360 px) ; `e2e/garage-casses.spec.ts` (abandon validé dans Saison, fiche au Garage, complétée, réparation ouverte, à 1440 et 360 px). Le parcours de John reprend les deux : étape « pneus pluie montés pour une épreuve » et étape « abandon, fiche casse complétée ».
+- **Parcours de John, abandon** : le retour au QG se fait par le lien d'enveloppe (`retourAuQg`) avant la tuile Garage. Les tuiles n'existent pas sur la page de l'épreuve : un clic sur `a[href="/apps/garage"]` depuis Saison attend sans fin (run 40067969126, `parcours-john.spec.ts:316`).
+
 ## Enchaînement recommandé
 
 ```

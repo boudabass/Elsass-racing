@@ -588,6 +588,13 @@ async function main() {
     )
     const engagementInconnu = await refuse(gestionnaire!(ctx, { ...recuType, donnees: { ...abandon, entryId: randomUUID() } }))
     controle("un engagement introuvable ne crée ni fiche ni erreur", engagementInconnu === null, engagementInconnu ?? "")
+    // Un engagement supprimé n'est plus lisible : rien ne s'ouvre, sans erreur. (Un engagement sans véhicule ne peut pas
+    // exister : core_event_entry.vehicle_id est obligatoire.)
+    const engagementSupprime = randomUUID()
+    await proprietaire.coreEventEntry.create({ data: { id: engagementSupprime, teamId: team.id, eventId: evenement.id, vehicleId: vehicule, deletedAt: new Date() } })
+    const refusSupprime = await refuse(gestionnaire!(ctx, { ...recuType, donnees: { ...abandon, entryId: engagementSupprime } }))
+    const fichesSupprime = await proprietaire.garageIncident.count({ where: { eventEntryId: engagementSupprime } })
+    controle("un engagement supprimé ne crée ni fiche ni erreur", refusSupprime === null && fichesSupprime === 0, `${fichesSupprime} fiche(s) ; ${refusSupprime ?? ""}`)
 
     // Création à la main : voiture, date et cause (nettoyée) ; une date inexistante est refusée avec sa raison.
     const demain = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
@@ -666,6 +673,13 @@ async function main() {
     // Cloisonnement : une autre team ne voit pas la fiche.
     const vueFicheAutreTeam = await executerPourTeam(equipe2.id, utilisateur.id, (tx) => tx.garageIncident.count({ where: { id: ficheMain } }))
     controle("une autre team ne voit pas la fiche casse", vueFicheAutreTeam === 0, `${vueFicheAutreTeam} vue(s)`)
+    const liensAutreTeam = await executerPourTeam(equipe2.id, utilisateur.id, (tx) => tx.garageIncidentComponent.count({ where: { incidentId: ficheMain } }))
+    const piecesAutreTeam = await executerPourTeam(equipe2.id, utilisateur.id, (tx) => tx.garageIncidentPart.count({ where: { incidentId: ficheMain } }))
+    controle(
+      "une autre team ne voit ni les organes touchés ni les pièces cassées de la fiche (RLS)",
+      liensAutreTeam === 0 && piecesAutreTeam === 0,
+      `${liensAutreTeam} organe(s), ${piecesAutreTeam} pièce(s)`,
+    )
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères, pour les deux teams. Budget et les actions
     // d'abord : ils ne dépendent pas des tables du Garage.

@@ -387,4 +387,4 @@ Migration `20261024120000_garage_pneus_casses` (étape 1) : index unique partiel
 - **Création à la main** : voiture et date obligatoires (date civile réelle), épreuve et cause facultatives, type vide.
 - **Complétion** : type (`garage_type_casse`), cause (300 caractères au plus), organes touchés (de la voiture) et pièces cassées. Une pièce doit avoir été montée sur un organe touché à la date de la casse (pose et dépose d'un montage, `montageALaDate`). Les liens retirés sont supprimés logiquement ; un lien rétabli se réactive sans doublon.
 - **Statut des pièces** : la complétion ne change jamais le statut d'une pièce cassée (principe du 21/10).
-- **Libellés des types** : non validés à ce jour, à fixer avec l'écran Casses (étape 4). Les valeurs d'enum restent celles de la base.
+- **Libellés des types** : « Casse mécanique », « Sortie de route », « Accident » (`LIBELLES_TYPE_CASSE` dans `casses.ts`, vocabulaire du 954 §1 et §3). Les valeurs d'enum restent celles de la base.
