@@ -263,6 +263,12 @@ Rien n'est supprimé à ce stade : l'inventaire vient d'abord. Les aides marqué
 - **e2e** : `e2e/garage-pneus.spec.ts` (train ajouté, monté, usure saisie, filtre des trains usés, à 1440 et 360 px) ; `e2e/garage-casses.spec.ts` (abandon validé dans Saison, fiche au Garage, complétée, réparation ouverte, à 1440 et 360 px). Le parcours de John reprend les deux : étape « pneus pluie montés pour une épreuve » et étape « abandon, fiche casse complétée ».
 - **Parcours de John, abandon** : le retour au QG se fait par le lien d'enveloppe (`retourAuQg`) avant la tuile Garage. Les tuiles n'existent pas sur la page de l'épreuve : un clic sur `a[href="/apps/garage"]` depuis Saison attend sans fin (run 40067969126, `parcours-john.spec.ts:316`).
 
+## Garage : plan avant épreuve et Saison (tâche 4.5)
+
+- **Unitaires** : `src/apps/garage/plan.test.ts` (estimation après l'épreuve : mode km, épreuves, les deux ; sans km prévus ; durée manquante ; saisie après réparation ; plancher à 0 % ; décompte des zones ; coût masqué hors écriture) ; `src/apps/saison/avant-epreuve.test.ts` (km prévus : longueur × passages, un passage si vide, spéciales sans longueur) ; `src/apps/saison/preparation.test.ts` (quatre points, sans les pièces : une zone rouge ne fait pas baisser l'indice) ; `src/apps/garage/widgets.test.ts` (résumés des widgets).
+- **Base** : `pnpm db:verifier-garage`, section 15 : le plan prend la prochaine épreuve engagée, ne compte que l'ordre prévu avant elle (ni l'ordre d'une autre épreuve, ni l'ordre terminé), ne renvoie aucun coût hors écriture, les somme au niveau écriture, et reste fermé à une autre team (lectures partagées de Garage et de Saison). `db:verifier-bus` : une pièce en zone rouge ne pose plus de point « pièces ».
+- **e2e** : `e2e/garage-plan.spec.ts` (un seul spec, depuis les tuiles et les menus). L'embrayage de l'atelier de test est à 2 % (zone rouge) : le plan le montre ; Saison affiche « À surveiller, sans effet sur l'indice » et l'indice ne change pas ; la réparation à 80 % depuis le plan lève l'alerte ; l'assistance voit le plan sans coût. Captures à 1440 et 360 px dans `docs/captures/garage-plan-*`.
+
 ## Enchaînement recommandé
 
 ```

@@ -388,3 +388,24 @@ Migration `20261024120000_garage_pneus_casses` (étape 1) : index unique partiel
 - **Complétion** : type (`garage_type_casse`), cause (300 caractères au plus), organes touchés (de la voiture) et pièces cassées. Une pièce doit avoir été montée sur un organe touché à la date de la casse (pose et dépose d'un montage, `montageALaDate`). Les liens retirés sont supprimés logiquement ; un lien rétabli se réactive sans doublon.
 - **Statut des pièces** : la complétion ne change jamais le statut d'une pièce cassée (principe du 21/10).
 - **Libellés des types** : « Casse mécanique », « Sortie de route », « Accident » (`LIBELLES_TYPE_CASSE` dans `casses.ts`, vocabulaire du 954 §1 et §3). Les valeurs d'enum restent celles de la base.
+
+## Plan avant épreuve et lectures partagées (4.5)
+
+Source : 954 v1.4 (24/10). Décisions de John du 24/10 : le plan est un constat seul ; la zone rouge est un point à surveiller dans Saison, hors de l'indice.
+
+- **Pas de table.** Le plan avant épreuve est une lecture calculée à l'ouverture, jamais stockée (règle 6). Ses données viennent de l'état des organes, des ordres (`a_faire_avant_event_id`, `duree_estimee_minutes`, `cout_main_oeuvre_cents`) et des engagements à venir de Saison.
+- **Gestionnaires absents, et pourquoi :**
+  - `saison.engagement_cree` : Garage ne le traite pas. Il n'y a rien à préparer en base, le plan se calcule à l'ouverture.
+  - `garage.fiabilite_changee` : Saison ne le traite pas. L'indice se lit à l'affichage, rien n'est stocké.
+  - `garage.piece_zone_rouge` : Saison n'a plus de gestionnaire (4.5). La zone rouge ne pose plus de point `pieces` ; Saison lit l'état actuel chez Garage. Une réparation fait donc disparaître l'alerte sans événement de sortie. Les lignes `pieces` déjà présentes (zéro sur dev au 24/10, mesure en lecture seule) sont ignorées par `pointsDePreparation`.
+- **Estimation après l'épreuve** (`src/apps/garage/plan.ts`, `estimationApresEpreuve`) : même calcul que l'état actuel (`etatPiece`), avec les km de spéciale prévus et une épreuve de plus. Mode épreuves : pas besoin de km. Mode km ou les deux : sans km prévus, « Estimation impossible : longueurs des spéciales non saisies ». Une durée de vie manquante ou une pièce absente : pas d'estimation. L'organe Pneus n'est pas estimé (usure saisie à la main).
+- **Km prévus** (`src/apps/saison/avant-epreuve.ts`, `kmPrevusDesSpeciales`) : longueur × passages, un passage si vide ; les spéciales sans longueur ne comptent pas ; sans aucune longueur, `null`.
+- **Lectures partagées de Garage** (`src/apps/garage/lectures-partagees.ts`, sans garde) :
+  - `lireEtatsAtelier(ctx, vehicleId)` : état, zone, durées, usure et saisie de chaque organe, avec l'indice de fiabilité (même calcul que l'atelier).
+  - `lirePlanAvantEpreuve(ctx, vehicleId, eventId, avecPrix)` : plan d'une voiture pour l'épreuve demandée, sinon la prochaine engagée. Le coût n'existe dans la réponse qu'avec `avecPrix` (niveau écriture).
+  - `lireSurveillance(ctx, vehicleId)` : ce que Saison affiche (zones rouges et fiabilité). Null si Garage est désactivé (`garageActivee`), si le membre n'a pas la lecture de Garage, ou si l'atelier n'est pas préparé.
+  - `lirePlanEcran` (`lectures-plan-serveur.ts`) : la lecture de l'écran, sous `accesGarage("lecture")`.
+- **Lectures partagées de Saison** : `lireEngagementsAVenir(ctx, vehicleId)` (`src/apps/saison/lectures-partagees.ts`) : engagements envisagé, inscrit ou payé, sur une épreuve envisagée ou en cours, avec les km prévus.
+- **Widgets** (`src/apps/garage/widgets.ts`, `widgets-serveur.ts`) : `fiabilite`, `pieces-zone-rouge`, `travaux-livraisons`. Résumés purs testés, lectures de l'état actuel. Le Tableau de bord ne rend pas encore les widgets, même pour Saison (lot 6) : rien n'est affiché pour l'instant.
+- **Ordre « à faire avant »** : le champ existe déjà dans le formulaire d'ordre (`formulaires-travaux.tsx`) ; rien à ajouter.
+- **Droits** : responsable et équipage voient le plan avec les coûts ; l'assistance le voit sans coût ; l'invité n'y accède pas. Aucun bouton ne crée un ordre ou une pièce depuis le plan : chaque organe ouvre sa fiche, où sont Réparer et Remplacer.
