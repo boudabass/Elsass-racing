@@ -225,7 +225,9 @@ test("parcours de John : le QG, l'atelier du rouge au vert, Commandes, Budget, l
   await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Marquer expédiée", exact: true }))
   await page.getByRole("button", { name: "Recevoir", exact: true }).click()
   await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Recevoir la commande", exact: true }))
-  await expect(page.getByRole("heading", { name: "Reçues (1)" })).toBeVisible()
+  // La réception de l'étape 6 est déjà listée : deux commandes reçues, dont celle-ci (2 × 12,50 €).
+  await expect(page.getByRole("heading", { name: "Reçues (2)" })).toBeVisible()
+  await expect(page.getByText("2 × Plaquettes avant (Freins, Origine)")).toBeVisible()
 
   // 9. Budget : trois propositions venues du Garage, à confirmer : la main-d'œuvre de la réparation, la pièce achetée
   // au remplacement, et la commande reçue.
