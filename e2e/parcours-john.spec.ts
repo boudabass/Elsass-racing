@@ -3,7 +3,8 @@
 // comme connexion.spec.ts). Entrée par /connexion, puis des clics depuis le QG : aucune adresse tapée après l'entrée. Chaque
 // écran est ouvert et utilisé comme le fait John. Le parcours part d'un atelier au rouge (un roulage qui use les freins), et
 // le fait repasser au vert par une réparation, puis par deux remplacements : un avec prix et fournisseur, un depuis le stock
-// avec sa destination (954 v1.2, §2 ; v1.3, §4). Les captures à 1440 et à 360 px partent dans docs/captures/.
+// avec sa destination (954 v1.2, §2 ; v1.3, §4). Puis un train de pneus pluie monté, et un abandon validé dans Saison dont
+// la fiche casse est complétée au Garage (brief 4.4). Les captures à 1440 et à 360 px partent dans docs/captures/.
 // Règle humaine : après chaque clic qui navigue, le test attend la page d'arrivée (son URL, puis son titre h1) avant le
 // clic suivant. Une page dont l'URL a changé mais dont le contenu est resté celui de la page précédente fait échouer le
 // test à cet endroit, comme John le verrait.
@@ -253,7 +254,70 @@ test("parcours de John : le QG, l'atelier du rouge au vert, Commandes, Budget, l
   await sansErreur(page)
   await retourAuQg(page)
 
-  // 11. Téléphone : l'atelier tient dans la largeur, avec ses organes et sa silhouette, après les remplacements.
+  // 11. Pneus : un train pluie, ajouté puis monté sur l'organe Pneus de la Saxo avant une épreuve sous la pluie (954 v1.2, §2 ;
+  // brief 4.4, §2). La capture part à 360 px, puis le test revient au bureau pour le QG.
+  await tuile(page, "garage").click()
+  await arriver(page, /\/apps\/garage$/, /^Atelier$/)
+  await page.locator('a[href="/apps/garage/pneus"]').click()
+  await arriver(page, /\/apps\/garage\/pneus$/, /^Pneus$/)
+  await page.getByRole("link", { name: "Ajouter un train", exact: true }).click()
+  await arriver(page, /\/apps\/garage\/pneus\/nouveau$/)
+  await page.getByLabel("Marque", { exact: true }).fill("Pirelli")
+  await page.getByLabel("Type", { exact: true }).selectOption({ label: "Pluie" })
+  await page.getByLabel("Modèle (facultatif)").fill("Cinturato")
+  await page.getByLabel("Dimensions (facultatif)").fill("195/55 R15")
+  await envoyer(page, page.getByRole("button", { name: "Ajouter le train", exact: true }))
+  await arriver(page, /\/apps\/garage\/pneus$/)
+  await expect(page.getByText("Pirelli").first()).toBeVisible()
+  await page.getByRole("link", { name: "Ouvrir le train", exact: true }).click()
+  await arriver(page, /\/apps\/garage\/pneus\/[0-9a-f-]{36}$/)
+  await envoyer(page, page.getByRole("button", { name: "Monter ce train", exact: true }))
+  await expect(page.getByRole("button", { name: "Monter ce train", exact: true })).toHaveCount(0)
+  await page.setViewportSize(TELEPHONE)
+  await sansDefilementHorizontal(page)
+  await capturerPage(page, "parcours-john-pneus-360.png")
+  await page.setViewportSize(BUREAU)
+  await retourAuQg(page)
+
+  // 12. Abandon, fiche casse complétée (954 v1.3, §1 et §3 ; brief 4.4, §4). John saisit l'abandon de l'épreuve de démonstration
+  // (la Saxo y est engagée), et le valide lui-même : un responsable peut valider son propre résultat. La validation ouvre la
+  // fiche casse au Garage, que John complète : type, cause, organe touché. La capture part à 360 px.
+  await tuile(page, "saison").click()
+  await arriver(page, /\/apps\/saison$/, TITRE_APP.saison)
+  await page.getByRole("link", { name: "Liste", exact: true }).click()
+  await page.getByRole("link", { name: /20e Rallye de l'Alsace Bossue/ }).click()
+  await arriver(page, /\/apps\/saison\/epreuves\/[0-9a-f-]{36}$/)
+  await page.getByRole("link", { name: "Résultats", exact: true }).click()
+  await page.getByRole("button", { name: /^(Saisir|Modifier) le résultat$/ }).first().click()
+  const tiroirAbandon = page.getByRole("dialog")
+  await expect(tiroirAbandon).toBeVisible()
+  await tiroirAbandon.getByLabel("Statut final").selectOption({ label: "Abandon" })
+  await tiroirAbandon.getByRole("button", { name: "Plus de détails", exact: true }).click()
+  await tiroirAbandon.getByLabel("Cause de l'abandon").fill("Casse de cardan")
+  await envoyer(page, tiroirAbandon.getByRole("button", { name: "Enregistrer le résultat", exact: true }))
+  await expect(tiroirAbandon).toBeHidden()
+  await envoyer(page, page.getByRole("button", { name: "Valider", exact: true }).first())
+  await expect(page.getByRole("button", { name: "Valider", exact: true })).toHaveCount(0)
+
+  await tuile(page, "garage").click()
+  await arriver(page, /\/apps\/garage$/, /^Atelier$/)
+  await page.getByRole("link", { name: "Casses", exact: true }).click()
+  await arriver(page, /\/apps\/garage\/casses$/)
+  await page.getByRole("link", { name: /Casse du 19 septembre 2026/ }).click()
+  await arriver(page, /\/apps\/garage\/casses\/[0-9a-f-]{36}$/)
+  await expect(page.getByRole("heading", { name: "Casse du 19 septembre 2026", exact: true, level: 1 })).toBeVisible()
+  await page.getByLabel("Type de casse").selectOption({ label: "Casse mécanique" })
+  await page.getByLabel("Cause (facultatif)").fill("Casse de cardan")
+  await page.getByRole("checkbox", { name: "Freins", exact: true }).check()
+  await envoyer(page, page.getByRole("button", { name: "Enregistrer la fiche", exact: true }))
+  await expect(page.getByText("À compléter", { exact: true })).toHaveCount(0)
+  await page.setViewportSize(TELEPHONE)
+  await sansDefilementHorizontal(page)
+  await capturerPage(page, "parcours-john-casse-360.png")
+  await page.setViewportSize(BUREAU)
+  await retourAuQg(page)
+
+  // 13. Téléphone : l'atelier tient dans la largeur, avec ses organes et sa silhouette, après les remplacements.
   await page.setViewportSize(TELEPHONE)
   await tuile(page, "garage").click()
   await arriver(page, /\/apps\/garage$/, /^Atelier$/)
