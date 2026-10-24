@@ -1,10 +1,14 @@
-// Parcours de John (tâche 4.3d) : la team de test créée par pnpm team:creer puis pnpm donnees:koehling, comme la team de
-// dev, sans aide SQL pour l'écrire. Seule la connexion passe par la base (code connu, comme connexion.spec.ts). Entrée par
-// /connexion, puis des clics depuis le QG : aucune adresse tapée après l'entrée. Chaque écran est ouvert et utilisé comme
-// le fait John. Un défaut (l'atelier vide avant « Préparer l'atelier ») fait échouer le test à l'endroit où John le verrait.
+// Parcours de John (tâche 4.3d, réécrit à l'étape 7 du brief 4.3e) : la team de test créée par pnpm team:creer puis pnpm
+// donnees:koehling, comme la team de dev, sans aide SQL pour l'écrire. Seule la connexion passe par la base (code connu,
+// comme connexion.spec.ts). Entrée par /connexion, puis des clics depuis le QG : aucune adresse tapée après l'entrée. Chaque
+// écran est ouvert et utilisé comme le fait John. Le parcours part d'un atelier au rouge (un roulage qui use les freins), et
+// le fait repasser au vert par une réparation, puis par deux remplacements : un avec prix et fournisseur, un depuis le stock
+// avec sa destination (954 v1.2, §2 ; v1.3, §4). Les captures à 1440 et à 360 px partent dans docs/captures/.
 // Règle humaine : après chaque clic qui navigue, le test attend la page d'arrivée (son URL, puis son titre h1) avant le
 // clic suivant. Une page dont l'URL a changé mais dont le contenu est resté celui de la page précédente fait échouer le
 // test à cet endroit, comme John le verrait.
+import path from "node:path"
+
 import { expect, test, type Locator, type Page } from "@playwright/test"
 
 import { envoyer } from "./aide/envoi"
@@ -16,6 +20,7 @@ import { TYPES_DEFAUT } from "../src/apps/garage/types-defaut"
 const EMAIL = "parcours-john@example.test"
 const NOM_VEHICULE = "Citroën Saxo VTS"
 const FOURNISSEUR = "Pièces rallye parcours"
+const DOSSIER = path.join(__dirname, "..", "docs", "captures")
 
 const BUREAU = { width: 1440, height: 900 }
 const TELEPHONE = { width: 360, height: 740 }
@@ -60,6 +65,18 @@ async function sansDefilementHorizontal(page: Page): Promise<void> {
   expect(deborde, "défilement horizontal sur la page").toBe(false)
 }
 
+// Capture pleine page : éléments fixes masqués, sauf le tiroir ouvert (même convention que garage-captures.spec.ts).
+async function capturerPage(page: Page, nom: string): Promise<void> {
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" })
+  await page.evaluate(() => {
+    document.querySelectorAll<HTMLElement>("body *").forEach((element) => {
+      if (element.closest('[role="dialog"]')) return
+      if (getComputedStyle(element).position === "fixed") element.style.display = "none"
+    })
+  })
+  await page.screenshot({ path: path.join(DOSSIER, nom), fullPage: true, animations: "disabled" })
+}
+
 // Connexion du responsable : l'adresse, puis le code (connu en test). C'est la seule étape qui touche la base directement.
 async function connecterResponsable(page: Page): Promise<void> {
   await page.goto("/connexion")
@@ -72,7 +89,18 @@ async function connecterResponsable(page: Page): Promise<void> {
   await page.waitForURL(/\/qg$/)
 }
 
-test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commandes et le Budget, sur la team du parcours", async ({ page }) => {
+// Ouvre l'atelier depuis le QG : la tuile, puis l'arrivée sur son titre.
+async function ouvrirAtelier(page: Page): Promise<void> {
+  await tuile(page, "garage").click()
+  await arriver(page, /\/apps\/garage$/, /^Atelier$/)
+}
+
+// La carte des freins, dans l'atelier : son nom accessible suit « Organe, zone, état ».
+function carteFreins(page: Page, nom: RegExp | string): Locator {
+  return page.getByRole("link", { name: nom }).filter({ visible: true }).first()
+}
+
+test("parcours de John : le QG, l'atelier du rouge au vert, Commandes, Budget, la Voiture, et le téléphone", async ({ page }) => {
   test.setTimeout(900_000)
   await page.setViewportSize(BUREAU)
   await connecterResponsable(page)
@@ -103,8 +131,7 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   await retourAuQg(page)
 
   // 3. Garage : l'atelier de la Saxo, sans gabarit. Il n'a aucun organe avant « Préparer l'atelier » : c'est ici que le défaut apparaît.
-  await tuile(page, "garage").click()
-  await arriver(page, /\/apps\/garage$/, /^Atelier$/)
+  await ouvrirAtelier(page)
   const preparer = page.getByRole("button", { name: "Préparer l'atelier", exact: true })
   await expect(preparer).toBeVisible()
   await envoyer(page, preparer)
@@ -113,9 +140,7 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   }
 
   // La voiture part équipée (954 v1.2, « Voiture équipée dès le départ ») : chaque emplacement a sa pièce d'origine montée,
-  // sans durée de vie. John renseigne la durée des freins, puis la carte passe en zone verte. Le remplacement d'une pièce
-  // est l'étape 6 du brief 4.3e, il n'est pas dans ce parcours pour l'instant.
-  await expect(page.getByRole("listitem").filter({ hasText: "Freins" }).getByRole("button", { name: "Renseigner la durée de vie" }).first()).toBeVisible()
+  // sans durée de vie. John renseigne la durée des freins (40 000 km, 10 épreuves) : la carte passe en zone verte.
   await page.getByRole("listitem").filter({ hasText: "Freins" }).getByRole("button", { name: "Renseigner la durée de vie" }).first().click()
   await page.getByLabel("Durée en kilomètres").fill("40000")
   await page.getByLabel("Durée en épreuves").fill("10")
@@ -123,27 +148,68 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   // Le pourcentage de la barre a une espace insécable avant « % » (mise-en-forme.ts) : \s l'accepte.
   await expect(page.getByRole("img", { name: /État : 100\s%/ }).first()).toBeVisible()
 
-  // 5. Travaux : un ordre créé sur les freins, puis terminé avec sa main-d'œuvre (une proposition au Budget).
-  await page.getByRole("link", { name: "Travaux", exact: true }).click()
+  // 4. Au rouge : un roulage de 38 000 km use les freins à 95 % de leur durée (seuil rouge à 10 %). La carte passe en zone rouge.
+  await page.getByRole("button", { name: "Ajouter", exact: true }).click()
+  await page.getByRole("menuitem", { name: "Roulage", exact: true }).click()
+  await arriver(page, /\/apps\/garage\/roulage$/, /^Roulage$/)
+  await page.getByLabel("Kilomètres roulés").fill("38000")
+  await envoyer(page, page.getByRole("button", { name: "Enregistrer le roulage", exact: true }))
+  await arriver(page, /\/apps\/garage$/, /^Atelier$/)
+  await expect(carteFreins(page, /^Freins, Zone rouge/)).toBeVisible()
+  await capturerPage(page, "parcours-john-atelier-rouge-1440.png")
+
+  // 5. Réparer les freins (954 v1.3, §2 et §4) : « Réparer » crée un ordre de réparation, avec sa main-d'œuvre. Sa fin
+  // demande l'état de la pièce après réparation : 80 %. La carte repasse en zone verte, à l'état saisi.
+  await carteFreins(page, /^Freins, Zone rouge/).click()
+  await arriver(page, /\/apps\/garage\/organes\/[0-9a-f-]{36}$/)
+  await page.getByRole("button", { name: "Réparer", exact: true }).click()
+  await page.getByLabel("Ce qui est réparé").fill("Plaquettes et disques refaits")
+  await page.getByLabel("Main-d'œuvre, en euros (facultatif)").fill("80,00")
+  await envoyer(page, page.getByRole("button", { name: "Ajouter la réparation", exact: true }))
   await arriver(page, /\/apps\/garage\/travaux$/)
-  await page.getByRole("button", { name: "Nouvel ordre", exact: true }).click()
-  await page.locator('input[name="titre"]').fill("Plaquettes avant à remplacer")
-  const organeFreins = await page.locator('select[name="vehicleComponentId"] option').filter({ hasText: "Freins" }).first().getAttribute("value")
-  await page.locator('select[name="vehicleComponentId"]').selectOption(organeFreins ?? "")
-  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Créer l'ordre", exact: true }))
-  await page.getByRole("link", { name: "Plaquettes avant à remplacer", exact: true }).click()
+  await page.getByRole("link", { name: /Plaquettes et disques refaits/ }).first().click()
   await arriver(page, /\/apps\/garage\/travaux\/[0-9a-f-]{36}$/)
-  // Le coût se saisit d'abord (« Coût et prestataire », tiroir propre à l'ordre), puis l'ordre se termine.
-  await page.getByRole("button", { name: "Coût et prestataire", exact: true }).click()
-  await page.getByRole("dialog").getByLabel("Main-d'œuvre, en euros (facultatif)").fill("80")
-  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }))
   await page.getByRole("button", { name: "Terminer l'ordre", exact: true }).click()
-  // Une réparation sur un organe avec pièce montée demande l'état de la pièce après réparation (954 v1.3, §4).
   await page.getByRole("dialog").getByLabel("État de la pièce après réparation (%)").fill("80")
   await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Terminer l'ordre", exact: true }))
-  await expect(page.getByText("Terminé", { exact: true }).filter({ visible: true }).first()).toBeVisible()
+  await expect(page.getByText("Cet ordre est terminé : il ne se modifie plus.")).toBeVisible()
+  await retourAuQg(page)
+  await ouvrirAtelier(page)
+  await expect(carteFreins(page, "Freins, Bon, 80%")).toBeVisible()
 
-  // 6. Commandes : une commande de plaquettes, expédiée, puis reçue (une proposition au Budget).
+  // 6. Remplacer les freins avec une pièce achetée : prix et fournisseur, la pièce usée part en réserve. La réception
+  // ouvre une dépense côté Budget (954 v1.2, §2 ; décision de John : Budget pour le remplacement avec prix).
+  await carteFreins(page, "Freins, Bon, 80%").click()
+  await arriver(page, /\/apps\/garage\/organes\/[0-9a-f-]{36}$/)
+  await page.getByRole("button", { name: "Remplacer", exact: true }).click()
+  const tiroir = page.getByRole("dialog")
+  await expect(tiroir).toBeVisible()
+  await tiroir.getByLabel("Désignation").fill("Plaquettes avant neuves")
+  await tiroir.getByLabel("Marque (facultatif)").fill("Ferodo")
+  await tiroir.getByLabel("Prix, en euros (facultatif)").fill("45,00")
+  await tiroir.locator('select[name="fournisseurContactId"]').selectOption({ label: FOURNISSEUR })
+  await tiroir.getByLabel("Motif de dépose de la pièce en place").selectOption("usure")
+  await tiroir.getByLabel("Ce que devient l'ancienne pièce").selectOption({ label: "En réserve (en stock)" })
+  await envoyer(page, tiroir.getByRole("button", { name: "Remplacer la pièce", exact: true }))
+  await expect(tiroir).toBeHidden()
+  await expect(page.getByText("Plaquettes avant neuves", { exact: true }).first()).toBeVisible()
+  await capturerPage(page, "parcours-john-remplacement-prix-1440.png")
+
+  // 7. Remplacer depuis le stock, avec destination : la pièce mise en réserve à l'étape 6 est posée, et la pièce achetée
+  // part au rebut (cassée). La destination n'a pas de valeur par défaut : John la choisit.
+  await page.getByRole("button", { name: "Remplacer", exact: true }).click()
+  const tiroirStock = page.getByRole("dialog")
+  await expect(tiroirStock).toBeVisible()
+  await expect(tiroirStock.getByLabel("Pièce de rechange")).toBeVisible()
+  await tiroirStock.getByLabel("Motif de dépose de la pièce en place").selectOption("usure")
+  await tiroirStock.getByLabel("Ce que devient l'ancienne pièce").selectOption({ label: "Au rebut (cassée)" })
+  await envoyer(page, tiroirStock.getByRole("button", { name: "Remplacer la pièce", exact: true }))
+  await expect(tiroirStock).toBeHidden()
+
+  // 8. Commandes : une commande de plaquettes, expédiée, puis reçue (une proposition au Budget).
+  await retourAuQg(page)
+  await tuile(page, "garage").click()
+  await arriver(page, /\/apps\/garage$/, /^Atelier$/)
   await page.getByRole("link", { name: "Commandes", exact: true }).click()
   await arriver(page, /\/apps\/garage\/commandes$/)
   await page.getByRole("link", { name: "Nouvelle commande", exact: true }).click()
@@ -161,16 +227,17 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Recevoir la commande", exact: true }))
   await expect(page.getByRole("heading", { name: "Reçues (1)" })).toBeVisible()
 
-  // 7. Budget : les deux propositions venues du Garage (la main-d'œuvre et la pièce achetée) sont à confirmer.
+  // 9. Budget : trois propositions venues du Garage, à confirmer : la main-d'œuvre de la réparation, la pièce achetée
+  // au remplacement, et la commande reçue.
   await retourAuQg(page)
   await tuile(page, "budget").click()
   await arriver(page, /\/apps\/budget$/, TITRE_APP.budget)
   await page.getByRole("link", { name: /À confirmer/ }).click()
   await arriver(page, /\/apps\/budget\/a-confirmer$/)
-  await expect(page.getByRole("button", { name: "Confirmer", exact: true })).toHaveCount(2)
+  await expect(page.getByRole("button", { name: "Confirmer", exact: true })).toHaveCount(3)
   await retourAuQg(page)
 
-  // 8. Voiture : la Déco de la Saxo. Sans plan, John choisit le modèle, qui crée les emplacements, puis la silhouette apparaît à l'atelier.
+  // 10. Voiture : la Déco de la Saxo. Sans plan, John choisit le modèle, qui crée les emplacements, puis la silhouette apparaît à l'atelier.
   await tuile(page, "voiture").click()
   await arriver(page, /\/apps\/voiture$/, TITRE_APP.voiture)
   await page.getByRole("link", { name: NOM_VEHICULE }).click()
@@ -184,11 +251,11 @@ test("parcours de John : le QG, la Voiture, le Garage, les Travaux, les Commande
   await sansErreur(page)
   await retourAuQg(page)
 
-  // 9. Téléphone : l'atelier tient dans la largeur, avec ses organes et sa silhouette.
+  // 11. Téléphone : l'atelier tient dans la largeur, avec ses organes et sa silhouette, après les remplacements.
   await page.setViewportSize(TELEPHONE)
   await tuile(page, "garage").click()
   await arriver(page, /\/apps\/garage$/, /^Atelier$/)
-  // Freins réparés à l'étape 6 avec un état saisi de 80 % : c'est cet état qui s'affiche (954 v1.3, §4), pas le calcul à 100 %.
-  await expect(page.getByRole("link", { name: "Freins, Bon, 80%" })).toBeVisible()
+  await expect(carteFreins(page, /^Freins,/)).toBeVisible()
   await sansDefilementHorizontal(page)
+  await capturerPage(page, "parcours-john-atelier-360.png")
 })
