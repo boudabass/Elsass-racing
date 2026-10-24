@@ -95,6 +95,32 @@ export async function lireUsureEngagement(ctx: ContexteTeam, entryId: string): P
   return { entryId: resultat.entryId, kmChronometres: Number(resultat.kmChronometres ?? 0) }
 }
 
+// Abandon d'un engagement pour la fiche casse de Garage (tâche 4.4, brief §3) : véhicule, épreuve, date de l'épreuve et
+// nom de la spéciale d'abandon. Lecture seule, sans garde : le gestionnaire de Garage contrôle son propre accès. Renvoie
+// null si l'engagement n'existe plus dans la team.
+export type AbandonEngagement = { vehicleId: string; eventId: string; dateDebut: Date; specialeNom: string | null }
+
+export async function lireAbandonEngagement(ctx: ContexteTeam, entryId: string, stageId: string | null): Promise<AbandonEngagement | null> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const engagement = await client.coreEventEntry.findFirst({
+    where: { id: entryId, teamId: ctx.teamId, deletedAt: null },
+    select: { vehicleId: true, eventId: true, event: { select: { dateDebut: true } } },
+  })
+  if (!engagement) return null
+  const speciale = stageId
+    ? await client.saisonStage.findFirst({
+        where: { id: stageId, eventId: engagement.eventId, teamId: ctx.teamId, deletedAt: null },
+        select: { nom: true },
+      })
+    : null
+  return {
+    vehicleId: engagement.vehicleId,
+    eventId: engagement.eventId,
+    dateDebut: engagement.event.dateDebut,
+    specialeNom: speciale?.nom ?? null,
+  }
+}
+
 // Lectures pour la page partenaire (brief 3.7, §3) : elles prennent le client de la transaction publique, sans
 // contexte d'utilisateur. Une seule team, et seulement les saisons données par l'appelant (celles des conventions
 // du partenaire). Lecture seule : rien ici n'expose les fiches d'écriture de Saison.

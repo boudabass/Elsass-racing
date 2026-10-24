@@ -380,3 +380,11 @@ Migration `20261024120000_garage_pneus_casses` (étape 1) : index unique partiel
 
 - `monterTrainDans` : dans une transaction, le train en place sur l'organe Pneus est démonté (`vehicle_component_id` à null, sans destination), puis le train choisi est monté. Un train déjà monté est refusé ; un train d'une autre voiture aussi. Deux montages simultanés : l'index unique refuse le second (P2002, rendu en « rechargez l'écran »).
 - `saisirUsureTrainDans` : usure entière de 0 à 100 %, statut `neuf`, `utilise` ou `use` (libellés « Neuf », « Utilisé », « Usé »), saisis à la main.
+
+### Fiches casse (4.4, étape 3)
+
+- **Ouverture** : `saison.abandon_declare` ouvre une `garage_incident` par engagement (gestionnaire dans `liaisons-serveur.ts`, service `ouvrirFicheAbandonDans` dans `casses-serveur.ts`). Véhicule et épreuve viennent de l'engagement ; la date est celle du début de l'épreuve ; la spéciale (`speciale_nom`, `stage_id`) vient de `stageAbandonId` lu chez Saison en lecture (`lireAbandonEngagement`) ; la cause reprend `causeAbandon`. Le type reste vide : la fiche est « à compléter ». `skipDuplicates` et l'index unique par engagement empêchent le doublon. Engagement introuvable : une ligne de journal, aucune fiche.
+- **Création à la main** : voiture et date obligatoires (date civile réelle), épreuve et cause facultatives, type vide.
+- **Complétion** : type (`garage_type_casse`), cause (300 caractères au plus), organes touchés (de la voiture) et pièces cassées. Une pièce doit avoir été montée sur un organe touché à la date de la casse (pose et dépose d'un montage, `montageALaDate`). Les liens retirés sont supprimés logiquement ; un lien rétabli se réactive sans doublon.
+- **Statut des pièces** : la complétion ne change jamais le statut d'une pièce cassée (principe du 21/10).
+- **Libellés des types** : non validés à ce jour, à fixer avec l'écran Casses (étape 4). Les valeurs d'enum restent celles de la base.

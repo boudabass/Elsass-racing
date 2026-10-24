@@ -5,7 +5,8 @@ import { lireUsureEngagement } from "@/apps/saison/lectures-partagees"
 import type { ContexteTeam } from "@/core/contexte"
 import { enregistrerGestionnaire, type EvenementRecu } from "@/core/evenements/gestionnaires"
 
-import { chargeResultatValide } from "./charges"
+import { chargeAbandonDeclare, chargeResultatValide } from "./charges"
+import { ouvrirFicheAbandonDans } from "./casses-serveur"
 import { appliquerUsureResultatDans } from "./services-serveur"
 
 // Un résultat validé ajoute ses km chronométrés et une épreuve à toutes les pièces montées du véhicule de l'engagement.
@@ -15,4 +16,11 @@ enregistrerGestionnaire("garage", "saison.resultat_valide", async (ctx: Contexte
   if (!analyse.success) return
   const usure = await lireUsureEngagement(ctx, analyse.data.entryId)
   await appliquerUsureResultatDans(ctx, analyse.data.entryId, analyse.data.eventId, usure?.kmChronometres ?? 0)
+})
+
+// Un engagement abandonné dans Saison ouvre une fiche casse à compléter (954 §5). Une seule fiche par engagement.
+enregistrerGestionnaire("garage", "saison.abandon_declare", async (ctx: ContexteTeam, evenement: EvenementRecu) => {
+  const analyse = chargeAbandonDeclare.safeParse(evenement.donnees)
+  if (!analyse.success) return
+  await ouvrirFicheAbandonDans(ctx, analyse.data)
 })

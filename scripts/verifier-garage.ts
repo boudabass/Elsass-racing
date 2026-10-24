@@ -554,6 +554,104 @@ async function main() {
     // 13 i. Type de casse facultatif (option A) : une fiche casse sans type est acceptée, « à compléter ».
     const fiche = await proprietaire.garageIncident.create({ data: { id: randomUUID(), teamId: team.id, vehicleId: vehicule, date: new Date(), type: null } })
     controle("une fiche casse sans type est acceptée par la base (à compléter)", fiche.type === null)
+
+    // 14. Fiches casse (tâche 4.4, brief §3 ; 954 §1, §3, §5). Un abandon déclaré dans Saison ouvre une fiche à compléter,
+    // une seule par engagement. Les services de la fiche refusent ce qui n'est pas valable, avec leur raison.
+    const socle = await import("../src/core/evenements/gestionnaires")
+    await import("../src/apps/garage/liaisons-serveur")
+    const casses = await import("../src/apps/garage/casses-serveur")
+    const recuType = { id: randomUUID(), nom: "saison.abandon_declare", version: 1, appEmettrice: "saison", donnees: {} }
+    const gestionnaire = socle.trouverGestionnaire("garage", "saison.abandon_declare") as
+      | ((c: typeof ctx, e: typeof recuType) => Promise<void>)
+      | undefined
+    controle("le gestionnaire saison.abandon_declare est enregistré côté Garage", gestionnaire !== undefined)
+    const speciale = randomUUID()
+    await proprietaire.saisonStage.create({
+      data: { id: speciale, teamId: team.id, eventId: evenement.id, numero: 1, nom: `Spéciale ${suffixe}`, type: "speciale" },
+    })
+    const abandon = { entryId: engagement, eventId: evenement.id, causeAbandon: "Casse de cardan", stageAbandonId: speciale }
+    await gestionnaire!(ctx, { ...recuType, donnees: abandon })
+    await gestionnaire!(ctx, { ...recuType, id: randomUUID(), donnees: abandon })
+    const fichesAbandon = await proprietaire.garageIncident.findMany({ where: { eventEntryId: engagement } })
+    controle("un abandon, traité deux fois, ouvre une seule fiche", fichesAbandon.length === 1, `${fichesAbandon.length} fiche(s)`)
+    const ficheAbandon = fichesAbandon[0]
+    controle(
+      "la fiche reprend véhicule, épreuve, date de l'épreuve, spéciale et cause, et reste à compléter",
+      ficheAbandon.vehicleId === vehicule &&
+        ficheAbandon.eventId === evenement.id &&
+        ficheAbandon.date.getTime() === new Date("2026-06-01").getTime() &&
+        ficheAbandon.specialeNom === `Spéciale ${suffixe}` &&
+        ficheAbandon.stageId === speciale &&
+        ficheAbandon.cause === "Casse de cardan" &&
+        ficheAbandon.type === null,
+      JSON.stringify(ficheAbandon),
+    )
+    const engagementInconnu = await refuse(gestionnaire!(ctx, { ...recuType, donnees: { ...abandon, entryId: randomUUID() } }))
+    controle("un engagement introuvable ne crée ni fiche ni erreur", engagementInconnu === null, engagementInconnu ?? "")
+
+    // Création à la main : voiture, date et cause (nettoyée) ; une date inexistante est refusée avec sa raison.
+    const demain = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+    const dateInvalide = await refuse(casses.creerFicheCasseDans(ctx, { vehicleId: vehicule, date: "2026-02-30", eventId: null, cause: null }))
+    controle("une date qui n'existe pas est refusée avec sa raison", dateInvalide === "Indiquez la date de la casse.", dateInvalide ?? "acceptée")
+    const voitureInconnue = await refuse(casses.creerFicheCasseDans(ctx, { vehicleId: randomUUID(), date: demain, eventId: null, cause: null }))
+    controle("une voiture hors de la team est refusée", voitureInconnue === "Cette voiture n'existe pas dans la team.", voitureInconnue ?? "")
+    const ficheMain = await casses.creerFicheCasseDans(ctx, { vehicleId: vehicule, date: demain, eventId: null, cause: "  Sortie dans un virage  " })
+    const creee = await proprietaire.garageIncident.findUniqueOrThrow({ where: { id: ficheMain } })
+    controle("une fiche à la main garde voiture et cause nettoyée, sans type ni engagement", creee.vehicleId === vehicule && creee.type === null && creee.cause === "Sortie dans un virage" && creee.eventEntryId === null)
+
+    // Complétion : un type hors liste, un organe étranger, une pièce non montée à la date de la casse, puis un cas valable.
+    const montage = await proprietaire.garagePartMount.findFirst({
+      where: { teamId: team.id, deposeeLe: null, deletedAt: null, part: { vehicleId: vehicule } },
+      select: { partId: true, vehicleComponentId: true },
+    })
+    if (!montage) throw new EcartGarage("aucune pièce montée sur la voiture pour la complétion de casse")
+    const typeInvalide = await refuse(casses.completerFicheCasseDans(ctx, ficheMain, { type: "inconnue", cause: null, organesIds: [], piecesIds: [] }))
+    controle("un type hors liste est refusé avec sa raison", typeInvalide === "Choisissez le type de casse.", typeInvalide ?? "accepté")
+    const organeEtranger = await refuse(
+      casses.completerFicheCasseDans(ctx, ficheMain, { type: "accident", cause: null, organesIds: [randomUUID()], piecesIds: [] }),
+    )
+    controle("un organe qui n'est pas sur la voiture est refusé", organeEtranger === "Un organe touché n'appartient pas à cette voiture.", organeEtranger ?? "accepté")
+    const pieceAvantPose = await refuse(
+      casses.completerFicheCasseDans(ctx, ficheAbandon.id, {
+        type: "casse_mecanique",
+        cause: null,
+        organesIds: [montage.vehicleComponentId],
+        piecesIds: [montage.partId],
+      }),
+    )
+    controle(
+      "une pièce posée après la casse est refusée avec sa raison",
+      pieceAvantPose === "Une pièce cassée n'était pas montée sur ces organes à la date de la casse.",
+      pieceAvantPose ?? "acceptée",
+    )
+    await casses.completerFicheCasseDans(ctx, ficheMain, {
+      type: "accident",
+      cause: "Choc contre un rocher",
+      organesIds: [montage.vehicleComponentId],
+      piecesIds: [montage.partId],
+    })
+    const complete = await proprietaire.garageIncident.findUniqueOrThrow({ where: { id: ficheMain } })
+    controle("la fiche complétée garde le type et la cause saisis", complete.type === "accident" && complete.cause === "Choc contre un rocher")
+    const liens = await proprietaire.garageIncidentComponent.count({ where: { incidentId: ficheMain, deletedAt: null } })
+    const piecesLiees = await proprietaire.garageIncidentPart.count({ where: { incidentId: ficheMain, deletedAt: null } })
+    controle("l'organe touché et la pièce cassée sont liés à la fiche", liens === 1 && piecesLiees === 1, `${liens} organe(s), ${piecesLiees} pièce(s)`)
+    // Retrait puis rétablissement d'un organe : le lien est supprimé logiquement, puis réactivé sans doublon.
+    await casses.completerFicheCasseDans(ctx, ficheMain, { type: "accident", cause: "Choc contre un rocher", organesIds: [], piecesIds: [] })
+    const liensRetires = await proprietaire.garageIncidentComponent.count({ where: { incidentId: ficheMain, deletedAt: null } })
+    const lignesLiens = await proprietaire.garageIncidentComponent.count({ where: { incidentId: ficheMain } })
+    controle("un organe retiré n'est plus lié, sans être effacé", liensRetires === 0 && lignesLiens === 1, `${liensRetires} actif(s), ${lignesLiens} ligne(s)`)
+    await casses.completerFicheCasseDans(ctx, ficheMain, {
+      type: "accident",
+      cause: "Choc contre un rocher",
+      organesIds: [montage.vehicleComponentId],
+      piecesIds: [montage.partId],
+    })
+    const lignesRetablies = await proprietaire.garageIncidentComponent.count({ where: { incidentId: ficheMain } })
+    controle("l'organe rétabli se réactive sans doublon", lignesRetablies === 1, `${lignesRetablies} ligne(s)`)
+
+    // Cloisonnement : une autre team ne voit pas la fiche.
+    const vueFicheAutreTeam = await executerPourTeam(equipe2.id, utilisateur.id, (tx) => tx.garageIncident.count({ where: { id: ficheMain } }))
+    controle("une autre team ne voit pas la fiche casse", vueFicheAutreTeam === 0, `${vueFicheAutreTeam} vue(s)`)
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères, pour les deux teams. Budget et les actions
     // d'abord : ils ne dépendent pas des tables du Garage.
@@ -572,6 +670,8 @@ async function main() {
     await proprietaire.garageWorkOrderPart.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageWorkOrderPerson.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageWorkOrder.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageIncidentComponent.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageIncidentPart.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageIncident.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageTyreSet.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garagePart.deleteMany({ where: { teamId: { in: equipes } } })
@@ -582,6 +682,7 @@ async function main() {
     await proprietaire.garageVehicleComponent.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageComponentType.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreEventEntry.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.saisonStage.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreEvent.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreSeason.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreVehicle.deleteMany({ where: { teamId: { in: equipes } } })

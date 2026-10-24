@@ -66,3 +66,14 @@ export const chargePieceAchetee = z
     recueLe: z.string().min(1),
   })
   .strict()
+
+// saison.abandon_declare : un engagement abandonne. Garage ouvre une fiche casse à compléter (tâche 4.4, 954 §5). La date
+// et le véhicule viennent de la lecture partagée lireAbandonEngagement, comme l'usure pour saison.resultat_valide.
+export const chargeAbandonDeclare = z
+  .object({
+    entryId: identifiant,
+    eventId: identifiant.nullable(),
+    causeAbandon: z.string().nullable().optional(),
+    stageAbandonId: identifiant.nullable().optional(),
+  })
+  .passthrough()
