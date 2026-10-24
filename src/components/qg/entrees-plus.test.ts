@@ -13,7 +13,7 @@ describe("menu « + » selon le rôle", () => {
 
   it("offre tout au responsable : Épreuve, Véhicule, Dépense, Réglage actives ; Photo désactivée avec sa raison ; Note active", () => {
     const entrees = entreesDuMenuPlus("responsable", false)
-    expect(entrees.map((e) => e.libelle)).toEqual(["Épreuve", "Véhicule", "Partenaire", "Pièce", "Roulage", "Intervention", "Dépense", "Réglage", "Photo", "Note"])
+    expect(entrees.map((e) => e.libelle)).toEqual(["Épreuve", "Véhicule", "Partenaire", "Pièce", "Roulage", "Équipement", "Intervention", "Dépense", "Réglage", "Photo", "Note"])
     expect(entrees.find((e) => e.libelle === "Partenaire")).toEqual({ libelle: "Partenaire", desactivee: false, href: "/apps/partenaires/nouveau" })
     expect(entrees.filter((e) => e.desactivee).every((e) => e.raison)).toBe(true)
     expect(entrees.find((e) => e.libelle === "Dépense")).toEqual({ libelle: "Dépense", desactivee: false, href: "/apps/budget/nouvelle" })
@@ -46,6 +46,19 @@ describe("menu « + » selon le rôle", () => {
       libelle: "Roulage",
       desactivee: false,
       href: "/apps/garage/roulage",
+    })
+  })
+
+  it("ouvre Équipement à l'équipage et au responsable, hors terrain, jamais à l'assistance", () => {
+    const pour = (role: string, terrain: boolean) => entreesDuMenuPlus(role, terrain).map((e) => e.libelle)
+    expect(pour("equipage", false)).toContain("Équipement")
+    expect(pour("responsable", false)).toContain("Équipement")
+    expect(pour("equipage", true)).not.toContain("Équipement")
+    expect(pour("assistance", false)).not.toContain("Équipement")
+    expect(entreesDuMenuPlus("responsable", false).find((e) => e.libelle === "Équipement")).toEqual({
+      libelle: "Équipement",
+      desactivee: false,
+      href: "/apps/garage/equipements?nouveau=1",
     })
   })
 

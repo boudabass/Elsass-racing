@@ -41,6 +41,7 @@ import {
 } from "./services-serveur"
 import { ajouterTrain, ajouterTrainAchete, monterTrain, saisirUsureTrain } from "./pneus-serveur"
 import { completerFicheCasse, creerFicheCasse, ouvrirReparationCasse } from "./casses-serveur"
+import { creerEquipement, modifierEquipement, retirerEquipement, type EntreeEquipement } from "./equipements-serveur"
 
 export type { Resultat }
 
@@ -399,4 +400,32 @@ export async function completerFicheCasseAction(_etat: Resultat | null, donnees:
 
 export async function ouvrirReparationCasseAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerGarage(() => ouvrirReparationCasse(texte(donnees, "id"), texte(donnees, "organeId")))
+}
+
+// --- Équipements de la team (tâche 4.6, brief §3) ---------------------------------------------------------------------
+// Le formulaire envoie tous les champs : une modification remplace l'équipement. La validation et le prix en euros sont
+// dans equipements.ts (la valeur ne se déduit pas d'un champ manquant).
+
+function saisieEquipementDepuis(donnees: FormData): EntreeEquipement {
+  return {
+    nom: texteOuNull(donnees, "nom"),
+    categorie: texteOuNull(donnees, "categorie"),
+    etat: texteOuNull(donnees, "etat"),
+    acheteLe: texteOuNull(donnees, "acheteLe"),
+    valeur: texteOuNull(donnees, "valeur"),
+    prochainControleLe: texteOuNull(donnees, "prochainControleLe"),
+    emplacement: texteOuNull(donnees, "emplacement"),
+  }
+}
+
+export async function creerEquipementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() => creerEquipement(saisieEquipementDepuis(donnees)))
+}
+
+export async function modifierEquipementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() => modifierEquipement(texte(donnees, "id"), saisieEquipementDepuis(donnees)))
+}
+
+export async function retirerEquipementAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() => retirerEquipement(texte(donnees, "id")))
 }

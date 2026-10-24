@@ -44,3 +44,12 @@ export const LIBELLE_SOURCE_USURE = {
   resultat_saison: "Résultat de saison",
   saisie_manuelle: "Saisie manuelle",
 } as const satisfies Record<string, string>
+
+// Catégories des équipements de la team (954 v1.4 §3, tâche 4.6). Les valeurs de base ne changent pas.
+export const LIBELLE_CATEGORIE_EQUIPEMENT = {
+  remorque: "Remorque",
+  outillage: "Outillage",
+  levage: "Levage",
+  assistance: "Assistance",
+  stand: "Stand",
+} as const satisfies Record<string, string>

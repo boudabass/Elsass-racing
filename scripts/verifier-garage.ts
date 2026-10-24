@@ -739,6 +739,68 @@ async function main() {
     controle("une autre team ne voit pas le plan de la voiture (RLS)", planAutreTeam === null)
     const engagementsAutreTeam = await saisonPartagee.lireEngagementsAVenir({ teamId: equipe2.id, userId: utilisateur.id, membership: ctx.membership }, vehicule)
     controle("une autre team ne voit pas les engagements à venir de la voiture (RLS)", engagementsAutreTeam.length === 0, `${engagementsAutreTeam.length}`)
+
+    // 16. Équipements de la team (tâche 4.6, brief §3 et §4 ; 954 v1.4 §2). Création, modification (rev qui avance), retrait
+    // doux, refus avec raison ; la valeur n'est servie qu'au niveau écriture ; RLS entre deux teams.
+    const equipementsServeur = await import("../src/apps/garage/equipements-serveur")
+    const lecturesEquipements = await import("../src/apps/garage/lectures-equipements-serveur")
+    const remorque = await equipementsServeur.creerEquipementDans(ctx, {
+      nom: "Remorque de test",
+      categorie: "remorque",
+      etat: "bon",
+      acheteLe: "2024-03-01",
+      valeur: "2 500",
+      prochainControleLe: "2026-10-20",
+      emplacement: "Parc",
+    })
+    const equipementCree = await proprietaire.garageEquipment.findUnique({ where: { id: remorque } })
+    controle(
+      "création : l'équipement est en base, avec sa valeur en centimes et son contrôle en date civile",
+      equipementCree?.valeurCents === 250000 && equipementCree?.prochainControleLe?.toISOString().slice(0, 10) === "2026-10-20" && equipementCree?.rev === 1,
+      `${equipementCree?.valeurCents} ${equipementCree?.prochainControleLe?.toISOString()}`,
+    )
+    const refusNom = await refuse(equipementsServeur.creerEquipementDans(ctx, { nom: "  ", categorie: "remorque", valeur: null }))
+    controle("un équipement sans nom est refusé avec sa raison", refusNom === "Indiquez le nom de l'équipement.", `${refusNom}`)
+    const refusNegatif = await refuse(equipementsServeur.creerEquipementDans(ctx, { nom: "Négatif", categorie: "levage", valeur: "-10" }))
+    controle("une valeur négative est refusée avec sa raison", refusNegatif?.includes("positif") === true, `${refusNegatif}`)
+
+    await equipementsServeur.modifierEquipementDans(ctx, remorque, {
+      nom: "Remorque de test 2",
+      categorie: "remorque",
+      etat: "",
+      acheteLe: "",
+      valeur: "2 000",
+      prochainControleLe: "",
+      emplacement: "Atelier",
+    })
+    const modifiee = await proprietaire.garageEquipment.findUnique({ where: { id: remorque } })
+    controle(
+      "modification : le nom et la valeur changent, les champs vides redeviennent vides, rev avance",
+      modifiee?.nom === "Remorque de test 2" && modifiee?.valeurCents === 200000 && modifiee?.etat === null && modifiee?.prochainControleLe === null && modifiee?.rev === 2,
+      `${modifiee?.nom} ${modifiee?.valeurCents} rev ${modifiee?.rev}`,
+    )
+
+    const compresseur = await equipementsServeur.creerEquipementDans(ctx, { nom: "Compresseur de test", categorie: "outillage", valeur: "350" })
+    await equipementsServeur.retirerEquipementDans(ctx, remorque)
+    const retiree = await proprietaire.garageEquipment.findUnique({ where: { id: remorque } })
+    controle("retrait : suppression douce, rev avance, la ligne reste en base", retiree?.deletedAt !== null && retiree?.rev === 3, `rev ${retiree?.rev}`)
+    const refusRetrait = await refuse(equipementsServeur.retirerEquipementDans(ctx, remorque))
+    controle("un équipement déjà retiré ne se retire pas une seconde fois", refusRetrait?.includes("n'existe pas") === true, `${refusRetrait}`)
+
+    const liste = await lecturesEquipements.lireEquipementsDans(ctx, true)
+    controle(
+      "la liste (niveau écriture) exclut l'équipement retiré et sert la valeur",
+      liste.length === 1 && liste[0].id === compresseur && liste[0].valeurCents === 35000,
+      `${liste.length} ligne(s)`,
+    )
+    const listeSansValeur = await lecturesEquipements.lireEquipementsDans(ctx, false)
+    controle(
+      "hors niveau écriture, la lecture ne sert aucune valeur (assistance)",
+      listeSansValeur.length === 1 && listeSansValeur.every((ligne) => ligne.valeurCents === null),
+      `${listeSansValeur.length} ligne(s)`,
+    )
+    const equipementsAutreTeam = await lecturesEquipements.lireEquipementsDans({ teamId: equipe2.id, userId: utilisateur.id, membership: ctx.membership }, true)
+    controle("une autre team ne voit pas les équipements (RLS)", equipementsAutreTeam.length === 0, `${equipementsAutreTeam.length}`)
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères, pour les deux teams. Budget et les actions
     // d'abord : ils ne dépendent pas des tables du Garage.
@@ -762,6 +824,7 @@ async function main() {
     await proprietaire.garageIncident.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageTyreSet.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garagePart.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageEquipment.deleteMany({ where: { teamId: { in: equipes } } })
     // Achats : les lignes d'abord (elles tiennent la commande), puis les commandes, puis le fournisseur qu'elles citent.
     await proprietaire.garagePurchaseLine.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garagePurchase.deleteMany({ where: { teamId: { in: equipes } } })

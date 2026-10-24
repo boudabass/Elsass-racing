@@ -156,7 +156,7 @@ Organes touchés : `garage_incident_component`. Pièces cassées : `garage_incid
 |---|---|---|
 | `nom` | texte | obligatoire |
 | `categorie` | enum `garage_categorie_equipement` | obligatoire |
-| `etat` | texte | facultatif (voir choix à valider) |
+| `etat` | texte | facultatif, texte libre (choix 3 tranché en 4.6 : pas d'enum, voir plus bas) |
 | `achete_le` | timestamptz | facultative |
 | `valeur_cents`, `devise` | entier, texte | facultatifs ; jamais servis à l'assistance |
 | `prochain_controle_le` | date | facultative |
@@ -272,7 +272,8 @@ Ces choix ne sont pas dans l'article. Ils sont en code, testés, et à relire à
 
 ## Ce qui reste ouvert
 
-- **Priorité d'ordre de travail** : livrée en 4.3 (basse, normale, haute ; décision de John). Reste **état d'un équipement** (4.6) : valeurs à donner.
+- **Priorité d'ordre de travail** : livrée en 4.3 (basse, normale, haute ; décision de John).
+- **État d'un équipement** : tranché en 4.6 (texte libre, voir « Équipements de la team (4.6) »).
 - **Saison, abandon** : `saison.abandon_declare` n'est pas traité (4.4). Le schéma porte déjà `stage_id` et `speciale_nom`.
 - **Pas d'écran, pas d'e2e** : 4.2 apporte l'atelier.
 
@@ -409,3 +410,19 @@ Source : 954 v1.4 (24/10). Décisions de John du 24/10 : le plan est un constat 
 - **Widgets** (`src/apps/garage/widgets.ts`, `widgets-serveur.ts`) : `fiabilite`, `pieces-zone-rouge`, `travaux-livraisons`. Résumés purs testés, lectures de l'état actuel. Le Tableau de bord ne rend pas encore les widgets, même pour Saison (lot 6) : rien n'est affiché pour l'instant.
 - **Ordre « à faire avant »** : le champ existe déjà dans le formulaire d'ordre (`formulaires-travaux.tsx`) ; rien à ajouter.
 - **Droits** : responsable et équipage voient le plan avec les coûts ; l'assistance le voit sans coût ; l'invité n'y accède pas. Aucun bouton ne crée un ordre ou une pièce depuis le plan : chaque organe ouvre sa fiche, où sont Réparer et Remplacer.
+
+## Équipements de la team (4.6)
+
+Source : 954 v1.4 §2, §3 et §6 ; brief `docs/briefs/4.6-garage-equipements.md` (décisions de l'orchestrateur du 24/10).
+
+- **Choix 3 tranché : `etat` en texte libre.** 954 ne donne aucune valeur ; la règle 6 interdit d'en inventer. Le champ reste facultatif, libellé « État » (ex. « bon », « pneu de roue de secours à changer »). L'enum `garage_categorie_equipement` (remorque, outillage, levage, assistance, stand) reste, avec ses libellés dans `libelles.ts`.
+- **Pas de lien Budget.** Aucun événement du catalogue ne couvre l'achat d'un équipement, et `garage.piece_achetee` est réservé aux commandes de pièces. La valeur est une information ; la dépense se saisit dans Budget (le formulaire le dit sous le champ valeur).
+- **Pas de migration.** La table `garage_equipment` (4.1) suffit : `team_id` et `deleted_at` sont déjà indexés.
+- **Prochain contrôle : affichage seul.** Pas d'événement, pas d'action dans la boîte, pas de Prochaine étape (rien dans 962). Les widgets du Tableau de bord le liront au lot 6.
+- **Règle d'échéance** (`src/apps/garage/equipements.ts`, `echeanceControle`) : jours civils entiers depuis le jour de Paris. Dépassé : jours négatifs. Bientôt : de 0 à 29 jours (`SEUIL_CONTROLE_JOURS` = 30). Plus tard : 30 jours ou plus. Aucun : pas de date. Le changement d'heure du 25/10 ne décale rien.
+- **Valeur** : saisie en euros (« 1 200,50 »), stockée en centimes ; négative ou illisible, refusée avec sa raison. Le total de l'écran (`resumeEquipements`) n'existe qu'au niveau écriture.
+- **Écriture** : `creerEquipement`, `modifierEquipement` (saisie complète, `rev` +1), `retirerEquipement` (suppression douce, `rev` +1). Sous `accesGarage("ecriture")`, responsable et équipage. Aucun événement émis.
+- **Lecture** : `lireEquipementsDans(ctx, avecValeur)` (`src/apps/garage/lectures-equipements-serveur.ts`) : la valeur est `null` hors niveau écriture, comme les prix ailleurs dans le Garage.
+- **Droits** : responsable et équipage ajoutent, modifient, retirent et voient la valeur ; l'assistance lit la liste et les échéances, sans valeur, sans bouton d'écriture ; l'invité n'y accède pas.
+- **Hors ligne** : aucune table dans le registre de synchro. Les boutons d'écriture restent visibles, désactivés, avec « Les équipements se modifient en ligne. ».
+- **Entrées** : menu du Garage « Équipements » (`/apps/garage/equipements`), bouton + « Équipement » pour le responsable et l'équipage, hors terrain (`?nouveau=1` ouvre l'ajout).

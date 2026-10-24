@@ -269,6 +269,13 @@ Rien n'est supprimé à ce stade : l'inventaire vient d'abord. Les aides marqué
 - **Base** : `pnpm db:verifier-garage`, section 15 : le plan prend la prochaine épreuve engagée, ne compte que l'ordre prévu avant elle (ni l'ordre d'une autre épreuve, ni l'ordre terminé), ne renvoie aucun coût hors écriture, les somme au niveau écriture, et reste fermé à une autre team (lectures partagées de Garage et de Saison). `db:verifier-bus` : une pièce en zone rouge ne pose plus de point « pièces ».
 - **e2e** : `e2e/garage-plan.spec.ts` (un seul spec, depuis les tuiles et les menus). L'embrayage de l'atelier de test est à 2 % (zone rouge) : le plan le montre ; Saison affiche « À surveiller, sans effet sur l'indice » et l'indice ne change pas ; la réparation à 80 % depuis le plan lève l'alerte ; l'assistance voit le plan sans coût. Captures à 1440 et 360 px dans `docs/captures/garage-plan-*`.
 
+## Garage : équipements de la team (tâche 4.6)
+
+- **Unitaires** : `src/apps/garage/equipements.test.ts` (21 tests) : échéance du contrôle (dépassé, bientôt, aujourd'hui, plus tard, aucun ; frontière à 29 et 30 jours ; changement d'heure du 25/10), date civile, valeur en euros (virgule, point, espaces, négative refusée), validation de la saisie (nom vide, catégorie inconnue, date absente du calendrier), résumé de l'écran, regroupement par catégorie.
+- **Base** : `pnpm db:verifier-garage`, section 16 : création (valeur en centimes, date civile, `rev` à 1), refus sans nom et avec valeur négative, modification (`rev` à 2, champs vides redevenus vides), retrait doux (`rev` à 3), second retrait refusé, liste sans l'équipement retiré, valeur servie au niveau écriture et nulle hors écriture, RLS entre deux teams.
+- **e2e** : `e2e/garage-equipements.spec.ts` (un seul spec, depuis le QG, la tuile, le menu et le bouton +). Responsable : ajout d'une remorque au contrôle dépassé de trois jours et d'un compresseur sans contrôle, mots d'échéance, total (2 850,00 €), modification (2 000 €), retrait. Assistance : liste et échéances sans valeur ni bouton d'écriture, avec la raison. Captures à 1440 et 360 px dans `docs/captures/garage-equipements-*`.
+- **Menu +** : `src/components/qg/entrees-plus.test.ts` : « Équipement » pour le responsable et l'équipage, hors terrain, jamais pour l'assistance.
+
 ## Enchaînement recommandé
 
 ```
