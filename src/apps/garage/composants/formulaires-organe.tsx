@@ -87,7 +87,10 @@ type SourcePiece = "rechange" | "nouvelle"
 export function FormulaireRemplacer({ organeId, nom, pieceEnPlace, rechanges, fournisseurs }: FormulaireRemplacerProps) {
   const router = useRouter()
   const libelle = pieceEnPlace ? "Remplacer" : "Poser une pièce"
-  const [source, setSource] = useState<SourcePiece>(rechanges.length > 0 ? "rechange" : "nouvelle")
+  // La source suit le stock tant que John ne choisit pas : une rechange ajoutée après l'ouverture de la fiche devient le choix
+  // par défaut (le formulaire garde l'instance, son état initial ne se recalcule pas).
+  const [sourceChoisie, setSourceChoisie] = useState<SourcePiece | null>(null)
+  const source: SourcePiece = sourceChoisie ?? (rechanges.length > 0 ? "rechange" : "nouvelle")
   const [prix, setPrix] = useState("")
   const fournisseurRequis = prix.trim() !== ""
 
@@ -104,7 +107,7 @@ export function FormulaireRemplacer({ organeId, nom, pieceEnPlace, rechanges, fo
       {rechanges.length > 0 && (
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Pièce posée</span>
-          <select name="source" value={source} onChange={(evenement) => setSource(evenement.target.value as SourcePiece)} className={CHAMP}>
+          <select name="source" value={source} onChange={(evenement) => setSourceChoisie(evenement.target.value as SourcePiece)} className={CHAMP}>
             <option value="rechange">Une rechange du stock</option>
             <option value="nouvelle">Une nouvelle pièce</option>
           </select>
