@@ -1187,7 +1187,8 @@ export async function signalerPreparation(ctx: ContexteTeam, point: PointPrepara
 enregistrerGestionnaire("saison", "equipe.licence_expire_bientot", (ctx, evenement) => signalerPreparation(ctx, "licences", evenement))
 enregistrerGestionnaire("saison", "equipe.homologation_expire_bientot", (ctx, evenement) => signalerPreparation(ctx, "homologations", evenement))
 enregistrerGestionnaire("saison", "voiture.papier_expire_bientot", (ctx, evenement) => signalerPreparation(ctx, "papiers", evenement))
-enregistrerGestionnaire("saison", "garage.piece_zone_rouge", (ctx, evenement) => signalerPreparation(ctx, "pieces", evenement))
+// garage.piece_zone_rouge : pas de gestionnaire (954 v1.4). Saison lit l'état chez Garage à l'affichage, en point
+// à surveiller : aucun signal ne pose plus de point « pièces », et une réparation fait disparaître l'alerte sans événement.
 
 // --- Tâche 2.4 : reconnaissances (règles de la reco, sorties de reco) ----------------------------
 

@@ -1,16 +1,20 @@
-// Préparation pour l'épreuve : les cinq points bloquants d'un engagement et son indice. Règles pures.
+// Préparation pour l'épreuve : les points de préparation d'un engagement et son indice. Règles pures.
 // Un point « pas encore suivi » n'existe pas encore (son app n'est pas construite, ou aucun signal reçu) :
 // il n'entre pas dans l'indice et ne bloque rien. Le paiement se lit sur l'inscription, les autres
 // points viennent de saison_readiness, alimentée par les événements des autres apps.
+// Les pièces en zone rouge ne sont pas un point (954 v1.4, décision de John du 24/10) : Saison les lit chez
+// Garage, en point à surveiller, hors de l'indice.
 
 import { indicePreparation, type IndicePreparation, type StatutPoint } from "./regles"
 
-export const POINTS_PREPARATION = ["paiement", "licences", "homologations", "papiers", "pieces"] as const
+export const POINTS_PREPARATION = ["paiement", "licences", "homologations", "papiers"] as const
 export type PointPreparation = (typeof POINTS_PREPARATION)[number]
 export type EtatPoint = StatutPoint | "non_suivi"
 
+// Une ligne de saison_readiness. Les lignes « pieces » posées avant 4.5 restent en base : elles ne sont pas un point,
+// donc elles sont ignorées par pointsDePreparation.
 export interface LigneReadiness {
-  point: PointPreparation
+  point: string
   statut: StatutPoint
   detail: string | null
 }

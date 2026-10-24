@@ -1,5 +1,8 @@
 import Link from "next/link"
 
+import type { SurveillanceVehicule } from "@/apps/garage/lectures-partagees"
+import { libellePosition } from "@/apps/garage/emplacements"
+import { libelleZone, pourcentage, zoneIndice } from "@/apps/garage/mise-en-forme"
 import { LIBELLE_POINT_PREPARATION, LIBELLE_STATUT_ENGAGEMENT, LIBELLE_STATUT_POINT } from "@/apps/saison/libelles"
 import { lieuDeReglage, type PointEtabli } from "@/apps/saison/preparation"
 import type { CouleurIndice, IndicePreparation } from "@/apps/saison/regles"
@@ -7,6 +10,7 @@ import { LIEN } from "@/lib/classes-formulaire"
 
 // Panneau « Prêt pour l'épreuve ? » : un bloc par engagement. Il ne bloque jamais rien.
 // Les points « pas encore suivi » sont affichés tels quels : pas de fausse valeur.
+// Les pièces en zone rouge (Garage) sont un point à surveiller, sous les points, hors de l'indice (954 v1.4, §5).
 
 const COULEUR_INDICE: Record<CouleurIndice, string> = {
   vert: "text-etat-ok",
@@ -15,14 +19,17 @@ const COULEUR_INDICE: Record<CouleurIndice, string> = {
 }
 
 // Éléments à côté de l'indice (sans effet sur lui), en attente de leurs apps.
-const A_COTE = ["Fiabilité de la voiture", "Avancement des check-lists", "Présents de l'assistance"]
+const A_COTE = ["Avancement des check-lists", "Présents de l'assistance"]
 
 export interface EngagementPreparation {
   id: string
   voiture: string
+  vehicleId: string
   statut: string
   points: PointEtabli[]
   indice: IndicePreparation | null
+  // Null si Garage est désactivé, non accessible, ou si l'atelier n'est pas préparé : aucun bloc.
+  surveillance: SurveillanceVehicule | null
 }
 
 export function PanneauPreparation({ engagements }: { engagements: EngagementPreparation[] }) {
@@ -70,9 +77,15 @@ export function PanneauPreparation({ engagements }: { engagements: EngagementPre
             ))}
           </ul>
 
+          {engagement.surveillance && <BlocSurveillance vehicleId={engagement.vehicleId} surveillance={engagement.surveillance} />}
+
           <div className="flex flex-col gap-1 border-t border-bordure pt-3 text-sm">
             <p className="font-medium text-texte-discret">À côté, sans effet sur l'indice</p>
             <ul className="flex flex-col gap-1">
+              <li className="flex justify-between gap-2">
+                <span>Fiabilité de la voiture</span>
+                <span className="text-texte-discret">{libelleFiabilite(engagement.surveillance)}</span>
+              </li>
               {A_COTE.map((libelle) => (
                 <li key={libelle} className="flex justify-between gap-2">
                   <span>{libelle}</span>
@@ -83,6 +96,40 @@ export function PanneauPreparation({ engagements }: { engagements: EngagementPre
           </div>
         </article>
       ))}
+    </div>
+  )
+}
+
+// Fiabilité de la voiture : le mot de la zone, puis le pourcentage (jamais la couleur seule).
+function libelleFiabilite(surveillance: SurveillanceVehicule | null): string {
+  if (!surveillance || surveillance.fiabilite === null) return "Pas encore suivi"
+  return `${libelleZone(zoneIndice(surveillance.fiabilite))} · ${pourcentage(surveillance.fiabilite)}`
+}
+
+// Point à surveiller : les organes en zone rouge de la voiture, avec leur état, et le lien vers son plan avant épreuve.
+function BlocSurveillance({ vehicleId, surveillance }: { vehicleId: string; surveillance: SurveillanceVehicule }) {
+  const { zonesRouges } = surveillance
+  return (
+    <div className="flex flex-col gap-2 border-t border-bordure pt-3 text-sm">
+      <p className="font-medium text-texte-discret">À surveiller, sans effet sur l'indice</p>
+      {zonesRouges.length === 0 ? (
+        <p>Garage : aucun organe en zone rouge</p>
+      ) : (
+        <>
+          <p>Garage : {zonesRouges.length} organe(s) en zone rouge</p>
+          <ul className="flex flex-col gap-1">
+            {zonesRouges.map((organe) => (
+              <li key={organe.id} className="flex justify-between gap-2">
+                <span>{libellePosition(organe.position) ? `${organe.nom} · ${libellePosition(organe.position)}` : organe.nom}</span>
+                <span className="chiffre text-texte-discret">{pourcentage(organe.etat) ?? "À renseigner"}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <Link href={`/apps/garage/plan?vehicule=${vehicleId}`} className={LIEN}>
+        Voir le plan avant épreuve
+      </Link>
     </div>
   )
 }

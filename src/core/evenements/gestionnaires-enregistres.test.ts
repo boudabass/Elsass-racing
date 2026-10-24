@@ -17,7 +17,6 @@ const COUPLES_CODES: Array<[string, string]> = [
   ["saison", "equipe.licence_expire_bientot"],
   ["saison", "equipe.homologation_expire_bientot"],
   ["saison", "voiture.papier_expire_bientot"],
-  ["saison", "garage.piece_zone_rouge"],
   ["budget", "core.action_decidee"],
   ["core", "saison.action_requise"],
   ["core", "saison.action_levee"],

@@ -27,6 +27,7 @@ import {
 } from "./regles-resultats"
 import { accesSaison } from "./services-serveur"
 import { indicePourEngagement, pointsDePreparation } from "./preparation"
+import { lireSurveillance } from "@/apps/garage/lectures-partagees"
 
 
 export async function lireAcces(): Promise<{ niveau: Niveau }> {
@@ -525,6 +526,7 @@ export async function lirePreparation(eventId: string) {
         select: {
           id: true,
           statut: true,
+          vehicleId: true,
           vehicle: { select: { nomCourt: true } },
           saisonRegistration: { select: { payeLe: true } },
           saisonReadiness: { select: { point: true, statut: true, detail: true } },
@@ -535,16 +537,20 @@ export async function lirePreparation(eventId: string) {
   if (!epreuve) return null
 
   const maintenant = new Date()
+  // Point à surveiller : l'état actuel chez Garage, lu seulement si Garage est activé et accessible (954 v1.4, §5).
+  const surveillances = await Promise.all(epreuve.entries.map((entree) => lireSurveillance(ctx, entree.vehicleId)))
   return {
     niveau,
-    engagements: epreuve.entries.map((entree) => {
+    engagements: epreuve.entries.map((entree, rang) => {
       const points = pointsDePreparation(entree.saisonRegistration?.payeLe != null, entree.saisonReadiness)
       return {
         id: entree.id,
         voiture: entree.vehicle.nomCourt,
+        vehicleId: entree.vehicleId,
         statut: entree.statut,
         points,
         indice: indicePourEngagement(points, maintenant, epreuve.dateDebut),
+        surveillance: surveillances[rang],
       }
     }),
   }

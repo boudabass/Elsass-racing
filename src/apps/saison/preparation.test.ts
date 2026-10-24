@@ -13,7 +13,11 @@ describe("pointsDePreparation", () => {
 
   it("un point sans ligne est « pas encore suivi », pas réglé", () => {
     const points = pointsDePreparation(true, [])
-    expect(points.filter((p) => p.etat === "non_suivi").map((p) => p.point)).toEqual(["licences", "homologations", "papiers", "pieces"])
+    expect(points.filter((p) => p.etat === "non_suivi").map((p) => p.point)).toEqual(["licences", "homologations", "papiers"])
+  })
+
+  it("les quatre points de préparation, sans les pièces : la zone rouge n'est pas un point", () => {
+    expect(pointsDePreparation(true, []).map((p) => p.point)).toEqual(["paiement", "licences", "homologations", "papiers"])
   })
 
   it("reprend l'état et le détail de la ligne saison_readiness", () => {
@@ -25,6 +29,15 @@ describe("pointsDePreparation", () => {
 describe("indicePourEngagement", () => {
   it("ne compte que les points suivis : un point pas encore suivi ne fait pas baisser l'indice", () => {
     const points = pointsDePreparation(true, [])
+    expect(indicePourEngagement(points, midi, dans(30))).toEqual({ pourcentage: 100, couleur: "vert" })
+  })
+
+  it("tous les points suivis réglés donnent 100 %, la zone rouge n'entrant dans aucun point", () => {
+    const points = pointsDePreparation(true, [
+      { point: "licences", statut: "regle", detail: null },
+      { point: "homologations", statut: "regle", detail: null },
+      { point: "papiers", statut: "regle", detail: null },
+    ])
     expect(indicePourEngagement(points, midi, dans(30))).toEqual({ pourcentage: 100, couleur: "vert" })
   })
 
