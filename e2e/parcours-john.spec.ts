@@ -269,7 +269,8 @@ test("parcours de John : le QG, l'atelier du rouge au vert, Commandes, Budget, l
   await envoyer(page, page.getByRole("button", { name: "Ajouter le train", exact: true }))
   await arriver(page, /\/apps\/garage\/pneus$/)
   await expect(page.getByText("Pirelli").first()).toBeVisible()
-  await page.getByRole("link", { name: "Ouvrir le train", exact: true }).click()
+  // La team de démonstration a déjà un train : on ouvre celui qu'on vient d'ajouter.
+  await page.locator("li", { hasText: "Pirelli" }).getByRole("link", { name: "Ouvrir le train", exact: true }).click()
   await arriver(page, /\/apps\/garage\/pneus\/[0-9a-f-]{36}$/)
   await envoyer(page, page.getByRole("button", { name: "Monter ce train", exact: true }))
   await expect(page.getByRole("button", { name: "Monter ce train", exact: true })).toHaveCount(0)
@@ -303,7 +304,7 @@ test("parcours de John : le QG, l'atelier du rouge au vert, Commandes, Budget, l
   await arriver(page, /\/apps\/garage$/, /^Atelier$/)
   await page.getByRole("link", { name: "Casses", exact: true }).click()
   await arriver(page, /\/apps\/garage\/casses$/)
-  await page.getByRole("link", { name: /Casse du 19 septembre 2026/ }).click()
+  await page.getByRole("link", { name: /19 septembre 2026 · 20e Rallye de l'Alsace Bossue/ }).click()
   await arriver(page, /\/apps\/garage\/casses\/[0-9a-f-]{36}$/)
   await expect(page.getByRole("heading", { name: "Casse du 19 septembre 2026", exact: true, level: 1 })).toBeVisible()
   await page.getByLabel("Type de casse").selectOption({ label: "Casse mécanique" })

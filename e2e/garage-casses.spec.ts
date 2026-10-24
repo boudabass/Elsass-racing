@@ -104,12 +104,12 @@ test("casse de bout en bout : abandon validé dans Saison, fiche au Garage, comp
   await page.locator('a[href="/apps/garage"]').filter({ has: page.locator("h2") }).click()
   await page.getByRole("link", { name: "Casses", exact: true }).click()
   await expect(page).toHaveURL(/\/apps\/garage\/casses/)
-  await expect(page.getByRole("link", { name: /Casse du 10 mai 2025/ })).toBeVisible()
+  await expect(page.getByRole("link", { name: /10 mai 2025 · Rallye casse e2e/ })).toBeVisible()
   await expect(page.getByText("À compléter", { exact: true })).toBeVisible()
   await capturerPage(page, "garage-casses-liste-1440.png")
 
   // La fiche : type et cause saisis, organe touché choisi, puis enregistrée.
-  await page.getByRole("link", { name: /Casse du 10 mai 2025/ }).click()
+  await page.getByRole("link", { name: /10 mai 2025 · Rallye casse e2e/ }).click()
   await expect(page).toHaveURL(/\/apps\/garage\/casses\/[0-9a-f-]+$/)
   await expect(page.getByRole("heading", { name: "Casse du 10 mai 2025", exact: true, level: 1 })).toBeVisible()
   await page.getByLabel("Type de casse").selectOption({ label: "Casse mécanique" })
@@ -125,7 +125,7 @@ test("casse de bout en bout : abandon validé dans Saison, fiche au Garage, comp
 
   // Retour à la fiche : elle garde le lien vers la réparation, qu'on ne peut pas ouvrir une seconde fois.
   await page.getByRole("link", { name: "Casses", exact: true }).click()
-  await page.getByRole("link", { name: /Casse du 10 mai 2025/ }).click()
+  await page.getByRole("link", { name: /10 mai 2025 · Rallye casse e2e/ }).click()
   await expect(page.getByRole("link", { name: "Voir la réparation liée", exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: /Ouvrir une réparation/ })).toHaveCount(0)
   await capturerPage(page, "garage-casses-fiche-1440.png")
