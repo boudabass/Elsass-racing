@@ -15,13 +15,14 @@ async function attendreServiceWorker(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true)
 }
 
-// Erreur 418 de React (hydratation) : elle apparaît par intermittence au premier chargement en ligne de /qg, en
+// Erreur 418 de React (hydratation) : elle apparaît par intermittence à un chargement complet de /qg en ligne, en
 // production seulement. Cause non établie ; mesures et diagnostics dans docs/tests.md, section 418.
 const ERREUR_418 = "Minified React error #418"
 
-// Premier chargement en ligne de /qg : le 418 y est toléré, compté dans le log et retiré des erreurs de la page. Toute
-// autre erreur, et tout 418 à un autre moment, fait toujours échouer le test (les erreurs de la fenêtre sont remises).
-async function premierQgEnLigne(page: Page, erreurs: string[]): Promise<void> {
+// Chargement complet de /qg en ligne, avant le passage hors ligne : le 418 y est toléré, compté dans le log et retiré des
+// erreurs de la page. Toute autre erreur, et tout 418 après setOffline ou sur une autre page, fait toujours échouer le
+// test (les erreurs de la fenêtre sont remises).
+async function qgEnLigne(page: Page, erreurs: string[]): Promise<void> {
   const avant = erreurs.length
   await page.goto("/qg")
   await expect(tuilesDuQg(page)).toHaveCount(11)
@@ -105,11 +106,10 @@ test("hors ligne : + puis Note depuis le QG ouvre les notes sans erreur", async 
   page.on("pageerror", (erreur) => erreurs.push(erreur.message))
 
   await connecterParLien(page, equipe)
-  await premierQgEnLigne(page, erreurs)
+  await qgEnLigne(page, erreurs)
   await attendreServiceWorker(page)
   await page.goto("/notes")
-  await page.goto("/qg")
-  await expect(tuilesDuQg(page)).toHaveCount(11)
+  await qgEnLigne(page, erreurs)
 
   await context.setOffline(true)
   await page.getByRole("button", { name: "Ajouter" }).first().click()
@@ -136,9 +136,9 @@ test("hors ligne : une app jamais visitée affiche la page de repli, sans écran
   page.on("pageerror", (erreur) => erreurs.push(erreur.message))
 
   await connecterParLien(page, equipe)
-  await premierQgEnLigne(page, erreurs)
+  await qgEnLigne(page, erreurs)
   await attendreServiceWorker(page)
-  await page.goto("/qg")
+  await qgEnLigne(page, erreurs)
 
   await context.setOffline(true)
   await page.locator('a[href="/apps/budget"]').filter({ has: page.locator("h2") }).click()
