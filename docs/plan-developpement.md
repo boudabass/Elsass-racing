@@ -291,6 +291,7 @@ Décisions de John (20/10) :
 
 ### 4.6 Équipements de la team
 - Remorque, outillage, levage, assistance, stand : état, valeur, prochain contrôle, emplacement.
+- Brief : `docs/briefs/4.6-garage-equipements.md`. Livré le 24/10 sur verif (985f75a, dc17dca, a65d71e, puis captures et journal). État en texte libre (choix 3 tranché), pas de lien Budget, pas de migration. Run vert 40136799334 (a65d71e) : unitaires 883, e2e 151, `db:verifier-garage` section 16. Sur dev après ce run, à tester par John avec le lot 4.
 
 ### 4.7 Vérification du lot 4
 - Parcours e2e complet (de l'achat à l'usure validée, à la zone rouge, au plan avant épreuve et à l'indice de Saison), audit Impeccable des écrans, corrections. Puis test de John sur dev.
