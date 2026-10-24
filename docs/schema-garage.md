@@ -361,3 +361,22 @@ Le point d'arrêt est tranché. La 4.3 reprend avec ces choix, à appliquer tels
 - **D6 : oui.** Migration additive des commandes : `component_type_id` et `qualite` sur `garage_purchase_line`, `commande_ligne_id` sur `garage_part`.
 - **D7 : oui.** `garage.travail_termine` émis après la transaction ; un échec est journalisé sans annuler la fin.
 - **D8 : corrigé.** Budget reçoit `pieces` et `main_oeuvre` dans `CLE_CATEGORIE` (4.3), et le gestionnaire choisit sa catégorie par clé, jamais par nom.
+
+## Trains de pneus et casses (4.4)
+
+Migration `20261024120000_garage_pneus_casses` (étape 1) : index unique partiel `garage_tyre_set_monte_key` (un seul train monté par organe, `vehicle_component_id` non null, `deleted_at` null) ; index unique partiel `garage_incident_engagement_key` (une fiche casse par `event_entry_id`) ; `garage_incident.type` devient facultatif (option A, John 24/10 : une fiche créée par un abandon reste « à compléter »).
+
+### Contrat de réception des trains [Orch 24/10]
+
+- Une ligne de commande peut porter l'organe Pneus (cle `pneus`). À la réception, elle ne crée **pas** de `garage_part` : elle crée `quantite` lignes de `garage_tyre_set`, même `vehicle_id`, `acheteLe` = `recue_le`, `vehicle_component_id` null, `statut` neuf, marque, modèle, gomme, type et dimensions repris des données du train.
+- Ces données ne sont pas dans la ligne de commande (elle n'a pas de type de pneus) : elles arrivent par `recevoirCommandeDans(ctx, id, train)`. Une seule voie les fournit : l'achat d'un train depuis l'écran Pneus (`ajouterTrainAcheteDans`, qui crée la commande avec `achatTrain`, l'expédie et la reçoit tout de suite).
+- Refus, sans écriture : une ligne Pneus créée depuis Commandes (« Un train de pneus s'achète depuis l'écran Pneus. ») ; une réception d'une ligne Pneus sans données de train (même message) ; des données de train sans ligne Pneus (« Ces données de train ne correspondent à aucune ligne de pneus de cette commande. »).
+- Le Budget reçoit un seul `garage.piece_achetee` par commande reçue, comme pour les pièces. Il ne lit pas de pièce : seulement `purchaseId`, `vehicleId`, `supplierContactId`, `totalCents`, `devise`, `recueLe`.
+- Sans prix : le train est créé directement (pas de commande, pas d'événement, pas de proposition).
+- Mesure du 24/10 sur dev (lecture seule) avant ce refus : aucune ligne de commande sur l'organe Pneus, aucune `garage_part` de type Pneus, aucun train actif.
+- Remplacer sur l'organe Pneus (pièce de commande) passe désormais par le même refus : un train ne se pose pas comme une pièce.
+
+### Montage et usure des trains
+
+- `monterTrainDans` : dans une transaction, le train en place sur l'organe Pneus est démonté (`vehicle_component_id` à null, sans destination), puis le train choisi est monté. Un train déjà monté est refusé ; un train d'une autre voiture aussi. Deux montages simultanés : l'index unique refuse le second (P2002, rendu en « rechargez l'écran »).
+- `saisirUsureTrainDans` : usure entière de 0 à 100 %, statut `neuf`, `utilise` ou `use` (libellés « Neuf », « Utilisé », « Usé »), saisis à la main.

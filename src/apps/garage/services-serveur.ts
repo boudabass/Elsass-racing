@@ -40,6 +40,7 @@ import {
   type SaisieEtat,
 } from "./regles"
 import { avancementValide, coutValide, PRIORITES_TRAVAIL, statutModifiable, TYPES_ORDRE } from "./travaux"
+import { MESSAGE_TRAIN_A_ACHETER, MESSAGE_TRAIN_SANS_LIGNE, type TypePneus } from "./pneus"
 
 export { ErreurGarage }
 
@@ -384,6 +385,12 @@ async function pieceDans(tx: Tx, teamId: string, id: string) {
 async function typeDansTeam(tx: Tx, teamId: string, componentTypeId: string): Promise<void> {
   const type = await tx.garageComponentType.findFirst({ where: { id: componentTypeId, teamId, deletedAt: null }, select: { id: true } })
   if (!type) refus("Ce type d'organe n'existe pas dans la team.")
+}
+
+// Vrai si une ligne porte l'organe Pneus (cle « pneus », 954 §3). Ces lignes ne deviennent jamais des pièces.
+async function estLigneDePneus(tx: Tx, teamId: string, lignes: Array<{ componentTypeId: string }>): Promise<boolean> {
+  const typePneus = await tx.garageComponentType.findFirst({ where: { teamId, cle: "pneus", deletedAt: null }, select: { id: true } })
+  return typePneus !== null && lignes.some((ligne) => ligne.componentTypeId === typePneus.id)
 }
 
 function verifierSeuils(orange: number, rouge: number): void {
@@ -1458,7 +1465,13 @@ export async function creerCommande(vehicleId: string, entree: EntreeCommande): 
   return creerCommandeDans(ctx, vehicleId, entree)
 }
 
-export async function creerCommandeDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeCommande): Promise<string> {
+// Une ligne sur l'organe Pneus ne se commande pas ici : un train s'achète depuis l'écran Pneus [Orch 24/10]. L'achat d'un
+// train (achatTrain) est la seule voie qui la crée.
+export interface OptionsCommande {
+  achatTrain?: boolean
+}
+
+export async function creerCommandeDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeCommande, options: OptionsCommande = {}): Promise<string> {
   const donnees = schemaCommande.parse(entree)
   const id = newId()
   await avecReprisePourConflit(() =>
@@ -1466,6 +1479,7 @@ export async function creerCommandeDans(ctx: ContexteTeam, vehicleId: string, en
       await vehiculeDans(tx, ctx.teamId, vehicleId)
       await fournisseurDans(tx, ctx.teamId, donnees.supplierContactId)
       for (const ligne of donnees.lignes) await typeDansTeam(tx, ctx.teamId, ligne.componentTypeId)
+      if (!options.achatTrain && (await estLigneDePneus(tx, ctx.teamId, donnees.lignes))) refus(MESSAGE_TRAIN_A_ACHETER)
       await tx.garagePurchase.create({
         data: {
           id,
@@ -1528,7 +1542,16 @@ export async function recevoirCommande(id: string): Promise<void> {
 // Réception : une transaction. Le verrou sur le statut (updateMany « pas encore reçue ») passe avant tout le reste : une
 // seconde réception concurrente ne voit aucune ligne et ne crée rien. Une ligne sans organe bloque la réception.
 // Renvoie les identifiants des pièces créées, une par unité : Remplacer s'en sert pour poser la pièce achetée.
-export async function recevoirCommandeDans(ctx: ContexteTeam, id: string): Promise<string[]> {
+// Données d'un train acheté : une ligne Pneus de la commande devient un train (garage_tyre_set), pas une pièce [Orch 24/10].
+export interface TrainAchete {
+  marque: string
+  modele?: string | null
+  gomme?: string | null
+  type: TypePneus
+  dimensions?: string | null
+}
+
+export async function recevoirCommandeDans(ctx: ContexteTeam, id: string, train: TrainAchete | null = null): Promise<string[]> {
   const recueLe = new Date()
   const bilan = await avecReprisePourConflit(() =>
     executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
@@ -1539,17 +1562,24 @@ export async function recevoirCommandeDans(ctx: ContexteTeam, id: string): Promi
       if (!commande) refus("Commande introuvable.")
       if (!receptionPossible(commande.statut)) refus("Cette commande est déjà reçue.")
 
+      // Contrôle avant toute écriture : une ligne Pneus sans données de train est refusée, rien n'est écrit.
+      const lignes = await tx.garagePurchaseLine.findMany({
+        where: { purchaseId: id, teamId: ctx.teamId, deletedAt: null },
+        orderBy: { createdAt: "asc" },
+      })
+      const typePneus = await tx.garageComponentType.findFirst({ where: { teamId: ctx.teamId, cle: "pneus", deletedAt: null }, select: { id: true } })
+      const lignesPneus = lignes.filter((ligne) => typePneus !== null && ligne.componentTypeId === typePneus.id)
+      if (lignesPneus.length > 0 && train === null) refus(MESSAGE_TRAIN_A_ACHETER)
+      if (lignesPneus.length === 0 && train !== null) refus(MESSAGE_TRAIN_SANS_LIGNE)
+
       const fin = await tx.garagePurchase.updateMany({
         where: { id, teamId: ctx.teamId, deletedAt: null, statut: { not: "recue" } },
         data: { statut: "recue", recueLe, rev: { increment: 1 }, updatedBy: ctx.userId },
       })
       if (fin.count === 0) refus("Cette commande est déjà reçue.")
 
-      const lignes = await tx.garagePurchaseLine.findMany({
-        where: { purchaseId: id, teamId: ctx.teamId, deletedAt: null },
-        orderBy: { createdAt: "asc" },
-      })
       const pieces: Prisma.GaragePartCreateManyInput[] = []
+      const trains: Prisma.GarageTyreSetCreateManyInput[] = []
       const idsPieces: string[] = []
       const idPiece = () => {
         const idNouvelle = newId()
@@ -1560,6 +1590,27 @@ export async function recevoirCommandeDans(ctx: ContexteTeam, id: string): Promi
       for (const ligne of lignes) {
         if (!ligne.componentTypeId) refus(`La ligne « ${ligne.designation} » n'a pas d'organe : complétez-la avant la réception.`)
         totalCents += ligne.quantite * ligne.prixUnitaireCents
+        if (ligne.componentTypeId === typePneus?.id && train) {
+          // Un train par unité, non monté, au statut neuf (954 §3). Il n'entre pas dans idsPieces : ce n'est pas une pièce.
+          for (let unite = 0; unite < ligne.quantite; unite += 1) {
+            trains.push({
+              id: newId(),
+              teamId: ctx.teamId,
+              vehicleId: commande.vehicleId,
+              vehicleComponentId: null,
+              marque: train.marque.trim(),
+              modele: train.modele?.trim() || null,
+              gomme: train.gomme?.trim() || null,
+              type: train.type,
+              dimensions: train.dimensions?.trim() || null,
+              acheteLe: recueLe,
+              statut: "neuf",
+              createdBy: ctx.userId,
+              updatedBy: ctx.userId,
+            })
+          }
+          continue
+        }
         for (let unite = 0; unite < ligne.quantite; unite += 1) {
           pieces.push({
             id: idPiece(),
@@ -1581,6 +1632,7 @@ export async function recevoirCommandeDans(ctx: ContexteTeam, id: string): Promi
         }
       }
       if (pieces.length > 0) await tx.garagePart.createMany({ data: pieces })
+      if (trains.length > 0) await tx.garageTyreSet.createMany({ data: trains })
       return {
         vehicleId: commande.vehicleId,
         supplierContactId: commande.supplierContactId,

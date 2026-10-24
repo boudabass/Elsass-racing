@@ -42,6 +42,7 @@ async function refuse(action: Promise<unknown>): Promise<string | null> {
 async function main() {
   // Import dynamique : .env.local doit être chargé avant la création du client applicatif.
   const services = await import("../src/apps/garage/services-serveur")
+  const pneus = await import("../src/apps/garage/pneus-serveur")
   const { executerPourTeam } = await import("../src/lib/prisma")
 
   const suffixe = randomUUID().slice(0, 8)
@@ -424,6 +425,132 @@ async function main() {
     controle("la pièce de l'intervention est posée sur l'organe", poseIntervention.partId === pieceIntervention, `${poseIntervention.partId}`)
     const cassee = await proprietaire.garagePart.findUniqueOrThrow({ where: { id: occupeAvantIntervention.partId } })
     controle("l'ancienne pièce, déposée au rebut, passe à « cassée »", cassee.statut === "cassee", cassee.statut)
+
+    // 13. Trains de pneus (tâche 4.4, brief §2 ; décision de l'orchestrateur du 24/10). Un train acheté avec un prix passe par
+    // une commande reçue : un garage_tyre_set, aucune garage_part, un seul garage.piece_achetee, une proposition Budget. Une
+    // ligne Pneus hors de l'écran Pneus, et une réception Pneus sans données de train, sont refusées sans rien écrire.
+    const typePneus = typeDe("pneus")
+    const organePneus = organeDe("pneus")
+    const fournisseurPneus = randomUUID()
+    await proprietaire.coreContact.create({ data: { id: fournisseurPneus, teamId: team.id, nom: `Pneumatiques ${suffixe}` } })
+    const comptesPneus = async () => ({
+      achats: await proprietaire.garagePurchase.count({ where: { teamId: team.id } }),
+      trains: await proprietaire.garageTyreSet.count({ where: { teamId: team.id, deletedAt: null } }),
+      piecesPneus: await proprietaire.garagePart.count({ where: { teamId: team.id, componentTypeId: typePneus } }),
+      evenements: await proprietaire.coreDomainEvent.count({ where: { teamId: team.id, nom: "garage.piece_achetee" } }),
+      propositions: await proprietaire.budgetSuggestion.count({ where: { teamId: team.id, deletedAt: null } }),
+    })
+    const ligneDePneus = { designation: "Pneu", componentTypeId: typePneus, quantite: 1, prixUnitaireCents: 5000, qualite: "origine" as const }
+    const commandeDuJour = { supplierContactId: fournisseurPneus, commandeeLe: "2026-10-24", lignes: [ligneDePneus] }
+    const messagePneus = "Un train de pneus s'achète depuis l'écran Pneus."
+
+    // 13 a. Une ligne Pneus créée depuis Commandes est refusée, avec sa raison, sans rien écrire.
+    const avantLigne = await comptesPneus()
+    const refusLigne = await refuse(services.creerCommandeDans(ctx, vehicule, commandeDuJour))
+    controle("une ligne Pneus créée depuis Commandes est refusée, avec sa raison", refusLigne === messagePneus, `${refusLigne}`)
+    controle("ce refus n'écrit ni commande, ni train", JSON.stringify(await comptesPneus()) === JSON.stringify(avantLigne))
+
+    // 13 b. Une réception Pneus sans données de train est refusée avant toute écriture : la commande reste expédiée.
+    const commandeNue = await services.creerCommandeDans(ctx, vehicule, commandeDuJour, { achatTrain: true })
+    await services.expedierCommandeDans(ctx, commandeNue)
+    const avantNue = await comptesPneus()
+    const refusNue = await refuse(services.recevoirCommandeDans(ctx, commandeNue))
+    controle("une réception Pneus sans données de train est refusée, avec sa raison", refusNue === messagePneus, `${refusNue}`)
+    const statutNue = await proprietaire.garagePurchase.findUniqueOrThrow({ where: { id: commandeNue } })
+    controle(
+      "la commande reste expédiée, et rien n'est créé à la réception refusée",
+      statutNue.statut === "expediee" && JSON.stringify(await comptesPneus()) === JSON.stringify(avantNue),
+      statutNue.statut,
+    )
+
+    // 13 c. Train avec prix : une commande reçue, un garage_tyre_set non monté, neuf, acheté à la date de réception, aucune
+    // garage_part, un seul garage.piece_achetee du bon montant, et une proposition Budget à confirmer.
+    const avantPrix = await comptesPneus()
+    await pneus.ajouterTrainAcheteDans(ctx, vehicule, {
+      train: { marque: "Michelin", modele: "Alpin", type: "pluie" },
+      fournisseurContactId: fournisseurPneus,
+      prixCents: 12000,
+    })
+    const apresPrix = await comptesPneus()
+    controle(
+      "un train acheté avec prix : une commande et un train, aucune pièce",
+      apresPrix.achats === avantPrix.achats + 1 && apresPrix.trains === avantPrix.trains + 1 && apresPrix.piecesPneus === avantPrix.piecesPneus,
+      JSON.stringify([avantPrix, apresPrix]),
+    )
+    const trainAchete = await proprietaire.garageTyreSet.findFirstOrThrow({ where: { teamId: team.id, marque: "Michelin" } })
+    controle(
+      "le train est non monté, neuf, de type pluie, acheté à la réception",
+      trainAchete.vehicleComponentId === null && trainAchete.statut === "neuf" && trainAchete.type === "pluie" && trainAchete.acheteLe !== null,
+      `${trainAchete.vehicleComponentId} ${trainAchete.statut} ${trainAchete.type}`,
+    )
+    const achatPneus = await proprietaire.garagePurchaseLine.findFirstOrThrow({ where: { teamId: team.id, componentTypeId: typePneus, purchase: { vehicleId: vehicule } } })
+    const evenementsTrain = (await proprietaire.coreDomainEvent.findMany({ where: { teamId: team.id, nom: "garage.piece_achetee" } })).filter(
+      (evenement) => (evenement.donnees as { purchaseId?: string }).purchaseId === achatPneus.purchaseId,
+    )
+    controle(
+      "un seul garage.piece_achetee pour l'achat du train, du bon montant",
+      evenementsTrain.length === 1 && (evenementsTrain[0].donnees as { totalCents?: number }).totalCents === 12000,
+      `${evenementsTrain.length} événement(s)`,
+    )
+    const propositionTrain = await proprietaire.budgetSuggestion.findMany({
+      where: { teamId: team.id, origineRef: `garage_purchase:${achatPneus.purchaseId}`, deletedAt: null },
+    })
+    controle(
+      "Budget propose une dépense pour le train, en attente",
+      propositionTrain.length === 1 && propositionTrain[0].montant === 12000 && propositionTrain[0].statut === "en_attente",
+      JSON.stringify(propositionTrain.map((p) => [p.montant, p.statut])),
+    )
+
+    // 13 d. Sans prix : le train entre directement, sans commande, sans événement ni proposition.
+    const avantSansPrixTrain = await comptesPneus()
+    await pneus.ajouterTrainAcheteDans(ctx, vehicule, { train: { marque: "Continental", type: "terre" }, fournisseurContactId: null, prixCents: null })
+    const apresSansPrixTrain = await comptesPneus()
+    controle(
+      "un train sans prix : un train, ni commande, ni événement, ni proposition",
+      apresSansPrixTrain.trains === avantSansPrixTrain.trains + 1 &&
+        apresSansPrixTrain.achats === avantSansPrixTrain.achats &&
+        apresSansPrixTrain.evenements === avantSansPrixTrain.evenements &&
+        apresSansPrixTrain.propositions === avantSansPrixTrain.propositions,
+      JSON.stringify([avantSansPrixTrain, apresSansPrixTrain]),
+    )
+
+    // 13 e. Montage : un seul train monté par organe, le précédent démonté sans destination ; un montage déjà en place est refusé.
+    const trainA = trainAchete.id
+    const trainB = (await proprietaire.garageTyreSet.findFirstOrThrow({ where: { teamId: team.id, marque: "Continental" } })).id
+    const trainC = randomUUID()
+    await proprietaire.garageTyreSet.create({ data: { id: trainC, teamId: team.id, vehicleId: vehicule, marque: "Pirelli", type: "neige", statut: "neuf" } })
+    await pneus.monterTrainDans(ctx, trainA, organePneus)
+    await pneus.monterTrainDans(ctx, trainB, organePneus)
+    const montesApres = await proprietaire.garageTyreSet.findMany({ where: { teamId: team.id, vehicleComponentId: organePneus, deletedAt: null } })
+    controle("un seul train monté sur l'organe pneus, le dernier monté", montesApres.length === 1 && montesApres[0].id === trainB, `${montesApres.length}`)
+    const demonte = await proprietaire.garageTyreSet.findUniqueOrThrow({ where: { id: trainA } })
+    controle("le train démonté reste à la team, sans destination", demonte.vehicleComponentId === null && demonte.deletedAt === null)
+    const refusDejaMonte = await refuse(pneus.monterTrainDans(ctx, trainB, organePneus))
+    controle("monter un train déjà monté est refusé, avec sa raison", refusDejaMonte === "Ce train est déjà monté.", `${refusDejaMonte}`)
+
+    // 13 f. Course : deux montages simultanés sur le même organe ne laissent qu'un train monté ; l'autre est refusé.
+    const resultatsCourse = await Promise.allSettled([pneus.monterTrainDans(ctx, trainA, organePneus), pneus.monterTrainDans(ctx, trainC, organePneus)])
+    const montesCourse = await proprietaire.garageTyreSet.count({ where: { teamId: team.id, vehicleComponentId: organePneus, deletedAt: null } })
+    const erreursInattendues = resultatsCourse.filter((r) => r.status === "rejected" && !(r.reason instanceof services.ErreurGarage))
+    controle("deux montages simultanés : un seul train monté", montesCourse === 1, `${montesCourse}`)
+    controle("la course ne lève que des refus avec leur raison", erreursInattendues.length === 0, `${erreursInattendues.length}`)
+
+    // 13 g. Usure et statut saisis à la main : hors de 0 à 100 refusé ; 42 % et « Utilisé » enregistrés.
+    const refusUsure = await refuse(pneus.saisirUsureTrainDans(ctx, trainC, { usureEstimeePct: 150, statut: "utilise" }))
+    controle("une usure de 150 % est refusée, avec sa raison", refusUsure === "L'usure estimée est un nombre entier de 0 à 100 %.", `${refusUsure}`)
+    await pneus.saisirUsureTrainDans(ctx, trainC, { usureEstimeePct: 42, statut: "utilise" })
+    const saisi = await proprietaire.garageTyreSet.findUniqueOrThrow({ where: { id: trainC } })
+    controle("l'usure de 42 % et le statut « utilisé » sont enregistrés", saisi.usureEstimeePct === 42 && saisi.statut === "utilise", `${saisi.usureEstimeePct} ${saisi.statut}`)
+
+    // 13 h. Index unique partiel : la base refuse un second train monté sur le même organe.
+    const second = await refuse(
+      proprietaire.garageTyreSet.create({ data: { id: randomUUID(), teamId: team.id, vehicleId: vehicule, vehicleComponentId: organePneus, marque: "Test", type: "terre", statut: "neuf" } }),
+    )
+    controle("la base refuse un second train monté sur le même organe", second !== null)
+
+    // 13 i. Type de casse facultatif (option A) : une fiche casse sans type est acceptée, « à compléter ».
+    const fiche = await proprietaire.garageIncident.create({ data: { id: randomUUID(), teamId: team.id, vehicleId: vehicule, date: new Date(), type: null } })
+    controle("une fiche casse sans type est acceptée par la base (à compléter)", fiche.type === null)
   } finally {
     // Nettoyage avec le rôle propriétaire, dans l'ordre des clés étrangères, pour les deux teams. Budget et les actions
     // d'abord : ils ne dépendent pas des tables du Garage.
@@ -442,6 +569,7 @@ async function main() {
     await proprietaire.garageWorkOrderPart.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageWorkOrderPerson.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageWorkOrder.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageIncident.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garageTyreSet.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.garagePart.deleteMany({ where: { teamId: { in: equipes } } })
     // Achats : les lignes d'abord (elles tiennent la commande), puis les commandes, puis le fournisseur qu'elles citent.

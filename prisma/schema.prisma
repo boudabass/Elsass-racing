@@ -3290,8 +3290,8 @@ model GarageIncident {
   date                  DateTime        @db.Timestamptz(3)
   specialeNom           String?         @map("speciale_nom")
   stageId               String?         @map("stage_id") @db.Uuid
-  type                  GarageTypeCasse
-  cause                 String?
+  type                  GarageTypeCasse?
+  cause                String?
   reparationWorkOrderId String?         @map("reparation_work_order_id") @db.Uuid
 
   createdAt DateTime  @map("created_at") @db.Timestamptz(3) @default(now())
