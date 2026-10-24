@@ -36,9 +36,10 @@ export function FormulaireIntervention({ vehicleId, organes, organesOccupes, pie
   const [enregistrementLocal, setEnregistrementLocal] = useState(false)
   const [organeChoisi, setOrganeChoisi] = useState("")
   const [pieceChoisie, setPieceChoisie] = useState("")
-  // Sur un organe occupé, poser une pièce demande l'ancienne pièce : motif et destination, comme dans Remplacer.
+  // Sur un organe occupé, poser une pièce demande l'ancienne pièce : motif et destination, comme dans Remplacer. Hors ligne,
+  // une pièce est refusée à l'envoi (« reviens en ligne ») : la validation du formulaire ne doit pas la bloquer avant.
   const organeOccupe = organesOccupes.includes(organeChoisi)
-  const pose = organeOccupe && pieceChoisie !== ""
+  const poseEnLigne = organeOccupe && pieceChoisie !== "" && etat.enLigne
 
   useEffect(() => {
     if (resultat?.ok) router.push(retour)
@@ -122,7 +123,7 @@ export function FormulaireIntervention({ vehicleId, organes, organesOccupes, pie
               </select>
               <span className="text-texte-discret">Avec une pièce, elle est posée sur l&apos;organe. Sans pièce, l&apos;ordre est une réparation.</span>
             </label>
-            {organeOccupe && <ChampsPieceEnPlace requis={pose} />}
+            {organeOccupe && <ChampsPieceEnPlace requis={poseEnLigne} />}
           </>
         )}
       </form>
