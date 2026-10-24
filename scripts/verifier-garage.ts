@@ -483,7 +483,10 @@ async function main() {
       trainAchete.vehicleComponentId === null && trainAchete.statut === "neuf" && trainAchete.type === "pluie" && trainAchete.acheteLe !== null,
       `${trainAchete.vehicleComponentId} ${trainAchete.statut} ${trainAchete.type}`,
     )
-    const achatPneus = await proprietaire.garagePurchaseLine.findFirstOrThrow({ where: { teamId: team.id, componentTypeId: typePneus, purchase: { vehicleId: vehicule } } })
+    // La commande reçue, pas celle de la section 13 b (refusée à la réception, restée expédiée).
+    const achatPneus = await proprietaire.garagePurchaseLine.findFirstOrThrow({
+      where: { teamId: team.id, componentTypeId: typePneus, purchase: { vehicleId: vehicule, statut: "recue" } },
+    })
     const evenementsTrain = (await proprietaire.coreDomainEvent.findMany({ where: { teamId: team.id, nom: "garage.piece_achetee" } })).filter(
       (evenement) => (evenement.donnees as { purchaseId?: string }).purchaseId === achatPneus.purchaseId,
     )
