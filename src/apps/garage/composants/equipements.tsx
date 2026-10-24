@@ -243,7 +243,7 @@ function ChampsEquipement({ defaut }: { defaut?: EquipementLigne }) {
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">État (facultatif)</span>
-        <input name="etat" maxLength={200} defaultValue={defaut?.etat ?? ""} placeholder="Bon, pneu de secours à changer…" className={CHAMP} />
+        <input name="etat" maxLength={200} defaultValue={defaut?.etat ?? ""} placeholder="Bon, pneu de secours usé…" className={CHAMP} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">Emplacement (facultatif)</span>

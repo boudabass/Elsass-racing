@@ -43,7 +43,7 @@ function CarteOrdre({ ordre, peutEcrire }: { ordre: OrdreTravail; peutEcrire: bo
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-bordure bg-surface p-4">
       <h3 className="text-base font-semibold text-texte">
-        <Link href={`/apps/garage/travaux/${ordre.id}`} className="underline underline-offset-4 decoration-marque decoration-2 hover:text-marque">
+        <Link href={`/apps/garage/travaux/${ordre.id}`} className={LIEN}>
           {ordre.titre}
         </Link>
       </h3>
