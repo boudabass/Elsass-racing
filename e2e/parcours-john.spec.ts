@@ -298,10 +298,8 @@ test("parcours de John : le QG, l'atelier du rouge au vert, Commandes, Budget, l
   await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }))
   await expect(page.getByRole("dialog")).toHaveCount(0)
 
-  await tuile(page, "saison").click()
-  await arriver(page, /\/apps\/saison$/, TITRE_APP.saison)
-  await page.getByRole("link", { name: "Liste", exact: true }).click()
-  await page.getByRole("link", { name: /20e Rallye de l'Alsace Bossue/ }).click()
+  // Retour à l'épreuve par son lien d'en-tête (la page de l'engagement n'a pas le QG), puis l'onglet Résultats.
+  await page.getByRole("link", { name: /← 20e Rallye de l'Alsace Bossue/ }).click()
   await arriver(page, /\/apps\/saison\/epreuves\/[0-9a-f-]{36}$/)
   await page.getByRole("link", { name: "Résultats", exact: true }).click()
   await page.getByRole("button", { name: /^(Saisir|Modifier) le résultat$/ }).first().click()
