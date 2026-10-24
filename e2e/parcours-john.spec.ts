@@ -263,7 +263,7 @@ test("parcours de John : le QG, l'atelier du rouge au vert, Commandes, Budget, l
   await page.getByRole("link", { name: "Ajouter un train", exact: true }).click()
   await arriver(page, /\/apps\/garage\/pneus\/nouveau$/)
   await page.getByLabel("Marque", { exact: true }).fill("Pirelli")
-  await page.getByLabel("Type", { exact: true }).selectOption({ label: "Pluie" })
+  await page.getByRole("combobox", { name: "Type", exact: true }).selectOption({ label: "Pluie" })
   await page.getByLabel("Modèle (facultatif)").fill("Cinturato")
   await page.getByLabel("Dimensions (facultatif)").fill("195/55 R15")
   await envoyer(page, page.getByRole("button", { name: "Ajouter le train", exact: true }))

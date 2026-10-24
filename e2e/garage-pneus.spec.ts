@@ -49,7 +49,8 @@ test("responsable · un train de pneus : ajouté, monté, usure saisie, filtre d
   // Ajout sans prix : marque, type, modèle, dimensions. Le train entre à la team, non monté.
   await page.getByRole("link", { name: "Ajouter un train", exact: true }).click()
   await page.getByLabel("Marque", { exact: true }).fill("Michelin")
-  await page.getByLabel("Type", { exact: true }).selectOption({ label: "Pluie" })
+  // Les listes déroulantes sont dans leur libellé : leur nom accessible est « Type », mais getByLabel y lit aussi les options.
+  await page.getByRole("combobox", { name: "Type", exact: true }).selectOption({ label: "Pluie" })
   await page.getByLabel("Modèle (facultatif)").fill("Alpin")
   await page.getByLabel("Dimensions (facultatif)").fill("195/55 R15")
   await envoyer(page, page.getByRole("button", { name: "Ajouter le train", exact: true }))
@@ -64,7 +65,7 @@ test("responsable · un train de pneus : ajouté, monté, usure saisie, filtre d
 
   // Usure et statut saisis à la main : 42 %, usé.
   await page.getByLabel("Usure estimée, en % (0 à 100)").fill("42")
-  await page.getByLabel("Statut", { exact: true }).selectOption({ label: "Usé" })
+  await page.getByRole("combobox", { name: "Statut", exact: true }).selectOption({ label: "Usé" })
   await envoyer(page, page.getByRole("button", { name: "Enregistrer l'usure", exact: true }))
   await expect(page.getByLabel("Usure estimée, en % (0 à 100)")).toHaveValue("42")
   await capturerPage(page, "garage-pneus-fiche-1440.png")
