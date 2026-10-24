@@ -3,13 +3,20 @@
 export const TYPES_CASSE = ["casse_mecanique", "sortie", "accident"] as const
 export type TypeCasse = (typeof TYPES_CASSE)[number]
 
+// 954 §1 et §3 : « casse mécanique », « sortie de route » (vocabulaire du rallye), « accident ».
+export const LIBELLES_TYPE_CASSE: Record<TypeCasse, string> = {
+  casse_mecanique: "Casse mécanique",
+  sortie: "Sortie de route",
+  accident: "Accident",
+}
+
 export function typeCasseValide(type: string): type is TypeCasse {
   return (TYPES_CASSE as readonly string[]).includes(type)
 }
 
 // Une fiche est « à compléter » tant qu'elle n'a pas de type ou pas d'organe touché (option A, décision de John du 24/10).
 // Elle ne pousse rien sur le QG : c'est une information pour l'équipe.
-export function ficheAComplter(fiche: { type: TypeCasse | null; organesTouches: number }): boolean {
+export function ficheACompleter(fiche: { type: TypeCasse | null; organesTouches: number }): boolean {
   return fiche.type === null || fiche.organesTouches === 0
 }
 

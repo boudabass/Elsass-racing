@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { ficheAComplter, montageALaDate, typeCasseValide } from "./casses"
+import { ficheACompleter, LIBELLES_TYPE_CASSE, montageALaDate, typeCasseValide } from "./casses"
 
 describe("typeCasseValide", () => {
   it("accepte les trois types de l'enum, et refuse le reste", () => {
@@ -12,17 +12,23 @@ describe("typeCasseValide", () => {
   })
 })
 
-describe("ficheAComplter", () => {
+describe("libellés des types de casse", () => {
+  it("affichent le vocabulaire du rallye, sans renommer les valeurs", () => {
+    expect(LIBELLES_TYPE_CASSE).toEqual({ casse_mecanique: "Casse mécanique", sortie: "Sortie de route", accident: "Accident" })
+  })
+})
+
+describe("ficheACompleter", () => {
   it("reste à compléter sans type, même avec des organes touchés", () => {
-    expect(ficheAComplter({ type: null, organesTouches: 2 })).toBe(true)
+    expect(ficheACompleter({ type: null, organesTouches: 2 })).toBe(true)
   })
 
   it("reste à compléter sans organe touché, même avec un type", () => {
-    expect(ficheAComplter({ type: "accident", organesTouches: 0 })).toBe(true)
+    expect(ficheACompleter({ type: "accident", organesTouches: 0 })).toBe(true)
   })
 
   it("n'est plus à compléter une fois le type et un organe renseignés", () => {
-    expect(ficheAComplter({ type: "sortie", organesTouches: 1 })).toBe(false)
+    expect(ficheACompleter({ type: "sortie", organesTouches: 1 })).toBe(false)
   })
 })
 
