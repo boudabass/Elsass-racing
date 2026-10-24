@@ -649,6 +649,20 @@ async function main() {
     const lignesRetablies = await proprietaire.garageIncidentComponent.count({ where: { incidentId: ficheMain } })
     controle("l'organe rétabli se réactive sans doublon", lignesRetablies === 1, `${lignesRetablies} ligne(s)`)
 
+    // Réparation liée (954 §3) : seulement sur un organe touché, un ordre par fiche, lu avec la fiche.
+    const organeNonTouche = await refuse(casses.ouvrirReparationCasseDans(ctx, ficheMain, randomUUID()))
+    controle("une réparation ne s'ouvre que sur un organe touché", organeNonTouche === "Cet organe n'est pas touché par cette casse.", organeNonTouche ?? "acceptée")
+    const reparation = await casses.ouvrirReparationCasseDans(ctx, ficheMain, montage.vehicleComponentId)
+    const ordre = await proprietaire.garageWorkOrder.findUniqueOrThrow({ where: { id: reparation } })
+    const ficheLiee = await proprietaire.garageIncident.findUniqueOrThrow({ where: { id: ficheMain } })
+    controle(
+      "la réparation est un ordre de réparation sur l'organe touché, titré « Casse », et la fiche la retient",
+      ordre.type === "reparation" && ordre.vehicleComponentId === montage.vehicleComponentId && ordre.titre === "Casse" && ficheLiee.reparationWorkOrderId === reparation,
+      `${ordre.type} ${ordre.titre}`,
+    )
+    const deuxieme = await refuse(casses.ouvrirReparationCasseDans(ctx, ficheMain, montage.vehicleComponentId))
+    controle("une fiche n'a qu'une réparation liée", deuxieme === "Cette fiche a déjà une réparation liée.", deuxieme ?? "acceptée")
+
     // Cloisonnement : une autre team ne voit pas la fiche.
     const vueFicheAutreTeam = await executerPourTeam(equipe2.id, utilisateur.id, (tx) => tx.garageIncident.count({ where: { id: ficheMain } }))
     controle("une autre team ne voit pas la fiche casse", vueFicheAutreTeam === 0, `${vueFicheAutreTeam} vue(s)`)

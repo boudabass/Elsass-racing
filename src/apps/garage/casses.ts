@@ -26,3 +26,8 @@ export function montageALaDate(montage: { poseLe: Date; deposeeLe: Date | null }
   if (montage.poseLe.getTime() > date.getTime()) return false
   return montage.deposeeLe === null || montage.deposeeLe.getTime() >= date.getTime()
 }
+
+// Titre de l'ordre de réparation ouvert depuis une fiche casse (954 §3) : « Casse : <épreuve> », « Casse » hors épreuve.
+export function titreReparationCasse(nomEpreuve: string | null): string {
+  return nomEpreuve ? `Casse : ${nomEpreuve}` : "Casse"
+}

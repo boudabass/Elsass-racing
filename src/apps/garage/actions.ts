@@ -40,6 +40,7 @@ import {
   type EntreeUsureManuelle,
 } from "./services-serveur"
 import { ajouterTrain, ajouterTrainAchete, monterTrain, saisirUsureTrain } from "./pneus-serveur"
+import { completerFicheCasse, creerFicheCasse, ouvrirReparationCasse } from "./casses-serveur"
 
 export type { Resultat }
 
@@ -370,4 +371,32 @@ export async function saisirUsureTrainAction(_etat: Resultat | null, donnees: Fo
     if (usureEstimeePct === null) refus("Indiquez l'usure estimée, de 0 à 100 %.")
     await saisirUsureTrain(texte(donnees, "tyreSetId"), { usureEstimeePct, statut: texte(donnees, "statut") })
   })
+}
+
+// --- Fiches casse (tâche 4.4, brief §3) -------------------------------------------------------------------------------------
+
+export async function creerFicheCasseAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() =>
+    creerFicheCasse({
+      vehicleId: texte(donnees, "vehicleId"),
+      date: texte(donnees, "date"),
+      eventId: texteOuNull(donnees, "eventId"),
+      cause: texteOuNull(donnees, "cause"),
+    }),
+  )
+}
+
+export async function completerFicheCasseAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() =>
+    completerFicheCasse(texte(donnees, "id"), {
+      type: texte(donnees, "type"),
+      cause: texteOuNull(donnees, "cause"),
+      organesIds: donnees.getAll("organe").map(String),
+      piecesIds: donnees.getAll("piece").map(String),
+    }),
+  )
+}
+
+export async function ouvrirReparationCasseAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executerGarage(() => ouvrirReparationCasse(texte(donnees, "id"), texte(donnees, "organeId")))
 }

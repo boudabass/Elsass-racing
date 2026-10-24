@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { ficheACompleter, LIBELLES_TYPE_CASSE, montageALaDate, typeCasseValide } from "./casses"
+import { ficheACompleter, LIBELLES_TYPE_CASSE, montageALaDate, titreReparationCasse, typeCasseValide } from "./casses"
 
 describe("typeCasseValide", () => {
   it("accepte les trois types de l'enum, et refuse le reste", () => {
@@ -52,5 +52,12 @@ describe("montageALaDate", () => {
   it("ne compte pas une pièce déposée avant la casse, et compte celle déposée le jour même", () => {
     expect(montageALaDate({ poseLe: avant, deposeeLe: avant }, casse)).toBe(false)
     expect(montageALaDate({ poseLe: avant, deposeeLe: casse }, casse)).toBe(true)
+  })
+})
+
+describe("titreReparationCasse", () => {
+  it("nomme la réparation d'après l'épreuve, ou « Casse » hors épreuve", () => {
+    expect(titreReparationCasse("Rallye du Ried")).toBe("Casse : Rallye du Ried")
+    expect(titreReparationCasse(null)).toBe("Casse")
   })
 })

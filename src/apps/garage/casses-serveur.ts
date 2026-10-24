@@ -10,10 +10,10 @@ import { newId } from "@/core/ids"
 import { executerPourTeam } from "@/lib/prisma"
 import { avecReprisePourConflit } from "@/lib/reprise-conflit"
 
-import { montageALaDate, typeCasseValide, type TypeCasse } from "./casses"
+import { montageALaDate, titreReparationCasse, typeCasseValide, type TypeCasse } from "./casses"
 import { chargeAbandonDeclare } from "./charges"
 import { refus } from "./erreurs"
-import { accesGarage } from "./services-serveur"
+import { accesGarage, creerReparationTx } from "./services-serveur"
 
 const CAUSE_MAX = 300
 
@@ -196,4 +196,40 @@ export async function completerFicheCasseDans(ctx: ContexteTeam, id: string, ent
       }
     }),
   )
+}
+
+// --- Réparation liée (954 §3) : un ordre de réparation sur un organe touché, une seule par fiche ---------------------------
+
+export async function ouvrirReparationCasse(incidentId: string, organeId: string): Promise<string> {
+  const { ctx } = await accesGarage("ecriture")
+  return ouvrirReparationCasseDans(ctx, incidentId, organeId)
+}
+
+// L'ordre et le lien de la fiche s'écrivent dans la même transaction : pas d'ordre orphelin si le lien échoue.
+export async function ouvrirReparationCasseDans(ctx: ContexteTeam, incidentId: string, organeId: string): Promise<string> {
+  return executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    const fiche = await tx.garageIncident.findFirst({
+      where: { id: incidentId, teamId: ctx.teamId, deletedAt: null },
+      select: { eventId: true, reparationWorkOrderId: true },
+    })
+    if (!fiche) refus("Cette fiche casse n'existe pas dans la team.")
+    if (fiche.reparationWorkOrderId) refus("Cette fiche a déjà une réparation liée.")
+    const touche = await tx.garageIncidentComponent.findFirst({
+      where: { incidentId, vehicleComponentId: organeId, teamId: ctx.teamId, deletedAt: null },
+      select: { id: true },
+    })
+    if (!touche) refus("Cet organe n'est pas touché par cette casse.")
+    const epreuve = fiche.eventId ? await tx.coreEvent.findFirst({ where: { id: fiche.eventId, teamId: ctx.teamId }, select: { nom: true } }) : null
+    const reparation = await creerReparationTx(tx, ctx, organeId, {
+      titre: titreReparationCasse(epreuve?.nom ?? null),
+      coutMainOeuvreCents: null,
+      prestataireContactId: null,
+    })
+    const { count } = await tx.garageIncident.updateMany({
+      where: { id: incidentId, teamId: ctx.teamId, deletedAt: null, reparationWorkOrderId: null },
+      data: { reparationWorkOrderId: reparation, rev: { increment: 1 }, updatedBy: ctx.userId },
+    })
+    if (count === 0) refus("Cette fiche a déjà une réparation liée.")
+    return reparation
+  })
 }

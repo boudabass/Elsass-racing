@@ -1076,30 +1076,34 @@ export async function reparerOrgane(organeId: string, entree: EntreeReparation):
 export async function reparerOrganeDans(ctx: ContexteTeam, organeId: string, entree: EntreeReparation): Promise<string> {
   const donnees = schemaReparation.parse(entree)
   if (!coutValide(donnees.coutMainOeuvreCents ?? null)) refus("Le coût doit être un montant positif, en centimes.")
+  return executerPourTeam(ctx.teamId, ctx.userId, (tx) => creerReparationTx(tx, ctx, organeId, donnees))
+}
+
+// Crée l'ordre de réparation d'un organe dans une transaction existante : réparation depuis la fiche de l'organe, ou depuis
+// une fiche casse (tâche 4.4, §3), où l'ordre et le lien de la fiche s'écrivent ensemble.
+export async function creerReparationTx(tx: Tx, ctx: ContexteTeam, organeId: string, donnees: z.output<typeof schemaReparation>): Promise<string> {
   const id = newId()
-  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
-    const organe = await organeDans(tx, ctx.teamId, organeId)
-    if (donnees.prestataireContactId) {
-      const prestataire = await tx.coreContact.findFirst({ where: { id: donnees.prestataireContactId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
-      if (!prestataire) refus("Ce prestataire n'existe pas dans la team.")
-    }
-    await tx.garageWorkOrder.create({
-      data: {
-        id,
-        teamId: ctx.teamId,
-        vehicleId: organe.vehicleId,
-        type: "reparation",
-        titre: donnees.titre,
-        vehicleComponentId: organe.id,
-        priorite: "normale",
-        statut: "prevu",
-        origine: "saisie",
-        coutMainOeuvreCents: donnees.coutMainOeuvreCents ?? null,
-        prestataireContactId: donnees.prestataireContactId ?? null,
-        createdBy: ctx.userId,
-        updatedBy: ctx.userId,
-      },
-    })
+  const organe = await organeDans(tx, ctx.teamId, organeId)
+  if (donnees.prestataireContactId) {
+    const prestataire = await tx.coreContact.findFirst({ where: { id: donnees.prestataireContactId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+    if (!prestataire) refus("Ce prestataire n'existe pas dans la team.")
+  }
+  await tx.garageWorkOrder.create({
+    data: {
+      id,
+      teamId: ctx.teamId,
+      vehicleId: organe.vehicleId,
+      type: "reparation",
+      titre: donnees.titre,
+      vehicleComponentId: organe.id,
+      priorite: "normale",
+      statut: "prevu",
+      origine: "saisie",
+      coutMainOeuvreCents: donnees.coutMainOeuvreCents ?? null,
+      prestataireContactId: donnees.prestataireContactId ?? null,
+      createdBy: ctx.userId,
+      updatedBy: ctx.userId,
+    },
   })
   return id
 }
