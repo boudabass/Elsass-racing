@@ -287,7 +287,7 @@ Décisions de John (20/10) :
 
 ### 4.5 Plan avant épreuve et liaisons Saison
 - Plan avant épreuve préparé sur `saison.engagement_cree` : ce qu'il faut faire pour qu'aucune pièce ne soit en zone rouge, avec coût et temps. Saison reçoit la zone rouge comme point bloquant de l'indice de préparation et la fiabilité dans le panneau « Prêt pour l'épreuve » (Saison écrit chez elle). Widgets Garage déclarés : fiabilité, pièces en zone rouge, travaux et livraisons.
-- 954 §2 dit « pour que toutes les pièces soient hors zone rouge », ce qui contredit le principe de John (954 v1.2, Décisions intégrées : le Garage informe, ne pousse pas). À revoir avec John avant la 4.5.
+- Tranché par John le 24/10 (954 v1.4) : plan en constat seul, sans proposition d'achat ni de remplacement ; la zone rouge est un point à surveiller dans Saison, jamais bloquant, hors de l'indice de préparation. Brief : `docs/briefs/4.5-plan-avant-epreuve-et-liaisons-saison.md`.
 
 ### 4.6 Équipements de la team
 - Remorque, outillage, levage, assistance, stand : état, valeur, prochain contrôle, emplacement.
