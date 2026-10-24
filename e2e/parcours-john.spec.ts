@@ -283,6 +283,21 @@ test("parcours de John : le QG, l'atelier du rouge au vert, Commandes, Budget, l
   // 12. Abandon, fiche casse complétée (954 v1.3, §1 et §3 ; brief 4.4, §4). John saisit l'abandon de l'épreuve de démonstration
   // (la Saxo y est engagée), et le valide lui-même : un responsable peut valider son propre résultat. La validation ouvre la
   // fiche casse au Garage, que John complète : type, cause, organe touché. La capture part à 360 px.
+  // L'engagement de la démonstration n'a ni dossier ni paiement : Saison le laisse « envisagé ». John enregistre le paiement ;
+  // l'épreuve étant passée, l'engagement est parti, et son résultat se saisit.
+  await tuile(page, "saison").click()
+  await arriver(page, /\/apps\/saison$/, TITRE_APP.saison)
+  await page.getByRole("link", { name: "Liste", exact: true }).click()
+  await page.getByRole("link", { name: /20e Rallye de l'Alsace Bossue/ }).click()
+  await arriver(page, /\/apps\/saison\/epreuves\/[0-9a-f-]{36}$/)
+  await page.getByRole("link", { name: "Engagements", exact: true }).click()
+  await page.getByRole("link", { name: /Citroën Saxo VTS/ }).first().click()
+  await arriver(page, /\/apps\/saison\/engagements\/[0-9a-f-]{36}$/)
+  await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
+  await page.getByLabel("Montant payé (€)").fill("450")
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }))
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+
   await tuile(page, "saison").click()
   await arriver(page, /\/apps\/saison$/, TITRE_APP.saison)
   await page.getByRole("link", { name: "Liste", exact: true }).click()

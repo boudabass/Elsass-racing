@@ -118,8 +118,11 @@ test("casse de bout en bout : abandon validé dans Saison, fiche au Garage, comp
   await envoyer(page, page.getByRole("button", { name: "Enregistrer la fiche", exact: true }))
   await expect(page.getByText("À compléter", { exact: true })).toHaveCount(0)
 
-  // La réparation s'ouvre depuis l'organe touché : elle part dans les travaux, titrée « Casse : <épreuve> ».
+  // La réparation s'ouvre depuis l'organe touché : la fiche garde le lien vers elle (sans redirection), et la réparation part
+  // dans les travaux, titrée « Casse : <épreuve> ».
   await envoyer(page, page.getByRole("button", { name: "Ouvrir une réparation : Boîte de vitesses", exact: true }))
+  await expect(page.getByRole("link", { name: "Voir la réparation liée", exact: true })).toBeVisible()
+  await page.getByRole("link", { name: "Voir la réparation liée", exact: true }).click()
   await expect(page).toHaveURL(/\/apps\/garage\/travaux\/[0-9a-f-]+$/)
   await expect(page.getByText("Casse : Rallye casse e2e").first()).toBeVisible()
 
