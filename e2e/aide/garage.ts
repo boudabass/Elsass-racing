@@ -171,3 +171,51 @@ export async function posesDeLOrganeEnBase(
   )
   return rows
 }
+
+// Organes d'une voiture : identifiant, clé de type et position de chaque organe. Vide tant que l'atelier n'est pas préparé.
+// Sert à choisir un organe par son lien ou son select, sans dépendre de son libellé.
+export async function organesDeLaVoitureEnBase(equipe: Equipe, vehicleId: string): Promise<Array<{ id: string; cle: string; position: string | null }>> {
+  const { rows } = await bd().query<{ id: string; cle: string; position: string | null }>(
+    `SELECT c.id, t.cle, c.position FROM garage_vehicle_component c
+       JOIN garage_component_type t ON t.id = c.component_type_id
+      WHERE c.team_id = $1 AND c.vehicle_id = $2 AND c.deleted_at IS NULL
+      ORDER BY t.ordre, c.created_at`,
+    [equipe.teamId, vehicleId],
+  )
+  return rows
+}
+
+// Pièces montées d'une voiture (pose en cours), avec leurs km, leurs épreuves et leur rev : une usure s'y applique une fois.
+export async function piecesMonteesDeLaVoitureEnBase(
+  equipe: Equipe,
+  vehicleId: string,
+): Promise<Array<{ id: string; km: number; epreuves: number; rev: number }>> {
+  const { rows } = await bd().query<{ id: string; km_cumules: number | string; epreuves_cumulees: number; rev: number }>(
+    `SELECT p.id, p.km_cumules, p.epreuves_cumulees, p.rev FROM garage_part p
+       JOIN garage_part_mount m ON m.part_id = p.id
+      WHERE p.team_id = $1 AND p.vehicle_id = $2 AND m.deposee_le IS NULL AND m.deleted_at IS NULL AND p.deleted_at IS NULL
+      ORDER BY p.id`,
+    [equipe.teamId, vehicleId],
+  )
+  return rows.map((ligne) => ({ id: ligne.id, km: Number(ligne.km_cumules), epreuves: Number(ligne.epreuves_cumulees), rev: Number(ligne.rev) }))
+}
+
+// Lignes du journal d'usure issues d'un résultat validé, pour les pièces d'une voiture : une ligne par pièce et par résultat.
+export async function journalUsureResultatEnBase(equipe: Equipe, vehicleId: string): Promise<Array<{ partId: string; km: number; epreuveComptee: boolean }>> {
+  const { rows } = await bd().query<{ part_id: string; km_ajoutes: number | string; epreuve_comptee: boolean }>(
+    `SELECT w.part_id, w.km_ajoutes, w.epreuve_comptee FROM garage_wear_log w
+       JOIN garage_part p ON p.id = w.part_id
+      WHERE w.team_id = $1 AND p.vehicle_id = $2 AND w.source = 'resultat_saison' AND w.deleted_at IS NULL`,
+    [equipe.teamId, vehicleId],
+  )
+  return rows.map((ligne) => ({ partId: ligne.part_id, km: Number(ligne.km_ajoutes), epreuveComptee: ligne.epreuve_comptee }))
+}
+
+// Nombre de pièces en stock (non montées) portant cette désignation.
+export async function piecesEnStockDeTypeEnBase(equipe: Equipe, designation: string): Promise<number> {
+  const { rows } = await bd().query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM garage_part WHERE team_id = $1 AND designation = $2 AND statut = 'en_stock' AND deleted_at IS NULL`,
+    [equipe.teamId, designation],
+  )
+  return rows[0]?.n ?? 0
+}
