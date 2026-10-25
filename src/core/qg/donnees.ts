@@ -54,7 +54,7 @@ export async function chargerQg(ctx: ContexteTeam, modeTerrain: boolean): Promis
       select: { app: true, niveau: true },
     }),
     client.coreTask.findMany({
-      where: { teamId: ctx.teamId, statut: "a_faire" },
+      where: { teamId: ctx.teamId, statut: "a_faire", deletedAt: null },
       select: { app: true },
     }),
     client.coreSeason.findFirst({

@@ -129,6 +129,23 @@ async function main() {
     const refusPilote = await refuse(equipe.affecterPersonneDans(ctxResp, epreuves[0].id, personnes.cible, { roleEpreuve: "pilote" }))
     controle("le pilote ne s'affecte pas à une épreuve", refusPilote?.includes("se choisissent sur l'engagement") === true, refusPilote ?? "aucun refus")
 
+    // 2 bis. Tâche liée : l'affectation crée une tâche à faire pour la personne ; l'assistance ne change pas celle d'un
+    // autre ; retirer l'affectation retire la tâche.
+    const affectationId = await equipe.affecterPersonneDans(ctxResp, epreuves[0].id, personnes.cible, { roleEpreuve: "logistique" })
+    const tache = await proprietaire.coreTask.findFirst({
+      where: { teamId: team.id, app: "equipe", ficheType: "affectation", ficheId: affectationId, deletedAt: null },
+    })
+    controle(
+      "une affectation crée sa tâche liée, à faire pour la personne",
+      tache?.statut === "a_faire" && tache?.assigneePersonId === personnes.cible,
+      tache?.statut ?? "aucune",
+    )
+    const refusTache = await refuse(equipe.changerStatutTacheDans(ctxAss, "contribution", tache?.id ?? "", true))
+    controle("l'assistance ne change pas la tâche d'une autre personne (raison dite)", refusTache?.includes("propres tâches") === true, refusTache ?? "aucun refus")
+    await equipe.retirerAffectationDans(ctxResp, affectationId)
+    const tachesRestantes = await proprietaire.coreTask.count({ where: { teamId: team.id, ficheType: "affectation", ficheId: affectationId, deletedAt: null } })
+    controle("retirer l'affectation retire sa tâche liée", tachesRestantes === 0, `${tachesRestantes}`)
+
     // 3. Palier : calculé sur les épreuves validées (cinq donne confirmé), jamais en baisse après une annulation.
     await equipe.modifierProfilDans(ctxResp, personnes.pilote, { afficherTrophees: false }, "ecriture")
     await liaisons.mettreAJourPalierDans(ctxResp, personnes.pilote)
@@ -160,6 +177,7 @@ async function main() {
     await proprietaire.equipeMood.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.equipeLicence.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.equipeProfile.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.coreTask.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.equipeAssignment.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.equipeAvailability.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreAction.deleteMany({ where: { teamId: { in: equipes } } })

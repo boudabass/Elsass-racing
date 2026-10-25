@@ -26,7 +26,9 @@ import {
 import { ErreurEquipe, refus } from "./erreurs"
 import {
   INTERETS_VIVIER,
+  LIBELLES_ROLE_EPREUVE,
   LIBELLES_TYPE_LICENCE,
+  peutChangerTache,
   REPONSES_DISPONIBILITE,
   ROLES_EPREUVE,
   ROLES_HABITUELS,
@@ -624,7 +626,10 @@ export async function affecterPersonneDans(ctx: ContexteTeam, eventId: string, p
   if (!roleAffectable(donnees.roleEpreuve)) refus("Le pilote et le copilote se choisissent sur l'engagement, dans Saison.")
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   await personneActiveDans(client, ctx, personId)
-  const epreuve = await client.coreEvent.findFirst({ where: { id: eventId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  const epreuve = await client.coreEvent.findFirst({
+    where: { id: eventId, teamId: ctx.teamId, deletedAt: null },
+    select: { id: true, dateDebut: true },
+  })
   if (!epreuve) refus("Épreuve introuvable.")
   if (donnees.eventEntryId) {
     const engagement = await client.coreEventEntry.findFirst({
@@ -640,9 +645,10 @@ export async function affecterPersonneDans(ctx: ContexteTeam, eventId: string, p
   if (deja) refus("Cette personne a déjà ce rôle sur cette épreuve.")
 
   const id = newId()
+  const tacheId = newId()
   await avecReprisePourConflit(() =>
-    executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
-      tx.equipeAssignment.createMany({
+    executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+      await tx.equipeAssignment.createMany({
         skipDuplicates: true,
         data: [
           {
@@ -656,8 +662,25 @@ export async function affecterPersonneDans(ctx: ContexteTeam, eventId: string, p
             updatedBy: ctx.userId,
           },
         ],
-      }),
-    ),
+      })
+      // La tâche liée (955 §4) : à faire par la personne, rattachée à la fiche de l'affectation, datée du jour de l'épreuve.
+      await tx.coreTask.create({
+        data: {
+          id: tacheId,
+          teamId: ctx.teamId,
+          app: "equipe",
+          ficheType: "affectation",
+          ficheId: id,
+          eventId,
+          titre: LIBELLES_ROLE_EPREUVE[donnees.roleEpreuve],
+          assigneePersonId: personId,
+          echeance: epreuve.dateDebut,
+          statut: "a_faire",
+          createdBy: ctx.userId,
+          updatedBy: ctx.userId,
+        },
+      })
+    }),
   )
   return id
 }
@@ -667,13 +690,48 @@ export async function retirerAffectation(id: string): Promise<void> {
   return retirerAffectationDans(ctx, id)
 }
 
+// Retirer une affectation retire aussi ses tâches liées : elles ne restent pas à faire pour personne.
 export async function retirerAffectationDans(ctx: ContexteTeam, id: string): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const affectation = await client.equipeAssignment.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
   if (!affectation) refus("Affectation introuvable.")
+  const maintenant = new Date()
+  await avecReprisePourConflit(() =>
+    executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+      await tx.equipeAssignment.update({ where: { id }, data: { deletedAt: maintenant, rev: { increment: 1 }, updatedBy: ctx.userId } })
+      await tx.coreTask.updateMany({
+        where: { teamId: ctx.teamId, app: "equipe", ficheType: "affectation", ficheId: id, deletedAt: null },
+        data: { deletedAt: maintenant, rev: { increment: 1 }, updatedBy: ctx.userId },
+      })
+    }),
+  )
+}
+
+// --- Tâches liées aux affectations (core_task, 955 §4) ------------------------------------------
+
+export async function changerStatutTache(id: string, fait: boolean): Promise<void> {
+  const { ctx, niveau } = await accesEquipe("contribution")
+  return changerStatutTacheDans(ctx, niveau, id, fait)
+}
+
+// La personne assignée gère sa propre tâche ; le niveau écriture ou plus gère toutes les tâches de l'équipe.
+export async function changerStatutTacheDans(ctx: ContexteTeam, niveau: Niveau, id: string, fait: boolean): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const tache = await client.coreTask.findFirst({
+    where: { id, teamId: ctx.teamId, app: "equipe", ficheType: "affectation", deletedAt: null },
+    select: { id: true, assigneePersonId: true },
+  })
+  if (!tache) refus("Tâche introuvable.")
+  if (!peutChangerTache(niveau, await personneDuMembre(ctx), tache.assigneePersonId)) {
+    refus("Tu ne peux changer que tes propres tâches.")
+  }
+  const maintenant = new Date()
   await avecReprisePourConflit(() =>
     executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
-      tx.equipeAssignment.update({ where: { id }, data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId } }),
+      tx.coreTask.update({
+        where: { id },
+        data: { statut: fait ? "fait" : "a_faire", faitAt: fait ? maintenant : null, rev: { increment: 1 }, updatedBy: ctx.userId },
+      }),
     ),
   )
 }

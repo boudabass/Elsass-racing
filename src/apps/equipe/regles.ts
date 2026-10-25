@@ -4,6 +4,7 @@
 // Les statistiques ne comptent que les résultats validés : les lectures (lectures-serveur.ts) ne passent que ceux-là.
 
 import { statutPapier, type StatutPapier } from "@/apps/voiture/regles"
+import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 
 // ─── Échéances : licences et équipements ─────────────────────────────────────
 
@@ -196,11 +197,28 @@ export type ReponseDisponibilite = (typeof REPONSES_DISPONIBILITE)[number]
 export const ROLES_EPREUVE = ["pilote", "copilote", "chef_assistance", "assistance", "logistique", "photo"] as const
 export type RoleEpreuve = (typeof ROLES_EPREUVE)[number]
 
+// Titre de la tâche liée à une affectation (core_task) : le rôle, tel qu'on le dit au rallye.
+export const LIBELLES_ROLE_EPREUVE: Record<RoleEpreuve, string> = {
+  pilote: "Pilote",
+  copilote: "Copilote",
+  chef_assistance: "Chef d'assistance",
+  assistance: "Assistance",
+  logistique: "Logistique",
+  photo: "Photo",
+}
+
 export const INTERETS_VIVIER = ["faible", "moyen", "fort"] as const
 export type InteretVivier = (typeof INTERETS_VIVIER)[number]
 
 // Un rôle d'épreuve s'affecte ici sauf pilote et copilote : l'équipage se choisit sur l'engagement, dans Saison.
 // Le rôle d'épreuve ne donne aucun droit (955 §4).
+// Une tâche liée se change par la personne assignée, ou par qui a l'écriture sur Équipe. Pas de tâche sans personne
+// assignée : seul le niveau écriture la change.
+export function peutChangerTache(niveau: Niveau, personneDuMembre: string | null, assigneePersonId: string | null): boolean {
+  if (aAuMoins(niveau, "ecriture")) return true
+  return personneDuMembre !== null && personneDuMembre === assigneePersonId
+}
+
 export function roleAffectable(role: RoleEpreuve): boolean {
   return role !== "pilote" && role !== "copilote"
 }

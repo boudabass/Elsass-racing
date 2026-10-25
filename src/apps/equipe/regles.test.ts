@@ -7,8 +7,11 @@ import {
   homologationValideA,
   licenceValideA,
   NOMBRE_RESSENTIS_MOYENNE,
+  LIBELLES_ROLE_EPREUVE,
   palierDepuis,
+  peutChangerTache,
   ressentiMoyen,
+  ROLES_EPREUVE,
   roleAffectable,
   statistiquesBinome,
   statistiquesPersonne,
@@ -174,5 +177,26 @@ describe("validite a une date donnee (epreuve, pas aujourd'hui)", () => {
     expect(homologationValideA(jour("2026-11-07"), epreuve)).toBe(true)
     expect(homologationValideA(jour("2026-11-06"), epreuve)).toBe(false)
     expect(homologationValideA(null, epreuve)).toBe(true)
+  })
+})
+
+describe("tâches liées aux affectations", () => {
+  it("chaque rôle d'épreuve a son titre de tâche", () => {
+    for (const role of ROLES_EPREUVE) expect(LIBELLES_ROLE_EPREUVE[role]).toBeTruthy()
+    expect(LIBELLES_ROLE_EPREUVE.chef_assistance).toBe("Chef d'assistance")
+  })
+
+  it("la personne assignée change sa tâche, même en niveau contribution", () => {
+    expect(peutChangerTache("contribution", "anne", "anne")).toBe(true)
+  })
+
+  it("l'assistance ne change pas la tâche d'une autre personne : le refus est dit", () => {
+    expect(peutChangerTache("contribution", "anne", "luc")).toBe(false)
+    expect(peutChangerTache("lecture", null, "luc")).toBe(false)
+  })
+
+  it("le niveau écriture change toute tâche de l'équipe", () => {
+    expect(peutChangerTache("ecriture", "anne", "luc")).toBe(true)
+    expect(peutChangerTache("gestion", null, null)).toBe(true)
   })
 })
