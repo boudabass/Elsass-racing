@@ -1,6 +1,6 @@
-# Équipe : schéma (tâche 5.1, point d'arrêt)
+# Équipe : schéma (tâche 5.1)
 
-Statut : **proposition, avant la migration** (point d'arrêt de la 5.1). Migration prévue `equipe_schema`, non écrite. Spécification : article Odoo 955 (Équipe v1.1, 15/10/2026), §3 « Tables » et §4 « Paliers ». Socle : 948 ; catalogue : 962 ; modèle : `docs/schema-garage.md`, `docs/schema-saison.md`.
+Statut : **migration écrite** (`prisma/migrations/20261025180000_equipe_schema`), point d'arrêt validé par l'orchestrateur. Vérifiée par `db:deploy` et `db:verifier-rls` sur GitHub Actions ; services, événements et lectures : voir la dernière section. Spécification : article Odoo 955 (Équipe v1.1, 15/10/2026), §3 « Tables » et §4 « Paliers ». Socle : 948 ; catalogue : 962 ; modèle : `docs/schema-garage.md`, `docs/schema-saison.md`.
 
 ## Décisions reprises du brief (orchestrateur, 25/10)
 
@@ -35,7 +35,7 @@ Bloc commun sur chaque table. Seul montant : celui d'une licence payée (centime
 | `person_id` | uuid → `core_person` | obligatoire |
 | `type` | enum `equipe_type_licence` | obligatoire. Valeurs : `ffsa_regionale`, `ffsa_nationale`, `ffsa_internationale`, `autre` |
 | `numero` | texte | facultatif |
-| `numero_asa` | texte | facultatif. **À trancher, voir Q2** |
+| `asa_contact_id` | uuid → `core_contact` | facultatif. Le contact doit être de catégorie `asa` (vérifié au service, Q2) |
 | `saison` | texte | facultative (ex. « 2026 ») |
 | `valable_du` | date | facultative |
 | `valable_au` | date | facultative. Contrainte : `valable_au >= valable_du` quand les deux sont renseignées |
@@ -129,19 +129,37 @@ Le rôle d'épreuve **ne donne aucun droit** (955 §0). Les tâches liées sont 
 - Validité : `CHECK (valable_au IS NULL OR valable_du IS NULL OR valable_au >= valable_du)` sur `equipe_licence`.
 - Disponibilité unique par personne et épreuve, ressenti unique par personne et engagement (index partiels, `deleted_at IS NULL`).
 
-## Questions à trancher (point d'arrêt)
+## Réponses du point d'arrêt (orchestrateur, 25/10)
 
-1. **Q1, niveau déclaré** (`equipe_skill.niveau_declare`) : 955 le cite sans échelle. Proposition : entier de 1 à 5, facultatif, comme le ressenti. Ou je le retire.
-2. **Q2, « ASA »** (`equipe_licence`) : 955 cite « adhésion ASA » sans précision. Proposition : `numero_asa` texte facultatif à côté de `numero` (une licence FFSA et une adhésion ASA peuvent coexister). Ou une ligne distincte.
-3. **Q3, rôles habituels** : tableau d'enum sur `equipe_profile`, sans table de liaison. Ok ?
-4. **Q4, tâches liées** : `core_task` rattachée à la fiche de l'affectation, sans table de liaison. À confirmer contre les colonnes de `core_task` (948).
-5. **Q5, rôle recherché du vivier** : je réutilise l'enum `equipe_role_epreuve`. 955 ne précise pas. Ok ?
-6. **Q6, source du vivier** : texte libre facultatif (955 ne donne pas de valeurs). Ok ?
-7. **Q7, « calculs (vues) »** : fonctions pures et lectures, pas de vue SQL, comme Garage. Ok ?
-8. **Q8, pilote et copilote en double** : `core_event_entry` porte déjà le pilote et le copilote (brief 5.1). `equipe_assignment` les repète-t-il pour les rôles pilote et copilote, ou ne garde-t-il que les autres rôles d'épreuve ? Proposition : `equipe_assignment` ne reçoit que les rôles chef d'assistance, assistance, logistique et photo ; le pilote et le copilote restent lus dans `core_event_entry` (une seule source, jamais écrits ici). L'enum `equipe_role_epreuve` garde les six valeurs de 955 pour la lisibilité. Ok ?
+- **Q1, niveau déclaré** : entier de 1 à 5, facultatif (`CHECK`). Affiché en étoiles ou en mots en 5.2.
+- **Q2, « ASA »** : pas de `numero_asa`. `asa_contact_id` pointe vers `core_contact` ; le service refuse un contact qui n'est pas de catégorie `asa`. Une licence sans FFSA se saisit avec le type `autre`.
+- **Q3, rôles habituels** : enum en tableau sur `equipe_profile`, sans table de liaison.
+- **Q4, tâches liées** : `core_task` porte `app`, `fiche_type`, `fiche_id`, `event_id`, `assignee_person_id` (948, confirmé). Pas créée en 5.1 (pas d'écran).
+- **Q5, rôle recherché du vivier** : enum `equipe_role_epreuve`.
+- **Q6, source du vivier** : texte libre facultatif.
+- **Q7, calculs** : fonctions pures (`src/apps/equipe/regles.ts`) et lectures ; pas de vue SQL.
+- **Q8, pilote et copilote** : lus dans `core_event_entry` seulement. `CHECK` `equipe_assignment_pas_pilote_check` ; le service refuse l'affectation avec le message « Le pilote et le copilote se choisissent sur l'engagement, dans Saison. ».
 
 ## Ce qui n'est pas dans ce schéma
 
 - Droits de compte (responsable, équipage, assistance, invité) : viennent de Réglages.
 - Résultats, classements, km chronométrés : chez Saison, lus en lecture partagée.
-- Événements émis (`equipe.disponibilite_changee`, `equipe.licence_payee`, `equipe.licence_expire_bientot`, `equipe.homologation_expire_bientot`, `equipe.palier_atteint`) : déclarés au catalogue 962 dans une étape ultérieure, après validation de ce schéma.
+- Événements : les cinq `equipe.*` (`disponibilite_changee`, `licence_payee`, `licence_expire_bientot`, `homologation_expire_bientot`, `palier_atteint`) sont déjà au catalogue (`src/core/evenements/catalogue.ts`) : rien à déclarer.
+
+## Services, événements et lectures (5.1)
+
+Fichiers : `services-serveur.ts` (écritures, chacune passe par `accesEquipe`, sauf les `…Dans`), `liaisons-serveur.ts` (gestionnaires), `lectures-serveur.ts` (lectures, sans écriture), `charges.ts` (charges utiles), `regles.ts` (règles pures).
+
+**Droits.** Le niveau écriture ou plus gère le dossier de toute personne ; l'assistance (contribution) ne gère que le sien (`exigerDossier`). Une affectation ou un vivier demandent l'écriture. Une lecture n'écrit jamais : le profil se crée à la première écriture (`assurerProfilDans`).
+
+**Ressenti.** Lu seulement au niveau écriture ou plus (`lireFichePersonne`). Jamais en contribution. Contact d'urgence et taille : écriture ou plus, et dossier propre.
+
+**Palier.** `palierDepuis` sur les épreuves d'équipage validées ∪ les épreuves d'assistance (affectée et « vient »), une épreuve comptée une fois. Ne descend jamais. `equipe.palier_atteint` seulement si la personne affiche ses trophées et si le ludique de la team est actif.
+
+**Événements émis** : `equipe.disponibilite_changee` (réponse), `equipe.action_levee` (même réponse, lève la demande), `equipe.licence_payee` (premier montant saisi sur une licence ; Budget propose une dépense « Licence et ASA », origine `equipe_licence:<id>`, une seule fois par licence), `equipe.licence_expire_bientot` et `equipe.homologation_expire_bientot` (QG, une fois par fiche et par échéance, avec une action « Renouveler » pour les responsables), `equipe.action_requise` (demande de disponibilités à chaque membre actif, rôles responsable, équipage, assistance, à la création d'un engagement), `equipe.palier_atteint`.
+
+**Événements écoutés** : `saison.resultat_valide` et `saison.resultat_annule` (paliers des personnes de l'engagement et des affectées à l'épreuve), `saison.debrief_saisi` (ressenti de l'auteur, une ligne par personne et engagement, mise à jour si le débrief change), `saison.engagement_cree` (demande de disponibilités), `settings.membre_rejoint` (profil créé). Pas de gestionnaire : `settings.membre_invite` (personne inexistante), `settings.membre_retire` (rien n'est effacé, l'historique reste), `settings.ludique_modifie` (lu à l'affichage).
+
+**Lectures partagées de Saison** (`src/apps/saison/lectures-partagees.ts`, lecture seule) : `lireResultatsValidesEngagements` (résultats validés d'un filtre sur `core_event_entry`), `lireEpreuvesEquipageValidees`, `lireRessentiDebrief`. Équipe n'importe aucune table `saison_`.
+
+**Ce qui reste hors 5.1.** Tâches liées (`core_task`) à la création d'une affectation ; `saison.programme_publie` ; écrans (5.2) ; point du panneau « Prêt pour l'épreuve » : Saison ne passe licences et homologations à « suivi » que sur une échéance signalée (une licence valide ne signale rien). À trancher par l'orchestrateur.
