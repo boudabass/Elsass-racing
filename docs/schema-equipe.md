@@ -134,7 +134,7 @@ Le rôle d'épreuve **ne donne aucun droit** (955 §0). Les tâches liées sont 
 - **Q1, niveau déclaré** : entier de 1 à 5, facultatif (`CHECK`). Affiché en étoiles ou en mots en 5.2.
 - **Q2, « ASA »** : pas de `numero_asa`. `asa_contact_id` pointe vers `core_contact` ; le service refuse un contact qui n'est pas de catégorie `asa`. Une licence sans FFSA se saisit avec le type `autre`.
 - **Q3, rôles habituels** : enum en tableau sur `equipe_profile`, sans table de liaison.
-- **Q4, tâches liées** : `core_task` porte `app`, `fiche_type`, `fiche_id`, `event_id`, `assignee_person_id` (948, confirmé). Pas créée en 5.1 (pas d'écran).
+- **Q4, tâches liées** : `core_task` porte `app`, `fiche_type`, `fiche_id`, `event_id`, `assignee_person_id` (948, confirmé). Créée depuis 5.2 (tâche 0.3) : `affecterPersonneDans` crée la tâche dans la même transaction que l'affectation ; `retirerAffectationDans` la supprime (soft delete) avec elle. Le compteur du QG ne compte que les tâches `a_faire` non supprimées.
 - **Q5, rôle recherché du vivier** : enum `equipe_role_epreuve`.
 - **Q6, source du vivier** : texte libre facultatif.
 - **Q7, calculs** : fonctions pures (`src/apps/equipe/regles.ts`) et lectures ; pas de vue SQL.
@@ -162,4 +162,4 @@ Fichiers : `services-serveur.ts` (écritures, chacune passe par `accesEquipe`, s
 
 **Lectures partagées de Saison** (`src/apps/saison/lectures-partagees.ts`, lecture seule) : `lireResultatsValidesEngagements` (résultats validés d'un filtre sur `core_event_entry`), `lireEpreuvesEquipageValidees`, `lireRessentiDebrief`. Équipe n'importe aucune table `saison_`.
 
-**Ce qui reste hors 5.1.** Tâches liées (`core_task`) à la création d'une affectation ; `saison.programme_publie` ; écrans (5.2) ; point du panneau « Prêt pour l'épreuve » : Saison ne passe licences et homologations à « suivi » que sur une échéance signalée (une licence valide ne signale rien). À trancher par l'orchestrateur.
+**Ce qui reste après 5.2.** `saison.programme_publie` ; Prochaine épreuve, Binômes, Vivier et bouton « + » (écrans suivants de 5.2). Le point « Prêt pour l'épreuve » lit désormais les licences et homologations dans Équipe à la date de l'épreuve (commit 3d87e4c, 5.2 point 2).

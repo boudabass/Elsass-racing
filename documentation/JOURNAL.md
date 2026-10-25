@@ -587,3 +587,14 @@
 - Run verif 40219036777 (sur 75b9196) vert : `db:deploy` de la migration `equipe_schema`, `db:verifier-rls` (huit tables `equipe_` comprises), `db:verifier-equipe` (dix contrôles), e2e 154 réussis sur 154.
 - Un seul échec au premier run (40216979418) : `e2e/boite-reproduction.spec.ts` attendait « 1 en attente ». La demande de disponibilités d'Équipe porte le compteur à 2 ; l'assertion vérifie maintenant le compteur non nul, sans fixer le nombre.
 - Unitaires : 933 (96 fichiers), typecheck vert sur le poste.
+
+## 25/10/2026 : tâche 5.2, Équipe (écrans, brief 5.2)
+
+- Points de tête du brief : boîte e2e N+1 (`e2e/boite-reproduction.spec.ts` lit le compteur avant l'action, asserte avant + 1) ; « Prêt pour l'épreuve ? » lit licences et homologations chez Équipe à la date de l'épreuve (lecture seule, suivi seulement quand Équipe est activée) ; tâches liées créées avec l'affectation (`core_task`), retirées avec elle.
+- Lectures : un membre retiré reste visible comme « ancien membre » avec son historique (licences, affectations, statistiques). Le QG ne compte que les tâches `a_faire` non supprimées.
+- Écrans : « L'équipe » en cartes (filtre par rôle dans l'URL, anciens membres dans un tiroir), fiche personne en onglets (Profil, Statistiques, Licences, Équipement, Disponibilités, Ressenti réservé à l'écriture). Formulaires en tiroirs : création de personne (prénom, nom, rôle habituel), profil, licences, équipements, réponse à la disponibilité.
+- Assistance : la fiche s'ouvre sans l'onglet Ressenti ; modifier la licence d'un autre affiche la raison et désactive le bouton.
+- Captures 1440 et 360 px, sombre et clair, dans `docs/captures/equipe-*` (point d'arrêt de l'orchestrateur).
+- Reste pour la suite de 5.2 : Prochaine épreuve, Binômes, Vivier, bouton « + » du menu, document et photo joints, choix de contact ASA, lien Saison vers la fiche.
+- Constaté, non traité (Saison et Voiture) : une licence ou un papier renouvelé n'efface pas un point « ouvert » resté dans Saison (`signalerPreparation`) ; un papier valide n'émet aucun signal. À trancher.
+- Unitaires : 955 (96 fichiers), typecheck vert sur le poste. Vérifications lourdes sur GitHub Actions après push sur `verif`.
