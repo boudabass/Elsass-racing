@@ -15,6 +15,8 @@ import { PrismaPg } from "@prisma/adapter-pg"
 
 import { PrismaClient } from "../src/generated/prisma/client"
 
+import { jourParis } from "./lib/dates"
+
 chargerEnv({ path: ".env.local" })
 chargerEnv()
 
@@ -44,8 +46,7 @@ async function refuse(action: Promise<unknown>): Promise<string | null> {
 
 // Un jour civil à partir d'aujourd'hui (fuseau de Paris, comme l'application) : « AAAA-MM-JJ », et sa date UTC.
 function jourDans(jours: number): { texte: string; date: Date } {
-  const instant = new Date(Date.now() + jours * 86_400_000)
-  const texte = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(instant)
+  const texte = jourParis(jours)
   return { texte, date: new Date(`${texte}T00:00:00Z`) }
 }
 

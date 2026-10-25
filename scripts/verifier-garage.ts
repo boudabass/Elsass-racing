@@ -12,6 +12,8 @@ import { PrismaPg } from "@prisma/adapter-pg"
 
 import { PrismaClient } from "../src/generated/prisma/client"
 
+import { jourParis } from "./lib/dates"
+
 chargerEnv({ path: ".env.local" })
 chargerEnv()
 
@@ -597,7 +599,7 @@ async function main() {
     controle("un engagement supprimé ne crée ni fiche ni erreur", refusSupprime === null && fichesSupprime === 0, `${fichesSupprime} fiche(s) ; ${refusSupprime ?? ""}`)
 
     // Création à la main : voiture, date et cause (nettoyée) ; une date inexistante est refusée avec sa raison.
-    const demain = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+    const demain = jourParis(1)
     const dateInvalide = await refuse(casses.creerFicheCasseDans(ctx, { vehicleId: vehicule, date: "2026-02-30", eventId: null, cause: null }))
     controle("une date qui n'existe pas est refusée avec sa raison", dateInvalide === "Indique la date de la casse.", dateInvalide ?? "acceptée")
     const voitureInconnue = await refuse(casses.creerFicheCasseDans(ctx, { vehicleId: randomUUID(), date: demain, eventId: null, cause: null }))

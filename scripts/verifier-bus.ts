@@ -12,6 +12,8 @@ import { PrismaPg } from "@prisma/adapter-pg"
 
 import { PrismaClient } from "../src/generated/prisma/client"
 
+import { jourParis as jourDecale } from "./lib/dates"
+
 chargerEnv({ path: ".env.local" })
 chargerEnv()
 
@@ -533,7 +535,7 @@ async function main() {
     await voiture.poserLogoDans(ctx, reservation, { poseLe: jourDeParis(new Date()) })
     controle("poserLogo émet voiture.logo_pose", (await compter("voiture.logo_pose")) - avantPose === 1)
 
-    const echeanceProche = jourDeParis(new Date(Date.now() + 10 * 86_400_000))
+    const echeanceProche = jourDecale(10)
     const papierProche = await voiture.creerPapierDans(ctx, vehiculeVoiture, { type: "assurance", valableJusquAu: echeanceProche })
     const compterRappel = (paperId: string) =>
       proprietaire.coreDomainEvent.count({
@@ -550,7 +552,7 @@ async function main() {
     controle("un papier sans échéance n'émet rien", rappelsSansEcheance === 0, `${rappelsSansEcheance}`)
 
     // Un papier créé déjà expiré lève aussi le rappel, une seule fois, avec un titre qui dit la date passée.
-    const echeancePassee = jourDeParis(new Date(Date.now() - 3 * 86_400_000))
+    const echeancePassee = jourDecale(-3)
     const papierExpire = await voiture.creerPapierDans(ctx, vehiculeVoiture, { type: "controle_technique", valableJusquAu: echeancePassee })
     await recalculerPapiersDans(ctx)
     await recalculerPapiersDans(ctx)
