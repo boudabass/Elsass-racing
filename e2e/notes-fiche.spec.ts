@@ -1,0 +1,69 @@
+// Notes et photos sur la fiche d'un ordre de travail (brief 5.0, §4), en ligne. Par clics depuis le QG : l'équipage crée
+// un ordre, écrit une note, la modifie, ajoute une photo ; l'assistance affectée ajoute une note ; l'assistance non
+// affectée ne peut pas, et le bouton le dit. Le cas hors ligne est dans notes-fiche-hors-ligne.spec.ts.
+import path from "node:path"
+
+import { expect, test } from "./aide/fixtures"
+import { envoyer } from "./aide/envoi"
+import { preparerAtelierSaxo } from "./aide/garage"
+import { connecterParLien } from "./aide/navigation"
+import { ajouterMembreConnectable, ajouterVoitureSaxo } from "./aide/session"
+
+const PHOTO = path.resolve("e2e/fichiers/photo.jpg")
+const TITRE_ORDRE = "Vidange notes fiche"
+
+test("notes et photos d'un ordre : écrire, modifier, photo ; l'assistance affectée ajoute, la non affectée est refusée", async ({ page, equipe, browser }) => {
+  test.setTimeout(240_000)
+  const vehicleId = await ajouterVoitureSaxo(equipe, "Saxo notes fiche")
+  const organes = await preparerAtelierSaxo(equipe, vehicleId)
+
+  await connecterParLien(page, equipe)
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto(`/apps/garage/travaux?vehicule=${vehicleId}`)
+
+  await page.getByRole("button", { name: "Nouvel ordre", exact: true }).click()
+  const tiroir = page.getByRole("dialog")
+  await expect(tiroir).toBeVisible()
+  await tiroir.getByLabel("Titre", { exact: true }).fill(TITRE_ORDRE)
+  await tiroir.locator('select[name="vehicleComponentId"]').selectOption(organes.freins)
+  await envoyer(page, tiroir.getByRole("button", { name: "Créer l'ordre", exact: true }))
+  await expect(page.getByRole("link", { name: new RegExp(TITRE_ORDRE) }).first()).toBeVisible()
+
+  await page.getByRole("link", { name: new RegExp(TITRE_ORDRE) }).first().click()
+  await expect(page).toHaveURL(/\/apps\/garage\/travaux\/[0-9a-f-]+$/)
+  const idOrdre = page.url().split("/").pop() ?? ""
+  await expect(page.getByRole("heading", { name: "Notes et photos", exact: true })).toBeVisible()
+
+  // Une note : écrite dans le tiroir, visible, puis modifiée. Ces écritures passent par la base locale.
+  await page.getByRole("button", { name: "Ajouter une note", exact: true }).click()
+  await page.getByLabel("Ce qu'il faut retenir").fill("Filtre à changer")
+  await page.getByRole("button", { name: "Enregistrer la note", exact: true }).click()
+  await expect(page.getByText("Filtre à changer", { exact: true })).toBeVisible({ timeout: 30_000 })
+
+  await page.getByRole("button", { name: "Modifier", exact: true }).first().click()
+  await page.getByLabel("Modifier la note").fill("Filtre à changer, et vérifier le joint")
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click()
+  await expect(page.getByText("Filtre à changer, et vérifier le joint", { exact: true })).toBeVisible({ timeout: 30_000 })
+
+  // Une photo : part par le réseau, puis apparaît en vignette.
+  await page.getByRole("button", { name: "Ajouter une photo", exact: true }).click()
+  const tiroirPhoto = page.getByRole("dialog")
+  await tiroirPhoto.locator('input[name="fichier"]').setInputFiles(PHOTO)
+  await envoyer(page, tiroirPhoto.getByRole("button", { name: "Envoyer la photo", exact: true }))
+  await expect(page.getByRole("img", { name: "photo.jpg" })).toBeVisible({ timeout: 30_000 })
+
+  // L'assistance affectée à l'ordre ajoute une note ; l'assistance non affectée voit la fiche, sans bouton d'ajout.
+  const assistance = await ajouterMembreConnectable(equipe, "assistance", " notes fiche")
+  const contexte = await browser.newContext()
+  const assist = await contexte.newPage()
+  try {
+    await assist.goto(`/connexion/lien?t=${assistance.secretLien}`)
+    await assist.waitForURL(/\/qg$/)
+    await assist.goto(`/apps/garage/travaux/${idOrdre}`)
+    await expect(assist.getByText("Filtre à changer, et vérifier le joint", { exact: true })).toBeVisible({ timeout: 30_000 })
+    await expect(assist.getByText("Seul l'équipage affecté à cet ordre peut y ajouter une note ou une photo.")).toBeVisible()
+    await expect(assist.getByRole("button", { name: "Ajouter une note", exact: true })).toHaveCount(0)
+  } finally {
+    await contexte.close()
+  }
+})
