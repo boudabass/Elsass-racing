@@ -57,8 +57,9 @@ test("notes et photos d'un ordre : écrire, modifier, photo ; l'assistance affec
   await expect(page.getByText("Filtre à changer", { exact: true })).toBeVisible({ timeout: 30_000 })
 
   await bloc.getByRole("button", { name: "Modifier", exact: true }).first().click()
-  await page.getByLabel("Modifier la note").fill("Filtre à changer, et vérifier le joint")
-  await page.getByRole("button", { name: "Enregistrer", exact: true }).click()
+  // Le tiroir s'appelle aussi « Modifier la note » : le champ est le seul « textbox » de ce nom.
+  await page.getByRole("textbox", { name: "Modifier la note", exact: true }).fill("Filtre à changer, et vérifier le joint")
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }).click()
   await expect(page.getByText("Filtre à changer, et vérifier le joint", { exact: true })).toBeVisible({ timeout: 30_000 })
 
   // Une photo : part par le réseau, puis apparaît en vignette.
