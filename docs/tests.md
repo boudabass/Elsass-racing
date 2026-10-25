@@ -221,6 +221,10 @@ Le rendu des polices du runner Linux est différent de celui des captures d'avan
 - Cas vécus, sans doublon de données (la fiche et le plan avaient le bon nombre d'emplacements) : `e2e/voiture-deco.spec.ts` lignes 406 et 437 (run 39487952792), 334 (run 39492136999), 536 (run 39495850178).
 - Le piège `getByText` qui trouve aussi les `<option>` d'un `<select>` est dans `CLAUDE.md` (pièges du lot 2).
 
+### Dates relatives dans les tests
+
+- Dates relatives des tests : jours civils, jamais ± n × 86 400 000 ms (changement d'heure). Helpers : `e2e/aide/dates.ts` (`jourParis`) pour les specs, `scripts/lib/dates.ts` pour les `db:verifier-*`. Cas vécu : run 40238847101, `garage-equipements.spec.ts:100`, une échéance décalée d’un jour le 25/10.
+
 ### Après un envoi : attendre la réponse
 
 Règle : après un envoi (bouton d'un tiroir ou d'un formulaire, qui déclenche une server action), attendre la réponse avant toute navigation (`goto`, `reload`, clic de lien ou de menu). Le navigateur annule une requête en vol au premier rechargement : l'écriture peut alors ne pas avoir lieu, et le test lit l'ancien état.
