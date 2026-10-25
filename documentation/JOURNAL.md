@@ -571,3 +571,17 @@
 - Modifications successives hors ligne : deux modifications d'une même ligne, avant envoi, ne forment plus qu'une opération (version lue de la première). Une modification écrite pendant l'envoi d'une autre reste à part ; après la réponse, la ligne locale et les opérations restées dessus prennent la version qui en résulte. Sans cela, la seconde était journalisée comme conflit à tort. Limite retirée de `docs/synchro.md`.
 - Tutoiement : les textes de l'équipe (écran, messages serveur, tests, e2e et vérifications) tutoient. La page publique des partenaires et le bilan PDF restent au vouvoiement : ce sont des personnes extérieures à la team.
 - Unitaires : 915 (913 + 2 : deux modifications fondues, modification pendant l'envoi d'une autre).
+
+## 25/10/2026 : tâche 5.1, Équipe (schéma, règles, services, événements, lectures)
+
+- Schéma : migration `equipe_schema` (les huit tables de 955 §3, index partiels, CHECK, RLS forcé). Réponses du point d'arrêt reprises dans `docs/schema-equipe.md`. Les cinq événements `equipe.*` étaient déjà au catalogue : rien à déclarer.
+- Règles pures (`src/apps/equipe/regles.ts`) : statut des licences et équipements, paliers (jamais en baisse), statistiques personne et binôme, ressenti moyen, cohérence des validités, rôle affectable, échéance la plus urgente.
+- Services : profil, licences (contact ASA vérifié, montant qui déclenche la dépense), équipements, spécialités, disponibilités (une par personne et épreuve), affectations (pilote et copilote refusés), vivier. L'assistance ne gère que son dossier.
+- Budget : une licence payée propose une dépense « Licence et ASA » (clé `licence`, origine `equipe_licence:<id>`). Le gestionnaire suit le modèle de `garage.piece_achetee`.
+- Gestionnaires : résultat validé ou annulé (palier), débrief (ressenti de l'auteur), engagement créé (demande de disponibilités à chaque membre actif, levée à la réponse), adhésion rejointe (profil créé).
+- Lectures : cartes de l'équipe, prochaine épreuve (qui vient, ne vient pas, sans réponse), fiche personne (le ressenti n'est servi qu'à l'écriture ou plus), binômes. Saison fournit trois lectures partagées en lecture seule.
+- QG : licences et homologations à renouveler, une seule fois par fiche et par échéance, avec l'action « Renouveler » pour les responsables.
+- Manifeste et catalogue : Équipe en 0.2.0 (migration `20261025190000_core_catalogue`).
+- Vérifications : `db:verifier-equipe` (ressenti invisible en contribution, palier qui ne baisse pas après annulation, échéance émise une fois, droits de l'assistance, pilote refusé) et RLS des huit tables dans `db:verifier-rls`. Les deux sont branchés dans le job `complet`.
+- Constaté, non traité : le panneau « Prêt pour l'épreuve ? » de Saison ne passe licences et homologations à « suivi » que sur une échéance signalée. Une licence valide n'en signale aucune : le point reste « pas encore suivi ». Décision à prendre.
+- Unitaires : 933 (96 fichiers), typecheck vert. Migration, `db:verifier-equipe` et RLS ne tournent pas sur le poste (pas de Docker) : ils sont à confirmer par le run GitHub Actions.
