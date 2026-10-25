@@ -38,7 +38,8 @@ test("Vivier, prochaine épreuve, statistiques : une personne au vivier, affect�
   await page.getByRole("button", { name: "Ajouter au vivier", exact: true }).click()
   await tiroir(page).getByLabel("Personne", { exact: true }).selectOption({ label: "Bruno Vidal" })
   await tiroir(page).getByLabel("Rôle recherché", { exact: true }).selectOption({ label: "Logistique" })
-  await tiroir(page).getByLabel("Source", { exact: true }).fill("Un ami du club")
+  // Le libellé du champ inclut son texte d'aide (« Source D'où vient le nom… ») : on vise le début du libellé.
+  await tiroir(page).getByLabel(/^Source/).fill("Un ami du club")
   await envoyer(page, tiroir(page).getByRole("button", { name: "Ajouter", exact: true }))
   await expect(page.getByText("Recherché : Logistique", { exact: false }).first()).toBeVisible()
   await expect(page.locator("li").filter({ hasText: "Bruno Vidal" })).toBeVisible()
