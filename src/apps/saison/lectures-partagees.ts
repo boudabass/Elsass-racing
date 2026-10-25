@@ -45,22 +45,7 @@ export async function lireResultatsValidesParVehicule(ctx: ContexteTeam, vehicle
     orderBy: { event: { dateDebut: "desc" } },
   })
 
-  // Une seule requête pour les spéciales de toutes les épreuves concernées.
-  const epreuvesTerminees = engagements
-    .filter((e) => e.saisonResult?.statutFinal === "arrivee" && e.event.statut === "terminee")
-    .map((e) => e.eventId)
-  const speciales = epreuvesTerminees.length
-    ? await client.saisonStage.findMany({
-        where: { teamId: ctx.teamId, eventId: { in: epreuvesTerminees }, type: "speciale", deletedAt: null },
-        select: { eventId: true, longueurKm: true, nbPassages: true },
-      })
-    : []
-
-  const kmParEpreuve = new Map<string, number>()
-  for (const special of speciales) {
-    const km = Number(special.longueurKm ?? 0) * (special.nbPassages ?? 1)
-    kmParEpreuve.set(special.eventId, (kmParEpreuve.get(special.eventId) ?? 0) + km)
-  }
+  const kmParEpreuve = await kmSpecialeParEpreuve(ctx, engagements)
 
   return engagements.flatMap((e) => {
     if (!e.saisonResult) return []
@@ -95,6 +80,82 @@ export async function lireUsureEngagement(ctx: ContexteTeam, entryId: string): P
   })
   if (!resultat) return null
   return { entryId: resultat.entryId, kmChronometres: Number(resultat.kmChronometres ?? 0) }
+}
+
+// Kilomètres de spéciale par épreuve terminée, pour les engagements arrivés (longueur × passages). Une seule requête.
+type EngagementAvecResultat = { eventId: string; event: { statut: string }; saisonResult: { statutFinal: string } | null }
+
+async function kmSpecialeParEpreuve(ctx: ContexteTeam, engagements: EngagementAvecResultat[]): Promise<Map<string, number>> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const epreuvesTerminees = engagements
+    .filter((e) => e.saisonResult?.statutFinal === "arrivee" && e.event.statut === "terminee")
+    .map((e) => e.eventId)
+  const speciales = epreuvesTerminees.length
+    ? await client.saisonStage.findMany({
+        where: { teamId: ctx.teamId, eventId: { in: epreuvesTerminees }, type: "speciale", deletedAt: null },
+        select: { eventId: true, longueurKm: true, nbPassages: true },
+      })
+    : []
+
+  const kmParEpreuve = new Map<string, number>()
+  for (const special of speciales) {
+    const km = Number(special.longueurKm ?? 0) * (special.nbPassages ?? 1)
+    kmParEpreuve.set(special.eventId, (kmParEpreuve.get(special.eventId) ?? 0) + km)
+  }
+  return kmParEpreuve
+}
+
+// Résultats validés des engagements qui répondent à un filtre sur core_event_entry (pilote, copilote). Lecture seule,
+// limitée à la team, du plus récent au plus ancien. Équipe s'en sert pour les statistiques et les binômes (brief §1).
+export type ResultatValideEngagement = {
+  entryId: string
+  eventId: string
+  epreuveNom: string
+  dateDebut: Date
+  piloteId: string | null
+  copiloteId: string | null
+  statutFinal: "arrivee" | "abandon" | "exclusion" | "forfait"
+  classementGeneral: number | null
+  classementClasse: number | null
+  kmSpeciale: number
+}
+
+export async function lireResultatsValidesEngagements(
+  ctx: ContexteTeam,
+  filtre: Prisma.CoreEventEntryWhereInput,
+): Promise<ResultatValideEngagement[]> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const engagements = await client.coreEventEntry.findMany({
+    where: { ...filtre, teamId: ctx.teamId, deletedAt: null, saisonResult: { validation: "valide" } },
+    select: {
+      id: true,
+      eventId: true,
+      piloteId: true,
+      copiloteId: true,
+      event: { select: { nom: true, dateDebut: true, statut: true } },
+      saisonResult: { select: { statutFinal: true, classementGeneral: true, classementClasse: true } },
+    },
+    orderBy: { event: { dateDebut: "desc" } },
+  })
+  const kmParEpreuve = await kmSpecialeParEpreuve(ctx, engagements)
+  return engagements.flatMap((e) => {
+    if (!e.saisonResult) return []
+    const terminee = e.saisonResult.statutFinal === "arrivee" && e.event.statut === "terminee"
+    return [
+      {
+        entryId: e.id,
+        eventId: e.eventId,
+        epreuveNom: e.event.nom,
+        dateDebut: e.event.dateDebut,
+        piloteId: e.piloteId,
+        copiloteId: e.copiloteId,
+        statutFinal: e.saisonResult.statutFinal,
+        classementGeneral: e.saisonResult.classementGeneral,
+        classementClasse: e.saisonResult.classementClasse,
+        kmSpeciale: terminee ? (kmParEpreuve.get(e.eventId) ?? 0) : 0,
+      },
+    ]
+  })
 }
 
 // Épreuves où une personne est pilote ou copilote d'un engagement au résultat validé, pour le palier d'Équipe (tâche 5.1,
