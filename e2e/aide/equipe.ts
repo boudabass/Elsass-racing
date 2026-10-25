@@ -64,6 +64,8 @@ export async function choisirTheme(page: Page, valeur: "clair" | "sombre"): Prom
 
 // Capture pleine page : éléments fixes masqués, sauf le tiroir ouvert (même convention que garage-captures.spec.ts).
 export async function capturer(page: Page, nom: string): Promise<void> {
+  // Souris sortie de la page : une carte survolée ne doit pas se lire comme un état (fond grisé).
+  await page.mouse.move(0, 0)
   await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" })
   await page.evaluate(() => {
     document.querySelectorAll<HTMLElement>("body *").forEach((element) => {
