@@ -23,7 +23,7 @@ export default async function PageFichePersonne({
   const donnees = await pagePersonne(id)
   if (!donnees) notFound()
 
-  const permis = ongletsPersonne(donnees.peutVoirRessenti)
+  const permis = ongletsPersonne(donnees.peutVoirRessenti, donnees.fiche.roles)
   const demande = permis.find((cle) => cle === onglet) ?? "profil"
   return <FichePersonneEcran donnees={donnees} onglet={demande as OngletPersonne} />
 }

@@ -14,22 +14,24 @@ import {
 } from "./formulaires-equipe"
 import { COULEUR_ECHEANCE, LIBELLE_ECHEANCE, LIBELLE_PALIER, LIBELLE_REPONSE, LIBELLE_ROLE_HABITUEL } from "../libelles"
 import type { PagePersonne } from "../lectures-ecran"
-import { LIBELLES_TYPE_EQUIPEMENT, LIBELLES_TYPE_LICENCE, progressionPalier } from "../regles"
+import { estEquipage, LIBELLES_TYPE_EQUIPEMENT, LIBELLES_TYPE_LICENCE, progressionPalier, type RoleHabituel } from "../regles"
 
 // Fiche d'une personne (tâche 5.2, brief §1) : six onglets. Le ressenti n'existe que pour l'équipage et le responsable.
 // Les boutons qu'on ne peut pas utiliser restent visibles, désactivés, avec la raison écrite au-dessus de la saisie.
 
-export type OngletPersonne = "profil" | "statistiques" | "licences" | "equipement" | "disponibilites" | "ressenti"
+export type OngletPersonne = "profil" | "statistiques" | "licences" | "equipement" | "disponibilites" | "binomes" | "ressenti"
 
 const RAISON_DOSSIER = "Tu ne peux gérer que ton propre dossier."
 
 const NOMBRE = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 })
 const EUROS = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" })
 
-export function ongletsPersonne(peutVoirRessenti: boolean): OngletPersonne[] {
-  return peutVoirRessenti
-    ? ["profil", "statistiques", "licences", "equipement", "disponibilites", "ressenti"]
-    : ["profil", "statistiques", "licences", "equipement", "disponibilites"]
+// Ordre du 955 §2 : Binômes seulement pour un pilote ou un copilote, Ressenti seulement à l'écriture ou plus.
+export function ongletsPersonne(peutVoirRessenti: boolean, roles: RoleHabituel[]): OngletPersonne[] {
+  const base: OngletPersonne[] = ["profil", "statistiques", "licences", "equipement", "disponibilites"]
+  if (estEquipage(roles)) base.push("binomes")
+  if (peutVoirRessenti) base.push("ressenti")
+  return base
 }
 
 const LIBELLE_ONGLET: Record<OngletPersonne, string> = {
@@ -38,12 +40,13 @@ const LIBELLE_ONGLET: Record<OngletPersonne, string> = {
   licences: "Licences",
   equipement: "Équipement",
   disponibilites: "Disponibilités",
+  binomes: "Binômes",
   ressenti: "Ressenti",
 }
 
 export function FichePersonneEcran({ donnees, onglet }: { donnees: PagePersonne; onglet: OngletPersonne }) {
   const { fiche } = donnees
-  const onglets = ongletsPersonne(donnees.peutVoirRessenti)
+  const onglets = ongletsPersonne(donnees.peutVoirRessenti, fiche.roles)
   // Gérer le dossier : le niveau écriture, ou son propre dossier (l'assistance). Sinon, la raison est dite.
   const gere = donnees.peutEcrire || fiche.estSoi
   const raison = gere ? null : RAISON_DOSSIER
@@ -72,6 +75,7 @@ export function FichePersonneEcran({ donnees, onglet }: { donnees: PagePersonne;
       {onglet === "licences" && <LicencesFiche donnees={donnees} gere={gere} raison={raison} />}
       {onglet === "equipement" && <EquipementFiche donnees={donnees} gere={gere} raison={raison} />}
       {onglet === "disponibilites" && <DisponibilitesFiche donnees={donnees} gere={gere} raison={raison} />}
+      {onglet === "binomes" && estEquipage(fiche.roles) && <BinomesFiche donnees={donnees} />}
       {onglet === "ressenti" && donnees.peutVoirRessenti && <RessentiFiche donnees={donnees} />}
     </section>
   )
@@ -154,26 +158,41 @@ function StatistiquesFiche({ donnees }: { donnees: PagePersonne }) {
         </div>
         <div className="rounded-lg border border-bordure p-3">
           <dt className="text-texte-discret">Taux d&apos;arrivée</dt>
-          <dd className="chiffre text-2xl font-semibold">{stats.tauxArrivee === null ? "—" : `${Math.round(stats.tauxArrivee * 100)} %`}</dd>
+          <dd className="chiffre text-2xl font-semibold">
+            {stats.tauxArrivee === null ? (
+              <>
+                <span aria-hidden="true">—</span>
+                <span className="sr-only">pas encore d&apos;épreuve</span>
+              </>
+            ) : (
+              `${Math.round(stats.tauxArrivee * 100)} %`
+            )}
+          </dd>
         </div>
         <div className="rounded-lg border border-bordure p-3">
           <dt className="text-texte-discret">Kilomètres chronométrés</dt>
           <dd className="chiffre text-2xl font-semibold">{NOMBRE.format(stats.kmChronometres)} km</dd>
         </div>
       </dl>
-      {stats.meilleurClassement !== null && (
-        <p className="text-sm">
-          Meilleur classement de classe : <span className="chiffre font-semibold">{stats.meilleurClassement}</span>
-        </p>
-      )}
+      <p className="text-sm">
+        Meilleur classement de classe :{" "}
+        {stats.meilleurClassement === null ? (
+          <>
+            <span aria-hidden="true">—</span>
+            <span className="sr-only">pas encore de classement</span>
+          </>
+        ) : (
+          <span className="chiffre font-semibold">{stats.meilleurClassement}</span>
+        )}
+      </p>
 
       {fiche.palier && (
         <div className="flex flex-col gap-2">
           {progression ? (
             <>
               <p className="text-sm">
-                Encore <span className="chiffre font-semibold">{progression.restant}</span> épreuve{progression.restant > 1 ? "s" : ""} pour{" "}
-                {LIBELLE_PALIER[progression.suivant]}.
+                <span className="chiffre font-semibold">{progression.restant}</span> épreuve{progression.restant > 1 ? "s" : ""} avant{" "}
+                {LIBELLE_PALIER[progression.suivant]}
               </p>
               <div
                 role="progressbar"
@@ -343,6 +362,59 @@ function DisponibilitesFiche({ donnees, gere, raison }: { donnees: PagePersonne;
                 {dispo.nom} · {jourEnFrancais(dispo.dateDebut)}
               </span>
               <span>{LIBELLE_REPONSE[dispo.reponse]}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+// --- Binômes ----------------------------------------------------------------------------------------------
+
+function BinomesFiche({ donnees }: { donnees: PagePersonne }) {
+  const { fiche } = donnees
+  return (
+    <section aria-labelledby="binomes-titre" className="flex flex-col gap-4">
+      <h2 id="binomes-titre" className="text-lg font-semibold">
+        Binômes
+      </h2>
+      <p className="text-sm text-texte-discret">Seulement les épreuves à résultat validé dans Saison, où les deux étaient inscrits.</p>
+      {fiche.binomes.length === 0 ? (
+        <p className="text-texte-discret">Pas encore de binôme avec un résultat validé.</p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {fiche.binomes.map((binome) => (
+            <li key={binome.partenaireId} className="flex flex-col gap-2 rounded-lg border border-bordure p-4">
+              <p className="font-medium">{binome.partenaireNom}</p>
+              <p className="text-sm text-texte-discret">Rôle dans le binôme : {binome.role === "pilote" ? "pilote" : "copilote"}</p>
+              <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                <div>
+                  <dt className="text-texte-discret">Épreuves</dt>
+                  <dd className="chiffre font-semibold">{binome.stats.epreuvesCommunes}</dd>
+                </div>
+                <div>
+                  <dt className="text-texte-discret">Arrivées</dt>
+                  <dd className="chiffre font-semibold">{binome.stats.arriveesEnsemble}</dd>
+                </div>
+                <div>
+                  <dt className="text-texte-discret">Km chronométrés</dt>
+                  <dd className="chiffre font-semibold">{NOMBRE.format(binome.stats.kmEnsemble)} km</dd>
+                </div>
+                <div>
+                  <dt className="text-texte-discret">Meilleur résultat</dt>
+                  <dd className="chiffre font-semibold">
+                    {binome.stats.meilleurResultat === null ? (
+                      <>
+                        <span aria-hidden="true">—</span>
+                        <span className="sr-only">pas encore de classement</span>
+                      </>
+                    ) : (
+                      binome.stats.meilleurResultat
+                    )}
+                  </dd>
+                </div>
+              </dl>
             </li>
           ))}
         </ul>
