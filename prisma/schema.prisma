@@ -213,6 +213,15 @@ enum SettingsPorteeSuppression {
 
 // Une team : la racine de tout le reste. Son id est la team_id de ses données.
 model CoreTeam {
+  equipeProfiles EquipeProfile[]
+  equipeLicences EquipeLicence[]
+  equipeGears EquipeGear[]
+  equipeSkills EquipeSkill[]
+  equipeAvailabilities EquipeAvailability[]
+  equipeAssignments EquipeAssignment[]
+  equipeMoods EquipeMood[]
+  equipePools EquipePool[]
+
   id                   String         @id @db.Uuid
   nom                  String
   slug                 String         @unique
@@ -551,6 +560,15 @@ model CoreAppAccess {
 // Personne physique : pilote, copilote, membre de l'équipe, ou contact d'une entreprise.
 // userId la relie à un compte, contactId à l'entreprise qui l'emploie.
 model CorePerson {
+  equipeProfiles EquipeProfile[]
+  equipeLicences EquipeLicence[]
+  equipeGears EquipeGear[]
+  equipeSkills EquipeSkill[]
+  equipeAvailabilities EquipeAvailability[]
+  equipeAssignments EquipeAssignment[]
+  equipeMoods EquipeMood[]
+  equipePools EquipePool[]
+
   id            String    @id @db.Uuid
   teamId        String    @map("team_id") @db.Uuid
   nom           String
@@ -638,6 +656,9 @@ model CoreSeason {
 
 // Événement sportif (rallye, slalom...) rattaché à une saison.
 model CoreEvent {
+  equipeAvailabilities EquipeAvailability[]
+  equipeAssignments EquipeAssignment[]
+
   id                    String          @id @db.Uuid
   teamId                String          @map("team_id") @db.Uuid
   seasonId              String          @map("season_id") @db.Uuid
@@ -688,6 +709,9 @@ model CoreEvent {
 
 // Engagement d'un véhicule (et de son équipage) sur un événement.
 model CoreEventEntry {
+  equipeAssignments EquipeAssignment[]
+  equipeMoods EquipeMood[]
+
   id             String          @id @db.Uuid
   teamId         String          @map("team_id") @db.Uuid
   eventId        String          @map("event_id") @db.Uuid
@@ -777,6 +801,8 @@ model CoreVehicle {
 
 // Entreprise ou organisme : partenaire, fournisseur, ASA, photographe, prestataire.
 model CoreContact {
+  equipeLicencesAsa EquipeLicence[] @relation("EquipeLicenceAsa")
+
   id         String                 @id @db.Uuid
   teamId     String                 @map("team_id") @db.Uuid
   nom        String
@@ -887,6 +913,10 @@ model CoreFile {
 // Rattache un fichier à une fiche de n'importe quelle app. Le trio (app, ficheType,
 // ficheId) désigne la fiche sans clé étrangère (cf. docs/conventions-schema.md).
 model CoreAttachment {
+  equipeLicencesDocument EquipeLicence[] @relation("EquipeLicenceDocument")
+  equipeGearsDocument EquipeGear[] @relation("EquipeGearDocument")
+  equipeSkillsJustificatif EquipeSkill[] @relation("EquipeSkillJustificatif")
+
   id        String             @id @db.Uuid
   teamId    String             @map("team_id") @db.Uuid
   fileId    String             @map("file_id") @db.Uuid
@@ -3474,4 +3504,308 @@ model GarageIncidentPart {
   @@index([teamId])
   @@index([partId])
   @@map("garage_incident_part")
+}
+
+// Équipe (tâche 5.1) : les huit tables de 955 §3, voir docs/schema-equipe.md. Les index partiels d'unicité
+// et les CHECK sont dans la migration equipe_schema (Prisma ne les exprime pas).
+enum EquipeRoleHabituel {
+  pilote
+  copilote
+  assistance
+  benevole
+
+  @@map("equipe_role_habituel")
+}
+
+enum EquipePalier {
+  rookie
+  confirme
+  experimente
+  veteran
+  figure
+
+  @@map("equipe_palier")
+}
+
+enum EquipeTypeLicence {
+  ffsa_regionale
+  ffsa_nationale
+  ffsa_internationale
+  autre
+
+  @@map("equipe_type_licence")
+}
+
+enum EquipeTypeEquipement {
+  casque
+  hans
+  combinaison
+  gants
+  bottines
+  sous_vetements
+  cagoule
+
+  @@map("equipe_type_equipement")
+}
+
+enum EquipeSpecialite {
+  mecanique
+  pneus
+  logistique
+  photo
+  secourisme
+  commissaire
+  autre
+
+  @@map("equipe_specialite")
+}
+
+enum EquipeReponseDisponibilite {
+  vient
+  ne_vient_pas
+  peut_etre
+
+  @@map("equipe_reponse_disponibilite")
+}
+
+enum EquipeRoleEpreuve {
+  pilote
+  copilote
+  chef_assistance
+  assistance
+  logistique
+  photo
+
+  @@map("equipe_role_epreuve")
+}
+
+enum EquipeInteretVivier {
+  faible
+  moyen
+  fort
+
+  @@map("equipe_interet_vivier")
+}
+
+model EquipeProfile {
+  id               String                 @id @db.Uuid
+  teamId           String                 @map("team_id") @db.Uuid
+  personId         String                 @map("person_id") @db.Uuid
+  rolesHabituels   EquipeRoleHabituel[]   @default([]) @map("roles_habituels")
+  debutSportAuto   DateTime?              @map("debut_sport_auto") @db.Date
+  tailleVetements  String?                @map("taille_vetements")
+  contactUrgence   String?                @map("contact_urgence")
+  palier           EquipePalier           @default(rookie)
+  afficherTrophees Boolean                @default(false) @map("afficher_trophees")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team   CoreTeam   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  person CorePerson @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("equipe_profile")
+}
+
+model EquipeLicence {
+  id                   String            @id @db.Uuid
+  teamId               String            @map("team_id") @db.Uuid
+  personId             String            @map("person_id") @db.Uuid
+  type                 EquipeTypeLicence
+  numero               String?
+  asaContactId         String?           @map("asa_contact_id") @db.Uuid
+  saison               String?
+  valableDu            DateTime?         @map("valable_du") @db.Date
+  valableAu            DateTime?         @map("valable_au") @db.Date
+  documentAttachmentId String?           @map("document_attachment_id") @db.Uuid
+  montantCents         Int?              @map("montant_cents")
+  devise               String            @default("EUR")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team               CoreTeam        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  person             CorePerson      @relation(fields: [personId], references: [id], onDelete: Restrict)
+  asaContact         CoreContact?    @relation("EquipeLicenceAsa", fields: [asaContactId], references: [id], onDelete: SetNull)
+  documentAttachment CoreAttachment? @relation("EquipeLicenceDocument", fields: [documentAttachmentId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([personId])
+  @@map("equipe_licence")
+}
+
+model EquipeGear {
+  id                   String               @id @db.Uuid
+  teamId               String               @map("team_id") @db.Uuid
+  personId             String               @map("person_id") @db.Uuid
+  type                 EquipeTypeEquipement
+  marque               String?
+  modele               String?
+  norme                String?
+  finHomologation      DateTime?            @map("fin_homologation") @db.Date
+  taille               String?
+  acheteLe             DateTime?            @map("achete_le") @db.Date
+  documentAttachmentId String?              @map("document_attachment_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team               CoreTeam        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  person             CorePerson      @relation(fields: [personId], references: [id], onDelete: Restrict)
+  documentAttachment CoreAttachment? @relation("EquipeGearDocument", fields: [documentAttachmentId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([personId])
+  @@map("equipe_gear")
+}
+
+model EquipeSkill {
+  id                       String           @id @db.Uuid
+  teamId                   String           @map("team_id") @db.Uuid
+  personId                 String           @map("person_id") @db.Uuid
+  specialite               EquipeSpecialite
+  niveauDeclare            Int?             @map("niveau_declare")
+  formation                String?
+  dateFormation            DateTime?        @map("date_formation") @db.Date
+  justificatifAttachmentId String?          @map("justificatif_attachment_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team         CoreTeam        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  person       CorePerson      @relation(fields: [personId], references: [id], onDelete: Restrict)
+  justificatif CoreAttachment? @relation("EquipeSkillJustificatif", fields: [justificatifAttachmentId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([personId])
+  @@map("equipe_skill")
+}
+
+model EquipeAvailability {
+  id           String                     @id @db.Uuid
+  teamId       String                     @map("team_id") @db.Uuid
+  personId     String                     @map("person_id") @db.Uuid
+  eventId      String                     @map("event_id") @db.Uuid
+  reponse      EquipeReponseDisponibilite
+  jours        DateTime[]                 @default([]) @db.Date
+  avecVehicule Boolean?                   @map("avec_vehicule")
+  places       Int?
+  commentaire  String?
+  reponduLe    DateTime                   @default(now()) @map("repondu_le") @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team   CoreTeam   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  person CorePerson @relation(fields: [personId], references: [id], onDelete: Restrict)
+  event  CoreEvent  @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([eventId])
+  @@map("equipe_availability")
+}
+
+model EquipeAssignment {
+  id           String            @id @db.Uuid
+  teamId       String            @map("team_id") @db.Uuid
+  eventId      String            @map("event_id") @db.Uuid
+  eventEntryId String?           @map("event_entry_id") @db.Uuid
+  personId     String            @map("person_id") @db.Uuid
+  roleEpreuve  EquipeRoleEpreuve @map("role_epreuve")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team       CoreTeam        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  event      CoreEvent       @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  eventEntry CoreEventEntry? @relation(fields: [eventEntryId], references: [id], onDelete: Restrict)
+  person     CorePerson      @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([eventId])
+  @@index([personId])
+  @@map("equipe_assignment")
+}
+
+model EquipeMood {
+  id           String   @id @db.Uuid
+  teamId       String   @map("team_id") @db.Uuid
+  personId     String   @map("person_id") @db.Uuid
+  eventEntryId String   @map("event_entry_id") @db.Uuid
+  ressenti     Int
+  motCle       String?  @map("mot_cle")
+  saisiLe      DateTime @default(now()) @map("saisi_le") @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team       CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  person     CorePerson     @relation(fields: [personId], references: [id], onDelete: Restrict)
+  eventEntry CoreEventEntry @relation(fields: [eventEntryId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([eventEntryId])
+  @@map("equipe_mood")
+}
+
+model EquipePool {
+  id             String              @id @db.Uuid
+  teamId         String              @map("team_id") @db.Uuid
+  personId       String              @map("person_id") @db.Uuid
+  roleRecherche  EquipeRoleEpreuve   @map("role_recherche")
+  source         String?
+  dernierContact DateTime?           @map("dernier_contact") @db.Date
+  interet        EquipeInteretVivier
+  notes          String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team   CoreTeam   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  person CorePerson @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([personId])
+  @@map("equipe_pool")
 }
