@@ -160,6 +160,9 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
   const equipierB = await ajouterMembreConnectable(equipe, "equipage", "-b")
   await donnerAccesSaison(equipe, equipierA, "ecriture")
   await donnerAccesSaison(equipe, equipierB, "ecriture")
+  // Un lien de connexion ne sert qu'une fois : l'équipier C valide l'abandon de l'étape 9, B ayant déjà servi à l'étape 5.
+  const equipierC = await ajouterMembreConnectable(equipe, "equipage", "-c")
+  await donnerAccesSaison(equipe, equipierC, "ecriture")
 
   await connecterParLien(page, equipe)
   await page.setViewportSize(BUREAU)
@@ -391,7 +394,7 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
   })
 
   await test.step("9 · abandon déclaré dans Saison : fiche casse au Garage, réparation liée", async () => {
-    // Le membre A saisit l'abandon, le membre B le valide.
+    // Le membre A saisit l'abandon, le membre C le valide.
     await ouvrirEpreuveDansSaison(page, EPREUVE_ABANDON)
     await page.getByRole("link", { name: "Engagements", exact: true }).click()
     await page.getByRole("button", { name: "Engager une voiture", exact: true }).click()
@@ -415,13 +418,13 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
       await a.fermer()
     }
 
-    const b = await connecterMembre(browser, equipierB)
+    const c = await connecterMembre(browser, equipierC)
     try {
-      await b.page.goto("/apps/saison/a-valider")
-      await b.page.getByRole("button", { name: "Valider", exact: true }).click()
-      await expect(b.page.locator("main").getByRole("link", { name: new RegExp(EPREUVE_ABANDON) })).toHaveCount(0)
+      await c.page.goto("/apps/saison/a-valider")
+      await c.page.getByRole("button", { name: "Valider", exact: true }).click()
+      await expect(c.page.locator("main").getByRole("link", { name: new RegExp(EPREUVE_ABANDON) })).toHaveCount(0)
     } finally {
-      await b.fermer()
+      await c.fermer()
     }
 
     // Le responsable ouvre la fiche casse au Garage : elle arrive par un événement, donc on la relit jusqu'à ce qu'elle soit là.
