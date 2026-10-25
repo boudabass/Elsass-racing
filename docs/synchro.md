@@ -32,7 +32,18 @@ Règle de contribution (`src/core/synchro/contribution.ts`) : au niveau contribu
 
 Règle par affectation (tâche 4.3, D1) : une déclaration peut porter `regleContribution: "affectation"` et une fonction `affecte(tx, teamId, userId, id)`. Au niveau contribution, on n'écrit alors que les lignes où le membre est affecté (par exemple un ordre de travail, article 954), quel que soit leur auteur. La table répond à `affecte` ; le prédicat `peutEcrire` ne lit jamais la base. Sans fonction `affecte`, le niveau contribution est refusé (défaut sûr). Absente, la règle vaut `createur` : comportement inchangé pour `core_note` et les tables existantes. La création reste libre au niveau contribution, et l'auteur devient le membre.
 
-Les champs de `creer` ne suffisent pas à poser la fiche : le serveur pose l'auteur, la team et la fiche (pour une note : `app = core`, `ficheType = team`, `ficheId = teamId`).
+Les champs de `creer` ne suffisent pas à poser la fiche : le serveur pose l'auteur, la team et la fiche (pour une note de team : `app = core`, `ficheType = team`, `ficheId = teamId`).
+
+## Notes de fiche hors ligne (tâche 5.0)
+
+`core_note` porte aussi les notes de fiche : `app`, `ficheType` et `ficheId` désignent la fiche (une note de team garde `core` / `team`). Quatre règles propres à ces lignes, ajoutées au registre sans changer le reste du moteur :
+
+- **Liste blanche des fiches** (`src/core/notes/fiches.ts`) : une app y déclare son type de fiche et son contrôle, côté serveur, dans la transaction (`peutVoir`, `peutAjouter`). Pour la 5.0 : l'ordre de travail du Garage (`src/apps/garage/notes-serveur.ts`). Une note poussée pour un autre couple app / type est refusée : « Les notes de cette fiche ne se prennent pas hors ligne. » Les points de check-list (5.6) s'ajouteront ici.
+- **Tirage** (`lirePaquet`, sixième argument `lecteur`) : une note de fiche ne descend que si la personne a au moins « lecture » sur l'app de la fiche (`fichesNotesLisibles`). Les notes de team gardent la règle de `equipe`. La déclaration porte `filtreLecture: true` : la table est tirée même sans niveau sur `equipe`, et le filtre se fait ligne à ligne.
+- **Poussée** (`controleLigne`, appelé par `pousser.ts` avant la règle de la table) : création de note de fiche soumise à `peutAjouter` (écriture, ou contribution avec affectation à l'ordre). Modification et retrait hors ligne : auteur seul, et la fiche doit rester visible (`verdictNoteFiche`). La gestion retire les notes des autres en ligne seulement (service `retirerNote`). Une ligne sans fiche (note de team) renvoie `null` : la règle de la table s'applique comme avant.
+- **Écran « Notes de la team »** : ne liste que les notes sans `ficheType`, ou dont le type vaut `team`.
+
+Vérification : `db:verifier-synchro`, section 13 (assistance affectée, non affectée, fiche hors liste, modification d'un autre refusée, invité qui ne reçoit pas la note de l'ordre). Unitaires : `src/core/notes/regles.test.ts`.
 
 ## Conflits, en pratique
 

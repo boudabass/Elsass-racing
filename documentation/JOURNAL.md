@@ -548,3 +548,12 @@
 - Spec : le parcours vérifie que les quatre freins et les deux transmissions de la casse ont des libellés distincts, avant de cocher la boîte (organe unique, inchangé pour la réparation liée).
 - Unitaires : 887 (885 + 2 sur `nomAvecPosition`).
 - Clic perdu : pas de correction côté app, décision de l'orchestrateur ; entrée dans les intermittents de `docs/tests.md`. Le texte de `CLAUDE.md` correspondant n'est pas ajouté : la modification de CLAUDE.md demandée par un pair est refusée ; à faire par la personne qui le tient.
+
+## 25/10/2026 : tâche 5.0, notes et photos sur une fiche
+
+- Socle : `src/core/notes/` (service et règles). Les droits viennent de la fiche : l'app passe un `ControleFiche`. Une note vide est refusée, 4000 caractères au plus (même plafond que le schéma de synchro). Pas de migration, pas de journal d'activité nouveau.
+- Hors ligne : `core_note` servait déjà aux notes de la team, et son tirage ne tenait pas compte de la fiche. Décision de l'orchestrateur (point A) : une liste blanche de fiches (`src/core/notes/fiches.ts`), un filtre de tirage par lecture sur l'app de la fiche, un contrôle à la poussée (création par affectation, modification et retrait hors ligne par l'auteur seul). Le moteur change de trois points : un sixième argument `lecteur` à `lirePaquet`, `filtreLecture` pour tirer la table sans niveau sur `equipe`, et `controleLigne` appelé avant la règle de la table. Les notes de team ne changent pas.
+- Écran « Notes de la team » : ne liste plus que les notes sans fiche.
+- Garage : le bloc `NotesEtPhotos` (composant commun) sur la fiche d'un ordre de travail. Notes lues et écrites sur la base locale, photos et retrait par la gestion en ligne seulement, avec la raison affichée.
+- Vérification : `db:verifier-synchro`, section 13 (cinq contrôles de fiche). Unitaires : `src/core/notes/regles.test.ts`.
+- Reportés levés : « notes et photos sur les ordres » (4.3 et 4.7). Restent reportés : statut et avancement hors ligne, lecture locale de Travaux, avertissement de sortie pendant une photo.

@@ -89,6 +89,8 @@ Une nouvelle app importe ces éléments au lieu de les recopier :
 - `src/lib/euros.ts` : `formatEuros(centimes)` (« 1 234,50 € ») et `enEuros(centimes)` (« 12,50 » pour un champ de saisie).
 - `src/core/fichiers/fichiers-serveur.ts` : `enregistrerFichier` (écriture et ligne `core_file`), `rattacherFichier` (lien à une fiche, dans la transaction de l'app), `remplacerFichier` (l'ancien fichier part à la corbeille). Règles et routes dans `docs/fichiers.md`.
 - `src/components/formulaire/champ-fichier.tsx` : `ChampFichier`, le champ d'envoi de fichier (photo compressée, hors ligne géré, vignette ou nom).
+- `src/core/notes/notes-serveur.ts` : notes et photos d'une fiche (tâche 5.0). Une app passe son `ControleFiche` (`voir`, `contribuer`, `gerer`) à chaque fonction : `notesEtPhotos`, `ajouterNote`, `modifierNote` (auteur seul), `retirerNote` (auteur ou gestion), `ajouterPhoto`, `retirerPhoto`, `nomsDesMembres`. Règles pures dans `regles.ts`. Le Garage fournit `controleOrdre` (`src/apps/garage/notes-serveur.ts`) et ses actions (`src/apps/garage/notes-actions.ts`). Hors ligne : liste blanche `src/core/notes/fiches.ts` (voir `docs/synchro.md`).
+- `src/components/notes-photos/notes-et-photos.tsx` : `NotesEtPhotos`, le bloc « Notes et photos » d'une fiche. Les notes se lisent et s'écrivent sur la base locale ; les photos et le retrait par la gestion passent par le réseau. Les actions lui sont passées en props, pour rester sans app.
 - `src/core/pdf/` : `DocumentTeam` (en-tête, pied de page), les blocs `Tableau`, `ChiffresCles`…, `rendrePdf` et `reponsePdf` pour une route qui télécharge un PDF, `lireLogoPourPdf`. Usage et limites dans `docs/pdf.md`.
 
 Les erreurs métier de Saison (`ErreurSaison`) et de Budget (`ErreurBudget`) héritent de `ErreurMetier`.

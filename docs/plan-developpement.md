@@ -278,7 +278,7 @@ Décisions de John (20/10) :
 - Commandes et réception (la réception crée les pièces en stock). `garage.piece_achetee` et `garage.intervention_facturee` vers Budget, qui propose la dépense. `garage.travail_termine`.
 - Hors ligne (décision de l'Orchestrateur, 21/10) : une intervention rapide sans pièce s'écrit sur l'appareil et part au retour du réseau ; avec pièce, elle attend le réseau.
 - Reporté, noté (21/10) : statut et avancement hors ligne sans écran (la modification serveur existe, aucun écran ne l'écrit) ; lecture locale de Travaux (conséquence pour l'assistance : ouvrir Travaux en ligne avant de partir) ; photos hors ligne, hors périmètre.
-- Point ouvert : notes et photos sur les ordres, hors 4.3. Elles demandent un service du socle pour les notes et les fichiers liés à une fiche, à concevoir à part.
+- Notes et photos sur les ordres : faites en 5.0 (service du socle `src/core/notes/`, notes de fiche hors ligne par la liste blanche de `src/core/notes/fiches.ts`).
 - Refus de la synchro invisibles (défaut du socle depuis le lot 1) : tâche 4.3b, brief `docs/briefs/4.3b-synchro-refus-visibles.md`.
 - Tâche 4.3c (cause du 418, décision de l'Orchestrateur, 21/10) : diagnostics et tolérance mesurée dans `docs/tests.md`, section « Erreur 418 au premier chargement en ligne de `/qg` ». Points ouverts : 418 au premier chargement de `/qg`, production seulement, cause non établie ; piste suivante : build de test avec React de développement.
 
@@ -303,7 +303,6 @@ Décisions de John (20/10) :
 - Parcours, cas perdus : au run 40148965567, le clic sur « Casses » juste après l'arrivée sur l'Atelier n'a pas navigué (l'URL est restée sur l'Atelier, cause non établie) ; même classe de défaut qu'à l'étape 2 (Budget). Le test contrôle maintenant la navigation et relance le clic une fois, en le comptant dans le log (« clic sur « Casses » perdu : relancé ») ; ce compteur n'est pas apparu au run vert. Décision de l'orchestrateur : pas de correction côté app sans cause établie ; entrée dans les intermittents de `docs/tests.md`.
 - Reportés (hors lot 4, à inscrire ici) :
   - Stock : écart avec 954 §2, à reprendre ;
-  - notes et photos sur les ordres (service du socle à concevoir) ;
   - statut et avancement d'un ordre hors ligne ;
   - lecture locale de Travaux hors ligne ;
   - `checklist.probleme_signale` (lot 5) ;
