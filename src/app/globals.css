@@ -23,9 +23,9 @@
     /* Texte et icônes posés sur la marque : blancs dans les deux thèmes (brief 3.11, §10). */
     --marque-texte: #ffffff;
 
-    /* États : jamais remplacés par une couleur de team. */
-    --etat-ok: #15803d;
-    --etat-orange: #c2410c;
+    /* États : jamais remplacés par une couleur de team. Texte à 4,5:1 au moins, y compris sur surface-2 (survol). */
+    --etat-ok: #166534;
+    --etat-orange: #9a3412;
     --etat-rouge: #b91c1c;
     --etat-rouge-texte: #ffffff;
   }
