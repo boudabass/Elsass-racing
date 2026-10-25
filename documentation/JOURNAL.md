@@ -565,3 +565,9 @@
 - Vérification : tests unitaires du moteur et du protocole (sept cas nouveaux), `docs/synchro.md`, section « Création puis modification avant l'envoi ».
 - Une opération restée en file avec `revLue: 0` avant ce correctif est refusée seule et apparaît dans « envois refusés ».
 - Constaté, non corrigé : deux modifications successives d'une même ligne hors ligne se journalisent comme conflit (limite connue dans `docs/synchro.md`).
+
+## 25/10/2026 : tâche 5.1, point 0 (reliquats de la 5.0)
+
+- Modifications successives hors ligne : deux modifications d'une même ligne, avant envoi, ne forment plus qu'une opération (version lue de la première). Une modification écrite pendant l'envoi d'une autre reste à part ; après la réponse, la ligne locale et les opérations restées dessus prennent la version qui en résulte. Sans cela, la seconde était journalisée comme conflit à tort. Limite retirée de `docs/synchro.md`.
+- Tutoiement : les textes de l'équipe (écran, messages serveur, tests, e2e et vérifications) tutoient. La page publique des partenaires et le bilan PDF restent au vouvoiement : ce sont des personnes extérieures à la team.
+- Unitaires : 915 (908 + 7 : fusion, version lue, modification pendant l'envoi).
