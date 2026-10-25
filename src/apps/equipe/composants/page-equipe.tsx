@@ -105,7 +105,7 @@ function CarteEquipier({ carte, aEpreuve }: { carte: CarteMembre; aEpreuve: bool
   )
 }
 
-export function PageEquipeEcran({ donnees, role }: { donnees: PageEquipe; role: string | null }) {
+export function PageEquipeEcran({ donnees, role, nouvelle = false }: { donnees: PageEquipe; role: string | null; nouvelle?: boolean }) {
   const cartes = filtrerCartes(donnees.cartes, role)
   const filtreActif = role && role !== "tous" ? role : "tous"
 
@@ -120,7 +120,7 @@ export function PageEquipeEcran({ donnees, role }: { donnees: PageEquipe; role: 
               {donnees.epreuve ? `, prochaine épreuve : ${donnees.epreuve.nom}` : ""}.
             </p>
           </div>
-          {donnees.peutEcrire && <NouvellePersonne />}
+          {donnees.peutEcrire && <NouvellePersonne ouvertDepart={nouvelle} />}
         </div>
 
         <nav aria-label="Filtrer par rôle" className="flex flex-wrap gap-2">

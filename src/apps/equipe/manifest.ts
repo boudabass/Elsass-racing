@@ -10,7 +10,12 @@ export const manifesteEquipe: ManifesteApp = {
   icone: "users",
   version: "0.2.0",
   requiert: [],
-  menu: [{ libelle: "L'équipe", chemin: "/" }],
+  menu: [
+    { libelle: "L'équipe", chemin: "/" },
+    { libelle: "Prochaine épreuve", chemin: "/epreuve" },
+    { libelle: "Binômes", chemin: "/binomes" },
+    { libelle: "Vivier", chemin: "/vivier" },
+  ],
   widgets: [...WIDGETS.equipe],
   evenementsEmis: evenementsEmisPar("equipe"),
   evenementsEcoutes: evenementsEcoutesPar("equipe"),

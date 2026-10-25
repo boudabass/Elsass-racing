@@ -2,6 +2,7 @@
 // à 360 px, en thème sombre et en thème clair. Les captures partent dans docs/captures/ (equipe-*) ; elles sont téléchargées
 // du run, relues, puis commitées à la main.
 import { ajouterEquipement, ajouterLicence, capturer, choisirTheme, creerPersonne } from "./aide/equipe"
+import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien, tuilesDuQg } from "./aide/navigation"
 import { ajouterEpreuveEnBase, preparerSaison } from "./aide/session"
@@ -24,6 +25,24 @@ test("captures · équipe en cartes et fiche personne (Statistiques, Licences), 
   await page.getByRole("link", { name: "Retour à l'équipe", exact: true }).click()
   await creerPersonne(page, "Anne", "Lenoir", "Assistance")
 
+  // Vivier et prochaine épreuve avec des données : Luc au vivier pour la logistique, Anne affectée à l'épreuve.
+  const menu = page.getByRole("navigation", { name: "Menu de Équipe" })
+  await menu.getByRole("link", { name: "Vivier", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "Vivier", exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Ajouter au vivier", exact: true }).click()
+  await page.getByRole("dialog").getByLabel("Personne", { exact: true }).selectOption({ label: "Luc Martin" })
+  await page.getByRole("dialog").getByLabel("Rôle recherché", { exact: true }).selectOption({ label: "Logistique" })
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Ajouter", exact: true }))
+  await expect(page.getByText("Recherché : Logistique", { exact: false }).first()).toBeVisible()
+
+  await menu.getByRole("link", { name: "Prochaine épreuve", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "Rallye captures équipe", exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Affecter une personne", exact: true }).click()
+  await page.getByRole("dialog").getByLabel("Personne", { exact: true }).selectOption({ label: "Anne Lenoir" })
+  await page.getByRole("dialog").getByLabel("Rôle d'épreuve", { exact: true }).selectOption({ label: "Logistique" })
+  await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Affecter", exact: true }))
+  await expect(page.getByText("Logistique · à faire")).toBeVisible()
+
   for (const theme of ["sombre", "clair"] as const) {
     await choisirTheme(page, theme)
     await page.getByRole("link", { name: /retour au QG/ }).click()
@@ -45,6 +64,19 @@ test("captures · équipe en cartes et fiche personne (Statistiques, Licences), 
       await page.getByRole("link", { name: "Licences", exact: true }).click()
       await expect(page.getByText("N° N-2032", { exact: false }).first()).toBeVisible()
       await capturer(page, `equipe-fiche-licences-${taille.largeur}-${theme}.png`)
+
+      // Les écrans du menu de l'app : vivier, prochaine épreuve, binômes (à partir de la fiche, par clic).
+      await menu.getByRole("link", { name: "Vivier", exact: true }).click()
+      await expect(page.getByRole("heading", { name: "Vivier", exact: true })).toBeVisible()
+      await capturer(page, `equipe-vivier-${taille.largeur}-${theme}.png`)
+
+      await menu.getByRole("link", { name: "Prochaine épreuve", exact: true }).click()
+      await expect(page.getByText("Logistique · à faire")).toBeVisible()
+      await capturer(page, `equipe-epreuve-${taille.largeur}-${theme}.png`)
+
+      await menu.getByRole("link", { name: "Binômes", exact: true }).click()
+      await expect(page.getByRole("heading", { name: "Binômes", exact: true })).toBeVisible()
+      await capturer(page, `equipe-binomes-${taille.largeur}-${theme}.png`)
 
       // Retour au QG : chaque taille repart de la tuile Équipe du QG.
       await page.getByRole("link", { name: /retour au QG/ }).click()

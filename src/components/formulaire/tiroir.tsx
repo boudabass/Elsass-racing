@@ -225,9 +225,11 @@ function FormulaireTiroir({
 export function TiroirAction({
   libelle,
   secondaire = true,
+  ouvertDepart = false,
   ...reste
-}: Omit<TiroirFormulaireProps, "ouvert" | "onOuvertChange"> & { libelle: string; secondaire?: boolean }) {
-  const [ouvert, setOuvert] = useState(false)
+}: Omit<TiroirFormulaireProps, "ouvert" | "onOuvertChange"> & { libelle: string; secondaire?: boolean; ouvertDepart?: boolean }) {
+  // ouvertDepart : le tiroir s'ouvre à l'affichage (ex. entrée « + » qui demande le formulaire directement).
+  const [ouvert, setOuvert] = useState(ouvertDepart)
   return (
     <>
       <button

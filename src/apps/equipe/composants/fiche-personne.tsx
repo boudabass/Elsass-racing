@@ -224,7 +224,7 @@ function LicencesFiche({ donnees, gere, raison }: { donnees: PagePersonne; gere:
         <h2 id="licences-titre" className="text-lg font-semibold">
           Licences
         </h2>
-        <AjouterLicence personId={fiche.personId} desactive={!gere} raison={raison} />
+        <AjouterLicence personId={fiche.personId} asas={donnees.asas} desactive={!gere} raison={raison} />
       </div>
       {fiche.licences.length === 0 ? (
         <p className="text-texte-discret">Aucune licence saisie.</p>
@@ -244,6 +244,14 @@ function LicencesFiche({ donnees, gere, raison }: { donnees: PagePersonne; gere:
                 )}
                 {licence.valableAu && <span> · valable jusqu&apos;au {jourEnFrancais(licence.valableAu)}</span>}
               </p>
+              {licence.asaContactId && (
+                <p className="text-sm">ASA : {donnees.asas.find((asa) => asa.id === licence.asaContactId)?.nom ?? "contact retiré"}</p>
+              )}
+              {licence.documentFileId && (
+                <a href={`/api/fichiers/${licence.documentFileId}`} target="_blank" rel="noopener noreferrer" className={`${LIEN} self-start`}>
+                  Voir le document de la licence
+                </a>
+              )}
               {peutEcrire && licence.montantCents !== null && (
                 <p className="text-sm text-texte-discret">Montant payé : {EUROS.format(licence.montantCents / 100)}</p>
               )}
@@ -257,7 +265,9 @@ function LicencesFiche({ donnees, gere, raison }: { donnees: PagePersonne; gere:
                     valableDu: licence.valableDu,
                     valableAu: licence.valableAu,
                     montantCents: licence.montantCents,
+                    asaContactId: licence.asaContactId,
                   }}
+                  asas={donnees.asas}
                   desactive={!gere}
                   raison={raison}
                 />

@@ -13,7 +13,7 @@ describe("menu « + » selon le rôle", () => {
 
   it("offre tout au responsable : Épreuve, Véhicule, Dépense, Réglage actives ; Photo désactivée avec sa raison ; Note active", () => {
     const entrees = entreesDuMenuPlus("responsable", false)
-    expect(entrees.map((e) => e.libelle)).toEqual(["Épreuve", "Véhicule", "Partenaire", "Pièce", "Roulage", "Équipement", "Intervention", "Dépense", "Réglage", "Photo", "Note"])
+    expect(entrees.map((e) => e.libelle)).toEqual(["Épreuve", "Personne", "Véhicule", "Partenaire", "Pièce", "Roulage", "Équipement", "Intervention", "Dépense", "Réglage", "Photo", "Note"])
     expect(entrees.find((e) => e.libelle === "Partenaire")).toEqual({ libelle: "Partenaire", desactivee: false, href: "/apps/partenaires/nouveau" })
     expect(entrees.filter((e) => e.desactivee).every((e) => e.raison)).toBe(true)
     expect(entrees.find((e) => e.libelle === "Dépense")).toEqual({ libelle: "Dépense", desactivee: false, href: "/apps/budget/nouvelle" })

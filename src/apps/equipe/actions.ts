@@ -5,19 +5,38 @@
 
 import { executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-serveur"
 
-import type { EntreeDisponibilite, EntreeEquipement, EntreeLicence, EntreePersonne, EntreeProfil } from "./services-serveur"
+import type { EntreeAffectation, EntreeDisponibilite, EntreeEquipement, EntreeLicence, EntreePersonne, EntreeProfil, EntreeVivier } from "./services-serveur"
 import {
+  affecterPersonne,
+  ajouterAuVivier,
   ajouterEquipement,
   ajouterLicence,
+  changerStatutTache,
   creerPersonne,
   modifierEquipement,
   modifierLicence,
   modifierProfil,
+  modifierVivier,
   repondreDisponibilite,
+  retirerAffectation,
+  retirerDuVivier,
   retirerEquipement,
   retirerLicence,
 } from "./services-serveur"
-import { REPONSES_DISPONIBILITE, ROLES_HABITUELS, TYPES_EQUIPEMENT, TYPES_LICENCE, type ReponseDisponibilite, type RoleHabituel, type TypeEquipement, type TypeLicence } from "./regles"
+import {
+  INTERETS_VIVIER,
+  REPONSES_DISPONIBILITE,
+  ROLES_EPREUVE,
+  ROLES_HABITUELS,
+  TYPES_EQUIPEMENT,
+  TYPES_LICENCE,
+  type InteretVivier,
+  type ReponseDisponibilite,
+  type RoleEpreuve,
+  type RoleHabituel,
+  type TypeEquipement,
+  type TypeLicence,
+} from "./regles"
 
 const CHEMIN = "/apps/equipe"
 
@@ -50,6 +69,8 @@ function saisieLicence(donnees: FormData): EntreeLicence {
     saison: texteOuNull(donnees, "saison"),
     valableDu: texteOuNull(donnees, "valableDu"),
     valableAu: texteOuNull(donnees, "valableAu"),
+    asaContactId: texteOuNull(donnees, "asaContactId"),
+    documentFileId: texteOuNull(donnees, "documentFileId"),
     montantCents: centimesDepuis(texte(donnees, "montant")),
   }
 }
@@ -120,5 +141,52 @@ export async function repondreDisponibiliteAction(_etat: Resultat | null, donnee
       reponse: choisi(texte(donnees, "reponse"), REPONSES_DISPONIBILITE as readonly ReponseDisponibilite[], "Réponse"),
     }
     await repondreDisponibilite(texte(donnees, "personId"), texte(donnees, "eventId"), entree)
+  })
+}
+
+export async function affecterPersonneAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, () =>
+    affecterPersonne(texte(donnees, "eventId"), texte(donnees, "personId"), {
+      roleEpreuve: choisi(texte(donnees, "roleEpreuve"), ROLES_EPREUVE as readonly RoleEpreuve[], "Rôle d'épreuve"),
+    } satisfies EntreeAffectation),
+  )
+}
+
+export async function retirerAffectationAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, async () => {
+    await retirerAffectation(texte(donnees, "id"))
+  })
+}
+
+// Une tâche liée se coche par la personne assignée (ou qui a l'écriture) : le service refuse sinon, avec la raison.
+export async function changerStatutTacheAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, async () => {
+    await changerStatutTache(texte(donnees, "id"), texte(donnees, "fait") === "oui")
+  })
+}
+
+function saisieVivier(donnees: FormData): EntreeVivier {
+  return {
+    roleRecherche: choisi(texte(donnees, "roleRecherche"), ROLES_EPREUVE as readonly RoleEpreuve[], "Rôle recherché"),
+    source: texteOuNull(donnees, "source"),
+    dernierContact: texteOuNull(donnees, "dernierContact"),
+    interet: choisi(texte(donnees, "interet"), INTERETS_VIVIER as readonly InteretVivier[], "Intérêt"),
+    notes: texteOuNull(donnees, "notes"),
+  }
+}
+
+export async function ajouterAuVivierAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, () => ajouterAuVivier(texte(donnees, "personId"), saisieVivier(donnees)))
+}
+
+export async function modifierVivierAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, async () => {
+    await modifierVivier(texte(donnees, "id"), saisieVivier(donnees))
+  })
+}
+
+export async function retirerDuVivierAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, async () => {
+    await retirerDuVivier(texte(donnees, "id"))
   })
 }

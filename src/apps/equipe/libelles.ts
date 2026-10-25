@@ -4,7 +4,7 @@
 import { COULEUR_STATUT_PAPIER, LIBELLE_STATUT_PAPIER } from "@/apps/voiture/libelles"
 import type { StatutPapier } from "@/apps/voiture/regles"
 
-import type { Palier, ReponseDisponibilite, RoleHabituel } from "./regles"
+import type { InteretVivier, Palier, ReponseDisponibilite, RoleHabituel } from "./regles"
 
 export const LIBELLE_ROLE_HABITUEL: Record<RoleHabituel, string> = {
   pilote: "Pilote",
@@ -34,4 +34,10 @@ export { COULEUR_STATUT_PAPIER as COULEUR_ECHEANCE, LIBELLE_STATUT_PAPIER as LIB
 export function libelleEcheanceCarte(libelle: string, statut: StatutPapier | null): string {
   if (statut === null) return `${libelle} : à compléter`
   return `${libelle} : ${LIBELLE_STATUT_PAPIER[statut].toLowerCase()}`
+}
+
+export const LIBELLE_INTERET: Record<InteretVivier, string> = {
+  faible: "Faible",
+  moyen: "Moyen",
+  fort: "Fort",
 }

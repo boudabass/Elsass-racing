@@ -15,6 +15,7 @@ export function entreesDuMenuPlus(role: string, terrain: boolean): EntreePlus[] 
   const note: EntreePlus = { libelle: "Note", desactivee: false, href: "/notes?nouvelle=1" }
   const depense: EntreePlus = { libelle: "Dépense", desactivee: false, href: "/apps/budget/nouvelle" }
   const epreuve: EntreePlus = { libelle: "Épreuve", desactivee: false, href: "/apps/saison/nouvelle" }
+  const personne: EntreePlus = { libelle: "Personne", desactivee: false, href: "/apps/equipe?nouvelle=1" }
   const reglage: EntreePlus = { libelle: "Réglage", desactivee: false, href: "/apps/voiture/reglage-rapide" }
   const vehicule: EntreePlus = { libelle: "Véhicule", desactivee: false, href: "/apps/voiture/nouveau" }
   const partenaire: EntreePlus = { libelle: "Partenaire", desactivee: false, href: "/apps/partenaires/nouveau" }
@@ -26,6 +27,6 @@ export function entreesDuMenuPlus(role: string, terrain: boolean): EntreePlus[] 
   // La dépense et le réglage sont ouverts à tous ceux qui ont la contribution (assistance comprise), y compris en terrain.
   if (terrain) return [depense, reglage, photo, note]
   if (role === "assistance") return [intervention, depense, reglage, photo, note]
-  if (role === "equipage" || role === "responsable") return [epreuve, vehicule, partenaire, piece, roulage, equipement, intervention, depense, reglage, photo, note]
+  if (role === "equipage" || role === "responsable") return [epreuve, personne, vehicule, partenaire, piece, roulage, equipement, intervention, depense, reglage, photo, note]
   return [depense, photo, note]
 }

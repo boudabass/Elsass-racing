@@ -27,8 +27,10 @@ import {
   statutLicence,
   statutLePlusUrgent,
   type Palier,
+  type InteretVivier,
   type ReponseDisponibilite,
   type ResultatValide,
+  type RoleEpreuve,
   type RoleHabituel,
   type StatutEcheance,
   type StatistiquesBinome,
@@ -311,6 +313,9 @@ export async function lireBinomes(ctx: ContexteTeam): Promise<BinomeEquipe[]> {
 export interface FicheLicence {
   id: string
   type: TypeLicence
+  asaContactId: string | null
+  // Fichier du document de la licence (pour l'ouvrir), s'il y en a un.
+  documentFileId: string | null
   libelle: string
   numero: string | null
   saison: string | null
@@ -424,7 +429,7 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
     client.equipeLicence.findMany({
       where: { teamId: ctx.teamId, personId, deletedAt: null },
       orderBy: { valableAu: "desc" },
-      select: { id: true, type: true, numero: true, saison: true, valableDu: true, valableAu: true, montantCents: true },
+      select: { id: true, type: true, numero: true, saison: true, valableDu: true, valableAu: true, montantCents: true, asaContactId: true, documentAttachmentId: true },
     }),
     client.equipeGear.findMany({
       where: { teamId: ctx.teamId, personId, deletedAt: null },
@@ -451,6 +456,13 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
     lireStatistiquesPersonne(ctx, personId),
   ])
 
+  // Fichier de chaque document de licence : la pièce rattachée (coreAttachment) porte le fichier à ouvrir.
+  const idsPieces = licences.map((licence) => licence.documentAttachmentId).filter((id): id is string => id !== null)
+  const piecesLicence = idsPieces.length > 0
+    ? await client.coreAttachment.findMany({ where: { teamId: ctx.teamId, id: { in: idsPieces }, deletedAt: null }, select: { id: true, fileId: true } })
+    : []
+  const fichierDeLicence = new Map(piecesLicence.map((piece) => [piece.id, piece.fileId]))
+
   return {
     personId,
     prenom: personne.prenom,
@@ -466,6 +478,8 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
     licences: licences.map((licence) => ({
       id: licence.id,
       type: licence.type,
+      asaContactId: licence.asaContactId,
+      documentFileId: licence.documentAttachmentId ? (fichierDeLicence.get(licence.documentAttachmentId) ?? null) : null,
       libelle: LIBELLES_TYPE_LICENCE[licence.type],
       numero: licence.numero,
       saison: licence.saison,
@@ -498,4 +512,91 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
     nombreEpreuvesPalier: await nombreEpreuvesDePalier(ctx, personId),
     ressenti: voitPrive ? ressentiMoyen(moods.map((mood) => mood.ressenti)) : null,
   }
+}
+
+// --- Écrans : binômes, vivier, prochaine épreuve (5.2) ----------------------------------------------------------
+
+// Noms d'une liste de personnes de la team (une lecture).
+export async function lireNomsPersonnes(ctx: ContexteTeam, personIds: string[]): Promise<Map<string, string>> {
+  if (personIds.length === 0) return new Map()
+  const personnes = await prismaPourTeam(ctx.teamId, ctx.userId).corePerson.findMany({
+    where: { teamId: ctx.teamId, id: { in: personIds }, deletedAt: null },
+    select: { id: true, prenom: true, nom: true },
+  })
+  return new Map(personnes.map((personne) => [personne.id, `${personne.prenom} ${personne.nom}`]))
+}
+
+// Entrées du vivier (écriture et plus). Une ligne par personne et par rôle recherché.
+export interface EntreeVivierLue {
+  id: string
+  personId: string
+  roleRecherche: RoleEpreuve
+  source: string | null
+  dernierContact: Date | null
+  interet: InteretVivier
+  notes: string | null
+}
+
+export async function lireVivier(ctx: ContexteTeam): Promise<EntreeVivierLue[]> {
+  const entrees = await prismaPourTeam(ctx.teamId, ctx.userId).equipePool.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, personId: true, roleRecherche: true, source: true, dernierContact: true, interet: true, notes: true },
+  })
+  return entrees
+}
+
+// Affectations d'une épreuve, avec leurs tâches liées (core_task rattachée à la fiche de l'affectation).
+export interface AffectationLue {
+  id: string
+  personId: string
+  roleEpreuve: RoleEpreuve
+  taches: Array<{ id: string; titre: string; fait: boolean; assigneePersonId: string | null }>
+}
+
+export async function lireAffectationsEpreuve(ctx: ContexteTeam, eventId: string): Promise<AffectationLue[]> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const affectations = await client.equipeAssignment.findMany({
+    where: { teamId: ctx.teamId, eventId, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, personId: true, roleEpreuve: true },
+  })
+  const taches = affectations.length
+    ? await client.coreTask.findMany({
+        where: { teamId: ctx.teamId, app: "equipe", ficheType: "affectation", ficheId: { in: affectations.map((a) => a.id) }, deletedAt: null },
+        select: { id: true, ficheId: true, titre: true, statut: true, assigneePersonId: true },
+      })
+    : []
+  return affectations.map((affectation) => ({
+    id: affectation.id,
+    personId: affectation.personId,
+    roleEpreuve: affectation.roleEpreuve,
+    taches: taches
+      .filter((tache) => tache.ficheId === affectation.id)
+      .map((tache) => ({ id: tache.id, titre: tache.titre, fait: tache.statut === "fait", assigneePersonId: tache.assigneePersonId })),
+  }))
+}
+
+// Équipage choisi dans Saison pour l'épreuve : un engagement par ligne, pilote et copilote (noms et lien vers l'engagement).
+export interface EquipageEngagement {
+  engagementId: string
+  piloteId: string | null
+  copiloteId: string | null
+}
+
+export async function lireEquipageEpreuve(ctx: ContexteTeam, eventId: string): Promise<EquipageEngagement[]> {
+  const lignes = await prismaPourTeam(ctx.teamId, ctx.userId).coreEventEntry.findMany({
+    where: { teamId: ctx.teamId, eventId, deletedAt: null },
+    select: { id: true, piloteId: true, copiloteId: true },
+  })
+  return lignes.map((ligne) => ({ engagementId: ligne.id, piloteId: ligne.piloteId, copiloteId: ligne.copiloteId }))
+}
+
+// Contacts ASA de la team (catégorie « asa » dans core_contact) : le choix d'une licence. Lecture seule.
+export async function lireContactsAsa(ctx: ContexteTeam): Promise<Array<{ id: string; nom: string }>> {
+  return prismaPourTeam(ctx.teamId, ctx.userId).coreContact.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null, categories: { has: "asa" } },
+    orderBy: { nom: "asc" },
+    select: { id: true, nom: true },
+  })
 }

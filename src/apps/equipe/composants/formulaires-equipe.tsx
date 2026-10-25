@@ -4,8 +4,9 @@
 // ../actions.ts ; la garde (droits, dossier propre) est dans le service. Un bouton refusé affiche sa raison, dans la page.
 
 import { useRouter } from "next/navigation"
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 
+import { ChampFichier } from "@/components/formulaire/champ-fichier"
 import { TiroirAction } from "@/components/formulaire/tiroir"
 import { CHAMP } from "@/lib/classes-formulaire"
 
@@ -24,7 +25,7 @@ import { LIBELLE_REPONSE, LIBELLE_ROLE_HABITUEL } from "../libelles"
 import { LIBELLES_TYPE_EQUIPEMENT, LIBELLES_TYPE_LICENCE, REPONSES_DISPONIBILITE, ROLES_HABITUELS, TYPES_EQUIPEMENT, TYPES_LICENCE } from "../regles"
 import type { RoleHabituel, ReponseDisponibilite, TypeEquipement, TypeLicence } from "../regles"
 
-function Champ({ libelle, children, aide }: { libelle: string; children: ReactNode; aide?: string }) {
+export function Champ({ libelle, children, aide }: { libelle: string; children: ReactNode; aide?: string }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
       <span className="font-medium">{libelle}</span>
@@ -41,12 +42,13 @@ export function jourPourChamp(date: Date | null): string {
 
 // --- Nouvelle personne ----------------------------------------------------------------------
 
-export function NouvellePersonne() {
+export function NouvellePersonne({ ouvertDepart = false }: { ouvertDepart?: boolean }) {
   const router = useRouter()
   return (
     <TiroirAction
       libelle="Nouvelle personne"
       secondaire={false}
+      ouvertDepart={ouvertDepart}
       titre="Nouvelle personne"
       sousTitre="Prénom, nom et rôle habituel. L'invitation se fait ensuite, dans Réglages."
       action={creerPersonneAction}
@@ -143,9 +145,16 @@ export interface ValeursLicence {
   valableDu: Date | null
   valableAu: Date | null
   montantCents: number | null
+  asaContactId: string | null
 }
 
-function champsLicence(valeurs?: ValeursLicence) {
+// Document de la licence : facultatif. Sans nouveau fichier, le document déjà joint est gardé (voir le service).
+function ChampDocumentLicence() {
+  const [fichier, setFichier] = useState<string | null>(null)
+  return <ChampFichier app="equipe" libelle="Document de la licence" valeur={fichier} name="documentFileId" onChange={(f) => setFichier(f?.id ?? null)} />
+}
+
+function champsLicence(valeurs: ValeursLicence | undefined, asas: Array<{ id: string; nom: string }>) {
   return (
     <>
       <Champ libelle="Type de licence">
@@ -174,6 +183,17 @@ function champsLicence(valeurs?: ValeursLicence) {
       <Champ libelle="Valable jusqu'au" aide="Sans date de fin, la licence n'expire pas.">
         <input type="date" name="valableAu" defaultValue={jourPourChamp(valeurs?.valableAu ?? null)} className={CHAMP} />
       </Champ>
+      <Champ libelle="ASA" aide={asas.length === 0 ? "Aucune ASA parmi les contacts de la team." : "Le contact d'ASA de la licence, s'il est connu."}>
+        <select name="asaContactId" aria-label="ASA" defaultValue={valeurs?.asaContactId ?? ""} className={CHAMP}>
+          <option value="">Aucune</option>
+          {asas.map((asa) => (
+            <option key={asa.id} value={asa.id}>
+              {asa.nom}
+            </option>
+          ))}
+        </select>
+      </Champ>
+      <ChampDocumentLicence />
       <Champ libelle="Montant payé (€)" aide="Si tu le saisis, Budget propose la dépense. Une seule fois.">
         <input
           name="montant"
@@ -186,7 +206,17 @@ function champsLicence(valeurs?: ValeursLicence) {
   )
 }
 
-export function AjouterLicence({ personId, desactive, raison }: { personId: string; desactive: boolean; raison: string | null }) {
+export function AjouterLicence({
+  personId,
+  asas,
+  desactive,
+  raison,
+}: {
+  personId: string
+  asas: Array<{ id: string; nom: string }>
+  desactive: boolean
+  raison: string | null
+}) {
   return (
     <TiroirAction
       libelle="Ajouter une licence"
@@ -198,12 +228,22 @@ export function AjouterLicence({ personId, desactive, raison }: { personId: stri
     >
       <input type="hidden" name="personId" value={personId} />
       {raison && <p className="text-sm text-texte-discret">{raison}</p>}
-      {champsLicence()}
+      {champsLicence(undefined, asas)}
     </TiroirAction>
   )
 }
 
-export function ModifierLicence({ valeurs, desactive, raison }: { valeurs: ValeursLicence; desactive: boolean; raison: string | null }) {
+export function ModifierLicence({
+  valeurs,
+  asas,
+  desactive,
+  raison,
+}: {
+  valeurs: ValeursLicence
+  asas: Array<{ id: string; nom: string }>
+  desactive: boolean
+  raison: string | null
+}) {
   return (
     <>
       <TiroirAction
@@ -216,7 +256,7 @@ export function ModifierLicence({ valeurs, desactive, raison }: { valeurs: Valeu
       >
         <input type="hidden" name="id" value={valeurs.id} />
         {raison && <p className="text-sm text-texte-discret">{raison}</p>}
-        {champsLicence(valeurs)}
+        {champsLicence(valeurs, asas)}
       </TiroirAction>
       <RetirerLicence id={valeurs.id} desactive={desactive} />
     </>
