@@ -99,6 +99,23 @@ async function ouvrirGarage(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "Atelier", exact: true })).toBeVisible()
 }
 
+// Clic sur un lien du menu du Garage, navigation contrôlée. Un clic peut être perdu juste après l'arrivée sur l'Atelier :
+// au run 40148965567, « Casses » n'a jamais navigué (l'URL est restée sur l'Atelier), cause non établie. Le clic est relancé
+// une fois et compté dans le log, comme le 418 toléré ; une seconde perte fait échouer le test.
+async function cliquerMenuGarage(page: Page, nom: string, chemin: RegExp): Promise<void> {
+  const lien = page.getByRole("link", { name: nom, exact: true })
+  await lien.click()
+  const arrive = await expect(page).toHaveURL(chemin, { timeout: 5_000 }).then(
+    () => true,
+    () => false,
+  )
+  if (!arrive) {
+    console.log(`clic sur « ${nom} » perdu : relancé`)
+    await lien.click()
+  }
+  await expect(page).toHaveURL(chemin)
+}
+
 // Retour au QG par le lien d'enveloppe, comme John. Sans effet sur le QG.
 async function allerAuQg(page: Page): Promise<void> {
   if (/\/qg$/.test(new URL(page.url()).pathname)) return
@@ -430,7 +447,7 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
     // Le responsable ouvre la fiche casse au Garage : elle arrive par un événement, donc on la relit jusqu'à ce qu'elle soit là.
     await allerAuQg(page)
     await ouvrirGarage(page)
-    await page.getByRole("link", { name: "Casses", exact: true }).click()
+    await cliquerMenuGarage(page, "Casses", /\/apps\/garage\/casses$/)
     const casse = page.getByRole("link", { name: new RegExp(`· ${EPREUVE_ABANDON}`) })
     await expect(async () => {
       await page.reload()
