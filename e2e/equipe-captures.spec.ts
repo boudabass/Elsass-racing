@@ -46,12 +46,9 @@ test("captures · équipe en cartes et fiche personne (Statistiques, Licences), 
       await expect(page.getByText("N° N-2032", { exact: false }).first()).toBeVisible()
       await capturer(page, `equipe-fiche-licences-${taille.largeur}-${theme}.png`)
 
-      await page.getByRole("link", { name: "Retour à l'équipe", exact: true }).click()
-      await expect(page.getByRole("heading", { name: "L'équipe", exact: true })).toBeVisible()
+      // Retour au QG : chaque taille repart de la tuile Équipe du QG.
+      await page.getByRole("link", { name: /retour au QG/ }).click()
+      await expect(page).toHaveURL(/\/qg$/)
     }
-
-    await page.setViewportSize({ width: BUREAU.width, height: BUREAU.height })
-    await page.getByRole("link", { name: /retour au QG/ }).click()
-    await expect(page).toHaveURL(/\/qg$/)
   }
 })
