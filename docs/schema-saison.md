@@ -240,7 +240,7 @@ Bloc « Débrief de l'épreuve » en tête de la fiche engagement, seulement pou
 
 - Onglet de la fiche épreuve, un panneau par engagement (`composants/preparation.tsx`). Indice en grand, quatre points (paiement, licences, homologations, papiers), « Pas encore suivi » ; depuis 4.5, un bloc « À surveiller » (zone rouge de Garage, hors indice) et la fiabilité de la voiture quand la ligne n'existe pas, et les éléments « à côté » (fiabilité, check-lists, présents) affichés « Pas encore suivi ».
 - Règle pure `preparation.ts` : le paiement existe toujours (lu sur l'inscription) ; un point non suivi n'entre pas dans l'indice. Pas d'indice sans point suivi.
-- Signaux (`services-serveur.ts`, `signalerPreparation`) : `equipe.licence_expire_bientot`, `equipe.homologation_expire_bientot`, `voiture.papier_expire_bientot`. `garage.piece_zone_rouge` n'a plus de gestionnaire depuis 4.5 (954 v1.4). Charge utile : `{ detail?, regle?, vehicleId?, personId? }`. Sans `regle: true`, le point est ouvert ; avec, il est réglé. Périmètre : les engagements à venir (épreuve envisagée ou en cours, engagement envisagé, inscrit ou payé) de la voiture, de l'équipage (pilote ou copilote), ou de toute la team.
+- Aucun signal ne pose plus de point depuis 5.2b. Les licences et homologations se lisent chez Équipe (`equipe.licence_expire_bientot` et `equipe.homologation_expire_bientot` n'ont pas de gestionnaire), les papiers chez Voiture (`voiture.papier_expire_bientot` n'a pas de gestionnaire), à la date de l'épreuve (`preparation-equipe-serveur.ts`, `preparation-voiture-serveur.ts`, règles dans `preparation.ts`). `garage.piece_zone_rouge` n'a plus de gestionnaire depuis 4.5 (954 v1.4). Les lignes posées par les anciens signaux restent en base, ignorées par `pointsDePreparation`. Point Papiers : réglé si chaque type de papier a au moins un papier non expiré à la date de l'épreuve (statut « expiré » de Voiture, `statutPapier`) ; un papier sans échéance ne bloque pas ; aucun papier saisi : ouvert. « Régler » mène à l'onglet Papiers de la fiche véhicule.
 - **À confirmer par les apps Équipe et Voiture** : cette charge utile est une convention de Saison. Le catalogue ne la décrit pas.
 
 ### Reconnaissances
@@ -282,7 +282,7 @@ Déclarations dans `synchro-serveur.ts`, registre dans `registre.ts` :
 ### Vérifications
 
 - `pnpm test` : règles pures (préparation, rappels, reconnaissances, widgets, libellés, heure de Paris).
-- `db:verifier-bus` : signaux de préparation (papiers, pièces, licence), signal pour une autre voiture sans effet, refus d'une décision (action en attente, motif gardé), relance de validation après 48 heures.
+- `db:verifier-bus` : papiers lus chez Voiture à la date de l'épreuve (expiré, renouvelé, aucun papier), signal de papier sans effet, pièces, licence, signal pour une autre voiture sans effet, refus d'une décision (action en attente, motif gardé), relance de validation après 48 heures.
 - `db:verifier-synchro` : registre, lecture seule refusée, sortie écrite par l'équipage, sortie refusée à l'assistance, débrief privé (jamais reçu par l'assistance), saison clôturée refusée.
 - `db:verifier-rls` : inchangé, aucune nouvelle table.
 - E2E `e2e/saison-hors-ligne.spec.ts` (projet « hors-ligne ») : programme affiché en mode avion ; sortie de reco saisie hors ligne, affichée tout de suite, puis en base au retour du réseau. Ce même fichier produit les captures `docs/captures/saison-pret-*` et `saison-reconnaissances-*`.

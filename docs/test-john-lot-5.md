@@ -71,6 +71,12 @@ Chaque étape dit ce que tu fais, puis ce que tu dois voir. Si ce n'est pas ce q
 4. Un pilote sans aucune licence saisie : **ouvert**, « Licence de … non renseignée ».
 5. L'indice de préparation de l'engagement tient compte de ces deux points tant qu'Équipe est activée pour la team.
 
+## Étape 10 : « Prêt pour l'épreuve ? » suit les papiers de Voiture
+
+1. Dans **Voiture**, ouvre la fiche du véhicule de l'engagement de l'étape 9, onglet **Papiers**, et ajoute une assurance dont la fin tombe avant l'épreuve.
+2. Dans **Saison**, le panneau de cet engagement montre **Papiers** **ouvert**, avec la phrase « Assurance expire le … ». **Régler** mène à l'onglet Papiers de la fiche du véhicule.
+3. Ajoute une assurance valable après l'épreuve : le point **Papiers** repasse **réglé** au retour dans Saison. Un papier sans date de fin ne bloque jamais.
+
 ## Ce qui n'est pas encore là
 
 - Photo des personnes (les initiales tiennent lieu de photo pour l'instant).

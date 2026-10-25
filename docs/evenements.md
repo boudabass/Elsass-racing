@@ -79,7 +79,7 @@ Quatre événements disent qu'un point de préparation d'une épreuve à venir e
 |---|---|---|
 | `equipe.licence_expire_bientot` | Équipe | `licences` |
 | `equipe.homologation_expire_bientot` | Équipe | `homologations` |
-| `voiture.papier_expire_bientot` | Voiture | `papiers` |
+| `voiture.papier_expire_bientot` | Voiture | aucun (5.2b) : plus de point `papiers`, Saison lit les papiers chez Voiture à la date de l'épreuve |
 | `garage.piece_zone_rouge` | Garage | aucun (4.5) : plus de point `pieces`, Saison lit l'état chez Garage en point à surveiller |
 
 Charge utile, la même pour les quatre :
