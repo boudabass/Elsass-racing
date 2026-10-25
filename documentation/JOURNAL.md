@@ -570,4 +570,4 @@
 
 - Modifications successives hors ligne : deux modifications d'une même ligne, avant envoi, ne forment plus qu'une opération (version lue de la première). Une modification écrite pendant l'envoi d'une autre reste à part ; après la réponse, la ligne locale et les opérations restées dessus prennent la version qui en résulte. Sans cela, la seconde était journalisée comme conflit à tort. Limite retirée de `docs/synchro.md`.
 - Tutoiement : les textes de l'équipe (écran, messages serveur, tests, e2e et vérifications) tutoient. La page publique des partenaires et le bilan PDF restent au vouvoiement : ce sont des personnes extérieures à la team.
-- Unitaires : 915 (908 + 7 : fusion, version lue, modification pendant l'envoi).
+- Unitaires : 915 (913 + 2 : deux modifications fondues, modification pendant l'envoi d'une autre).
