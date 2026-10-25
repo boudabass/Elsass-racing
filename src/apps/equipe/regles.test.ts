@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import {
   epreuvesAssistance,
+  epreuvesAssistanceIds,
+  epreuvesDuPalier,
   NOMBRE_RESSENTIS_MOYENNE,
   palierDepuis,
   ressentiMoyen,
@@ -57,6 +59,12 @@ describe("palier d'expérience", () => {
     expect(epreuvesAssistance(["a", "b", "c"], ["b", "c", "d"])).toBe(2)
     expect(epreuvesAssistance(["a", "a"], ["a"])).toBe(1)
     expect(epreuvesAssistance(["a"], [])).toBe(0)
+  })
+
+  it("une épreuve d'équipage et d'assistance compte une seule fois pour le palier", () => {
+    expect(epreuvesDuPalier(["a", "b"], ["b", "c"])).toBe(3)
+    expect(epreuvesDuPalier([], ["a"])).toBe(1)
+    expect(epreuvesAssistanceIds(["a", "b"], ["b", "b"])).toEqual(["b"])
   })
 })
 

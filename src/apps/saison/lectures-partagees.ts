@@ -97,6 +97,32 @@ export async function lireUsureEngagement(ctx: ContexteTeam, entryId: string): P
   return { entryId: resultat.entryId, kmChronometres: Number(resultat.kmChronometres ?? 0) }
 }
 
+// Épreuves où une personne est pilote ou copilote d'un engagement au résultat validé, pour le palier d'Équipe (tâche 5.1,
+// brief §1). Lecture seule, sans garde : le gestionnaire d'Équipe contrôle son propre accès. Liste sans doublon.
+export async function lireEpreuvesEquipageValidees(ctx: ContexteTeam, personId: string): Promise<string[]> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const engagements = await client.coreEventEntry.findMany({
+    where: {
+      teamId: ctx.teamId,
+      deletedAt: null,
+      saisonResult: { validation: "valide" },
+      OR: [{ piloteId: personId }, { copiloteId: personId }],
+    },
+    select: { eventId: true },
+  })
+  return Array.from(new Set(engagements.map((engagement) => engagement.eventId)))
+}
+
+// Ressenti (1 à 5) du débrief qu'un membre a écrit pour un engagement, pour l'humeur d'Équipe (brief §5). Null sans débrief.
+export async function lireRessentiDebrief(ctx: ContexteTeam, entryId: string, auteurMembershipId: string): Promise<number | null> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const debrief = await client.saisonDebrief.findFirst({
+    where: { teamId: ctx.teamId, entryId, auteurMembershipId, deletedAt: null },
+    select: { ressenti: true },
+  })
+  return debrief?.ressenti ?? null
+}
+
 // Abandon d'un engagement pour la fiche casse de Garage (tâche 4.4, brief §3) : véhicule, épreuve, date de l'épreuve et
 // nom de la spéciale d'abandon. Lecture seule, sans garde : le gestionnaire de Garage contrôle son propre accès. Renvoie
 // null si l'engagement n'existe plus dans la team.

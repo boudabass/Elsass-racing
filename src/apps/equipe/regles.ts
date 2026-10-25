@@ -50,9 +50,19 @@ export function palierDepuis(nombreEpreuves: number, palierAtteint: Palier): Pal
 
 // Épreuves d'assistance : celles où la personne était affectée ET a répondu « vient ». Les deux listes sont des
 // identifiants d'épreuve, sans doublon compté deux fois.
-export function epreuvesAssistance(affectees: string[], venues: string[]): number {
+export function epreuvesAssistanceIds(affectees: string[], venues: string[]): string[] {
   const venue = new Set(venues)
-  return new Set(affectees.filter((epreuve) => venue.has(epreuve))).size
+  return Array.from(new Set(affectees.filter((epreuve) => venue.has(epreuve))))
+}
+
+export function epreuvesAssistance(affectees: string[], venues: string[]): number {
+  return epreuvesAssistanceIds(affectees, venues).length
+}
+
+// Épreuves comptées pour le palier : une épreuve où la personne était à la fois dans l'équipage et en assistance
+// ne compte qu'une fois.
+export function epreuvesDuPalier(equipage: string[], assistance: string[]): number {
+  return new Set([...equipage, ...assistance]).size
 }
 
 // ─── Statistiques officielles ────────────────────────────────────────────────
