@@ -59,6 +59,8 @@ test("captures · équipe en cartes et fiche personne (Statistiques, Licences), 
       await page.getByRole("link", { name: /Luc Martin/ }).click()
       await expect(page.getByRole("heading", { name: "Luc Martin", exact: true })).toBeVisible()
       await page.getByRole("link", { name: "Statistiques", exact: true }).click()
+      // Attendre le contenu de l'onglet : sans cela, la capture part encore sur le Profil.
+      await expect(page.getByText("5 épreuves avant Confirmé")).toBeVisible()
       await capturer(page, `equipe-fiche-statistiques-${taille.largeur}-${theme}.png`)
 
       await page.getByRole("link", { name: "Licences", exact: true }).click()

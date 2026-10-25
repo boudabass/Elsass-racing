@@ -23,9 +23,8 @@ test("Vivier, prochaine épreuve, statistiques : une personne au vivier, affect�
   await connecterParLien(page, equipe)
   await page.setViewportSize({ width: 1440, height: 900 })
 
-  // Fiche neuve : palier Rookie, progression vers Confirmé, et trophées affichés par défaut.
+  // Fiche neuve : palier Rookie (onglet Profil), progression vers Confirmé (onglet Statistiques), trophées par défaut.
   await creerPersonne(page, "Bruno", "Vidal", "Assistance")
-  await expect(page.getByText("5 épreuves avant Confirmé")).toBeVisible()
   await page.getByRole("button", { name: "Modifier le profil", exact: true }).click()
   await expect(tiroir(page).getByRole("checkbox", { name: "Afficher mes paliers et trophées dans l'équipe", exact: true })).toBeChecked()
   await page.keyboard.press("Escape")
