@@ -67,7 +67,7 @@ export function PanneauPreparation({ engagements }: { engagements: EngagementPre
                     {point.etat === "non_suivi" ? "Pas encore suivi" : LIBELLE_STATUT_POINT[point.etat]}
                   </span>
                   {point.detail && <span className="text-texte-discret">{point.detail}</span>}
-                  {point.etat === "ouvert" && lieuDeReglage(point.point) === "fiche_engagement" && (
+                  {point.etat === "ouvert" && lieuDeReglage(point)?.type === "fiche_engagement" && (
                     <Link href={`/apps/saison/engagements/${engagement.id}`} className={LIEN}>
                       Régler
                     </Link>

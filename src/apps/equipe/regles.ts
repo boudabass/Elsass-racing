@@ -22,7 +22,7 @@ export function statutEquipement(finHomologation: Date | null, maintenant: Date)
 
 // Validité à un jour donné (la date de l'épreuve, pas aujourd'hui). Les dates sont des jours civils (minuit UTC) :
 // elles se comparent en « AAAA-MM-JJ ». Sans date de fin, pas d'expiration ; sans date de début, rien à attendre.
-function jourCivil(date: Date): string {
+export function jourCivil(date: Date): string {
   return date.toISOString().slice(0, 10)
 }
 

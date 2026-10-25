@@ -1184,8 +1184,8 @@ export async function signalerPreparation(ctx: ContexteTeam, point: PointPrepara
   }
 }
 
-enregistrerGestionnaire("saison", "equipe.licence_expire_bientot", (ctx, evenement) => signalerPreparation(ctx, "licences", evenement))
-enregistrerGestionnaire("saison", "equipe.homologation_expire_bientot", (ctx, evenement) => signalerPreparation(ctx, "homologations", evenement))
+// equipe.licence_expire_bientot et equipe.homologation_expire_bientot : pas de gestionnaire (5.2). Saison lit les
+// licences et les homologations chez Équipe à la date de l'épreuve (lecture partagée), au lieu d'un signal.
 enregistrerGestionnaire("saison", "voiture.papier_expire_bientot", (ctx, evenement) => signalerPreparation(ctx, "papiers", evenement))
 // garage.piece_zone_rouge : pas de gestionnaire (954 v1.4). Saison lit l'état chez Garage à l'affichage, en point
 // à surveiller : aucun signal ne pose plus de point « pièces », et une réparation fait disparaître l'alerte sans événement.
