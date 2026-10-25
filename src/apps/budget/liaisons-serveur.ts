@@ -362,23 +362,31 @@ async function categorieGarageDans(ctx: ContexteTeam, cle: string): Promise<{ id
   return choisirCategorie(categories, cle)
 }
 
-// Une dépense venue du Garage : une seule proposition par référence (proposerMouvementDans rend l'existante si elle est
-// déjà là). Le repli passe par le journal, avec la même ligne qu'avant, et l'issue.
-async function proposerDepenseGarageDans(
+// Une dépense venue d'une autre app (Garage, Équipe) : une seule proposition par référence (proposerMouvementDans rend
+// l'existante si elle est déjà là). Le repli passe par le journal, avec la même ligne qu'avant, et l'issue.
+async function proposerDepenseAppDans(
   ctx: ContexteTeam,
-  { cle, libelle, montant, origineRef, evenementOrigine, date }: { cle: string; libelle: string; montant: number; origineRef: string; evenementOrigine: string; date: string },
+  {
+    appOrigine,
+    cle,
+    libelle,
+    montant,
+    origineRef,
+    evenementOrigine,
+    date,
+  }: { appOrigine: "garage" | "equipe"; cle: string; libelle: string; montant: number; origineRef: string; evenementOrigine: string; date: string },
 ): Promise<void> {
   await initialiserSiBesoin(ctx)
   const choix = await categorieGarageDans(ctx, cle)
   if (!choix) {
-    console.error(`[budget] catégorie « ${cle} » introuvable : proposition garage non créée (${origineRef}, ${montant} centimes).`)
+    console.error(`[budget] catégorie « ${cle} » introuvable : proposition ${appOrigine} non créée (${origineRef}, ${montant} centimes).`)
     return
   }
   if (choix.repli) {
-    console.error(`[budget] catégorie « ${cle} » introuvable : proposition garage à classer (${origineRef}, ${montant} centimes).`)
+    console.error(`[budget] catégorie « ${cle} » introuvable : proposition ${appOrigine} à classer (${origineRef}, ${montant} centimes).`)
   }
   await proposerMouvementDans(ctx, {
-    appOrigine: "garage",
+    appOrigine,
     evenementOrigine,
     sens: "depense",
     montant,
@@ -391,7 +399,8 @@ async function proposerDepenseGarageDans(
 
 export async function proposerDepensePieceDans(ctx: ContexteTeam, entree: z.input<typeof schemaPieceAchetee>): Promise<void> {
   const donnees = schemaPieceAchetee.parse(entree)
-  await proposerDepenseGarageDans(ctx, {
+  await proposerDepenseAppDans(ctx, {
+    appOrigine: "garage",
     cle: "pieces",
     libelle: "Pièces achetées (Garage)",
     montant: donnees.totalCents,
@@ -403,7 +412,8 @@ export async function proposerDepensePieceDans(ctx: ContexteTeam, entree: z.inpu
 
 export async function proposerDepenseMainOeuvreDans(ctx: ContexteTeam, entree: z.input<typeof schemaInterventionFacturee>): Promise<void> {
   const donnees = schemaInterventionFacturee.parse(entree)
-  await proposerDepenseGarageDans(ctx, {
+  await proposerDepenseAppDans(ctx, {
+    appOrigine: "garage",
     cle: "main_oeuvre",
     libelle: "Main-d'œuvre (Garage)",
     montant: donnees.coutCents,
@@ -424,4 +434,34 @@ enregistrerGestionnaire("budget", "garage.intervention_facturee", async (ctx: Co
   const analyse = schemaInterventionFacturee.safeParse(evenement.donnees)
   if (!analyse.success) return
   await proposerDepenseMainOeuvreDans(ctx, analyse.data)
+})
+
+// Une licence payée dans Équipe : une dépense « Licence et ASA » par licence. Budget ne lit pas les tables d'Équipe :
+// la charge utile porte tout (libellé, montant, date).
+const schemaLicencePayee = z.object({
+  licenceId: z.string().min(1),
+  personId: z.string().min(1),
+  libelle: z.string().min(1),
+  montantCents: z.number().int().min(1),
+  devise: z.literal("EUR"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+})
+
+export async function proposerDepenseLicenceDans(ctx: ContexteTeam, entree: z.input<typeof schemaLicencePayee>): Promise<void> {
+  const donnees = schemaLicencePayee.parse(entree)
+  await proposerDepenseAppDans(ctx, {
+    appOrigine: "equipe",
+    cle: "licence",
+    libelle: donnees.libelle,
+    montant: donnees.montantCents,
+    origineRef: `equipe_licence:${donnees.licenceId}`,
+    evenementOrigine: "equipe.licence_payee",
+    date: donnees.date,
+  })
+}
+
+enregistrerGestionnaire("budget", "equipe.licence_payee", async (ctx: ContexteTeam, evenement: EvenementRecu) => {
+  const analyse = schemaLicencePayee.safeParse(evenement.donnees)
+  if (!analyse.success) return
+  await proposerDepenseLicenceDans(ctx, analyse.data)
 })

@@ -28,6 +28,7 @@ export const CLE_CATEGORIE: Record<string, string> = {
   Engagement: "engagement",
   Pièces: "pieces",
   "Main-d'œuvre": "main_oeuvre",
+  "Licence et ASA": "licence",
   // Repli des dépenses venues d'une autre app quand leur catégorie n'existe plus (liaisons Garage, « à classer »).
   Divers: "divers",
 }
