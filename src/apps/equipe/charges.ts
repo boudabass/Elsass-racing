@@ -43,6 +43,16 @@ export const chargeDebriefSaisi = z
   .object({ entryId: identifiant, eventId: identifiant, auteurMembershipId: identifiant })
   .passthrough()
 
+// Licence à renouveler (30 jours ou moins) ou expirée : Saison marque les engagements de la personne à préparer.
+export const chargeLicenceExpireBientot = z
+  .object({ personId: identifiant, licenceId: identifiant, echeance: jourCivil })
+  .strict()
+
+// Homologation d'un équipement à renouveler ou expirée : même règle que la licence.
+export const chargeHomologationExpireBientot = z
+  .object({ personId: identifiant, equipementId: identifiant, echeance: jourCivil })
+  .strict()
+
 // Adhésion qui rejoint la team : le profil de la personne est créé ou conservé.
 export const chargeMembreRejoint = z.object({ membershipId: identifiant }).passthrough()
 

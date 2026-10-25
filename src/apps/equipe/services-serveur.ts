@@ -16,7 +16,13 @@ import { newId } from "@/core/ids"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 import { avecReprisePourConflit } from "@/lib/reprise-conflit"
 
-import { chargeDisponibiliteChangee, chargeLicencePayee, cleDisponibilite } from "./charges"
+import {
+  chargeDisponibiliteChangee,
+  chargeHomologationExpireBientot,
+  chargeLicenceExpireBientot,
+  chargeLicencePayee,
+  cleDisponibilite,
+} from "./charges"
 import { ErreurEquipe, refus } from "./erreurs"
 import {
   INTERETS_VIVIER,
@@ -26,6 +32,8 @@ import {
   ROLES_HABITUELS,
   roleAffectable,
   SPECIALITES,
+  statutEquipement,
+  statutLicence,
   TYPES_EQUIPEMENT,
   TYPES_LICENCE,
   validiteCoherente,
@@ -760,4 +768,106 @@ export async function retirerDuVivierDans(ctx: ContexteTeam, id: string): Promis
       tx.equipePool.update({ where: { id }, data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId } }),
     ),
   )
+}
+
+// --- Échéances : licences et homologations au QG (brief §5) ---------------------------------
+
+// Priorité d'une échéance d'Équipe dans la boîte : la même que les papiers de Voiture.
+const PRIORITE_ECHEANCE_EQUIPE = 4
+
+// Recalcul de Équipe à l'ouverture du QG. Sans effet sans accès à Équipe.
+export async function recalculerPourQg(ctx: ContexteTeam, niveau: Niveau): Promise<void> {
+  if (niveau === "aucun") return
+  await recalculerEcheancesDans(ctx)
+}
+
+// Une licence ou une homologation à renouveler (30 jours ou moins) ou expirée : un événement (Saison marque la préparation
+// des engagements de la personne) et une action « Renouveler » pour les responsables. Une seule fois par fiche et par
+// échéance : un passage de « à renouveler » à « expiré » n'émet pas une seconde fois. Une fiche sans échéance n'émet rien.
+export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const maintenant = new Date()
+  const licences = await client.equipeLicence.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null, valableAu: { not: null }, person: { deletedAt: null } },
+    select: { id: true, personId: true, valableAu: true, person: { select: { prenom: true, nom: true } } },
+  })
+  const equipements = await client.equipeGear.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null, finHomologation: { not: null }, person: { deletedAt: null } },
+    select: { id: true, personId: true, finHomologation: true, person: { select: { prenom: true, nom: true } } },
+  })
+  if (licences.length === 0 && equipements.length === 0) return
+
+  const responsables = await client.coreMembership.findMany({
+    where: { teamId: ctx.teamId, statut: "actif", deletedAt: null, role: "responsable" },
+    select: { id: true },
+  })
+
+  for (const licence of licences) {
+    const echeance = jourDe(licence.valableAu)
+    if (!echeance || statutLicence(licence.valableAu, maintenant) === "valide") continue
+    const nom = `${licence.person.prenom} ${licence.person.nom}`
+    if (await echeanceDejaEmise(client, ctx, "equipe.licence_expire_bientot", "licenceId", licence.id, echeance)) continue
+    await emettre(ctx, "equipe.licence_expire_bientot", chargeLicenceExpireBientot.parse({ personId: licence.personId, licenceId: licence.id, echeance }))
+    if (responsables.length > 0) {
+      await emettre(ctx, "equipe.action_requise", {
+        type: "licence_a_renouveler",
+        cleUnicite: `licence:${licence.id}:${echeance}`,
+        titre: `Renouveler la licence de ${nom}`,
+        contexte: nom,
+        ficheType: "licence",
+        ficheId: licence.id,
+        destinataires: { memberships: responsables.map((membre) => membre.id) },
+        boutons: [{ cle: "renouveler", libelle: "Renouveler" }],
+        priorite: PRIORITE_ECHEANCE_EQUIPE,
+        niveauRequis: "gestion",
+        cleRegroupement: "echeances_equipe",
+      })
+    }
+  }
+
+  for (const equipement of equipements) {
+    const echeance = jourDe(equipement.finHomologation)
+    if (!echeance || statutEquipement(equipement.finHomologation, maintenant) === "valide") continue
+    const nom = `${equipement.person.prenom} ${equipement.person.nom}`
+    if (await echeanceDejaEmise(client, ctx, "equipe.homologation_expire_bientot", "equipementId", equipement.id, echeance)) continue
+    await emettre(
+      ctx,
+      "equipe.homologation_expire_bientot",
+      chargeHomologationExpireBientot.parse({ personId: equipement.personId, equipementId: equipement.id, echeance }),
+    )
+    if (responsables.length > 0) {
+      await emettre(ctx, "equipe.action_requise", {
+        type: "homologation_a_renouveler",
+        cleUnicite: `equipement:${equipement.id}:${echeance}`,
+        titre: `Renouveler l'homologation d'un équipement de ${nom}`,
+        contexte: nom,
+        ficheType: "gear",
+        ficheId: equipement.id,
+        destinataires: { memberships: responsables.map((membre) => membre.id) },
+        boutons: [{ cle: "renouveler", libelle: "Renouveler" }],
+        priorite: PRIORITE_ECHEANCE_EQUIPE,
+        niveauRequis: "gestion",
+        cleRegroupement: "echeances_equipe",
+      })
+    }
+  }
+}
+
+async function echeanceDejaEmise(
+  client: Client,
+  ctx: ContexteTeam,
+  nom: string,
+  cleFiche: "licenceId" | "equipementId",
+  ficheId: string,
+  echeance: string,
+): Promise<boolean> {
+  const emis = await client.coreDomainEvent.findFirst({
+    where: {
+      teamId: ctx.teamId,
+      nom,
+      AND: [{ donnees: { path: [cleFiche], equals: ficheId } }, { donnees: { path: ["echeance"], equals: echeance } }],
+    },
+    select: { id: true },
+  })
+  return emis !== null
 }

@@ -10,6 +10,8 @@ export const LIBELLES_TYPES: Record<string, { singulier: string; pluriel: string
   mouvement_a_confirmer: { singulier: "mouvement à confirmer", pluriel: "mouvements à confirmer" },
   papier_a_renouveler: { singulier: "papier à renouveler", pluriel: "papiers à renouveler" },
   disponibilite_a_repondre: { singulier: "disponibilité à donner", pluriel: "disponibilités à donner" },
+  licence_a_renouveler: { singulier: "licence à renouveler", pluriel: "licences à renouveler" },
+  homologation_a_renouveler: { singulier: "homologation à renouveler", pluriel: "homologations à renouveler" },
   emplacement_pris: { singulier: "emplacement déjà pris", pluriel: "emplacements déjà pris" },
   reserver_emplacement: { singulier: "emplacement à réserver", pluriel: "emplacements à réserver" },
   liberer_emplacement: { singulier: "emplacement à libérer", pluriel: "emplacements à libérer" },
