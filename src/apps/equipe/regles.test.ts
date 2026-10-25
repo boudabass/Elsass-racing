@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  binomesDePersonne,
   epreuvesAssistance,
   epreuvesAssistanceIds,
   epreuvesDuPalier,
+  estEquipage,
   homologationValideA,
   licenceValideA,
   NOMBRE_RESSENTIS_MOYENNE,
@@ -214,5 +216,26 @@ describe("progression vers le palier suivant", () => {
   it("ne dépasse ni 100 % ni un restant négatif quand le palier est déjà atteint sans les épreuves", () => {
     expect(progressionPalier(2, "confirme")).toEqual({ suivant: "experimente", restant: 13, pourcentage: 0 })
     expect(progressionPalier(20, "rookie")).toEqual({ suivant: "confirme", restant: 0, pourcentage: 100 })
+  })
+})
+
+describe("équipage et binômes (fiche, cartes)", () => {
+  it("est équipage un pilote ou un copilote, pas l'assistance ni le bénévole seuls", () => {
+    expect(estEquipage(["pilote"])).toBe(true)
+    expect(estEquipage(["assistance", "copilote"])).toBe(true)
+    expect(estEquipage(["assistance"])).toBe(false)
+    expect(estEquipage(["benevole"])).toBe(false)
+    expect(estEquipage([])).toBe(false)
+  })
+
+  it("ne garde que les binômes où la personne figure, pilote ou copilote", () => {
+    const binomes = [
+      { piloteId: "a", copiloteId: "b" },
+      { piloteId: "c", copiloteId: "a" },
+      { piloteId: "c", copiloteId: "d" },
+    ]
+    expect(binomesDePersonne("a", binomes)).toEqual([binomes[0], binomes[1]])
+    expect(binomesDePersonne("d", binomes)).toEqual([binomes[2]])
+    expect(binomesDePersonne("z", binomes)).toEqual([])
   })
 })

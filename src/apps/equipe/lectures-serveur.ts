@@ -13,8 +13,13 @@ import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 import { prismaPourTeam } from "@/lib/prisma"
 
 import {
+  binomesDePersonne,
+  epreuvesAssistanceIds,
+  epreuvesDuPalier,
+  estEquipage,
   LIBELLES_TYPE_LICENCE,
   NOMBRE_RESSENTIS_MOYENNE,
+  progressionPalier,
   ressentiMoyen,
   statistiquesBinome,
   statistiquesPersonne,
@@ -121,6 +126,50 @@ export interface CarteMembre {
   equipement: StatutEcheance | null
   // Réponse pour la prochaine épreuve, null sans réponse ou sans épreuve à venir.
   disponibilite: ReponseDisponibilite | null
+  // Chiffres officiels de l'équipage (pilote ou copilote) : null si la personne n'a pas ce rôle.
+  statsEquipage: { epreuves: number; arrivees: number } | null
+  // Épreuves en assistance (affectée et « vient ») : null si la personne n'a pas le rôle assistance.
+  epreuvesAssistance: number | null
+  // Barre vers le palier suivant : seulement si le palier est affiché.
+  progression: ReturnType<typeof progressionPalier>
+}
+
+// Chiffres d'une liste de personnes, en lectures groupées (une par source, pas une par personne).
+export interface ChiffresPersonne {
+  statistiques: StatistiquesPersonne
+  epreuvesAssistance: number
+  nombreEpreuvesPalier: number
+}
+
+export async function lireChiffresPersonnes(ctx: ContexteTeam, personIds: string[]): Promise<Map<string, ChiffresPersonne>> {
+  const chiffres = new Map<string, ChiffresPersonne>()
+  if (personIds.length === 0) return chiffres
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const [resultats, affectations, venues] = await Promise.all([
+    lireResultatsValidesEngagements(ctx, { OR: [{ piloteId: { in: personIds } }, { copiloteId: { in: personIds } }] }),
+    client.equipeAssignment.findMany({
+      where: { teamId: ctx.teamId, personId: { in: personIds }, deletedAt: null },
+      select: { personId: true, eventId: true },
+    }),
+    client.equipeAvailability.findMany({
+      where: { teamId: ctx.teamId, personId: { in: personIds }, reponse: "vient", deletedAt: null },
+      select: { personId: true, eventId: true },
+    }),
+  ])
+  for (const personId of personIds) {
+    const engagements = resultats.filter((resultat) => resultat.piloteId === personId || resultat.copiloteId === personId)
+    const equipage = Array.from(new Set(engagements.map((resultat) => resultat.eventId)))
+    const assistance = epreuvesAssistanceIds(
+      affectations.filter((affectation) => affectation.personId === personId).map((affectation) => affectation.eventId),
+      venues.filter((venue) => venue.personId === personId).map((venue) => venue.eventId),
+    )
+    chiffres.set(personId, {
+      statistiques: statistiquesPersonne(engagements.map(versResultat)),
+      epreuvesAssistance: assistance.length,
+      nombreEpreuvesPalier: epreuvesDuPalier(equipage, assistance),
+    })
+  }
+  return chiffres
 }
 
 export async function lireCartesEquipe(ctx: ContexteTeam): Promise<CarteMembre[]> {
@@ -128,7 +177,7 @@ export async function lireCartesEquipe(ctx: ContexteTeam): Promise<CarteMembre[]
   const personIds = membres.map((membre) => membre.personId)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const epreuve = await prochaineEpreuve(ctx)
-  const [profils, licences, equipements, reponses, ludique] = await Promise.all([
+  const [profils, licences, equipements, reponses, ludique, chiffres] = await Promise.all([
     client.equipeProfile.findMany({
       where: { teamId: ctx.teamId, personId: { in: personIds }, deletedAt: null },
       select: { personId: true, rolesHabituels: true, palier: true, afficherTrophees: true },
@@ -148,6 +197,7 @@ export async function lireCartesEquipe(ctx: ContexteTeam): Promise<CarteMembre[]
         })
       : Promise.resolve([]),
     ludiqueAfficheDansLaTeam(ctx),
+    lireChiffresPersonnes(ctx, personIds),
   ])
 
   const profilDe = new Map(profils.map((profil) => [profil.personId, profil]))
@@ -155,13 +205,20 @@ export async function lireCartesEquipe(ctx: ContexteTeam): Promise<CarteMembre[]
 
   return membres.map((membre) => {
     const profil = profilDe.get(membre.personId)
+    const roles = profil?.rolesHabituels ?? []
+    const chiffre = chiffres.get(membre.personId)
+    const palier = profil ? palierAffiche(profil.palier, profil.afficherTrophees, ludique) : null
     return {
       personId: membre.personId,
       prenom: membre.prenom,
       nom: membre.nom,
       photoFileId: membre.photoFileId,
-      roles: profil?.rolesHabituels ?? [],
-      palier: profil ? palierAffiche(profil.palier, profil.afficherTrophees, ludique) : null,
+      roles,
+      palier,
+      statsEquipage:
+        chiffre && estEquipage(roles) ? { epreuves: chiffre.statistiques.epreuves, arrivees: chiffre.statistiques.arrivees } : null,
+      epreuvesAssistance: chiffre && roles.includes("assistance") ? chiffre.epreuvesAssistance : null,
+      progression: palier && chiffre ? progressionPalier(chiffre.nombreEpreuvesPalier, palier) : null,
       licence: pastille(
         licences.filter((licence) => licence.personId === membre.personId).map((licence) => licence.valableAu),
         statutLicence,
@@ -292,6 +349,32 @@ export interface FicheDisponibilite {
   jours: Date[]
 }
 
+// Un binôme où figure la personne : son partenaire, et le rôle qu'elle y tient (pilote ou copilote).
+export interface FicheBinome {
+  partenaireId: string
+  partenaireNom: string
+  role: "pilote" | "copilote"
+  stats: StatistiquesBinome
+}
+
+// Binômes de la personne, avec le nom du partenaire. Une lecture groupée des binômes de la team, puis un filtre.
+async function lireBinomesDePersonne(ctx: ContexteTeam, personId: string): Promise<FicheBinome[]> {
+  const mes = binomesDePersonne(personId, await lireBinomes(ctx))
+  if (mes.length === 0) return []
+  const partenaireDe = (binome: BinomeEquipe) => (binome.piloteId === personId ? binome.copiloteId : binome.piloteId)
+  const partenaires = await prismaPourTeam(ctx.teamId, ctx.userId).corePerson.findMany({
+    where: { teamId: ctx.teamId, id: { in: mes.map(partenaireDe) }, deletedAt: null },
+    select: { id: true, prenom: true, nom: true },
+  })
+  const nomDe = new Map(partenaires.map((partenaire) => [partenaire.id, `${partenaire.prenom} ${partenaire.nom}`]))
+  return mes.flatMap((binome) => {
+    const partenaireId = partenaireDe(binome)
+    const partenaireNom = nomDe.get(partenaireId)
+    if (!partenaireNom) return []
+    return [{ partenaireId, partenaireNom, role: binome.piloteId === personId ? "pilote" : "copilote", stats: binome.stats }]
+  })
+}
+
 export interface FichePersonne {
   personId: string
   prenom: string
@@ -313,6 +396,8 @@ export interface FichePersonne {
   specialites: FicheSpecialite[]
   disponibilites: FicheDisponibilite[]
   statistiques: StatistiquesPersonne
+  // Binômes où figure la personne : onglet Binômes, pour un pilote ou un copilote seulement.
+  binomes: FicheBinome[]
   // Épreuves qui comptent pour le palier (équipage validé ∪ assistance « vient ») : la barre vers le palier suivant.
   nombreEpreuvesPalier: number
   // Ressenti moyen des derniers débriefs : au niveau écriture ou plus uniquement (privé à l'équipage).
@@ -409,6 +494,7 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
       jours: dispo.jours,
     })),
     statistiques,
+    binomes: await lireBinomesDePersonne(ctx, personId),
     nombreEpreuvesPalier: await nombreEpreuvesDePalier(ctx, personId),
     ressenti: voitPrive ? ressentiMoyen(moods.map((mood) => mood.ressenti)) : null,
   }

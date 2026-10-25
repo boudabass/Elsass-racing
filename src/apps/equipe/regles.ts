@@ -241,3 +241,13 @@ export function statutLePlusUrgent(statuts: StatutEcheance[]): StatutEcheance | 
   if (statuts.length === 0) return null
   return statuts.reduce((pire, statut) => (RANG_ECHEANCE[statut] > RANG_ECHEANCE[pire] ? statut : pire))
 }
+
+// Une personne compte comme équipage (statistiques pilote et copilote, binômes) si l'un de ses rôles habituels l'est.
+export function estEquipage(roles: RoleHabituel[]): boolean {
+  return roles.includes("pilote") || roles.includes("copilote")
+}
+
+// Binômes où figure la personne : son partenaire et le rôle qu'elle y tient.
+export function binomesDePersonne<T extends { piloteId: string; copiloteId: string }>(personId: string, binomes: T[]): T[] {
+  return binomes.filter((binome) => binome.piloteId === personId || binome.copiloteId === personId)
+}

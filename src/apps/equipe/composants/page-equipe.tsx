@@ -51,7 +51,42 @@ function CarteEquipier({ carte, aEpreuve }: { carte: CarteMembre; aEpreuve: bool
             </span>
           </span>
         </span>
-        {carte.palier && <span className="text-sm">Palier : {LIBELLE_PALIER[carte.palier]}</span>}
+        {carte.palier && (
+          <span className="flex flex-col gap-1 text-sm">
+            <span>Palier : {LIBELLE_PALIER[carte.palier]}</span>
+            {carte.progression && (
+              <span
+                role="progressbar"
+                aria-label={`Vers ${LIBELLE_PALIER[carte.progression.suivant]} : encore ${carte.progression.restant} épreuve${carte.progression.restant > 1 ? "s" : ""}`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={carte.progression.pourcentage}
+                className="block h-2 w-full overflow-hidden rounded-full bg-surface-2"
+              >
+                <span className="block h-full bg-marque" style={{ width: `${carte.progression.pourcentage}%` }} />
+              </span>
+            )}
+          </span>
+        )}
+        {(carte.statsEquipage || carte.epreuvesAssistance !== null) && (
+          <span className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            {carte.statsEquipage && (
+              <>
+                <span>
+                  Épreuves <span className="chiffre font-semibold">{carte.statsEquipage.epreuves}</span>
+                </span>
+                <span>
+                  Arrivées <span className="chiffre font-semibold">{carte.statsEquipage.arrivees}</span>
+                </span>
+              </>
+            )}
+            {carte.epreuvesAssistance !== null && (
+              <span>
+                Épreuves en assistance <span className="chiffre font-semibold">{carte.epreuvesAssistance}</span>
+              </span>
+            )}
+          </span>
+        )}
         <span className="flex flex-wrap gap-2 text-sm">
           <span className={`rounded-full border border-bordure px-3 py-1 ${carte.licence ? COULEUR_ECHEANCE[carte.licence] : "text-texte-discret"}`}>
             {licence}
