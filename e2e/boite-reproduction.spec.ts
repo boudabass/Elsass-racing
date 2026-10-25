@@ -35,6 +35,12 @@ async function compteurBoite(page: Page): Promise<string> {
   return (await bouton.getAttribute("aria-label")) ?? ""
 }
 
+// Le libellé donne « Boîte d'actions, N en attente » ; sans action, il ne porte pas de nombre.
+function nombreEnAttente(libelle: string): number {
+  const trouve = /, (\d+) en attente/.exec(libelle)
+  return trouve ? Number(trouve[1]) : 0
+}
+
 test("point 2 : dépense d'engagement, navigation client vers le QG, boîte et compteur sans rechargement", async ({ page, equipe }) => {
   test.setTimeout(240_000)
   await preparerSaison(equipe, SAISON)
@@ -47,6 +53,9 @@ test("point 2 : dépense d'engagement, navigation client vers le QG, boîte et c
 
   // Saisie de la dépense d'engagement dans Budget (entrée initiale par URL, le reste par clic).
   await page.goto(`/apps/budget/nouvelle?epreuve=${eventId}`)
+  // Compteur lu avant l'action, sur une page chargée : Équipe ajoute ses demandes de disponibilités à la création de
+  // l'engagement (5.1), donc le nombre de départ n'est pas zéro. L'attente porte sur N+1 exactement.
+  const avant = nombreEnAttente(await compteurBoite(page))
   await page.getByLabel("Montant (€)").fill("450")
   await page.getByLabel("Catégorie", { exact: true }).selectOption({ label: "Engagement" })
   await page.getByLabel(/Engagement concerné/).selectOption({ index: 1 })
@@ -60,9 +69,8 @@ test("point 2 : dépense d'engagement, navigation client vers le QG, boîte et c
   // L'action est créée côté serveur quand la dépense part (synchro). On attend le serveur, pas l'écran.
   await expect.poll(async () => statutAction(equipe, `marquer_paye:${entryId}`), { timeout: 60_000 }).toBe("en_attente")
 
-  // Sans rechargement ni nouvelle navigation : le compteur et la boîte doivent montrer l'action. Le compte n'est pas fixé :
-  // Équipe ajoute une demande de disponibilités à chaque membre actif quand un engagement est créé (5.1), donc 2 ici.
-  await expect.poll(() => compteurBoite(page), { timeout: 10_000 }).toMatch(/[1-9]\d* en attente/)
+  // Sans rechargement ni nouvelle navigation : le compteur doit passer à exactement N+1 (la seule action nouvelle).
+  await expect.poll(async () => nombreEnAttente(await compteurBoite(page)), { timeout: 10_000 }).toBe(avant + 1)
   const compteur = await compteurBoite(page)
   await page.getByRole("button", { name: /Boîte d'actions/ }).first().click()
   const visible = await expect
