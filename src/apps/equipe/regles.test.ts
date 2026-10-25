@@ -11,6 +11,7 @@ import {
   statistiquesBinome,
   statistiquesPersonne,
   statutEquipement,
+  statutLePlusUrgent,
   statutLicence,
   validiteCoherente,
   type ResultatValide,
@@ -137,5 +138,14 @@ describe("rôles d'épreuve affectables", () => {
     expect(roleAffectable("assistance")).toBe(true)
     expect(roleAffectable("logistique")).toBe(true)
     expect(roleAffectable("photo")).toBe(true)
+  })
+})
+
+describe("pastille d'échéances", () => {
+  it("garde la plus urgente ; sans échéance suivie, rien", () => {
+    expect(statutLePlusUrgent(["valide", "a_renouveler", "valide"])).toBe("a_renouveler")
+    expect(statutLePlusUrgent(["expire", "a_renouveler"])).toBe("expire")
+    expect(statutLePlusUrgent(["valide"])).toBe("valide")
+    expect(statutLePlusUrgent([])).toBeNull()
   })
 })

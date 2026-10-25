@@ -177,3 +177,11 @@ export type InteretVivier = (typeof INTERETS_VIVIER)[number]
 export function roleAffectable(role: RoleEpreuve): boolean {
   return role !== "pilote" && role !== "copilote"
 }
+
+// Pastille d'une personne pour une liste d'échéances (licences ou équipements) : la plus urgente. Null sans échéance suivie.
+const RANG_ECHEANCE: Record<StatutEcheance, number> = { valide: 0, a_renouveler: 1, expire: 2 }
+
+export function statutLePlusUrgent(statuts: StatutEcheance[]): StatutEcheance | null {
+  if (statuts.length === 0) return null
+  return statuts.reduce((pire, statut) => (RANG_ECHEANCE[statut] > RANG_ECHEANCE[pire] ? statut : pire))
+}
