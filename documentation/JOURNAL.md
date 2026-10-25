@@ -584,4 +584,6 @@
 - Manifeste et catalogue : Équipe en 0.2.0 (migration `20261025190000_core_catalogue`).
 - Vérifications : `db:verifier-equipe` (ressenti invisible en contribution, palier qui ne baisse pas après annulation, échéance émise une fois, droits de l'assistance, pilote refusé) et RLS des huit tables dans `db:verifier-rls`. Les deux sont branchés dans le job `complet`.
 - Constaté, non traité : le panneau « Prêt pour l'épreuve ? » de Saison ne passe licences et homologations à « suivi » que sur une échéance signalée. Une licence valide n'en signale aucune : le point reste « pas encore suivi ». Décision à prendre.
-- Unitaires : 933 (96 fichiers), typecheck vert. Migration, `db:verifier-equipe` et RLS ne tournent pas sur le poste (pas de Docker) : ils sont à confirmer par le run GitHub Actions.
+- Run verif 40219036777 (sur 75b9196) vert : `db:deploy` de la migration `equipe_schema`, `db:verifier-rls` (huit tables `equipe_` comprises), `db:verifier-equipe` (dix contrôles), e2e 154 réussis sur 154.
+- Un seul échec au premier run (40216979418) : `e2e/boite-reproduction.spec.ts` attendait « 1 en attente ». La demande de disponibilités d'Équipe porte le compteur à 2 ; l'assertion vérifie maintenant le compteur non nul, sans fixer le nombre.
+- Unitaires : 933 (96 fichiers), typecheck vert sur le poste.
