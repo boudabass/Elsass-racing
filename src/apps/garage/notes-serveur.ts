@@ -7,7 +7,7 @@
 
 import type { ContexteTeam } from "@/core/contexte"
 import { niveauDe } from "@/core/actions/actions-serveur"
-import { idsFichesVisibles, peutAjouterSurFiche, peutVoirFiche } from "@/core/notes/regles"
+import { estFicheVisible, idsFichesVisibles, peutAjouterSurFiche, peutVoirFiche } from "@/core/notes/regles"
 import type { ControleFiche, FicheNotes } from "@/core/notes/notes-serveur"
 import type { FicheNotable } from "@/core/notes/fiches"
 import type { Tx } from "@/core/synchro/registre"
@@ -54,7 +54,7 @@ export const ficheOrdreNotable: FicheNotable = {
 
   async peutVoir(tx, ctx, ordreId) {
     const visibles = await ordresVisibles(tx, ctx)
-    if (visibles !== null && !visibles.includes(ordreId)) return false
+    if (!estFicheVisible(visibles, ordreId)) return false
     return ordreExiste(tx, ctx.teamId, ordreId)
   },
 
@@ -74,7 +74,7 @@ export function controleOrdre(ordreId: string): ControleFiche {
 
     async voir(ctx: ContexteTeam) {
       const visibles = await executerPourTeam(ctx.teamId, ctx.userId, (tx) => ordresVisibles(tx, ctx))
-      if (visibles === null || !visibles.includes(ordreId)) refus("Ordre de travail introuvable.")
+      if (!estFicheVisible(visibles, ordreId)) refus("Ordre de travail introuvable.")
       const existe = await executerPourTeam(ctx.teamId, ctx.userId, (tx) => ordreExiste(tx, ctx.teamId, ordreId))
       if (!existe) refus("Ordre de travail introuvable.")
     },

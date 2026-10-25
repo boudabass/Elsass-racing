@@ -111,3 +111,8 @@ export function clauseFiche<F extends { app: string; ficheType: string }>(fiche:
   if (ids.length === 0) return null
   return { app: fiche.app, ficheType: fiche.ficheType, ficheId: { in: ids } }
 }
+
+// La fiche d'identifiant id figure-t-elle dans la liste visible ? null : toutes.
+export function estFicheVisible(visibles: string[] | null, id: string): boolean {
+  return visibles === null || visibles.includes(id)
+}

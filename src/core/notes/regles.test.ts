@@ -4,6 +4,7 @@ import {
   emailMasque,
   ficheDeLigne,
   clauseFiche,
+  estFicheVisible,
   fichesLisibles,
   idsFichesVisibles,
   nomAuteur,
@@ -134,5 +135,17 @@ describe("tirage des notes de fiche : seulement les fiches visibles", () => {
   it("sans affectation : pas de clause ; avec écriture : toute la fiche, sans filtre d'identifiant", () => {
     expect(clauseFiche({ app: "garage", ficheType: "ordre" }, idsFichesVisibles("contribution", []))).toBeNull()
     expect(clauseFiche({ app: "garage", ficheType: "ordre" }, idsFichesVisibles("ecriture", []))).toEqual({ app: "garage", ficheType: "ordre" })
+  })
+})
+
+describe("fiche visible", () => {
+  const A = "0190a000-0000-7000-8000-00000000000a"
+  const B = "0190a000-0000-7000-8000-00000000000b"
+
+  it("null (écriture et plus) : toute fiche est visible ; une liste : seulement ses fiches", () => {
+    expect(estFicheVisible(null, A)).toBe(true)
+    expect(estFicheVisible([A], A)).toBe(true)
+    expect(estFicheVisible([A], B)).toBe(false)
+    expect(estFicheVisible([], A)).toBe(false)
   })
 })
