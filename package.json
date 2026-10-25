@@ -22,6 +22,7 @@
     "db:verifier-synchro": "tsx scripts/verifier-synchro.ts",
     "db:verifier-garage": "tsx scripts/verifier-garage.ts",
     "db:verifier-emplacements": "tsx scripts/verifier-emplacements.ts",
+    "db:verifier-equipe": "tsx scripts/verifier-equipe.ts",
     "db:initialiser-budget": "tsx scripts/initialiser-budget.ts",
     "donnees:koehling": "tsx scripts/donnees-koehling.ts",
     "db:studio": "prisma studio",

@@ -101,6 +101,7 @@ jobs:
       - run: pnpm db:verifier-synchro
       - run: pnpm db:verifier-garage
       - run: pnpm db:verifier-emplacements
+      - run: pnpm db:verifier-equipe
 
       - run: pnpm exec playwright install --with-deps chromium
 

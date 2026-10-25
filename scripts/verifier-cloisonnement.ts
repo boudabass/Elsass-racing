@@ -322,6 +322,36 @@ async function main() {
       garageSansRls.map((r) => r.table_name).join(", "),
     )
 
+    // Équipe (tâche 5.1, 955 §3) : huit tables, même garantie que garage_ (RLS forcé, politique, droits du rôle applicatif).
+    const tablesEquipe = [
+      "equipe_profile", "equipe_licence", "equipe_gear", "equipe_skill", "equipe_availability", "equipe_assignment", "equipe_mood", "equipe_pool",
+    ]
+    const equipeSansRls = await proprietaire.$queryRaw<Array<{ table_name: string }>>`
+      SELECT c.relname AS table_name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = ANY(${tablesEquipe}::text[])
+        AND (
+          NOT c.relrowsecurity
+          OR NOT c.relforcerowsecurity
+          OR NOT EXISTS (
+            SELECT 1 FROM pg_policies p
+            WHERE p.schemaname = 'public' AND p.tablename = c.relname AND p.policyname = 'cloisonnement_team'
+          )
+          OR NOT (
+            has_table_privilege('elsass_racing_app', c.oid, 'SELECT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'INSERT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'UPDATE')
+          )
+        )
+      ORDER BY c.relname`
+    controle(
+      "les huit tables equipe_ ont le RLS forcé, la politique cloisonnement_team et les droits du rôle applicatif",
+      equipeSansRls.length === 0 && tablesEquipe.length === 8,
+      equipeSansRls.map((r) => r.table_name).join(", "),
+    )
+
     // Partenaires (tâche 3.5) : onze tables, même garantie que voiture_. Plus les trois colonnes d'identité
     // juridique de core_team, qui doivent exister (la lecture passe par la team, comme les autres colonnes).
     const tablesPartenaires = [
