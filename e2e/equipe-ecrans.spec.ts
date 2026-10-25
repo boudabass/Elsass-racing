@@ -51,7 +51,8 @@ test("Vivier, prochaine épreuve, statistiques : une personne au vivier, affect�
   await tiroir(page).getByLabel("Personne", { exact: true }).selectOption({ label: "Bruno Vidal" })
   await tiroir(page).getByLabel("Rôle d'épreuve", { exact: true }).selectOption({ label: "Logistique" })
   await envoyer(page, tiroir(page).getByRole("button", { name: "Affecter", exact: true }))
-  const tache = page.locator("li").filter({ hasText: "Logistique · à faire" })
+  // La ligne de tâche est le li sans li à l'intérieur : la carte de la personne qui la contient n'est pas visée.
+  const tache = page.locator("li:not(:has(li))").filter({ hasText: "Logistique · à faire" })
   await expect(tache).toBeVisible()
   await tache.getByRole("button", { name: "Marquer fait", exact: true }).click()
   await expect(page.getByText("Logistique · fait")).toBeVisible()
