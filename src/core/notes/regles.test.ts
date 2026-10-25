@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest"
 
-import { emailMasque, nomAuteur, NOTE_TAILLE_MAX, peutAjouterSurFiche, peutModifierNote, peutRetirer, peutVoirFiche, validerTexteNote } from "./regles"
+import {
+  emailMasque,
+  ficheDeLigne,
+  fichesLisibles,
+  nomAuteur,
+  NOTE_TAILLE_MAX,
+  peutAjouterSurFiche,
+  peutModifierNote,
+  peutRetirer,
+  peutVoirFiche,
+  validerTexteNote,
+  verdictNoteFiche,
+} from "./regles"
 
 describe("validerTexteNote", () => {
   it("rogne les espaces et garde le texte", () => {
@@ -68,5 +80,34 @@ describe("affichage de l'auteur", () => {
     expect(nomAuteur({ prenom: "Marie", nom: "Koehling" }, "m@x.fr")).toBe("Marie Koehling")
     expect(nomAuteur(null, "jean@exemple.fr")).toBe("j***@exemple.fr")
     expect(nomAuteur(null, null)).toBe("Personne inconnue")
+  })
+})
+
+describe("notes de fiche hors ligne : règles pures", () => {
+  const ORDRE = "0190a000-0000-7000-8000-000000000001"
+
+  it("lit la fiche d'une ligne : contenu stocké d'abord, champs envoyés à la création, rien pour une note de team", () => {
+    expect(ficheDeLigne({ app: "garage", ficheType: "ordre", ficheId: ORDRE, texte: "x" })).toEqual({ app: "garage", ficheType: "ordre", ficheId: ORDRE })
+    expect(ficheDeLigne({ texte: "Note de team" })).toBeNull()
+    expect(ficheDeLigne(undefined)).toBeNull()
+  })
+
+  it("ne garde une fiche que si l'app et la fiche sont lisibles : « lecture » sur Garage, rien sur Équipe seul", () => {
+    const fiches = [{ app: "garage", ficheType: "ordre" }]
+    expect(fichesLisibles(fiches, { equipe: "contribution", garage: "lecture" })).toEqual(fiches)
+    expect(fichesLisibles(fiches, { equipe: "gestion" })).toEqual([])
+    expect(fichesLisibles(fiches, { garage: "aucun", equipe: "gestion" })).toEqual([])
+  })
+
+  it("création : refusée sans droit d'ajouter sur la fiche (assistance non affectée)", () => {
+    const verdict = verdictNoteFiche({ creation: true, peutVoir: true, peutAjouter: false, auteurId: null, userId: "u1" })
+    expect(verdict).toEqual({ ok: false, raison: "Tu ne peux pas ajouter de note à cette fiche." })
+    expect(verdictNoteFiche({ creation: true, peutVoir: true, peutAjouter: true, auteurId: null, userId: "u1" })).toEqual({ ok: true })
+  })
+
+  it("modification et retrait hors ligne : l'auteur seul, et seulement si la fiche reste visible", () => {
+    expect(verdictNoteFiche({ creation: false, peutVoir: true, peutAjouter: false, auteurId: "u2", userId: "u1" }).ok).toBe(false)
+    expect(verdictNoteFiche({ creation: false, peutVoir: true, peutAjouter: false, auteurId: "u1", userId: "u1" })).toEqual({ ok: true })
+    expect(verdictNoteFiche({ creation: false, peutVoir: false, peutAjouter: false, auteurId: "u1", userId: "u1" }).ok).toBe(false)
   })
 })

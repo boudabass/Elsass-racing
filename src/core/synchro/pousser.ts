@@ -105,7 +105,8 @@ async function decider(
   if (operation.type === "creer") {
     const champs = validerChamps(declaration, operation.champs)
     if (!champs.ok) return refus(champs.raison)
-    const verdict = peutEcrire({
+    // Contrôle propre à la ligne d'abord (notes de fiche) ; sinon la règle de la table.
+    const verdict = (await declaration.controleLigne?.(tx, ctx, champs.champs, null)) ?? peutEcrire({
       niveau,
       contributionPropre: declaration.contributionPropre,
       regle: declaration.regleContribution,
@@ -121,7 +122,8 @@ async function decider(
 
   const etat = await declaration.trouver(tx, ctx.teamId, operation.id)
   if (!etat) return refus("Cet élément n'existe plus.")
-  const verdict = peutEcrire({
+  // Contrôle propre à la ligne d'abord (notes de fiche) ; sinon la règle de la table.
+  const verdict = (await declaration.controleLigne?.(tx, ctx, operation.champs, etat)) ?? peutEcrire({
     niveau,
     contributionPropre: declaration.contributionPropre,
     regle: declaration.regleContribution,

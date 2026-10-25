@@ -30,7 +30,8 @@ export async function tirerPaquets(ctx: ContexteTeam, curseurs: Record<string, s
   for (const declaration of toutesLesDeclarations()) {
     const niveau = await niveauDe(ctx, declaration.app)
     const perimetre = perimetreLecture(niveau, declaration.niveauLecture)
-    if (perimetre === "aucun") continue
+    // Une table « filtreLecture » (notes de fiche) se tire aussi sans niveau sur son app : lirePaquet filtre selon la personne.
+    if (perimetre === "aucun" && !declaration.filtreLecture) continue
 
     const curseurRecu = curseurs[declaration.cle] ?? null
     const lignes = await declaration.lirePaquet(
@@ -39,6 +40,7 @@ export async function tirerPaquets(ctx: ContexteTeam, curseurs: Record<string, s
       decoderCurseur(curseurRecu),
       LIMITE_PAQUET,
       perimetre === "ses_lignes" ? ctx.userId : null,
+      ctx,
     )
 
     const derniere = lignes[lignes.length - 1]

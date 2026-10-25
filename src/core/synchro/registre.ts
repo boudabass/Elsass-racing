@@ -8,14 +8,17 @@
 
 import { z } from "zod"
 
+import { niveauDe } from "@/core/actions/actions-serveur"
 import type { AppCle, NiveauAcces } from "@/core/catalogue"
 import type { ContexteTeam } from "@/core/contexte"
+import { aAuMoins } from "@/core/droits/niveaux"
 import { prisma, prismaPourTeam } from "@/lib/prisma"
 
 import type { PositionCurseur } from "./curseur"
-import type { RegleContribution } from "./contribution"
+import type { RegleContribution, VerdictEcriture } from "./contribution"
 import { RefusSynchro } from "./erreurs"
 import { apresPosition } from "./position"
+import { controleNoteSynchro, fichesNotesLisibles } from "@/core/notes/synchro-serveur"
 import { declarationsSaisonSynchro } from "@/apps/saison/synchro-serveur"
 import { declarationsBudgetSynchro } from "@/apps/budget/synchro-serveur"
 import { declarationsVoitureSynchro } from "@/apps/voiture/synchro-serveur"
@@ -74,13 +77,20 @@ export interface DeclarationSynchro {
   // Lecture seule depuis l'appareil : reçue hors ligne, jamais écrite par la synchro.
   lectureSeule: boolean
   schemaChamps: z.ZodType<Record<string, unknown>>
+  // Lignes lisibles selon leur fiche (notes de fiche, brief 5.0) : la table est tirée même sans niveau sur son app,
+  // et lirePaquet filtre selon le lecteur. Absent vaut « non ».
+  filtreLecture?: boolean
+  // Contrôle propre à une ligne, avant la règle de la table : null si la ligne suit la règle de la table.
+  controleLigne?(tx: Tx, ctx: ContexteTeam, champs: Record<string, unknown> | undefined, etat: EtatLigneSynchro | null): Promise<VerdictEcriture | null>
   // auteurId renseigné : seulement les lignes de cet auteur (périmètre « ses lignes », niveau contribution).
+  // lecteur : la personne qui tire (pour les lignes lisibles selon leur fiche).
   lirePaquet(
     client: ClientTeam,
     teamId: string,
     position: PositionCurseur | null,
     limite: number,
     auteurId: string | null,
+    lecteur: ContexteTeam,
   ): Promise<LigneSynchro[]>
   trouver(tx: Tx, teamId: string, id: string): Promise<EtatLigneSynchro | null>
   creer(tx: Tx, ctx: ContexteTeam, id: string, champs: Record<string, unknown>): Promise<void>
@@ -94,15 +104,24 @@ export interface DeclarationSynchro {
 
 // Après la position du curseur : voir position.ts.
 
-const schemaNote = z
+// Texte d'une note : rogné, non vide, 4000 caractères au plus (NOTE_TAILLE_MAX, src/core/notes/regles.ts).
+const schemaTexteNote = z
+  .string()
+  .trim()
+  .min(1, "Le texte de la note est vide.")
+  .max(4000, "La note dépasse 4000 caractères.")
+
+// Note de team : texte seul. Note de fiche : texte et fiche (app, type, identifiant), créée hors ligne sur une fiche de la liste blanche.
+const schemaNoteEquipe = z.object({ texte: schemaTexteNote }).strict()
+const schemaNoteFiche = z
   .object({
-    texte: z
-      .string()
-      .trim()
-      .min(1, "Le texte de la note est vide.")
-      .max(4000, "La note dépasse 4000 caractères."),
+    app: z.string().min(1).max(64),
+    ficheType: z.string().min(1).max(64),
+    ficheId: z.string().uuid(),
+    texte: schemaTexteNote,
   })
   .strict()
+const schemaNote = z.union([schemaNoteFiche, schemaNoteEquipe])
 
 const noteSynchro: DeclarationSynchro = {
   cle: "core_note",
@@ -110,12 +129,26 @@ const noteSynchro: DeclarationSynchro = {
   app: "equipe",
   niveauLecture: "lecture",
   contributionPropre: true,
+  // Les notes de fiche sont lisibles selon leur fiche : la table est tirée même sans niveau sur « equipe ».
+  filtreLecture: true,
   lectureSeule: false,
   schemaChamps: schemaNote,
 
-  async lirePaquet(client, teamId, position, limite, auteurId) {
+  async lirePaquet(client, teamId, position, limite, auteurId, lecteur) {
+    // Notes de team : comme avant, au niveau « equipe » de la personne (et « ses lignes » au niveau contribution).
+    const niveauxEquipe = await niveauDe(lecteur, "equipe")
+    const equipeLisible = aAuMoins(niveauxEquipe, "lecture")
+    // Notes de fiche : seulement les fiches que la personne peut lire (au moins « lecture » sur l'app de la fiche).
+    const fiches = await fichesNotesLisibles(lecteur)
+
+    const visibles = [
+      ...(equipeLisible ? [{ app: "core", ficheType: "team", ...(auteurId ? { createdBy: auteurId } : {}) }] : []),
+      ...fiches.map(({ app, ficheType }) => ({ app, ficheType })),
+    ]
+    if (visibles.length === 0) return []
+
     const notes = await client.coreNote.findMany({
-      where: { teamId, ...(auteurId ? { createdBy: auteurId } : {}), ...apresPosition(position) },
+      where: { teamId, AND: [apresPosition(position), { OR: visibles }] },
       orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
       take: limite,
     })
@@ -138,23 +171,27 @@ const noteSynchro: DeclarationSynchro = {
   async trouver(tx, teamId, id) {
     const note = await tx.coreNote.findFirst({ where: { teamId, id } })
     if (!note) return null
+    const fiche = note.app === "core" && note.ficheType === "team" ? {} : { app: note.app, ficheType: note.ficheType, ficheId: note.ficheId }
     return {
       rev: note.rev,
       auteurId: note.createdBy,
       supprimee: note.deletedAt !== null,
-      contenu: { texte: note.texte },
+      contenu: { texte: note.texte, ...fiche },
     }
   },
 
+  // Contrôle de la fiche d'une note de fiche (liste blanche, droits, auteur seul hors ligne). null pour une note de team.
+  controleLigne: (tx, ctx, champs, etat) => controleNoteSynchro(tx, ctx, champs, etat),
+
   async creer(tx, ctx, id, champs) {
-    // Le serveur pose l'auteur, la fiche (la team) et l'app : rien de tout cela ne vient du client.
+    // Le serveur pose l'auteur et la team. Une note de team garde app = core et ficheType = team ; une note de fiche
+    // porte la fiche choisie, contrôlée avant (controleLigne).
+    const fiche = "app" in champs ? { app: String(champs.app), ficheType: String(champs.ficheType), ficheId: String(champs.ficheId) } : { app: "core", ficheType: "team", ficheId: ctx.teamId }
     await tx.coreNote.create({
       data: {
         id,
         teamId: ctx.teamId,
-        app: "core",
-        ficheType: "team",
-        ficheId: ctx.teamId,
+        ...fiche,
         auteurUserId: ctx.userId,
         texte: String(champs.texte),
         createdBy: ctx.userId,

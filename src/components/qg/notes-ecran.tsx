@@ -30,7 +30,11 @@ export function NotesEcran({ userId, peutEcrire }: { userId: string; peutEcrire:
     if (new URLSearchParams(window.location.search).has("nouvelle")) setNouvelleOuverte(true)
   }, [])
 
-  const notes = useMemo(() => [...lignes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [lignes])
+  // Notes de la team seulement : une note de fiche (ordre de travail, brief 5.0) a son propre écran, sur la fiche.
+  const notes = useMemo(
+    () => [...lignes].filter((ligne) => ligne.ficheType === undefined || ligne.ficheType === "team").sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [lignes],
+  )
 
   async function creer(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault()

@@ -3,6 +3,7 @@
 // Ici, seulement les décisions qui ne dépendent que du niveau, de l'affectation et de l'auteur.
 
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
+import type { VerdictEcriture } from "@/core/synchro/contribution"
 
 // Longueur maximale d'une note : même plafond que le schéma de synchro de core_note.
 export const NOTE_TAILLE_MAX = 4000
@@ -53,4 +54,47 @@ export function nomAuteur(personne: { prenom: string; nom: string } | null, emai
     if (complet !== "") return complet
   }
   return email ? emailMasque(email) : "Personne inconnue"
+}
+
+// Synchro hors ligne (brief 5.0, conditions de l'orchestrateur, point A). Une note de team porte app = core et ficheType = team.
+// Une note de fiche porte l'app et le type de fiche (liste blanche, src/core/notes/fiches.ts) et l'identifiant de la fiche.
+export interface FicheNote {
+  app: string
+  ficheType: string
+  ficheId: string
+}
+
+// Fiche d'une ligne synchronisée : lue dans le contenu stocké (modification, suppression) ou dans les champs envoyés (création).
+// Une ligne sans app, ficheType ni ficheId (note de team) renvoie null.
+export function ficheDeLigne(source: Record<string, unknown> | undefined): FicheNote | null {
+  if (!source) return null
+  const { app, ficheType, ficheId } = source
+  if (typeof app !== "string" || typeof ficheType !== "string" || typeof ficheId !== "string") return null
+  return { app, ficheType, ficheId }
+}
+
+// Fiches dont la personne peut lire les notes hors ligne : au moins « lecture » sur l'app de la fiche.
+export function fichesLisibles<F extends { app: string }>(fiches: F[], niveaux: Partial<Record<string, Niveau>>): F[] {
+  return fiches.filter((fiche) => aAuMoins(niveaux[fiche.app] ?? "aucun", "lecture"))
+}
+
+// Verdict d'une écriture de note de fiche à la poussée. La création exige le droit d'ajouter sur la fiche ; la modification
+// et le retrait hors ligne sont réservés à l'auteur, et supposent qu'on voit encore la fiche.
+export function verdictNoteFiche({
+  creation,
+  peutVoir,
+  peutAjouter,
+  auteurId,
+  userId,
+}: {
+  creation: boolean
+  peutVoir: boolean
+  peutAjouter: boolean
+  auteurId: string | null
+  userId: string
+}): VerdictEcriture {
+  if (creation) return peutAjouter ? { ok: true } : { ok: false, raison: "Tu ne peux pas ajouter de note à cette fiche." }
+  if (!peutVoir) return { ok: false, raison: "Tu ne peux plus voir cette fiche : la note ne se modifie plus." }
+  if (!peutModifierNote({ auteurId, userId })) return { ok: false, raison: "Hors ligne, tu ne peux modifier ou retirer que tes propres notes." }
+  return { ok: true }
 }
