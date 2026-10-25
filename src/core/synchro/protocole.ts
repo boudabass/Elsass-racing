@@ -23,6 +23,26 @@ export const schemaPousser = z.object({
   operations: z.array(schemaOperation).max(LIMITE_OPERATIONS),
 })
 
+// Enveloppe d'un envoi : seulement un tableau d'opérations, chacune avec son identifiant (sans lui, rien ne peut être
+// noté). Le reste se valide opération par opération (analyserEnvoi) : une opération mal formée est refusée seule.
+export const schemaEnveloppePousser = z.object({
+  operations: z.array(z.object({ idOperation: z.string().uuid() }).passthrough()).max(LIMITE_OPERATIONS),
+})
+
+export const RAISON_OPERATION_MAL_FORMEE = "Envoi mal formé : rien n'a été enregistré."
+
+// Sépare les opérations valides (à appliquer) des mal formées (à noter « refusee » avec leur raison, sans toucher la base).
+export function analyserEnvoi(brutes: Array<Record<string, unknown>>): { valides: Operation[]; refusees: ResultatOperation[] } {
+  const valides: Operation[] = []
+  const refusees: ResultatOperation[] = []
+  for (const brute of brutes) {
+    const analyse = schemaOperation.safeParse(brute)
+    if (analyse.success) valides.push(analyse.data)
+    else refusees.push({ idOperation: String(brute.idOperation), statut: "refusee", raison: RAISON_OPERATION_MAL_FORMEE })
+  }
+  return { valides, refusees }
+}
+
 export const schemaTirer = z.object({
   curseurs: z.record(z.string().nullable()),
 })
