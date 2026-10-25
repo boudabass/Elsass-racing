@@ -285,9 +285,9 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
     await page.getByLabel("Km chronométrés").fill("12,5")
     await page.getByLabel("Classement de classe").fill("2")
     await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer le résultat", exact: true }))
-    await expect(page.getByText("Un autre membre doit valider ce résultat.")).toBeVisible()
 
-    // Le second équipier valide depuis « Résultats à valider ».
+    // Le résultat attend un membre d'équipage, qui le valide depuis « Résultats à valider ». Le responsable pourrait le
+    // valider lui-même (la règle le permet) : ce parcours teste la validation par un autre membre.
     const b = await connecterMembre(browser, equipierB)
     try {
       await b.page.goto("/apps/saison/a-valider")
