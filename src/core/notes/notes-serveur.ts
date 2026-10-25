@@ -195,3 +195,15 @@ export async function retirerPhoto(ctx: ContexteTeam, controle: ControleFiche, r
     })
   })
 }
+
+// Noms affichés des membres ayant une fiche personne liée au compte (« Prénom Nom »), pour l'écran hors ligne :
+// les lignes locales ne portent que l'identifiant de l'auteur.
+export async function nomsDesMembres(ctx: ContexteTeam): Promise<Record<string, string>> {
+  return executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    const personnes = await tx.corePerson.findMany({
+      where: { teamId: ctx.teamId, userId: { not: null }, deletedAt: null },
+      select: { userId: true, prenom: true, nom: true },
+    })
+    return Object.fromEntries(personnes.flatMap((p) => (p.userId ? [[p.userId, `${p.prenom} ${p.nom}`.trim()]] : [])))
+  })
+}
