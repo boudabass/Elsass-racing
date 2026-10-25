@@ -161,3 +161,9 @@ export type RoleEpreuve = (typeof ROLES_EPREUVE)[number]
 
 export const INTERETS_VIVIER = ["faible", "moyen", "fort"] as const
 export type InteretVivier = (typeof INTERETS_VIVIER)[number]
+
+// Un rôle d'épreuve s'affecte ici sauf pilote et copilote : l'équipage se choisit sur l'engagement, dans Saison.
+// Le rôle d'épreuve ne donne aucun droit (955 §4).
+export function roleAffectable(role: RoleEpreuve): boolean {
+  return role !== "pilote" && role !== "copilote"
+}

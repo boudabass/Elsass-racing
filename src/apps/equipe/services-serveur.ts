@@ -16,11 +16,15 @@ import { newId } from "@/core/ids"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 import { avecReprisePourConflit } from "@/lib/reprise-conflit"
 
-import { chargeLicencePayee } from "./charges"
+import { chargeDisponibiliteChangee, chargeLicencePayee } from "./charges"
 import { ErreurEquipe, refus } from "./erreurs"
 import {
+  INTERETS_VIVIER,
   LIBELLES_TYPE_LICENCE,
+  REPONSES_DISPONIBILITE,
+  ROLES_EPREUVE,
   ROLES_HABITUELS,
+  roleAffectable,
   SPECIALITES,
   TYPES_EQUIPEMENT,
   TYPES_LICENCE,
@@ -516,6 +520,242 @@ export async function retirerSpecialiteDans(ctx: ContexteTeam, id: string, nivea
   await avecReprisePourConflit(() =>
     executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
       tx.equipeSkill.update({ where: { id }, data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId } }),
+    ),
+  )
+}
+
+// --- Disponibilités -------------------------------------------------------------------------
+
+const schemaDisponibilite = z
+  .object({
+    reponse: z.enum(REPONSES_DISPONIBILITE),
+    // Jours de présence, chacun dans les dates de l'épreuve (vérifié plus bas).
+    jours: z.array(jourCivil).max(60).optional(),
+    avecVehicule: z.boolean().nullable().optional(),
+    places: z.number().int().min(0).nullable().optional(),
+    commentaire: texte(500),
+  })
+  .strict()
+
+export type EntreeDisponibilite = z.input<typeof schemaDisponibilite>
+
+// Répondre pour une épreuve : une disponibilité par personne et par épreuve (l'index de la migration le garantit).
+// Pas de ligne écrite à l'avance : la réponse crée la ligne, la demande vient d'une action dans la boîte.
+export async function repondreDisponibilite(personId: string, eventId: string, entree: EntreeDisponibilite): Promise<void> {
+  const { ctx, niveau } = await accesEquipe("contribution")
+  return repondreDisponibiliteDans(ctx, personId, eventId, entree, niveau)
+}
+
+export async function repondreDisponibiliteDans(
+  ctx: ContexteTeam,
+  personId: string,
+  eventId: string,
+  entree: EntreeDisponibilite,
+  niveau: Niveau,
+): Promise<void> {
+  const donnees = schemaDisponibilite.parse(entree)
+  await exigerDossier(ctx, niveau, personId)
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  await personneActiveDans(client, ctx, personId)
+  const epreuve = await client.coreEvent.findFirst({
+    where: { id: eventId, teamId: ctx.teamId, deletedAt: null },
+    select: { dateDebut: true, dateFin: true },
+  })
+  if (!epreuve) refus("Épreuve introuvable.")
+  const debut = jourDeParis(epreuve.dateDebut)
+  const fin = jourDeParis(epreuve.dateFin)
+  if ((donnees.jours ?? []).some((jour) => jour < debut || jour > fin)) refus("Un jour choisi n'est pas dans les dates de l'épreuve.")
+
+  const donneesLigne = {
+    reponse: donnees.reponse,
+    jours: (donnees.jours ?? []).map(versJour),
+    avecVehicule: donnees.avecVehicule ?? null,
+    places: donnees.places ?? null,
+    commentaire: donnees.commentaire ?? null,
+    reponduLe: new Date(),
+  }
+  await avecReprisePourConflit(() =>
+    executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+      const maj = await tx.equipeAvailability.updateMany({
+        where: { teamId: ctx.teamId, personId, eventId, deletedAt: null },
+        data: { ...donneesLigne, rev: { increment: 1 }, updatedBy: ctx.userId },
+      })
+      if (maj.count === 0) {
+        await tx.equipeAvailability.createMany({
+          skipDuplicates: true,
+          data: [{ id: newId(), teamId: ctx.teamId, personId, eventId, ...donneesLigne, createdBy: ctx.userId, updatedBy: ctx.userId }],
+        })
+      }
+    }),
+  )
+  await emettre(ctx, "equipe.disponibilite_changee", chargeDisponibiliteChangee.parse({ eventId, personId, reponse: donnees.reponse }))
+}
+
+// --- Affectations ---------------------------------------------------------------------------
+
+const schemaAffectation = z
+  .object({
+    roleEpreuve: z.enum(ROLES_EPREUVE),
+    // Engagement facultatif de l'épreuve (core_event_entry) ; vérifié qu'il appartient à cette épreuve.
+    eventEntryId: identifiant.nullable().optional(),
+  })
+  .strict()
+
+export type EntreeAffectation = z.input<typeof schemaAffectation>
+
+// Affecter une personne à une épreuve avec un rôle d'épreuve. Le rôle ne donne aucun droit (955 §4).
+export async function affecterPersonne(eventId: string, personId: string, entree: EntreeAffectation): Promise<string> {
+  const { ctx } = await accesEquipe("ecriture")
+  return affecterPersonneDans(ctx, eventId, personId, entree)
+}
+
+export async function affecterPersonneDans(ctx: ContexteTeam, eventId: string, personId: string, entree: EntreeAffectation): Promise<string> {
+  const donnees = schemaAffectation.parse(entree)
+  if (!roleAffectable(donnees.roleEpreuve)) refus("Le pilote et le copilote se choisissent sur l'engagement, dans Saison.")
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  await personneActiveDans(client, ctx, personId)
+  const epreuve = await client.coreEvent.findFirst({ where: { id: eventId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!epreuve) refus("Épreuve introuvable.")
+  if (donnees.eventEntryId) {
+    const engagement = await client.coreEventEntry.findFirst({
+      where: { id: donnees.eventEntryId, eventId, teamId: ctx.teamId, deletedAt: null },
+      select: { id: true },
+    })
+    if (!engagement) refus("Cet engagement n'appartient pas à cette épreuve.")
+  }
+  const deja = await client.equipeAssignment.findFirst({
+    where: { teamId: ctx.teamId, eventId, personId, roleEpreuve: donnees.roleEpreuve, deletedAt: null },
+    select: { id: true },
+  })
+  if (deja) refus("Cette personne a déjà ce rôle sur cette épreuve.")
+
+  const id = newId()
+  await avecReprisePourConflit(() =>
+    executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+      tx.equipeAssignment.createMany({
+        skipDuplicates: true,
+        data: [
+          {
+            id,
+            teamId: ctx.teamId,
+            eventId,
+            eventEntryId: donnees.eventEntryId ?? null,
+            personId,
+            roleEpreuve: donnees.roleEpreuve,
+            createdBy: ctx.userId,
+            updatedBy: ctx.userId,
+          },
+        ],
+      }),
+    ),
+  )
+  return id
+}
+
+export async function retirerAffectation(id: string): Promise<void> {
+  const { ctx } = await accesEquipe("ecriture")
+  return retirerAffectationDans(ctx, id)
+}
+
+export async function retirerAffectationDans(ctx: ContexteTeam, id: string): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const affectation = await client.equipeAssignment.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+  if (!affectation) refus("Affectation introuvable.")
+  await avecReprisePourConflit(() =>
+    executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+      tx.equipeAssignment.update({ where: { id }, data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId } }),
+    ),
+  )
+}
+
+// --- Vivier ---------------------------------------------------------------------------------
+
+const baseVivier = {
+  roleRecherche: z.enum(ROLES_EPREUVE),
+  source: texte(120),
+  dernierContact: jourCivil.nullable().optional(),
+  interet: z.enum(INTERETS_VIVIER),
+  notes: texte(1000),
+}
+
+const schemaVivier = z.object(baseVivier).strict()
+const schemaModificationVivier = z.object(baseVivier).partial().strict()
+
+export type EntreeVivier = z.input<typeof schemaVivier>
+
+// Vivier : des personnes qu'on pourrait appeler (écriture et plus). Une personne peut y figurer pour plusieurs rôles.
+export async function ajouterAuVivier(personId: string, entree: EntreeVivier): Promise<string> {
+  const { ctx } = await accesEquipe("ecriture")
+  return ajouterAuVivierDans(ctx, personId, entree)
+}
+
+export async function ajouterAuVivierDans(ctx: ContexteTeam, personId: string, entree: EntreeVivier): Promise<string> {
+  const donnees = schemaVivier.parse(entree)
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  await personneActiveDans(client, ctx, personId)
+  const id = newId()
+  await avecReprisePourConflit(() =>
+    executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+      tx.equipePool.createMany({
+        skipDuplicates: true,
+        data: [
+          {
+            id,
+            teamId: ctx.teamId,
+            personId,
+            roleRecherche: donnees.roleRecherche,
+            source: donnees.source ?? null,
+            dernierContact: jourOptionnel(donnees.dernierContact) ?? null,
+            interet: donnees.interet,
+            notes: donnees.notes ?? null,
+            createdBy: ctx.userId,
+            updatedBy: ctx.userId,
+          },
+        ],
+      }),
+    ),
+  )
+  return id
+}
+
+async function entreeVivierActiveDans(client: Client, ctx: ContexteTeam, id: string) {
+  const entree = await client.equipePool.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null } })
+  if (!entree) refus("Entrée du vivier introuvable.")
+  return entree
+}
+
+export async function modifierVivier(id: string, entree: EntreeVivier): Promise<void> {
+  const { ctx } = await accesEquipe("ecriture")
+  return modifierVivierDans(ctx, id, entree)
+}
+
+export async function modifierVivierDans(ctx: ContexteTeam, id: string, entree: EntreeVivier): Promise<void> {
+  const donnees = schemaModificationVivier.parse(entree)
+  await entreeVivierActiveDans(prismaPourTeam(ctx.teamId, ctx.userId), ctx, id)
+  const modifs = renseignes({
+    roleRecherche: donnees.roleRecherche,
+    source: donnees.source,
+    dernierContact: jourOptionnel(donnees.dernierContact),
+    interet: donnees.interet,
+    notes: donnees.notes,
+  })
+  await avecReprisePourConflit(() =>
+    executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+      tx.equipePool.update({ where: { id }, data: { ...modifs, rev: { increment: 1 }, updatedBy: ctx.userId } }),
+    ),
+  )
+}
+
+export async function retirerDuVivier(id: string): Promise<void> {
+  const { ctx } = await accesEquipe("ecriture")
+  return retirerDuVivierDans(ctx, id)
+}
+
+export async function retirerDuVivierDans(ctx: ContexteTeam, id: string): Promise<void> {
+  await entreeVivierActiveDans(prismaPourTeam(ctx.teamId, ctx.userId), ctx, id)
+  await avecReprisePourConflit(() =>
+    executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+      tx.equipePool.update({ where: { id }, data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId } }),
     ),
   )
 }

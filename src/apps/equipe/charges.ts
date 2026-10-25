@@ -4,6 +4,8 @@
 
 import { z } from "zod"
 
+import { REPONSES_DISPONIBILITE } from "./regles"
+
 const identifiant = z.string().min(1)
 // Jour civil « AAAA-MM-JJ », sans heure.
 const jourCivil = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -18,4 +20,9 @@ export const chargeLicencePayee = z
     devise: z.literal("EUR"),
     date: jourCivil,
   })
+  .strict()
+
+// Disponibilité changée : Saison s'en sert pour le prévisionnel de l'épreuve (rien d'autre n'en sort).
+export const chargeDisponibiliteChangee = z
+  .object({ eventId: identifiant, personId: identifiant, reponse: z.enum(REPONSES_DISPONIBILITE) })
   .strict()

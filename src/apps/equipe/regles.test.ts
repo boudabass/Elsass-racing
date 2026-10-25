@@ -5,6 +5,7 @@ import {
   NOMBRE_RESSENTIS_MOYENNE,
   palierDepuis,
   ressentiMoyen,
+  roleAffectable,
   statistiquesBinome,
   statistiquesPersonne,
   statutEquipement,
@@ -117,5 +118,16 @@ describe("cohérence d'une validité de licence", () => {
     expect(validiteCoherente("2026-12-31", "2026-01-01")).toBe(false)
     expect(validiteCoherente(null, "2026-01-01")).toBe(true)
     expect(validiteCoherente("2026-01-01", null)).toBe(true)
+  })
+})
+
+describe("rôles d'épreuve affectables", () => {
+  it("pilote et copilote ne s'affectent pas ici, les autres rôles oui", () => {
+    expect(roleAffectable("pilote")).toBe(false)
+    expect(roleAffectable("copilote")).toBe(false)
+    expect(roleAffectable("chef_assistance")).toBe(true)
+    expect(roleAffectable("assistance")).toBe(true)
+    expect(roleAffectable("logistique")).toBe(true)
+    expect(roleAffectable("photo")).toBe(true)
   })
 })
