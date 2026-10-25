@@ -16,7 +16,7 @@ import { newId } from "@/core/ids"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 import { avecReprisePourConflit } from "@/lib/reprise-conflit"
 
-import { chargeDisponibiliteChangee, chargeLicencePayee } from "./charges"
+import { chargeDisponibiliteChangee, chargeLicencePayee, cleDisponibilite } from "./charges"
 import { ErreurEquipe, refus } from "./erreurs"
 import {
   INTERETS_VIVIER,
@@ -589,6 +589,8 @@ export async function repondreDisponibiliteDans(
     }),
   )
   await emettre(ctx, "equipe.disponibilite_changee", chargeDisponibiliteChangee.parse({ eventId, personId, reponse: donnees.reponse }))
+  // La demande de disponibilités est levée : la réponse est donnée.
+  await emettre(ctx, "equipe.action_levee", { cleUnicite: cleDisponibilite(personId, eventId) })
 }
 
 // --- Affectations ---------------------------------------------------------------------------
