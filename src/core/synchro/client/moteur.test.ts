@@ -193,3 +193,90 @@ describe("moteur : instantané serveur", () => {
     expect(ETAT_INITIAL).toEqual(avant)
   })
 })
+
+// Chaque poussée reçue par le serveur simulé : une liste d'opérations par envoi.
+function capturerEnvois(): Operation[][] {
+  const envoyees: Operation[][] = []
+  serveur.pousser = (operations) => {
+    envoyees.push(operations)
+    return operations.map((o) => ({ idOperation: o.idOperation, statut: "appliquee" as const }))
+  }
+  return envoyees
+}
+
+describe("moteur : une création puis une modification avant l'envoi", () => {
+  it("une seule opération part, avec les champs fondus dans la création", async () => {
+    const { moteur } = nouveauMoteur()
+    const envoyees = capturerEnvois()
+    await moteur.ecrireLocal("core_note", { type: "creer", id: "note-f", champs: { texte: "Brouillon" } })
+    await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-f", champs: { texte: "Version finale" } })
+    await moteur.synchroniser()
+
+    expect(envoyees.flat()).toEqual([expect.objectContaining({ type: "creer", id: "note-f", champs: { texte: "Version finale" } })])
+    expect(moteur.lireEtat().enAttente).toBe(0)
+  })
+
+  it("une création puis une suppression : rien ne part, et la ligne disparaît de l'écran", async () => {
+    const { moteur } = nouveauMoteur()
+    const envoyees = capturerEnvois()
+    await moteur.ecrireLocal("core_note", { type: "creer", id: "note-s", champs: { texte: "Jamais envoyée" } })
+    await moteur.ecrireLocal("core_note", { type: "supprimer", id: "note-s" })
+
+    expect(await moteur.lireTable("core_note")).toEqual([])
+    expect(moteur.lireEtat().enAttente).toBe(0)
+    await moteur.synchroniser()
+    expect(envoyees.flat()).toEqual([])
+  })
+
+  it("une création appliquée, puis une modification avant le tirage : part avec revLue 1", async () => {
+    const { moteur } = nouveauMoteur()
+    const envoyees = capturerEnvois()
+    await moteur.ecrireLocal("core_note", { type: "creer", id: "note-c", champs: { texte: "Créée" } })
+    await moteur.synchroniser()
+    expect((await moteur.lireTable("core_note"))[0]?.rev).toBe(1)
+
+    await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-c", champs: { texte: "Modifiée" } })
+    await moteur.synchroniser()
+    expect(envoyees[1]).toEqual([expect.objectContaining({ type: "modifier", id: "note-c", revLue: 1 })])
+  })
+
+  it("une modification faite pendant l'envoi de la création part à part, avec revLue 1", async () => {
+    const { moteur } = nouveauMoteur()
+    const envoyees = capturerEnvois()
+    const fetchSimule = globalThis.fetch
+    let dejaFait = false
+    // Au moment où la création part, une modification de la même ligne est écrite : elle ne doit pas se fondre dans
+    // la création en vol.
+    vi.stubGlobal("fetch", async (chemin: string, init: RequestInit) => {
+      if (chemin === "/api/synchro/pousser" && !dejaFait) {
+        dejaFait = true
+        await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-v", champs: { texte: "Pendant l'envoi" } })
+      }
+      return fetchSimule(chemin, init)
+    })
+    await moteur.ecrireLocal("core_note", { type: "creer", id: "note-v", champs: { texte: "Avant" } })
+    await moteur.synchroniser()
+
+    expect(envoyees).toHaveLength(2)
+    expect(envoyees[0]).toEqual([expect.objectContaining({ type: "creer", id: "note-v", champs: { texte: "Avant" } })])
+    expect(envoyees[1]).toEqual([expect.objectContaining({ type: "modifier", id: "note-v", revLue: 1, champs: { texte: "Pendant l'envoi" } })])
+    expect((await moteur.lireTable("core_note"))[0]?.texte).toBe("Pendant l'envoi")
+  })
+})
+
+describe("moteur : une ligne en rev 0 sans création en attente", () => {
+  it("la modification part avec revLue 1, jamais 0, et l'anomalie est signalée en développement", async () => {
+    const { moteur, userId, teamId } = nouveauMoteur()
+    const envoyees = capturerEnvois()
+    const db = await ouvrirBase(userId, teamId)
+    await db.put("core_note", ligne("note-orpheline", { texte: "Sans création" }, 0))
+    const erreurs = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-orpheline", champs: { texte: "Modifiée" } })
+    await moteur.synchroniser()
+
+    expect(envoyees.flat()).toEqual([expect.objectContaining({ type: "modifier", id: "note-orpheline", revLue: 1 })])
+    expect(erreurs).toHaveBeenCalled()
+    erreurs.mockRestore()
+  })
+})

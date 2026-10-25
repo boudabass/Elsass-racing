@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { resultatDejaNote, schemaOperation, schemaPousser } from "./protocole"
+import { analyserEnvoi, RAISON_OPERATION_MAL_FORMEE, resultatDejaNote, schemaEnveloppePousser, schemaOperation, schemaPousser } from "./protocole"
 
 const UUID = "0196f1c2-3b4a-7c5d-8e9f-0a1b2c3d4e5f"
+const UUID_DEUX = "0196f1c2-3b4a-7c5d-8e9f-0a1b2c3d4e60"
+const UUID_TROIS = "0196f1c2-3b4a-7c5d-8e9f-0a1b2c3d4e61"
 
 describe("résultat déjà noté (idempotence)", () => {
   it("renvoie le résultat déjà noté sans rien réappliquer", () => {
@@ -26,5 +28,21 @@ describe("validation des opérations", () => {
     const unef = { idOperation: UUID, table: "core_note", type: "supprimer", id: UUID, revLue: 1 }
     expect(schemaPousser.safeParse({ operations: Array(200).fill(unef) }).success).toBe(true)
     expect(schemaPousser.safeParse({ operations: Array(201).fill(unef) }).success).toBe(false)
+  })
+})
+
+describe("envoi : une opération mal formée est refusée seule", () => {
+  it("garde les opérations valides et refuse la mauvaise avec sa raison", () => {
+    const bonne = { idOperation: UUID_DEUX, table: "core_note", type: "supprimer", id: UUID, revLue: 1 }
+    const mauvaise = { idOperation: UUID_TROIS, table: "core_note", type: "modifier", id: UUID, revLue: 0 }
+    const { valides, refusees } = analyserEnvoi([bonne, mauvaise])
+    expect(valides.map((o) => o.idOperation)).toEqual([UUID_DEUX])
+    expect(refusees).toEqual([{ idOperation: UUID_TROIS, statut: "refusee", raison: RAISON_OPERATION_MAL_FORMEE }])
+  })
+
+  it("l'enveloppe exige un identifiant d'opération : sans lui, le 400 reste", () => {
+    expect(schemaEnveloppePousser.safeParse({ operations: [{ table: "core_note" }] }).success).toBe(false)
+    expect(schemaEnveloppePousser.safeParse({ operations: [{ idOperation: "pas-un-uuid" }] }).success).toBe(false)
+    expect(schemaEnveloppePousser.safeParse({ operations: [{ idOperation: UUID_DEUX, table: "x" }] }).success).toBe(true)
   })
 })
