@@ -60,8 +60,9 @@ test("point 2 : dépense d'engagement, navigation client vers le QG, boîte et c
   // L'action est créée côté serveur quand la dépense part (synchro). On attend le serveur, pas l'écran.
   await expect.poll(async () => statutAction(equipe, `marquer_paye:${entryId}`), { timeout: 60_000 }).toBe("en_attente")
 
-  // Sans rechargement ni nouvelle navigation : le compteur et la boîte doivent montrer l'action.
-  await expect.poll(() => compteurBoite(page), { timeout: 10_000 }).toContain("1 en attente")
+  // Sans rechargement ni nouvelle navigation : le compteur et la boîte doivent montrer l'action. Le compte n'est pas fixé :
+  // Équipe ajoute une demande de disponibilités à chaque membre actif quand un engagement est créé (5.1), donc 2 ici.
+  await expect.poll(() => compteurBoite(page), { timeout: 10_000 }).toMatch(/[1-9]\d* en attente/)
   const compteur = await compteurBoite(page)
   await page.getByRole("button", { name: /Boîte d'actions/ }).first().click()
   const visible = await expect
