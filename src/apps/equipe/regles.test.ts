@@ -4,6 +4,8 @@ import {
   epreuvesAssistance,
   epreuvesAssistanceIds,
   epreuvesDuPalier,
+  homologationValideA,
+  licenceValideA,
   NOMBRE_RESSENTIS_MOYENNE,
   palierDepuis,
   ressentiMoyen,
@@ -147,5 +149,30 @@ describe("pastille d'échéances", () => {
     expect(statutLePlusUrgent(["expire", "a_renouveler"])).toBe("expire")
     expect(statutLePlusUrgent(["valide"])).toBe("valide")
     expect(statutLePlusUrgent([])).toBeNull()
+  })
+})
+
+describe("validite a une date donnee (epreuve, pas aujourd'hui)", () => {
+  const epreuve = new Date("2026-11-07T00:00:00Z")
+  const jour = (iso: string) => new Date(`${iso}T00:00:00Z`)
+
+  it("licence : valable le jour de l'épreuve, bornes incluses", () => {
+    expect(licenceValideA(jour("2026-01-01"), jour("2026-11-07"), epreuve)).toBe(true)
+    expect(licenceValideA(null, jour("2026-11-07"), epreuve)).toBe(true)
+  })
+
+  it("licence qui expire avant l'épreuve, ou pas encore commencée, n'est pas valable", () => {
+    expect(licenceValideA(null, jour("2026-11-03"), epreuve)).toBe(false)
+    expect(licenceValideA(jour("2026-11-10"), null, epreuve)).toBe(false)
+  })
+
+  it("licence sans date : pas d'expiration", () => {
+    expect(licenceValideA(null, null, epreuve)).toBe(true)
+  })
+
+  it("homologation : valable tant que sa fin n'est pas passée le jour de l'épreuve", () => {
+    expect(homologationValideA(jour("2026-11-07"), epreuve)).toBe(true)
+    expect(homologationValideA(jour("2026-11-06"), epreuve)).toBe(false)
+    expect(homologationValideA(null, epreuve)).toBe(true)
   })
 })

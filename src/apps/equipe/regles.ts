@@ -20,6 +20,23 @@ export function statutEquipement(finHomologation: Date | null, maintenant: Date)
   return statutPapier(finHomologation, maintenant)
 }
 
+// Validité à un jour donné (la date de l'épreuve, pas aujourd'hui). Les dates sont des jours civils (minuit UTC) :
+// elles se comparent en « AAAA-MM-JJ ». Sans date de fin, pas d'expiration ; sans date de début, rien à attendre.
+function jourCivil(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+
+export function licenceValideA(valableDu: Date | null, valableAu: Date | null, jour: Date): boolean {
+  const cible = jourCivil(jour)
+  if (valableDu && jourCivil(valableDu) > cible) return false
+  if (valableAu && jourCivil(valableAu) < cible) return false
+  return true
+}
+
+export function homologationValideA(finHomologation: Date | null, jour: Date): boolean {
+  return !finHomologation || jourCivil(finHomologation) >= jourCivil(jour)
+}
+
 // ─── Paliers d'expérience ────────────────────────────────────────────────────
 
 // Seuils du nombre d'épreuves, identiques pour toutes les teams (955 §4). Décision de John du 25/10 : sur les
@@ -158,6 +175,16 @@ export const LIBELLES_TYPE_LICENCE: Record<TypeLicence, string> = {
 
 export const TYPES_EQUIPEMENT = ["casque", "hans", "combinaison", "gants", "bottines", "sous_vetements", "cagoule"] as const
 export type TypeEquipement = (typeof TYPES_EQUIPEMENT)[number]
+
+export const LIBELLES_TYPE_EQUIPEMENT: Record<TypeEquipement, string> = {
+  casque: "Casque",
+  hans: "HANS",
+  combinaison: "Combinaison",
+  gants: "Gants",
+  bottines: "Bottines",
+  sous_vetements: "Sous-vêtements",
+  cagoule: "Cagoule",
+}
 
 export const SPECIALITES = ["mecanique", "pneus", "logistique", "photo", "secourisme", "commissaire", "autre"] as const
 export type Specialite = (typeof SPECIALITES)[number]
