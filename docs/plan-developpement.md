@@ -329,6 +329,9 @@ Décisions de John (25/10) :
 ### 5.2 Équipe : écrans
 - L'équipe en cartes façon jeu, fiche personne en onglets (Profil, Statistiques, Licences, Équipement, Disponibilités, Binômes, Ressenti pour l'équipage), Prochaine épreuve (qui vient, qui n'a pas répondu, répartition des tâches d'assistance), Binômes, Vivier, bouton + (nom et rôle, invitation facultative par Réglages). Assistance : son profil, ses disponibilités, ses équipements, jamais les ressentis.
 
+### 5.2b Saison : papiers du véhicule lus chez Voiture
+- Défaut relevé en 5.2 : un papier valide n'émet aucun signal, et un renouvellement ne règle pas un point « Papiers » resté ouvert dans « Prêt pour l'épreuve ? ». Même remède que les licences en 5.2 : Saison lit l'état des papiers par une lecture partagée de Voiture.
+
 ### 5.3 Documents : coffre-fort
 - Tables `documents_` de 957 §3, dossiers types créés à la première écriture (Association, Assurances, Règlements, Rallyes archivés, Modèles, Attestations, Divers), documents propres, versions, accès interne pour l'assistance (`documents_access`). Écrans : coffre-fort en cartes avec jauge de complétude, liste d'un dossier, fiche document. `documents.document_ajoute`, `documents.reglement_publie`.
 
