@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest"
 
-import { emplacementsDuType, EMPLACEMENTS_PAR_TYPE, libellePosition, nombreEmplacementsParDefaut, POSITION_TRAIN, POSITION_UNIQUE } from "./emplacements"
+import {
+  emplacementsDuType,
+  EMPLACEMENTS_PAR_TYPE,
+  libellePosition,
+  nombreEmplacementsParDefaut,
+  nomAvecPosition,
+  POSITION_TRAIN,
+  POSITION_UNIQUE,
+} from "./emplacements"
 import { TYPES_DEFAUT } from "./types-defaut"
 
 describe("emplacements des organes par défaut", () => {
@@ -57,5 +65,18 @@ describe("libellé de la position à l'écran", () => {
 
   it("une position saisie par la team reste telle quelle", () => {
     expect(libellePosition("Arrière, côté passager")).toBe("Arrière, côté passager")
+  })
+})
+
+describe("nom d'un organe avec sa position", () => {
+  it("un organe à plusieurs emplacements se distingue : « Freins · avant gauche »", () => {
+    expect(nomAvecPosition("Freins", "avant_gauche")).toBe("Freins · avant gauche")
+    expect(nomAvecPosition("Transmissions", "droite")).toBe("Transmissions · droite")
+  })
+
+  it("un organe unique ou un train garde son nom seul", () => {
+    expect(nomAvecPosition("Moteur", POSITION_UNIQUE)).toBe("Moteur")
+    expect(nomAvecPosition("Pneus", POSITION_TRAIN)).toBe("Pneus")
+    expect(nomAvecPosition("Freins", null)).toBe("Freins")
   })
 })

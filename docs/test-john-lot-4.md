@@ -43,7 +43,7 @@ Chaque étape dit ce que tu fais, puis ce que tu dois voir. Si ce n'est pas ce q
 2. Dans **Saison**, ouvre une épreuve passée de la Saxo (ou une épreuve de test), onglet **Résultats**.
 3. Saisis le résultat avec le statut **Abandon**, la cause et une spéciale d'abandon. Enregistre.
 4. Un autre membre doit valider. Si tu es le seul responsable sur dev, dis-le-moi : je t'indiquerai comment le faire valider.
-5. Menu **Casses** du Garage : la fiche de la casse est là, « À compléter ». Choisis le type, écris la cause, coche l'organe touché.
+5. Menu **Casses** du Garage : la fiche de la casse est là, « À compléter ». Choisis le type, écris la cause, coche l'organe touché. Chaque organe affiche sa position comme dans l'atelier : tu dois voir « Freins · avant gauche », « Freins · arrière droit », etc., et jamais deux « Freins » identiques. Si un organe apparaît sans position alors qu'il en a une à l'atelier, dis-le-moi.
 6. Clique sur **Ouvrir une réparation**. Le lien **Voir la réparation liée** doit mener à la réparation dans Travaux.
 
 ## Étape 5 : plan avant épreuve et zone rouge (4.5)

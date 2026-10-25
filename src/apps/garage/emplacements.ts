@@ -46,6 +46,12 @@ export function libellePosition(position: string | null): string | null {
   return emplacement ? emplacement.libelle : position
 }
 
+// Nom d'un organe avec sa position lisible : « Freins · avant gauche ». Sans position nommée, le nom seul.
+export function nomAvecPosition(nom: string, position: string | null): string {
+  const libelle = libellePosition(position)
+  return libelle ? `${nom} · ${libelle}` : nom
+}
+
 // Nombre total d'emplacements sur une voiture équipée des organes par défaut.
 export function nombreEmplacementsParDefaut(): number {
   return Object.values(EMPLACEMENTS_PAR_TYPE).reduce((total, liste) => total + liste.length, 0)

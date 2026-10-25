@@ -4,7 +4,7 @@ import { ChoixVehicule } from "@/apps/garage/composants/atelier"
 import type { DecompteZones, EstimationApres } from "@/apps/garage/plan"
 import type { LignePlan, OrdrePlan, PlanAvantEpreuve } from "@/apps/garage/lectures-partagees"
 import type { VehiculeChoisi } from "@/apps/garage/lectures-serveur"
-import { libellePosition } from "@/apps/garage/emplacements"
+import { nomAvecPosition } from "@/apps/garage/emplacements"
 import { libelleZone, pourcentage } from "@/apps/garage/mise-en-forme"
 import { LIBELLE_STATUT_ORDRE } from "@/apps/garage/travaux"
 import { CHAMP, LIEN } from "@/lib/classes-formulaire"
@@ -127,11 +127,11 @@ export function PlanEcran({
           <ul className="flex flex-col gap-3">
             {plan.lignes.map((ligne) => (
               <li key={ligne.id} className="flex flex-col gap-2 rounded-lg border border-bordure bg-surface p-4">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <Link href={`/apps/garage/organes/${ligne.id}`} className={`${LIEN} font-medium`}>
-                    {libellePosition(ligne.position) ? `${ligne.nom} · ${libellePosition(ligne.position)}` : ligne.nom}
+                <div className="flex items-baseline justify-between gap-2">
+                  <Link href={`/apps/garage/organes/${ligne.id}`} className={`${LIEN} min-w-0 font-medium`}>
+                    {nomAvecPosition(ligne.nom, ligne.position)}
                   </Link>
-                  <span className="text-sm">{etatActuel(ligne)}</span>
+                  <span className="shrink-0 text-sm">{etatActuel(ligne)}</span>
                 </div>
                 <p className="text-sm">
                   <span className="text-texte-discret">Après l'épreuve : </span>

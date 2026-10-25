@@ -457,6 +457,10 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
     await expect(page).toHaveURL(/\/apps\/garage\/casses\/[0-9a-f-]+$/)
     await page.getByLabel("Type de casse").selectOption({ label: "Casse mécanique" })
     await page.getByLabel("Cause (facultatif)").fill("Casse de cardan")
+    // Les organes à plusieurs emplacements se distinguent par leur position, comme dans l'atelier et le plan.
+    await expect(page.getByRole("checkbox", { name: /^Freins · / })).toHaveCount(4)
+    await expect(page.getByRole("checkbox", { name: "Freins · avant gauche", exact: true })).toBeVisible()
+    await expect(page.getByRole("checkbox", { name: /^Transmissions · / })).toHaveCount(2)
     await page.getByRole("checkbox", { name: "Boîte de vitesses", exact: true }).check()
     await envoyer(page, page.getByRole("button", { name: "Enregistrer la fiche", exact: true }))
     await envoyer(page, page.getByRole("button", { name: "Ouvrir une réparation : Boîte de vitesses", exact: true }))

@@ -86,6 +86,13 @@ Les consignes de passes locales plus bas dans ce fichier datent d'avant la 4.0b.
 - Cause non établie : le glisser-déposer de la poignée ne produit pas toujours le déplacement attendu dans le délai. Pas de trace lue à ce jour pour ce run.
 - Règle appliquée (décision (3) de l'Orchestrateur, confirmée le 21/10) : sur du code identique à un run vert, ça ne bloque pas `dev`. Un échec nouveau, ou sur du code modifié, bloque.
 
+### Intermittent suivi : clic de menu perdu juste après l'arrivée sur une page du Garage
+
+- Forme : un clic sur un lien du menu du Garage (« Casses ») juste après l'arrivée sur une page du Garage ; le clic part, la navigation n'a pas lieu, l'URL reste sur la page d'arrivée. Vu deux fois : étape 2 (accueil Budget, run 40142463326, clic sur « À confirmer ») et étape 9 (Atelier, run 40148965567, clic sur « Casses »).
+- Cause non établie. Dans la trace du run 40148965567, aucune navigation ne démarre après le clic et aucune requête vers `/apps/garage/casses` n'apparaît. Les menus sont des `<Link>` : corriger sans cause établie serait deviner, l'app n'est pas touchée.
+- Compteur : le test relance le clic une fois et écrit « clic sur « Casses » perdu : relancé » dans le log (`garage-parcours-complet.spec.ts`, fonction `cliquerMenuGarage`). Ce compteur n'est pas apparu au run vert 40150590450.
+- Si le défaut réapparaît (le compteur sort, ou une seconde perte fait échouer le test) : lire la trace avant toute correction.
+
 ## Runs rouges depuis la 4.0b : classement (avant fusion dans main)
 
 Périmètre : les 48 runs de `verifications.yml` depuis `9fbead9` (20/10/2026, vers 18 h), branches `verif` et `dev`. 47 ont exécuté le job e2e (24 verts, 23 rouges). Le run dev `39530793049` (commit `3bf8f36`) est annulé : non compté. Lecture des logs complets, sans relance. « Depuis `3bf8f36` » : runs postérieurs au commit `3bf8f36` (aide d'envoi).

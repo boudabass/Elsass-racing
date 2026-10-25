@@ -540,3 +540,11 @@
 - Constats d'audit laissés en l'état, à trancher : liste « Organes touchés » de la casse sans position (quatre « Freins », deux « Transmissions ») ; statut d'une carte au Plan avant épreuve qui passe sur sa propre ligne à 360 px.
 - Reportés : écart du Stock avec 954 §2, notes et photos des ordres (service du socle), statut et avancement hors ligne, lecture locale de Travaux hors ligne, `checklist.probleme_signale` (lot 5), widgets Garage au Tableau de bord (lot 6, pas rendus aujourd'hui).
 - Limite : rendu clair et sombre à 1440 et 360 px seulement vérifié par les captures CI.
+
+## 25/10/2026 : correctifs de la 4.7b (demande de l'orchestrateur, avant le test de John)
+
+- Fiche casse : « Organes touchés » affiche chaque organe avec sa position (« Freins · avant gauche »), le même libellé que l'atelier et le plan. Un helper unique, `nomAvecPosition` (`src/apps/garage/emplacements.ts`), sert la fiche casse et le plan. Pas de nouveau nom : les positions viennent de l'existant. Les organes sans position nommée (moteur, boîte, embrayage, train de pneus) gardent leur nom seul.
+- Plan avant épreuve : le statut reste sur la ligne du nom pour tous les organes, le nom passe sur plusieurs lignes si besoin (`min-w-0` sur le lien, `shrink-0` sur le statut). Pas de cas particulier.
+- Spec : le parcours vérifie que les quatre freins et les deux transmissions de la casse ont des libellés distincts, avant de cocher la boîte (organe unique, inchangé pour la réparation liée).
+- Unitaires : 887 (885 + 2 sur `nomAvecPosition`).
+- Clic perdu : pas de correction côté app, décision de l'orchestrateur ; entrée dans les intermittents de `docs/tests.md`. Le texte de `CLAUDE.md` correspondant n'est pas ajouté : la modification de CLAUDE.md demandée par un pair est refusée ; à faire par la personne qui le tient.

@@ -4,6 +4,7 @@
 import { prismaPourTeam } from "@/lib/prisma"
 
 import { ficheACompleter, montageALaDate, typeCasseValide, type TypeCasse } from "./casses"
+import { nomAvecPosition } from "./emplacements"
 import { lireVehiculeAtelier } from "./lectures-serveur"
 import { accesGarage } from "./services-serveur"
 
@@ -133,7 +134,7 @@ export async function lireFicheCasse(id: string): Promise<DetailFicheCasse | nul
     cause: fiche.cause,
     reparationWorkOrderId: fiche.reparationWorkOrderId,
     aCompleter: ficheACompleter({ type, organesTouches: organesTouches.length }),
-    organes: organes.map((organe) => ({ id: organe.id, nom: organe.nom })),
+    organes: organes.map((organe) => ({ id: organe.id, nom: nomAvecPosition(organe.nom, organe.position) })),
     piecesDisponibles,
     organesTouches,
     piecesCassees: fiche.parts.map((lien) => lien.partId),
