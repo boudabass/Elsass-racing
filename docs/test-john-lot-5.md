@@ -46,7 +46,7 @@ Chaque étape dit ce que tu fais, puis ce que tu dois voir. Si ce n'est pas ce q
 
 ## Étape 6 : prochaine épreuve
 
-1. Menu de l'app, **Prochaine épreuve** : le nom et la date de l'épreuve. Trois listes de présence (Viennent, Peut-être, Ne viennent pas, Sans réponse) avec leurs compteurs, dont Léa dans « Viennent ».
+1. Menu de l'app, **Prochaine épreuve** : le nom et la date de l'épreuve. Quatre listes de présence (Viennent, Peut-être, Ne viennent pas, Sans réponse) avec leurs compteurs, dont Léa dans « Viennent ».
 2. **Équipage** : pilote et copilote tels que choisis dans Saison, avec **Voir l'engagement** (lien vers Saison). S'il n'y a pas d'engagement, le texte le dit.
 3. **Affecter une personne** : Léa, rôle d'épreuve « Logistique », **Affecter**. Une ligne apparaît avec « Logistique » et une tâche liée « Logistique · à faire ».
 4. Clique sur **Marquer fait** : la tâche passe à « Logistique · fait » et se barre. **Rouvrir** la remet à faire.
