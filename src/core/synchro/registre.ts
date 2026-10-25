@@ -18,7 +18,7 @@ import type { PositionCurseur } from "./curseur"
 import type { RegleContribution, VerdictEcriture } from "./contribution"
 import { RefusSynchro } from "./erreurs"
 import { apresPosition } from "./position"
-import { controleNoteSynchro, fichesNotesLisibles } from "@/core/notes/synchro-serveur"
+import { clausesFichesLisibles, controleNoteSynchro } from "@/core/notes/synchro-serveur"
 import { declarationsSaisonSynchro } from "@/apps/saison/synchro-serveur"
 import { declarationsBudgetSynchro } from "@/apps/budget/synchro-serveur"
 import { declarationsVoitureSynchro } from "@/apps/voiture/synchro-serveur"
@@ -138,12 +138,13 @@ const noteSynchro: DeclarationSynchro = {
     // Notes de team : comme avant, au niveau « equipe » de la personne (et « ses lignes » au niveau contribution).
     const niveauxEquipe = await niveauDe(lecteur, "equipe")
     const equipeLisible = aAuMoins(niveauxEquipe, "lecture")
-    // Notes de fiche : seulement les fiches que la personne peut lire (au moins « lecture » sur l'app de la fiche).
-    const fiches = await fichesNotesLisibles(lecteur)
+    // Notes de fiche : seulement les fiches que la personne voit (lecture sur l'app, et fiche visible : affectée pour
+    // l'assistance, toutes pour l'écriture et plus). Une note d'un ordre où elle n'est pas affectée ne descend pas.
+    const fiches = await clausesFichesLisibles(lecteur)
 
     const visibles = [
       ...(equipeLisible ? [{ app: "core", ficheType: "team", ...(auteurId ? { createdBy: auteurId } : {}) }] : []),
-      ...fiches.map(({ app, ficheType }) => ({ app, ficheType })),
+      ...fiches,
     ]
     if (visibles.length === 0) return []
 

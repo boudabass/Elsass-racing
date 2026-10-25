@@ -389,6 +389,20 @@ async function main(): Promise<void> {
 
     const tirageFiche = await tirerPaquets(ctxA, {})
     controle("le responsable reçoit la note de l'ordre", (tirageFiche.tables["core_note"]?.lignes ?? []).some((l) => l.id === noteFicheId))
+
+    // Visibilité au tirage (relecture 5.0) : l'assistance affectée à l'ordre A ne reçoit que les notes de A. Une note du
+    // responsable sur l'ordre B (non affecté) ne lui descend pas ; celle de A oui.
+    const noteRespoA = newId()
+    const noteRespoB = newId()
+    await appliquerOperations(ctxA, devA, [
+      operation({ table: "core_note", type: "creer", id: noteRespoA, champs: { app: "garage", ficheType: "ordre", ficheId: ordreAffecte, texte: "Note du responsable sur A" } }),
+      operation({ table: "core_note", type: "creer", id: noteRespoB, champs: { app: "garage", ficheType: "ordre", ficheId: ordreLibre, texte: "Note du responsable sur B" } }),
+    ])
+    const tirageVisibilite = await tirerPaquets(ctxB, {})
+    const recuesB = (tirageVisibilite.tables["core_note"]?.lignes ?? []).map((l) => l.id)
+    controle("l'assistance affectée à A reçoit les notes de A", recuesB.includes(noteRespoA) && recuesB.includes(noteFicheId))
+    controle("l'assistance non affectée à B ne reçoit pas les notes de B", !recuesB.includes(noteRespoB))
+
     // Un invité n'a rien sur le Garage (rôle par défaut) : la note de l'ordre ne lui descend pas.
     await bd.coreUser.create({ data: { id: inviteUserId, email: `synchro-inv-${horodatage}@example.test` } })
     await bd.coreMembership.create({ data: { id: inviteMemId, teamId, userId: inviteUserId, role: "invite", statut: "actif" } })

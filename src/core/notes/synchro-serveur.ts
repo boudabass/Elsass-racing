@@ -8,13 +8,16 @@ import type { VerdictEcriture } from "@/core/synchro/contribution"
 import type { EtatLigneSynchro, Tx } from "@/core/synchro/registre"
 
 import { fichesNotables } from "./fiches"
-import { ficheDeLigne, fichesLisibles, verdictNoteFiche } from "./regles"
+import { clauseFiche, ficheDeLigne, fichesLisibles, verdictNoteFiche } from "./regles"
 
-// Fiches notables dont la personne peut lire les notes hors ligne (au moins « lecture » sur leur app).
-export async function fichesNotesLisibles(ctx: ContexteTeam): Promise<{ app: string; ficheType: string }[]> {
+// Clauses du tirage des notes de fiche : pour chaque fiche notable lisible (au moins « lecture » sur son app), les fiches
+// que la personne voit (idsVisibles). Une fiche non visible ne produit aucune clause : ses notes ne descendent pas.
+export async function clausesFichesLisibles(ctx: ContexteTeam): Promise<Record<string, unknown>[]> {
   const fiches = fichesNotables()
   const niveaux = Object.fromEntries(await Promise.all(fiches.map(async (fiche) => [fiche.app, await niveauDe(ctx, fiche.app)])))
-  return fichesLisibles(fiches, niveaux).map(({ app, ficheType }) => ({ app, ficheType }))
+  const lisibles = fichesLisibles(fiches, niveaux)
+  const clauses = await Promise.all(lisibles.map(async (fiche) => clauseFiche(fiche, await fiche.idsVisibles(ctx))))
+  return clauses.filter((clause): clause is Record<string, unknown> => clause !== null)
 }
 
 // Contrôle d'une opération sur une note de fiche. null : la ligne n'est pas une note de fiche (la règle de la table s'applique).

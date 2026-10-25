@@ -98,3 +98,16 @@ export function verdictNoteFiche({
   if (!peutModifierNote({ auteurId, userId })) return { ok: false, raison: "Hors ligne, tu ne peux modifier ou retirer que tes propres notes." }
   return { ok: true }
 }
+
+// Fiches qu'une personne voit au tirage hors ligne (relecture 5.0 : une note de fiche ne descend qu'à qui voit la fiche).
+// null : toute la liste de l'app (écriture et plus). Sinon, seulement les fiches où la personne est affectée.
+export function idsFichesVisibles(niveau: Niveau, affectees: string[]): string[] | null {
+  return aAuMoins(niveau, "ecriture") ? null : affectees
+}
+
+// Clause de tirage d'une fiche : toute la fiche (ids null), une partie (ids), ou rien (liste vide, pas de clause).
+export function clauseFiche<F extends { app: string; ficheType: string }>(fiche: F, ids: string[] | null): Record<string, unknown> | null {
+  if (ids === null) return { app: fiche.app, ficheType: fiche.ficheType }
+  if (ids.length === 0) return null
+  return { app: fiche.app, ficheType: fiche.ficheType, ficheId: { in: ids } }
+}

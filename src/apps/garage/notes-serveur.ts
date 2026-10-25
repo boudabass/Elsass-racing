@@ -1,12 +1,13 @@
 // Notes et photos des ordres de travail (brief 5.0, §4). Le Garage fournit le contrôle de la fiche « ordre » :
 // - en ligne, le ControleFiche du service du socle (src/core/notes/notes-serveur.ts) ;
-// - hors ligne, la fiche notable (src/core/notes/fiches.ts), contrôlée dans la transaction de la synchro.
-// Voir : lecture du Garage. Ajouter : écriture, ou contribution sur un ordre où la personne est affectée.
+// - hors ligne, la fiche notable (src/core/notes/fiches.ts) : le tirage ne renvoie que les ordres visibles, la poussée contrôle
+//   dans la transaction de la synchro.
+// Voir : lecture du Garage, et l'ordre visible (écriture et plus : tous ; sinon : ceux où la personne est affectée, comme
+// lireOrdre). Ajouter : écriture, ou contribution sur un ordre où la personne est affectée.
 
 import type { ContexteTeam } from "@/core/contexte"
-import { aAuMoins } from "@/core/droits/niveaux"
 import { niveauDe } from "@/core/actions/actions-serveur"
-import { peutAjouterSurFiche, peutVoirFiche } from "@/core/notes/regles"
+import { idsFichesVisibles, peutAjouterSurFiche, peutVoirFiche } from "@/core/notes/regles"
 import type { ControleFiche, FicheNotes } from "@/core/notes/notes-serveur"
 import type { FicheNotable } from "@/core/notes/fiches"
 import type { Tx } from "@/core/synchro/registre"
@@ -23,29 +24,44 @@ async function ordreExiste(tx: Tx, teamId: string, ordreId: string): Promise<boo
   return ordre !== null
 }
 
-// La personne du compte est affectée à l'ordre (même règle que l'avancement, 4.3).
-async function estAffecteeA(tx: Tx, teamId: string, userId: string, ordreId: string): Promise<boolean> {
-  const personne = await tx.corePerson.findFirst({ where: { teamId, userId, deletedAt: null }, select: { id: true } })
-  if (!personne) return false
-  const lien = await tx.garageWorkOrderPerson.findFirst({ where: { workOrderId: ordreId, personId: personne.id, teamId, deletedAt: null }, select: { id: true } })
-  return lien !== null
+// Ordres où la personne du compte est affectée (même règle que l'avancement, 4.3, et que lireOrdre).
+async function ordresAffectes(tx: Tx, ctx: ContexteTeam): Promise<string[]> {
+  const personne = await tx.corePerson.findFirst({ where: { teamId: ctx.teamId, userId: ctx.userId, deletedAt: null }, select: { id: true } })
+  if (!personne) return []
+  const liens = await tx.garageWorkOrderPerson.findMany({
+    where: { teamId: ctx.teamId, personId: personne.id, deletedAt: null },
+    select: { workOrderId: true },
+  })
+  return liens.map((lien) => lien.workOrderId)
 }
 
-// Fiche notable pour la synchro : contrôle dans la transaction. Le niveau vient de l'app Garage (niveauDe).
+// Ordres visibles pour la personne : tous à écriture et plus, sinon ceux où elle est affectée. Vide sans lecture du Garage.
+async function ordresVisibles(tx: Tx, ctx: ContexteTeam): Promise<string[] | null> {
+  const niveau = await niveauDe(ctx, APP)
+  if (!peutVoirFiche(niveau)) return []
+  return idsFichesVisibles(niveau, await ordresAffectes(tx, ctx))
+}
+
+// Fiche notable pour la synchro. Le niveau vient de l'app Garage (niveauDe).
 export const ficheOrdreNotable: FicheNotable = {
   app: APP,
   ficheType: TYPE_FICHE,
 
+  // Tirage hors ligne : l'ensemble des ordres visibles. La lecture est faite hors transaction (le tirage n'en ouvre pas).
+  async idsVisibles(ctx) {
+    return executerPourTeam(ctx.teamId, ctx.userId, (tx) => ordresVisibles(tx, ctx))
+  },
+
   async peutVoir(tx, ctx, ordreId) {
-    const niveau = await niveauDe(ctx, APP)
-    if (!peutVoirFiche(niveau)) return false
+    const visibles = await ordresVisibles(tx, ctx)
+    if (visibles !== null && !visibles.includes(ordreId)) return false
     return ordreExiste(tx, ctx.teamId, ordreId)
   },
 
   async peutAjouter(tx, ctx, ordreId) {
     const niveau = await niveauDe(ctx, APP)
     if (!peutVoirFiche(niveau) || !(await ordreExiste(tx, ctx.teamId, ordreId))) return false
-    const affectee = await estAffecteeA(tx, ctx.teamId, ctx.userId, ordreId)
+    const affectee = (await ordresAffectes(tx, ctx)).includes(ordreId)
     return peutAjouterSurFiche({ niveau, affectee })
   },
 }
@@ -57,8 +73,8 @@ export function controleOrdre(ordreId: string): ControleFiche {
     ...fiche,
 
     async voir(ctx: ContexteTeam) {
-      const niveau = await niveauDe(ctx, APP)
-      if (!peutVoirFiche(niveau)) refus("Tu n'as pas accès au Garage.")
+      const visibles = await executerPourTeam(ctx.teamId, ctx.userId, (tx) => ordresVisibles(tx, ctx))
+      if (visibles === null || !visibles.includes(ordreId)) refus("Ordre de travail introuvable.")
       const existe = await executerPourTeam(ctx.teamId, ctx.userId, (tx) => ordreExiste(tx, ctx.teamId, ordreId))
       if (!existe) refus("Ordre de travail introuvable.")
     },
@@ -66,15 +82,15 @@ export function controleOrdre(ordreId: string): ControleFiche {
     async contribuer(ctx: ContexteTeam) {
       const niveau = await niveauDe(ctx, APP)
       if (!peutVoirFiche(niveau)) refus("Tu n'as pas accès au Garage.")
-      const affectee = await executerPourTeam(ctx.teamId, ctx.userId, (tx) => estAffecteeA(tx, ctx.teamId, ctx.userId, ordreId))
+      const affectee = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => (await ordresAffectes(tx, ctx)).includes(ordreId))
       if (!peutAjouterSurFiche({ niveau, affectee })) {
-        if (aAuMoins(niveau, "contribution")) refus("Cet ordre ne vous est pas affecté.")
+        if (niveau === "contribution") refus("Cet ordre ne vous est pas affecté.")
         refus("Tu n'as pas le droit d'ajouter une note ici.")
       }
     },
 
     async gerer(ctx: ContexteTeam) {
-      return aAuMoins(await niveauDe(ctx, APP), "gestion")
+      return (await niveauDe(ctx, APP)) === "gestion"
     },
   }
 }

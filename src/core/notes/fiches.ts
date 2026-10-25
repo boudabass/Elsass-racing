@@ -9,7 +9,10 @@ import { ficheOrdreNotable } from "@/apps/garage/notes-serveur"
 export interface FicheNotable {
   app: string
   ficheType: string
-  // La personne voit la fiche (lecture sur l'app, fiche existante dans la team).
+  // Les fiches que la personne voit (relecture 5.0) : null pour toute la liste de l'app, sinon les identifiants visibles.
+  // Sert au tirage (une note de fiche ne descend qu'à qui voit la fiche) et à la poussée.
+  idsVisibles(ctx: ContexteTeam): Promise<string[] | null>
+  // La personne voit la fiche (lecture sur l'app, fiche existante dans la team, et visible au sens de idsVisibles).
   peutVoir(tx: Tx, ctx: ContexteTeam, ficheId: string): Promise<boolean>
   // La personne peut ajouter une note à la fiche (écriture, ou contribution avec affectation).
   peutAjouter(tx: Tx, ctx: ContexteTeam, ficheId: string): Promise<boolean>

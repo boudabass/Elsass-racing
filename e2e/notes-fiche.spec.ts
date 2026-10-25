@@ -7,7 +7,7 @@ import type { Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
 import { envoyer } from "./aide/envoi"
-import { preparerAtelierSaxo } from "./aide/garage"
+import { affecterMembreAUnOrdreEnBase, preparerAtelierSaxo } from "./aide/garage"
 import { connecterParLien } from "./aide/navigation"
 import { ajouterMembreConnectable, ajouterVoitureSaxo } from "./aide/session"
 
@@ -68,6 +68,8 @@ test("notes et photos d'un ordre : écrire, modifier, photo ; l'assistance affec
   await tiroirPhoto.locator('input[name="fichier"]').setInputFiles(PHOTO)
   await envoyer(page, tiroirPhoto.getByRole("button", { name: "Envoyer la photo", exact: true }))
   await expect(page.getByRole("img", { name: "photo.jpg" })).toBeVisible({ timeout: 30_000 })
+  // La capture montre l'état final : plus aucune note « En attente d'envoi ».
+  await expect(page.getByText("En attente d'envoi")).toHaveCount(0, { timeout: 60_000 })
   await capturerFiche(page, "notes-fiche-ordre")
 
   // L'assistance non affectée à l'ordre ne l'ouvre pas : la fiche lui est introuvable (lireOrdre), donc ni notes ni bouton
@@ -85,5 +87,27 @@ test("notes et photos d'un ordre : écrire, modifier, photo ; l'assistance affec
     await expect(assist.getByText("Filtre à changer, et vérifier le joint", { exact: true })).toHaveCount(0)
   } finally {
     await contexte.close()
+  }
+
+  // L'assistance affectée à l'ordre voit la note et la photo, et ajoute la sienne. Son appareil ne reçoit que les notes
+  // de ses ordres : l'affectation est posée en base avant qu'elle ouvre la fiche.
+  const affectee = await ajouterMembreConnectable(equipe, "assistance", " notes fiche affectee")
+  await affecterMembreAUnOrdreEnBase(equipe, affectee, idOrdre)
+  const contexteAffectee = await browser.newContext()
+  const assistAffectee = await contexteAffectee.newPage()
+  try {
+    await assistAffectee.goto(`/connexion/lien?t=${affectee.secretLien}`)
+    await assistAffectee.waitForURL(/\/qg$/)
+    await assistAffectee.goto(`/apps/garage/travaux/${idOrdre}`)
+    const blocAffectee = assistAffectee.getByRole("region", { name: "Notes et photos" })
+    await expect(blocAffectee.getByText("Filtre à changer, et vérifier le joint", { exact: true })).toBeVisible({ timeout: 60_000 })
+    await expect(blocAffectee.getByRole("img", { name: "photo.jpg" })).toBeVisible()
+    await blocAffectee.getByRole("button", { name: "Ajouter une note", exact: true }).click()
+    await assistAffectee.getByLabel("Ce qu'il faut retenir").fill("Note de l'assistante affectée")
+    await assistAffectee.getByRole("button", { name: "Enregistrer la note", exact: true }).click()
+    await expect(blocAffectee.getByText("Note de l'assistante affectée", { exact: true })).toBeVisible({ timeout: 30_000 })
+    await expect(blocAffectee.getByText("En attente d'envoi")).toHaveCount(0, { timeout: 60_000 })
+  } finally {
+    await contexteAffectee.close()
   }
 })

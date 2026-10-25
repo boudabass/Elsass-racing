@@ -9,7 +9,7 @@ import { Pool } from "pg"
 import { TYPES_DEFAUT } from "../../src/apps/garage/types-defaut"
 import { newId } from "../../src/core/ids"
 
-import type { Equipe } from "./session"
+import type { Equipe, Membre } from "./session"
 
 let pool: Pool | null = null
 
@@ -218,4 +218,23 @@ export async function piecesEnStockDeTypeEnBase(equipe: Equipe, designation: str
     [equipe.teamId, designation],
   )
   return rows[0]?.n ?? 0
+}
+
+// Affecte un membre à un ordre, comme le bouton « Affecter » : une fiche personne liée à son compte, puis la ligne
+// d'affectation. Pour un parcours qui teste l'assistance affectée.
+export async function affecterMembreAUnOrdreEnBase(equipe: Equipe, membre: Membre, ordreId: string): Promise<void> {
+  const personneId = newId()
+  await bd().query("INSERT INTO core_person (id, team_id, nom, prenom, user_id, updated_at) VALUES ($1, $2, $3, $4, $5, now())", [
+    personneId,
+    equipe.teamId,
+    "Assistance",
+    "Test",
+    membre.userId,
+  ])
+  await bd().query("INSERT INTO garage_work_order_person (id, team_id, work_order_id, person_id, updated_at) VALUES ($1, $2, $3, $4, now())", [
+    newId(),
+    equipe.teamId,
+    ordreId,
+    personneId,
+  ])
 }

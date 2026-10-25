@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest"
 import {
   emailMasque,
   ficheDeLigne,
+  clauseFiche,
   fichesLisibles,
+  idsFichesVisibles,
   nomAuteur,
   NOTE_TAILLE_MAX,
   peutAjouterSurFiche,
@@ -109,5 +111,28 @@ describe("notes de fiche hors ligne : règles pures", () => {
     expect(verdictNoteFiche({ creation: false, peutVoir: true, peutAjouter: false, auteurId: "u2", userId: "u1" }).ok).toBe(false)
     expect(verdictNoteFiche({ creation: false, peutVoir: true, peutAjouter: false, auteurId: "u1", userId: "u1" })).toEqual({ ok: true })
     expect(verdictNoteFiche({ creation: false, peutVoir: false, peutAjouter: false, auteurId: "u1", userId: "u1" }).ok).toBe(false)
+  })
+})
+
+describe("tirage des notes de fiche : seulement les fiches visibles", () => {
+  const A = "0190a000-0000-7000-8000-00000000000a"
+  const B = "0190a000-0000-7000-8000-00000000000b"
+
+  it("écriture et plus : toute la liste de l'app ; contribution : seulement les fiches affectées", () => {
+    expect(idsFichesVisibles("ecriture", [])).toBeNull()
+    expect(idsFichesVisibles("gestion", [])).toBeNull()
+    expect(idsFichesVisibles("contribution", [A])).toEqual([A])
+    expect(idsFichesVisibles("contribution", [])).toEqual([])
+  })
+
+  it("une assistance affectée à A et pas à B : la clause ne couvre que A", () => {
+    const clause = clauseFiche({ app: "garage", ficheType: "ordre" }, idsFichesVisibles("contribution", [A]))
+    expect(clause).toEqual({ app: "garage", ficheType: "ordre", ficheId: { in: [A] } })
+    expect(JSON.stringify(clause)).not.toContain(B)
+  })
+
+  it("sans affectation : pas de clause ; avec écriture : toute la fiche, sans filtre d'identifiant", () => {
+    expect(clauseFiche({ app: "garage", ficheType: "ordre" }, idsFichesVisibles("contribution", []))).toBeNull()
+    expect(clauseFiche({ app: "garage", ficheType: "ordre" }, idsFichesVisibles("ecriture", []))).toEqual({ app: "garage", ficheType: "ordre" })
   })
 })
