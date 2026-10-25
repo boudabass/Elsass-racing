@@ -1,7 +1,9 @@
-// Notes et photos sur la fiche d'un ordre de travail (brief 5.0, §4), en ligne. Par clics depuis le QG : l'équipage crée
-// un ordre, écrit une note, la modifie, ajoute une photo ; l'assistance affectée ajoute une note ; l'assistance non
-// affectée ne peut pas, et le bouton le dit. Le cas hors ligne est dans notes-fiche-hors-ligne.spec.ts.
+// Notes et photos sur la fiche d'un ordre de travail (brief 5.0, §4), en ligne. Par clics : le responsable crée un ordre,
+// écrit une note, la modifie, ajoute une photo ; l'assistance non affectée voit la note, sans pouvoir en ajouter, et le
+// dit. Le cas hors ligne est dans notes-fiche-hors-ligne.spec.ts.
 import path from "node:path"
+
+import type { Page } from "@playwright/test"
 
 import { expect, test } from "./aide/fixtures"
 import { envoyer } from "./aide/envoi"
@@ -10,6 +12,18 @@ import { connecterParLien } from "./aide/navigation"
 import { ajouterMembreConnectable, ajouterVoitureSaxo } from "./aide/session"
 
 const PHOTO = path.resolve("e2e/fichiers/photo.jpg")
+const DOSSIER = path.join(__dirname, "..", "docs", "captures")
+
+// Capture de la fiche à 1440 px, puis à 360 px sans défilement horizontal (même règle que le parcours du Garage).
+async function capturerFiche(page: Page, nom: string): Promise<void> {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.screenshot({ path: path.join(DOSSIER, `${nom}-1440.png`), fullPage: true, animations: "disabled" })
+  await page.setViewportSize({ width: 360, height: 740 })
+  const deborde = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+  expect(deborde, `défilement horizontal à 360 px (${nom})`).toBe(false)
+  await page.screenshot({ path: path.join(DOSSIER, `${nom}-360.png`), fullPage: true, animations: "disabled" })
+  await page.setViewportSize({ width: 1440, height: 900 })
+}
 const TITRE_ORDRE = "Vidange notes fiche"
 
 test("notes et photos d'un ordre : écrire, modifier, photo ; l'assistance affectée ajoute, la non affectée est refusée", async ({ page, equipe, browser }) => {
@@ -32,27 +46,31 @@ test("notes et photos d'un ordre : écrire, modifier, photo ; l'assistance affec
   await page.getByRole("link", { name: new RegExp(TITRE_ORDRE) }).first().click()
   await expect(page).toHaveURL(/\/apps\/garage\/travaux\/[0-9a-f-]+$/)
   const idOrdre = page.url().split("/").pop() ?? ""
-  await expect(page.getByRole("heading", { name: "Notes et photos", exact: true })).toBeVisible()
+  // Le bloc « Notes et photos » : les boutons homonymes de la fiche (« Modifier », « Retirer ») restent hors de sa portée.
+  const bloc = page.getByRole("region", { name: "Notes et photos" })
+  await expect(bloc).toBeVisible()
 
   // Une note : écrite dans le tiroir, visible, puis modifiée. Ces écritures passent par la base locale.
-  await page.getByRole("button", { name: "Ajouter une note", exact: true }).click()
+  await bloc.getByRole("button", { name: "Ajouter une note", exact: true }).click()
   await page.getByLabel("Ce qu'il faut retenir").fill("Filtre à changer")
   await page.getByRole("button", { name: "Enregistrer la note", exact: true }).click()
   await expect(page.getByText("Filtre à changer", { exact: true })).toBeVisible({ timeout: 30_000 })
 
-  await page.getByRole("button", { name: "Modifier", exact: true }).first().click()
+  await bloc.getByRole("button", { name: "Modifier", exact: true }).first().click()
   await page.getByLabel("Modifier la note").fill("Filtre à changer, et vérifier le joint")
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click()
   await expect(page.getByText("Filtre à changer, et vérifier le joint", { exact: true })).toBeVisible({ timeout: 30_000 })
 
   // Une photo : part par le réseau, puis apparaît en vignette.
-  await page.getByRole("button", { name: "Ajouter une photo", exact: true }).click()
+  await bloc.getByRole("button", { name: "Ajouter une photo", exact: true }).click()
   const tiroirPhoto = page.getByRole("dialog")
   await tiroirPhoto.locator('input[name="fichier"]').setInputFiles(PHOTO)
   await envoyer(page, tiroirPhoto.getByRole("button", { name: "Envoyer la photo", exact: true }))
   await expect(page.getByRole("img", { name: "photo.jpg" })).toBeVisible({ timeout: 30_000 })
+  await capturerFiche(page, "notes-fiche-ordre")
 
-  // L'assistance affectée à l'ordre ajoute une note ; l'assistance non affectée voit la fiche, sans bouton d'ajout.
+  // L'assistance non affectée à l'ordre voit la note, sans bouton d'ajout, et le dit. (L'assistance affectée, qui ajoute,
+  // est couverte en base par db:verifier-synchro, section 13 : ce parcours ne l'affecte pas.)
   const assistance = await ajouterMembreConnectable(equipe, "assistance", " notes fiche")
   const contexte = await browser.newContext()
   const assist = await contexte.newPage()
@@ -62,7 +80,7 @@ test("notes et photos d'un ordre : écrire, modifier, photo ; l'assistance affec
     await assist.goto(`/apps/garage/travaux/${idOrdre}`)
     await expect(assist.getByText("Filtre à changer, et vérifier le joint", { exact: true })).toBeVisible({ timeout: 30_000 })
     await expect(assist.getByText("Seul l'équipage affecté à cet ordre peut y ajouter une note ou une photo.")).toBeVisible()
-    await expect(assist.getByRole("button", { name: "Ajouter une note", exact: true })).toHaveCount(0)
+    await expect(assist.getByRole("region", { name: "Notes et photos" }).getByRole("button", { name: "Ajouter une note", exact: true })).toHaveCount(0)
   } finally {
     await contexte.close()
   }
