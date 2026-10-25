@@ -310,6 +310,44 @@ Décisions de John (20/10) :
   - rendu des widgets Garage au Tableau de bord (lot 6) : le widget Garage n'est pas rendu aujourd'hui.
 - Limites : le rendu clair et sombre à 1440 et 360 px n'a été vérifié que par les captures CI, pas dans un navigateur sur le poste. Le test de John sur dev reste à faire, avec `docs/test-john-lot-4.md`.
 
+## 5 quinquies. Lot 5, Équipe, Documents, Check-lists, découpé en tâches opérateur (validé par John le 25/10)
+
+Spécifications : articles Odoo 955 (Équipe v1.1), 957 (Documents v1.1), 956 (Check-lists v1.3), catalogue 962, UI 953. Le lot démarre sans le test de John sur le lot 4 (décision de John, 25/10) : `dev` continue de recevoir le vert, `main` attend ses tests.
+
+Décisions de John (25/10) :
+- ordre des apps : Équipe, puis Documents, puis Check-lists (ordre des dépendances : licences et homologations d'abord, Check-lists lit toutes les autres apps) ;
+- paliers d'expérience calculés sur les épreuves seules : épreuves avec résultat validé pour l'équipage, épreuves où la personne était affectée et présente pour l'assistance ; seuils Rookie 0, Confirmé 5, Expérimenté 15, Vétéran 30, Figure 60, identiques pour toutes les teams, jamais de descente ;
+- modèles de check-lists fournis : **John fournit ses listes**, reprises telles quelles. Les modèles n'entrent dans le code qu'avec ses listes (point d'arrêt de la 5.5) ;
+- notes et photos sur une fiche : service du socle construit en ouverture du lot (5.0), branché tout de suite sur les ordres de travail du Garage, réutilisé par les points de check-list.
+
+### 5.0 Socle : notes et photos sur une fiche
+- Brief : `docs/briefs/5.0-socle-notes-photos.md`. Service et composant communs sur `core_note` et `core_attachment` (rôle `photo`), branchés sur les ordres de travail du Garage (point ouvert depuis la 4.3).
+
+### 5.1 Équipe : schéma et services
+- Les huit tables `equipe_` de 955 §3, RLS. Règles pures testées : statut d'une licence et d'un équipement (valide, à renouveler, expirée), statistiques officielles par personne et par binôme (résultats validés seulement), palier (seuils ci-dessus, jamais de descente), ressenti moyen.
+- Gestionnaires : `saison.resultat_valide` et `saison.resultat_annule` (statistiques, palier conservé), `saison.debrief_saisi` (ressenti, privé à l'équipage), `saison.engagement_cree` (demande des disponibilités), `settings.membre_invite`, `settings.membre_rejoint`, `settings.membre_retire` (carte créée, activée ou passée en ancien membre). Émis : `equipe.licence_expire_bientot`, `equipe.homologation_expire_bientot` (rappel du QG, même forme que les papiers de Voiture), `equipe.disponibilite_changee`, `equipe.licence_payee`, `equipe.palier_atteint`.
+
+### 5.2 Équipe : écrans
+- L'équipe en cartes façon jeu, fiche personne en onglets (Profil, Statistiques, Licences, Équipement, Disponibilités, Binômes, Ressenti pour l'équipage), Prochaine épreuve (qui vient, qui n'a pas répondu, répartition des tâches d'assistance), Binômes, Vivier, bouton + (nom et rôle, invitation facultative par Réglages). Assistance : son profil, ses disponibilités, ses équipements, jamais les ressentis.
+
+### 5.3 Documents : coffre-fort
+- Tables `documents_` de 957 §3, dossiers types créés à la première écriture (Association, Assurances, Règlements, Rallyes archivés, Modèles, Attestations, Divers), documents propres, versions, accès interne pour l'assistance (`documents_access`). Écrans : coffre-fort en cartes avec jauge de complétude, liste d'un dossier, fiche document. `documents.document_ajoute`, `documents.reglement_publie`.
+
+### 5.4 Documents : échéances, vue unifiée, partages
+- Échéances centralisées (J-60, J-30, J-7, expiré) des documents propres et des échéances reçues (`voiture.papier_expire_bientot`, `equipe.licence_expire_bientot`, `equipe.homologation_expire_bientot`), chaque carte ouvre la fiche dans son app. Vue unifiée de `core_attachment` qui respecte les droits de l'app d'origine. Liens de partage temporaires (7 jours, révocables, ouvertures journalisées), page publique sur le modèle de `/p/`.
+
+### 5.5 Check-lists : modèles et listes
+- Tables `checklist_` de 956 §3. Modèles fournis repris des listes de John (point d'arrêt : rien sans ses listes). Listes par engagement et communes à l'épreuve, proposées sur `saison.engagement_cree` (`checklist_proposal` et `core_action`). Règles pures testées : avancement (critique compte double, problème compte non fait), zones vert et orange, jamais de rouge.
+
+### 5.6 Check-lists : préparation et terrain
+- Écran Préparation de l'épreuve, liste, fiche point (notes et photos de la 5.0), mode terrain, avertissements avant phase (« Revenir », « Démarrer quand même »), débrief et « Ajouter au modèle ». Coches hors ligne (registre de synchro, coche la plus récente gagnante, historique gardé).
+
+### 5.7 Check-lists : liaisons
+- Écoutes de 956 §5 (Garage, Voiture, Équipe, Documents, Partenaires, Saison, Réglages), toujours en propositions. `checklist.probleme_signale` vers Garage (propose un ordre de travail si le point est lié à un organe, sinon tâche). `checklist.avancement_change` et `checklist.point_critique_ouvert` affichés dans « Prêt pour l'épreuve ? » de Saison, à titre d'information, hors indice.
+
+### 5.8 Vérification du lot 5
+- Parcours e2e complet par clics, audit Impeccable des écrans du lot, liste de test de John (`docs/test-john-lot-5.md`).
+
 ## 6. Méthode de travail
 
 - L'orchestrateur rédige un brief par tâche, l'opérateur exécute, l'orchestrateur relit et teste avant de passer à la suivante.
