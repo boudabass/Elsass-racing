@@ -279,9 +279,10 @@ async function main() {
     await emettre(ctx, "garage.piece_zone_rouge", { vehicleId: autreVehicule.id })
     const pointsAutre = await proprietaire.saisonReadiness.count({ where: { entryId: entryFuture, point: "pieces" } })
     controle("un signal pour une autre voiture ne touche pas cet engagement", pointsAutre === 0, `${pointsAutre}`)
+    // 5.2 : Saison ne lit plus le signal d'échéance de licence (la licence se lit chez Équipe, à la date de l'épreuve).
     await emettre(ctx, "equipe.licence_expire_bientot", { detail: "Licence à renouveler" })
     const pointLicence = await proprietaire.saisonReadiness.findFirst({ where: { entryId: entryFuture, point: "licences" } })
-    controle("une licence sans personne vise toute la team : point « licences » ouvert", pointLicence?.statut === "ouvert")
+    controle("le signal d'échéance de licence ne pose plus de point « licences » ouvert (lu chez Équipe)", pointLicence?.statut !== "ouvert", pointLicence?.statut ?? "aucun point")
 
     // 11. Décision refusée par la règle : la clôture d'une saison déjà clôturée est refusée. L'action reste
     // en attente, avec le motif affiché dans la boîte (message_refus).
