@@ -316,12 +316,12 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
     await ouvrirEpreuveDansSaison(page, EPREUVE_SUIVANTE)
     const indiceAvant = await indiceDePreparation(page)
 
-    // Durée de vie courte saisie par le test : 13 km sur les amortisseurs (12,5 km déjà roulés), 10 épreuves.
+    // Durée de vie courte saisie par le test : 13 km sur l'embrayage, un organe critique (12,5 km déjà roulés), 10 épreuves.
     await allerAuQg(page)
     await ouvrirGarage(page)
     await page.getByRole("link", { name: "Atelier", exact: true }).click()
-    const amortisseurs = await organeDeType(equipe, vehicleId, "amortisseurs")
-    await lienOrgane(page, amortisseurs).click()
+    const embrayage = await organeDeType(equipe, vehicleId, "embrayage")
+    await lienOrgane(page, embrayage).click()
     await page.getByRole("button", { name: "Régler l'organe", exact: true }).click()
     await page.getByLabel("Durée de référence en kilomètres").fill("13")
     await page.getByLabel("Durée de référence en épreuves").fill("10")
@@ -330,7 +330,7 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
 
     // Atelier : la carte de l'organe passe en zone rouge, et l'indice le nomme.
     await page.getByRole("link", { name: "Atelier", exact: true }).click()
-    await expect(page.getByRole("link", { name: /Amortisseurs.*Zone rouge/ }).filter({ visible: true }).first()).toBeVisible()
+    await expect(page.getByRole("link", { name: /Embrayage.*Zone rouge/ }).filter({ visible: true }).first()).toBeVisible()
     await capturerDeuxTailles(page, "garage-parcours-6-zone-rouge")
 
     // Saison : le bloc « À surveiller » le dit, sans toucher à l'indice.
@@ -348,17 +348,17 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
     await page.getByRole("button", { name: "Nouvel ordre", exact: true }).click()
     const tiroir = page.getByRole("dialog")
     await expect(tiroir).toBeVisible()
-    await tiroir.getByLabel("Titre", { exact: true }).fill("Contrôle des amortisseurs")
-    await tiroir.locator('select[name="vehicleComponentId"]').selectOption(await organeDeType(equipe, vehicleId, "amortisseurs"))
+    await tiroir.getByLabel("Titre", { exact: true }).fill("Contrôle de l'embrayage")
+    await tiroir.locator('select[name="vehicleComponentId"]').selectOption(await organeDeType(equipe, vehicleId, "embrayage"))
     await tiroir.locator('select[name="aFaireAvantEventId"]').selectOption(suivante)
     await envoyer(page, tiroir.getByRole("button", { name: "Créer l'ordre", exact: true }))
-    await expect(page.getByText("Contrôle des amortisseurs", { exact: true }).first()).toBeVisible()
+    await expect(page.getByText("Contrôle de l'embrayage", { exact: true }).first()).toBeVisible()
 
     await page.getByRole("link", { name: "Plan avant épreuve", exact: true }).click()
     await expect(page.getByRole("heading", { name: "Plan avant épreuve", level: 1 })).toBeVisible()
     await expect(page.getByRole("heading", { name: EPREUVE_SUIVANTE, exact: true })).toBeVisible()
     await expect(page.getByText("Après l'épreuve").first()).toBeVisible()
-    await expect(page.getByText("Contrôle des amortisseurs", { exact: true }).first()).toBeVisible()
+    await expect(page.getByText("Contrôle de l'embrayage", { exact: true }).first()).toBeVisible()
     await expect(page.getByText(/Zone rouge/).first()).toBeVisible()
     await capturerDeuxTailles(page, "garage-parcours-7-plan")
   })
@@ -370,13 +370,13 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
     await allerAuQg(page)
     await ouvrirGarage(page)
     await page.getByRole("link", { name: "Atelier", exact: true }).click()
-    await lienOrgane(page, await organeDeType(equipe, vehicleId, "amortisseurs")).click()
+    await lienOrgane(page, await organeDeType(equipe, vehicleId, "embrayage")).click()
     await page.getByRole("button", { name: "Réparer", exact: true }).click()
     await expect(page.getByRole("dialog")).toBeVisible()
-    await page.getByLabel("Ce qui est réparé").fill("Amortisseur avant remplacé")
+    await page.getByLabel("Ce qui est réparé").fill("Embrayage remplacé")
     await envoyer(page, page.getByRole("button", { name: "Ajouter la réparation", exact: true }))
     await expect(page).toHaveURL(/\/apps\/garage\/travaux/)
-    await page.getByRole("link", { name: /Amortisseur avant remplacé/ }).first().click()
+    await page.getByRole("link", { name: /Embrayage remplacé/ }).first().click()
     await expect(page).toHaveURL(/\/apps\/garage\/travaux\/[0-9a-f-]+$/)
     await page.getByRole("button", { name: "Terminer l'ordre", exact: true }).click()
     await expect(page.getByRole("dialog")).toBeVisible()
