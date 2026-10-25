@@ -28,6 +28,7 @@ import {
 import { accesSaison } from "./services-serveur"
 import { indicePourEngagement, pointsDePreparation } from "./preparation"
 import { lirePointsEquipe } from "./preparation-equipe-serveur"
+import { lirePointsVoiture } from "./preparation-voiture-serveur"
 import { lireSurveillance } from "@/apps/garage/lectures-partagees"
 
 
@@ -544,10 +545,12 @@ export async function lirePreparation(eventId: string) {
   const surveillances = await Promise.all(epreuve.entries.map((entree) => lireSurveillance(ctx, entree.vehicleId)))
   // Licences et homologations : lues chez Équipe à la date de l'épreuve (5.2), null si Équipe n'est pas activée.
   const equipes = await lirePointsEquipe(ctx, epreuve.entries, epreuve.dateDebut)
+  // Papiers du véhicule : lus chez Voiture à la date de l'épreuve (5.2b), null si Voiture n'est pas activée.
+  const voitures = await lirePointsVoiture(ctx, epreuve.entries, epreuve.dateDebut)
   return {
     niveau,
     engagements: epreuve.entries.map((entree, rang) => {
-      const points = pointsDePreparation(entree.saisonRegistration?.payeLe != null, entree.saisonReadiness, equipes.get(entree.id) ?? null)
+      const points = pointsDePreparation(entree.saisonRegistration?.payeLe != null, entree.saisonReadiness, equipes.get(entree.id) ?? null, voitures.get(entree.id) ?? null)
       return {
         id: entree.id,
         voiture: entree.vehicle.nomCourt,

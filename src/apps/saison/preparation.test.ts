@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import type { SituationPersonne } from "@/apps/equipe/lectures-partagees"
+import type { PapierSituation } from "@/apps/voiture/lectures-partagees"
 
 import {
   indicePourEngagement,
   lieuDeReglage,
+  pointPapiersDeVehicule,
   pointsDePreparation,
   pointsEquipeDeEngagement,
   type PointEtabli,
@@ -44,9 +46,24 @@ describe("pointsDePreparation", () => {
     expect(pointsDePreparation(true, []).map((p) => p.point)).toEqual(["paiement", "licences", "homologations", "papiers"])
   })
 
-  it("reprend l'état et le détail de la ligne saison_readiness", () => {
+  it("une ligne papiers posée par signal avant la 5.2b est ignorée : Voiture fait foi", () => {
     const points = pointsDePreparation(true, [{ point: "papiers", statut: "ouvert", detail: "Assurance expire le 3 novembre" }])
-    expect(points.find((p) => p.point === "papiers")).toEqual({ point: "papiers", etat: "ouvert", detail: "Assurance expire le 3 novembre", personneId: null })
+    expect(points.find((p) => p.point === "papiers")).toEqual({ point: "papiers", etat: "non_suivi", detail: null, personneId: null, vehicleId: null })
+  })
+
+  it("Voiture activée : le point Papiers prend l'état lu chez Voiture, et le véhicule à régler", () => {
+    const points = pointsDePreparation(true, [{ point: "papiers", statut: "regle", detail: null }], null, {
+      etat: "ouvert",
+      detail: "Carte grise expire le 3 novembre",
+      vehicleId: "saxo",
+    })
+    expect(points.find((p) => p.point === "papiers")).toEqual({
+      point: "papiers",
+      etat: "ouvert",
+      detail: "Carte grise expire le 3 novembre",
+      personneId: null,
+      vehicleId: "saxo",
+    })
   })
 
   it("licences et homologations viennent d'Équipe, pas des lignes : une ligne signalée avant la 5.2 est ignorée", () => {
@@ -61,6 +78,7 @@ describe("pointsDePreparation", () => {
       etat: "ouvert",
       detail: "Licence de Luc non renseignée",
       personneId: "luc",
+      vehicleId: null,
     })
   })
 })
@@ -136,15 +154,22 @@ describe("indicePourEngagement", () => {
   it("tous les points suivis réglés donnent 100 %, la zone rouge n'entrant dans aucun point", () => {
     const points = pointsDePreparation(
       true,
-      [{ point: "papiers", statut: "regle", detail: null }],
+      [],
       { licences: { etat: "regle", detail: null, personneId: null }, homologations: { etat: "regle", detail: null, personneId: null } },
+      { etat: "regle", detail: null, vehicleId: "saxo" },
     )
     expect(indicePourEngagement(points, midi, dans(30))).toEqual({ pourcentage: 100, couleur: "vert" })
   })
 
   it("100 n'apparaît que si chaque point suivi est réglé", () => {
-    const points = pointsDePreparation(true, [{ point: "papiers", statut: "ouvert", detail: null }])
+    const points = pointsDePreparation(true, [], null, { etat: "ouvert", detail: "Carte grise expire le 3 novembre", vehicleId: "saxo" })
     expect(indicePourEngagement(points, midi, dans(30))).toEqual({ pourcentage: 50, couleur: "orange" })
+  })
+
+  it("Voiture non activée : le point Papiers ne compte pas dans l'indice", () => {
+    const points = pointsDePreparation(true, [], null, null)
+    expect(points.find((p) => p.point === "papiers")?.etat).toBe("non_suivi")
+    expect(indicePourEngagement(points, midi, dans(30))).toEqual({ pourcentage: 100, couleur: "vert" })
   })
 
   it("rouge quand un point ouvert commence dans moins de 48 heures", () => {
@@ -159,7 +184,13 @@ describe("indicePourEngagement", () => {
 })
 
 describe("lieuDeReglage", () => {
-  const point = (p: PointEtabli["point"], personneId: string | null = null): PointEtabli => ({ point: p, etat: "ouvert", detail: null, personneId })
+  const point = (p: PointEtabli["point"], personneId: string | null = null, vehicleId: string | null = null): PointEtabli => ({
+    point: p,
+    etat: "ouvert",
+    detail: null,
+    personneId,
+    vehicleId,
+  })
 
   it("le paiement se règle sur la fiche engagement", () => {
     expect(lieuDeReglage(point("paiement"))).toEqual({ type: "fiche_engagement" })
@@ -170,8 +201,64 @@ describe("lieuDeReglage", () => {
     expect(lieuDeReglage(point("homologations", "luc"))).toEqual({ type: "fiche_personne", personneId: "luc", onglet: "equipement" })
   })
 
-  it("sans personne à régler (pilote non désigné), rien à ouvrir ; les papiers restent sans lieu", () => {
+  it("sans personne à régler (pilote non désigné), rien à ouvrir", () => {
     expect(lieuDeReglage(point("licences"))).toBeNull()
+  })
+
+  it("les papiers mènent à l'onglet Papiers de la fiche du véhicule, dans Voiture", () => {
+    expect(lieuDeReglage(point("papiers", null, "saxo"))).toEqual({ type: "fiche_vehicule", vehicleId: "saxo", onglet: "papiers" })
+  })
+
+  it("sans véhicule (Voiture non suivie), rien à ouvrir pour les papiers", () => {
     expect(lieuDeReglage(point("papiers"))).toBeNull()
+  })
+})
+
+describe("pointPapiersDeVehicule", () => {
+  const papier = (type: "carte_grise" | "assurance", valableJusquAu: string | null, libelle: string | null = null): PapierSituation => ({
+    type,
+    libelle,
+    valableJusquAu: valableJusquAu === null ? null : jour(valableJusquAu),
+  })
+
+  it("aucun papier saisi : ouvert, « non renseignés »", () => {
+    expect(pointPapiersDeVehicule("saxo", [], EPREUVE)).toEqual({ etat: "ouvert", detail: "Papiers du véhicule non renseignés", vehicleId: "saxo" })
+  })
+
+  it("tous les papiers valables à l'épreuve : réglé", () => {
+    const papiers = [papier("carte_grise", "2027-06-30"), papier("assurance", "2027-01-15")]
+    expect(pointPapiersDeVehicule("saxo", papiers, EPREUVE)).toEqual({ etat: "regle", detail: null, vehicleId: "saxo" })
+  })
+
+  it("un papier expiré à la date de l'épreuve, encore valable aujourd'hui : ouvert, avec la date", () => {
+    const pointe = pointPapiersDeVehicule("saxo", [papier("carte_grise", "2026-11-03")], EPREUVE)
+    expect(pointe).toEqual({ etat: "ouvert", detail: "Carte grise expire le 3 novembre", vehicleId: "saxo" })
+    expect(pointPapiersDeVehicule("saxo", [papier("carte_grise", "2026-11-03")], jour("2026-11-01")).etat).toBe("regle")
+  })
+
+  it("un papier expiré renouvelé par une ligne valable du même type : réglé", () => {
+    const papiers = [papier("carte_grise", "2026-11-06"), papier("carte_grise", "2027-06-30")]
+    expect(pointPapiersDeVehicule("saxo", papiers, EPREUVE).etat).toBe("regle")
+  })
+
+  it("un papier sans date de fin ne bloque jamais", () => {
+    expect(pointPapiersDeVehicule("saxo", [papier("assurance", null)], EPREUVE).etat).toBe("regle")
+  })
+
+  it("un papier « à renouveler » à l'épreuve, pas encore expiré : réglé", () => {
+    expect(pointPapiersDeVehicule("saxo", [papier("carte_grise", "2026-11-10")], EPREUVE).etat).toBe("regle")
+  })
+
+  it("plusieurs types expirés : ouvert, chacun avec sa date", () => {
+    const papiers = [papier("carte_grise", "2026-11-03"), papier("assurance", "2026-11-05")]
+    expect(pointPapiersDeVehicule("saxo", papiers, EPREUVE).detail).toBe("Carte grise expire le 3 novembre ; Assurance expire le 5 novembre")
+  })
+
+  it("« Autre » : chaque libellé saisi est un papier à part, nommé par son libellé", () => {
+    const papiers: PapierSituation[] = [
+      { type: "autre", libelle: "Vignette", valableJusquAu: jour("2026-11-02") },
+      { type: "autre", libelle: "Certificat", valableJusquAu: jour("2027-03-01") },
+    ]
+    expect(pointPapiersDeVehicule("saxo", papiers, EPREUVE)).toEqual({ etat: "ouvert", detail: "Vignette expire le 2 novembre", vehicleId: "saxo" })
   })
 })

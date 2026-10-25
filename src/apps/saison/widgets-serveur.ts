@@ -11,6 +11,7 @@ import { aAuMoins } from "@/core/droits/niveaux"
 import { bilanSaison, type EngagementBilan } from "./regles-resultats"
 import { indicePourEngagement, pointsDePreparation } from "./preparation"
 import { lirePointsEquipe } from "./preparation-equipe-serveur"
+import { lirePointsVoiture } from "./preparation-voiture-serveur"
 import { jourDeParis } from "@/core/dates"
 import { prochaineEpreuve, transitionResultat, type RoleMembre, type StatutEngagement, type StatutEpreuve, type StatutResultat, type ValidationResultat } from "./regles"
 import { libelleBilan, libelleResultatsAValider, resumerPreparation } from "./widgets"
@@ -68,13 +69,15 @@ export async function widgetPretPourEpreuve(ctx: ContexteTeam, maintenant: Date)
       id: true,
       piloteId: true,
       copiloteId: true,
+      vehicleId: true,
       saisonRegistration: { select: { payeLe: true } },
       saisonReadiness: { select: { point: true, statut: true, detail: true } },
     },
   })
   const equipes = await lirePointsEquipe(ctx, entrees, epreuve.dateDebut)
+  const voitures = await lirePointsVoiture(ctx, entrees, epreuve.dateDebut)
   const indices = entrees.flatMap((entree) => {
-    const points = pointsDePreparation(entree.saisonRegistration?.payeLe != null, entree.saisonReadiness, equipes.get(entree.id) ?? null)
+    const points = pointsDePreparation(entree.saisonRegistration?.payeLe != null, entree.saisonReadiness, equipes.get(entree.id) ?? null, voitures.get(entree.id) ?? null)
     const indice = indicePourEngagement(points, maintenant, epreuve.dateDebut)
     return indice ? [indice] : []
   })

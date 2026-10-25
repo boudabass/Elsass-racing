@@ -75,13 +75,23 @@ export function PanneauPreparation({ engagements }: { engagements: EngagementPre
                   {point.etat === "ouvert" &&
                     (() => {
                       const lieu = lieuDeReglage(point)
-                      if (lieu?.type !== "fiche_personne") return null
-                      // Licence ou équipement : on se règle dans la fiche de la personne, à l'onglet concerné (Équipe).
-                      return (
-                        <Link href={`/apps/equipe/personnes/${lieu.personneId}?onglet=${lieu.onglet}`} className={LIEN}>
-                          Régler
-                        </Link>
-                      )
+                      if (lieu?.type === "fiche_personne") {
+                        // Licence ou équipement : on se règle dans la fiche de la personne, à l'onglet concerné (Équipe).
+                        return (
+                          <Link href={`/apps/equipe/personnes/${lieu.personneId}?onglet=${lieu.onglet}`} className={LIEN}>
+                            Régler
+                          </Link>
+                        )
+                      }
+                      if (lieu?.type === "fiche_vehicule") {
+                        // Papiers : l'onglet Papiers de la fiche du véhicule, dans Voiture.
+                        return (
+                          <Link href={`/apps/voiture/vehicules/${lieu.vehicleId}?onglet=${lieu.onglet}`} className={LIEN}>
+                            Régler
+                          </Link>
+                        )
+                      }
+                      return null
                     })()}
                 </span>
               </li>

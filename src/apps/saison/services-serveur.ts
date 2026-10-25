@@ -1139,54 +1139,10 @@ enregistrerGestionnaire("saison", "core.action_decidee", appliquerDecision)
 
 // --- Tâche 2.4 : préparation pour l'épreuve (signaux des autres apps) -----------------------------
 
-const schemaSignal = z.object({
-  detail: z.string().trim().max(300).optional(),
-  regle: z.boolean().optional(),
-  vehicleId: z.string().uuid().optional(),
-  personId: z.string().uuid().optional(),
-})
-
-// Un signal pose le point « ouvert » (« réglé » avec regle: true) sur les engagements à venir concernés :
-// ceux de la voiture (vehicleId), de l'équipage (personId), à défaut toute la team. Jamais les épreuves finies.
-export async function signalerPreparation(ctx: ContexteTeam, point: PointPreparation, evenement: EvenementRecu): Promise<void> {
-  const analyse = schemaSignal.safeParse(evenement.donnees ?? {})
-  if (!analyse.success) return
-  const { detail, regle, vehicleId, personId } = analyse.data
-  const client = prismaPourTeam(ctx.teamId, ctx.userId)
-  const entrees = await client.coreEventEntry.findMany({
-    where: {
-      teamId: ctx.teamId,
-      deletedAt: null,
-      statut: { in: ["envisage", "inscrit", "paye"] },
-      event: { deletedAt: null, statut: { in: ["envisagee", "en_cours"] } },
-      ...(vehicleId ? { vehicleId } : {}),
-      ...(personId ? { OR: [{ piloteId: personId }, { copiloteId: personId }] } : {}),
-    },
-    select: { id: true },
-  })
-  const statut = regle ? "regle" : "ouvert"
-  for (const { id } of entrees) {
-    await client.saisonReadiness.upsert({
-      where: { entryId_point: { entryId: id, point } },
-      create: {
-        id: newId(),
-        teamId: ctx.teamId,
-        entryId: id,
-        point,
-        statut,
-        detail: detail ?? null,
-        source: evenement.nom,
-        createdBy: ctx.userId,
-        updatedBy: ctx.userId,
-      },
-      update: { statut, detail: detail ?? null, source: evenement.nom, updatedBy: ctx.userId, rev: { increment: 1 } },
-    })
-  }
-}
-
-// equipe.licence_expire_bientot et equipe.homologation_expire_bientot : pas de gestionnaire (5.2). Saison lit les
-// licences et les homologations chez Équipe à la date de l'épreuve (lecture partagée), au lieu d'un signal.
-enregistrerGestionnaire("saison", "voiture.papier_expire_bientot", (ctx, evenement) => signalerPreparation(ctx, "papiers", evenement))
+// Aucun signal ne pilote plus un point de préparation. voiture.papier_expire_bientot : pas de gestionnaire (5.2b).
+// Saison lit les papiers chez Voiture à la date de l'épreuve, au lieu d'un signal (une ligne « papiers » posée avant
+// reste en base, ignorée). equipe.licence_expire_bientot et equipe.homologation_expire_bientot : pas de gestionnaire
+// (5.2), même raison pour les licences et les homologations, lues chez Équipe.
 // garage.piece_zone_rouge : pas de gestionnaire (954 v1.4). Saison lit l'état chez Garage à l'affichage, en point
 // à surveiller : aucun signal ne pose plus de point « pièces », et une réparation fait disparaître l'alerte sans événement.
 

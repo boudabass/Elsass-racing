@@ -7,6 +7,7 @@ import { prismaPourTeam } from "@/lib/prisma"
 
 import { gabarit } from "./gabarits"
 import type { ElementDessin } from "./gabarits/types"
+import type { TypePapier } from "./libelles"
 import { statutEmplacement, type StatutEmplacement } from "./regles"
 
 // Silhouette d'un véhicule pour Garage (tâche 4.1, brief §1 ; vue de dessus depuis 4.3e) : la clé du gabarit et le dessin
@@ -93,4 +94,38 @@ export async function lireOccupationPourPartenaires(ctx: ContexteTeam, assignmen
     poseLe: occupation.poseLe ? occupation.poseLe.toISOString().slice(0, 10) : null,
     photoPoseFileId: occupation.photoPoseFileId,
   }
+}
+
+// Papiers des véhicules, pour le point « Papiers » de Saison (tâche 5.2b, brief §1). Lecture seule, sans garde.
+// Ne rend que le type, le libellé et l'échéance : jamais le numéro ni le document.
+export type PapierSituation = {
+  type: TypePapier
+  libelle: string | null
+  valableJusquAu: Date | null
+}
+
+// Voiture est-elle activée pour la team ? Sans elle, Saison ne suit pas le point Papiers.
+export async function voitureActivee(ctx: ContexteTeam): Promise<boolean> {
+  const activation = await prismaPourTeam(ctx.teamId, ctx.userId).coreTeamApp.findFirst({
+    where: { teamId: ctx.teamId, appCle: "voiture", activee: true, deletedAt: null },
+    select: { id: true },
+  })
+  return activation !== null
+}
+
+// Papiers non retirés des véhicules donnés. Un véhicule sans papier apparaît avec une liste vide.
+export async function lirePapiersVehicules(ctx: ContexteTeam, vehicleIds: string[]): Promise<Map<string, PapierSituation[]>> {
+  const resultat = new Map<string, PapierSituation[]>()
+  const uniques = Array.from(new Set(vehicleIds))
+  for (const id of uniques) resultat.set(id, [])
+  if (uniques.length === 0) return resultat
+
+  const papiers = await prismaPourTeam(ctx.teamId, ctx.userId).voiturePaper.findMany({
+    where: { teamId: ctx.teamId, vehicleId: { in: uniques }, deletedAt: null },
+    select: { vehicleId: true, type: true, libelle: true, valableJusquAu: true },
+  })
+  for (const papier of papiers) {
+    resultat.get(papier.vehicleId)?.push({ type: papier.type, libelle: papier.libelle, valableJusquAu: papier.valableJusquAu })
+  }
+  return resultat
 }

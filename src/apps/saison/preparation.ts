@@ -2,12 +2,16 @@
 // Un point « pas encore suivi » n'existe pas encore (son app n'est pas construite, ou elle n'est pas activée) :
 // il n'entre pas dans l'indice et ne bloque rien. Le paiement se lit sur l'inscription. Les licences et les
 // homologations se lisent chez Équipe, à la date de l'épreuve (lecture partagée, 5.2) : elles sont suivies
-// quand Équipe est activée. Les autres points viennent de saison_readiness, alimentée par les événements.
+// quand Équipe est activée. Les papiers du véhicule se lisent chez Voiture, à la même date (5.2b) : suivis quand
+// Voiture est activée. Les autres points viennent de saison_readiness, alimentée par les événements.
 // Les pièces en zone rouge ne sont pas un point (954 v1.4, décision de John du 24/10) : Saison les lit chez
 // Garage, en point à surveiller, hors de l'indice.
 
 import { homologationValideA, jourCivil, LIBELLES_TYPE_EQUIPEMENT, licenceValideA } from "@/apps/equipe/regles"
 import type { SituationPersonne } from "@/apps/equipe/lectures-partagees"
+import type { PapierSituation } from "@/apps/voiture/lectures-partagees"
+import { libelleDuPapier } from "@/apps/voiture/libelles"
+import { statutPapier } from "@/apps/voiture/regles"
 
 import { indicePreparation, type IndicePreparation, type StatutPoint } from "./regles"
 
@@ -17,7 +21,7 @@ export type EtatPoint = StatutPoint | "non_suivi"
 
 // Une ligne de saison_readiness. Les lignes « pieces » posées avant 4.5 restent en base : elles ne sont pas un point,
 // donc elles sont ignorées par pointsDePreparation. Les lignes licences et homologations, posées par signal avant
-// la 5.2, sont ignorées aussi : Équipe fait foi.
+// la 5.2, sont ignorées aussi : Équipe fait foi. Les lignes « papiers » (signal de Voiture, avant 5.2b) aussi : Voiture fait foi.
 export interface LigneReadiness {
   point: string
   statut: StatutPoint
@@ -41,27 +45,42 @@ export interface PointEtabli {
   etat: EtatPoint
   detail: string | null
   personneId: string | null
+  // Le véhicule à régler (point Papiers), null pour les autres points.
+  vehicleId: string | null
+}
+
+// Ce que Voiture dit des papiers d'un véhicule, à la date de l'épreuve.
+export interface PointVoiture {
+  etat: StatutPoint
+  detail: string | null
+  vehicleId: string
 }
 
 // Les quatre points, dans l'ordre d'affichage. Le paiement existe toujours ; licences et homologations sont suivis
-// quand Équipe est activée (equipe, null sinon) ; les autres quand une ligne existe.
+// quand Équipe est activée (equipe, null sinon) ; les papiers quand Voiture l'est (voiture, null sinon) ; les autres
+// quand une ligne existe.
 export function pointsDePreparation(
   paiementRegle: boolean,
   lignes: readonly LigneReadiness[],
   equipe: PointsEquipe | null = null,
+  voiture: PointVoiture | null = null,
 ): PointEtabli[] {
   return POINTS_PREPARATION.map((point) => {
     if (point === "paiement") {
-      return { point, etat: paiementRegle ? "regle" : "ouvert", detail: paiementRegle ? null : "Engagement non payé", personneId: null }
+      return { point, etat: paiementRegle ? "regle" : "ouvert", detail: paiementRegle ? null : "Engagement non payé", personneId: null, vehicleId: null }
     }
     if (point === "licences" || point === "homologations") {
-      if (!equipe) return { point, etat: "non_suivi", detail: null, personneId: null }
+      if (!equipe) return { point, etat: "non_suivi", detail: null, personneId: null, vehicleId: null }
       const etabli = equipe[point]
-      return { point, etat: etabli.etat, detail: etabli.detail, personneId: etabli.personneId }
+      return { point, etat: etabli.etat, detail: etabli.detail, personneId: etabli.personneId, vehicleId: null }
+    }
+    if (point === "papiers") {
+      if (!voiture) return { point, etat: "non_suivi", detail: null, personneId: null, vehicleId: null }
+      return { point, etat: voiture.etat, detail: voiture.detail, personneId: null, vehicleId: voiture.vehicleId }
     }
     const ligne = lignes.find((candidate) => candidate.point === point)
-    if (!ligne) return { point, etat: "non_suivi", detail: null, personneId: null }
-    return { point, etat: ligne.statut, detail: ligne.detail, personneId: null }
+    if (!ligne) return { point, etat: "non_suivi", detail: null, personneId: null, vehicleId: null }
+    return { point, etat: ligne.statut, detail: ligne.detail, personneId: null, vehicleId: null }
   })
 }
 
@@ -138,14 +157,42 @@ export function pointsEquipeDeEngagement(
   return { licences: bilan(licences), homologations: bilan(homologations) }
 }
 
+// Papiers du véhicule, à la date de l'épreuve (5.2b). Un type de papier est réglé s'il a au moins un papier qui n'est
+// pas expiré ce jour-là, selon statutPapier de Voiture (importée, jamais recopiée). Un papier sans échéance ne bloque
+// jamais ; un renouvellement (nouvelle ligne valable du même type) ferme le point ; « à renouveler » sans être
+// expiré ne bloque pas. Aucun papier saisi : ouvert.
+export function pointPapiersDeVehicule(vehicleId: string, papiers: readonly PapierSituation[], jour: Date): PointVoiture {
+  if (papiers.length === 0) return { etat: "ouvert", detail: "Papiers du véhicule non renseignés", vehicleId }
+
+  // Un type se regroupe à part, sauf « Autre » : chaque libellé saisi est un papier distinct.
+  const parPapier = new Map<string, PapierSituation[]>()
+  for (const papier of papiers) {
+    const cle = papier.type === "autre" ? `autre:${papier.libelle ?? ""}` : papier.type
+    parPapier.set(cle, [...(parPapier.get(cle) ?? []), papier])
+  }
+
+  const manques: string[] = []
+  for (const groupe of Array.from(parPapier.values())) {
+    if (groupe.some((papier) => statutPapier(papier.valableJusquAu, jour) !== "expire")) continue
+    // Tous expirés, donc tous datés : la fin la plus tardive est celle qui a fait défaut.
+    const derniere = groupe.reduce((max, papier) => (papier.valableJusquAu!.getTime() > max.valableJusquAu!.getTime() ? papier : max))
+    manques.push(`${libelleDuPapier(derniere.type, derniere.libelle)} expire le ${jourCourt(derniere.valableJusquAu!)}`)
+  }
+  if (manques.length === 0) return { etat: "regle", detail: null, vehicleId }
+  return { etat: "ouvert", detail: manques.join(" ; "), vehicleId }
+}
+
 // Où régler un point ouvert, en un geste. Le paiement mène à la fiche engagement ; licences et homologations à la
-// fiche de la personne concernée dans Équipe, sur son onglet ; les autres, rien tant que leur app n'existe pas.
+// fiche de la personne concernée dans Équipe, sur son onglet ; les papiers à l'onglet Papiers de la fiche véhicule
+// dans Voiture ; les autres, rien tant que leur app n'existe pas.
 export type LieuDeReglage =
   | { type: "fiche_engagement" }
   | { type: "fiche_personne"; personneId: string; onglet: "licences" | "equipement" }
+  | { type: "fiche_vehicule"; vehicleId: string; onglet: "papiers" }
 
 export function lieuDeReglage(point: PointEtabli): LieuDeReglage | null {
   if (point.point === "paiement") return { type: "fiche_engagement" }
+  if (point.point === "papiers") return point.vehicleId ? { type: "fiche_vehicule", vehicleId: point.vehicleId, onglet: "papiers" } : null
   if (point.personneId === null) return null
   if (point.point === "licences") return { type: "fiche_personne", personneId: point.personneId, onglet: "licences" }
   if (point.point === "homologations") return { type: "fiche_personne", personneId: point.personneId, onglet: "equipement" }

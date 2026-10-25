@@ -14,7 +14,6 @@ import { trouverGestionnaire } from "./gestionnaires"
 // n'a pas de gestionnaire : l'ajouter ici oblige à l'enregistrer dans src/apps/gestionnaires-serveur.ts.
 const COUPLES_CODES: Array<[string, string]> = [
   ["saison", "core.action_decidee"],
-  ["saison", "voiture.papier_expire_bientot"],
   ["budget", "core.action_decidee"],
   ["core", "saison.action_requise"],
   ["core", "saison.action_levee"],
