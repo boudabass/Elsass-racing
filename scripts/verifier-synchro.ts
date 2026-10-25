@@ -62,6 +62,8 @@ async function main(): Promise<void> {
   const eqMemId = newId()
   const devA = newId()
   const devB = newId()
+  const inviteUserId = newId()
+  const inviteMemId = newId()
 
   await bd.coreTeam.create({ data: { id: teamId, nom: `Synchro ${horodatage}`, slug: `synchro-${horodatage}`, statut: "active" } })
   await bd.coreTeam.create({ data: { id: teamAutreId, nom: `Synchro autre ${horodatage}`, slug: `synchro-autre-${horodatage}`, statut: "active" } })
@@ -355,8 +357,46 @@ async function main(): Promise<void> {
     controle("core_vehicle se lit hors ligne seulement : écriture refusée", ecritureVehicule[0]?.statut === "refusee" && (ecritureVehicule[0]?.raison ?? "").includes("se lit seulement"))
     const tirageVehiculeA = await tirerPaquets(ctxA, {})
     controle("le responsable reçoit le véhicule hors ligne", (tirageVehiculeA.tables["core_vehicle"]?.lignes ?? []).some((l) => l.id === vehiculeSync))
+    // 13. Notes de fiche hors ligne (brief 5.0) : un ordre du Garage, affecté à l'assistance (B) ; un ordre non affecté.
+    const personneB = newId()
+    await bd.corePerson.create({ data: { id: personneB, teamId, nom: "Synchro", prenom: "Assistance", userId: assUserId } })
+    const ordreAffecte = newId()
+    await bd.garageWorkOrder.create({ data: { id: ordreAffecte, teamId, vehicleId: vehiculeSync, type: "revision", titre: "Vidange synchro" } })
+    await bd.garageWorkOrderPerson.create({ data: { id: newId(), teamId, workOrderId: ordreAffecte, personId: personneB } })
+    const ordreLibre = newId()
+    await bd.garageWorkOrder.create({ data: { id: ordreLibre, teamId, vehicleId: vehiculeSync, type: "controle", titre: "Contrôle synchro" } })
+
+    const noteFicheId = newId()
+    const noteFiche = await appliquerOperations(ctxB, devB, [
+      operation({ table: "core_note", type: "creer", id: noteFicheId, champs: { app: "garage", ficheType: "ordre", ficheId: ordreAffecte, texte: "Filtre à changer" } }),
+    ])
+    controle("l'assistance affectée ajoute une note de fiche hors ligne : appliquée", noteFiche[0]?.statut === "appliquee")
+
+    const noteLibre = await appliquerOperations(ctxB, devB, [
+      operation({ table: "core_note", type: "creer", id: newId(), champs: { app: "garage", ficheType: "ordre", ficheId: ordreLibre, texte: "Pas la mienne" } }),
+    ])
+    controle("l'assistance non affectée : note de fiche refusée", noteLibre[0]?.statut === "refusee")
+
+    const fichePasDeclaree = await appliquerOperations(ctxB, devB, [
+      operation({ table: "core_note", type: "creer", id: newId(), champs: { app: "voiture", ficheType: "vehicule", ficheId: vehiculeSync, texte: "Hors liste" } }),
+    ])
+    controle("une fiche hors liste blanche est refusée à la poussée", fichePasDeclaree[0]?.statut === "refusee" && (fichePasDeclaree[0]?.raison ?? "").includes("ne se prennent pas hors ligne"))
+
+    const modifAutre = await appliquerOperations(ctxA, devA, [
+      operation({ table: "core_note", type: "modifier", id: noteFicheId, revLue: 1, champs: { texte: "Modifiée par le responsable" } }),
+    ])
+    controle("hors ligne, on ne modifie pas la note de fiche d'un autre", modifAutre[0]?.statut === "refusee")
+
+    const tirageFiche = await tirerPaquets(ctxA, {})
+    controle("le responsable reçoit la note de l'ordre", (tirageFiche.tables["core_note"]?.lignes ?? []).some((l) => l.id === noteFicheId))
+    // Un invité n'a rien sur le Garage (rôle par défaut) : la note de l'ordre ne lui descend pas.
+    await bd.coreUser.create({ data: { id: inviteUserId, email: `synchro-inv-${horodatage}@example.test` } })
+    await bd.coreMembership.create({ data: { id: inviteMemId, teamId, userId: inviteUserId, role: "invite", statut: "actif" } })
+    const ctxInvite: ContexteTeam = { teamId, userId: inviteUserId, membership: { id: inviteMemId, role: "invite" } }
+    const tirageInvite = await tirerPaquets(ctxInvite, {})
+    controle("un invité ne reçoit pas la note de l'ordre (pas de lecture sur le Garage)", !(tirageInvite.tables["core_note"]?.lignes ?? []).some((l) => l.id === noteFicheId))
   } finally {
-    await nettoyer([teamId, teamAutreId], [respUserId, assUserId, eqUserId], [devA, devB])
+    await nettoyer([teamId, teamAutreId], [respUserId, assUserId, eqUserId, inviteUserId], [devA, devB])
     console.log("Nettoyage fait.")
   }
 
