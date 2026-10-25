@@ -70,8 +70,9 @@ test("notes et photos d'un ordre : écrire, modifier, photo ; l'assistance affec
   await expect(page.getByRole("img", { name: "photo.jpg" })).toBeVisible({ timeout: 30_000 })
   await capturerFiche(page, "notes-fiche-ordre")
 
-  // L'assistance non affectée à l'ordre voit la note, sans bouton d'ajout, et le dit. (L'assistance affectée, qui ajoute,
-  // est couverte en base par db:verifier-synchro, section 13 : ce parcours ne l'affecte pas.)
+  // L'assistance non affectée à l'ordre ne l'ouvre pas : la fiche lui est introuvable (lireOrdre), donc ni notes ni bouton
+  // d'ajout. Le refus reste en garde côté serveur (contribuer). L'assistance affectée, qui ajoute une note, est couverte en
+  // base par db:verifier-synchro, section 13 : ce parcours ne l'affecte pas.
   const assistance = await ajouterMembreConnectable(equipe, "assistance", " notes fiche")
   const contexte = await browser.newContext()
   const assist = await contexte.newPage()
@@ -79,9 +80,9 @@ test("notes et photos d'un ordre : écrire, modifier, photo ; l'assistance affec
     await assist.goto(`/connexion/lien?t=${assistance.secretLien}`)
     await assist.waitForURL(/\/qg$/)
     await assist.goto(`/apps/garage/travaux/${idOrdre}`)
-    await expect(assist.getByText("Filtre à changer, et vérifier le joint", { exact: true })).toBeVisible({ timeout: 30_000 })
-    await expect(assist.getByText("Seul l'équipage affecté à cet ordre peut y ajouter une note ou une photo.")).toBeVisible()
-    await expect(assist.getByRole("region", { name: "Notes et photos" }).getByRole("button", { name: "Ajouter une note", exact: true })).toHaveCount(0)
+    await assist.waitForLoadState("networkidle")
+    await expect(assist.getByRole("region", { name: "Notes et photos" })).toHaveCount(0)
+    await expect(assist.getByText("Filtre à changer, et vérifier le joint", { exact: true })).toHaveCount(0)
   } finally {
     await contexte.close()
   }
