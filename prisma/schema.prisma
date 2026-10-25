@@ -3596,7 +3596,7 @@ model EquipeProfile {
   tailleVetements  String?                @map("taille_vetements")
   contactUrgence   String?                @map("contact_urgence")
   palier           EquipePalier           @default(rookie)
-  afficherTrophees Boolean                @default(false) @map("afficher_trophees")
+  afficherTrophees Boolean                @default(true) @map("afficher_trophees")
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
