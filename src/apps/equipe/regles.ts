@@ -122,3 +122,42 @@ export function ressentiMoyen(ressentis: number[]): number | null {
   const moyenne = derniers.reduce((total, r) => total + r, 0) / derniers.length
   return Math.round(moyenne * 10) / 10
 }
+
+// ─── Saisie : cohérence des dates ────────────────────────────────────────────
+
+// « AAAA-MM-JJ » se compare comme du texte. Une validité sans début ou sans fin reste cohérente.
+export function validiteCoherente(valableDu: string | null | undefined, valableAu: string | null | undefined): boolean {
+  if (!valableDu || !valableAu) return true
+  return valableAu >= valableDu
+}
+
+// ─── Listes fermées (955 §3). Identiques aux enums de prisma/schema.prisma et de la migration equipe_schema. ─
+
+export const ROLES_HABITUELS = ["pilote", "copilote", "assistance", "benevole"] as const
+export type RoleHabituel = (typeof ROLES_HABITUELS)[number]
+
+export const TYPES_LICENCE = ["ffsa_regionale", "ffsa_nationale", "ffsa_internationale", "autre"] as const
+export type TypeLicence = (typeof TYPES_LICENCE)[number]
+
+export const LIBELLES_TYPE_LICENCE: Record<TypeLicence, string> = {
+  ffsa_regionale: "Licence FFSA régionale",
+  ffsa_nationale: "Licence FFSA nationale",
+  ffsa_internationale: "Licence FFSA internationale",
+  autre: "Licence",
+}
+
+export const TYPES_EQUIPEMENT = ["casque", "hans", "combinaison", "gants", "bottines", "sous_vetements", "cagoule"] as const
+export type TypeEquipement = (typeof TYPES_EQUIPEMENT)[number]
+
+export const SPECIALITES = ["mecanique", "pneus", "logistique", "photo", "secourisme", "commissaire", "autre"] as const
+export type Specialite = (typeof SPECIALITES)[number]
+
+export const REPONSES_DISPONIBILITE = ["vient", "ne_vient_pas", "peut_etre"] as const
+export type ReponseDisponibilite = (typeof REPONSES_DISPONIBILITE)[number]
+
+// Rôles d'épreuve. Pilote et copilote ne s'affectent jamais ici : ils se choisissent sur l'engagement (Saison).
+export const ROLES_EPREUVE = ["pilote", "copilote", "chef_assistance", "assistance", "logistique", "photo"] as const
+export type RoleEpreuve = (typeof ROLES_EPREUVE)[number]
+
+export const INTERETS_VIVIER = ["faible", "moyen", "fort"] as const
+export type InteretVivier = (typeof INTERETS_VIVIER)[number]

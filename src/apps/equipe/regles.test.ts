@@ -9,6 +9,7 @@ import {
   statistiquesPersonne,
   statutEquipement,
   statutLicence,
+  validiteCoherente,
   type ResultatValide,
 } from "./regles"
 
@@ -106,5 +107,15 @@ describe("ressenti moyen", () => {
 
   it("sans ressenti : null", () => {
     expect(ressentiMoyen([])).toBeNull()
+  })
+})
+
+describe("cohérence d'une validité de licence", () => {
+  it("la fin ne peut pas être avant le début ; un trou n'est pas une incohérence", () => {
+    expect(validiteCoherente("2026-01-01", "2026-12-31")).toBe(true)
+    expect(validiteCoherente("2026-01-01", "2026-01-01")).toBe(true)
+    expect(validiteCoherente("2026-12-31", "2026-01-01")).toBe(false)
+    expect(validiteCoherente(null, "2026-01-01")).toBe(true)
+    expect(validiteCoherente("2026-01-01", null)).toBe(true)
   })
 })
