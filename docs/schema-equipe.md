@@ -26,7 +26,7 @@ Bloc commun sur chaque table. Seul montant : celui d'une licence payée (centime
 | `taille_vetements` | texte | facultatif (pour les tenues) |
 | `contact_urgence` | texte | facultatif. Nom et téléphone en texte libre, aucune donnée médicale |
 | `palier` | enum `equipe_palier` | obligatoire, défaut `rookie`. Valeurs : `rookie`, `confirme`, `experimente`, `veteran`, `figure`. **Jamais en baisse** |
-| `afficher_trophees` | booléen | obligatoire, défaut `false` |
+| `afficher_trophees` | booléen | obligatoire, défaut `true` (5.2, migration `20261025200000_equipe_trophees_defaut`, défaut seul : les lignes existantes gardent leur valeur ; la personne le retire dans son profil) |
 
 ### equipe_licence : licences et adhésions
 
@@ -163,3 +163,11 @@ Fichiers : `services-serveur.ts` (écritures, chacune passe par `accesEquipe`, s
 **Lectures partagées de Saison** (`src/apps/saison/lectures-partagees.ts`, lecture seule) : `lireResultatsValidesEngagements` (résultats validés d'un filtre sur `core_event_entry`), `lireEpreuvesEquipageValidees`, `lireRessentiDebrief`. Équipe n'importe aucune table `saison_`.
 
 **Ce qui reste après 5.2.** `saison.programme_publie` ; Prochaine épreuve, Binômes, Vivier et bouton « + » (écrans suivants de 5.2). Le point « Prêt pour l'épreuve » lit désormais les licences et homologations dans Équipe à la date de l'épreuve (commit 3d87e4c, 5.2 point 2).
+
+## Saison ne traite plus les échéances de licence et d'homologation (5.2)
+
+Les événements `equipe.licence_expire_bientot` et `equipe.homologation_expire_bientot` restent au catalogue 962 avec Saison parmi leurs écouteurs : la spécification ne change pas, et le flux vers Saison existe toujours au sens du catalogue. Mais Saison n'a plus de gestionnaire pour eux (retirés en 5.2, tâche 0.2), et le point « Prêt pour l'épreuve ? » ne s'appuie plus sur ces signaux.
+
+**Pourquoi.** Un signal ne disait que « une échéance approche », jamais l'état à la date de l'épreuve : une licence valide ne signalait rien, et le point restait « pas encore suivi ». Saison lit désormais les licences et homologations d'Équipe à la date de l'épreuve, par une lecture partagée en lecture seule (`lirePointsEquipe`, dans `src/apps/saison/preparation-equipe-serveur.ts`, qui lit les situations des personnes par `lireSituationsPersonnes` d'Équipe). Le point suit ainsi l'état réel, et le signal n'est plus nécessaire pour lui.
+
+Le même remède est prévu pour le défaut des papiers de Voiture (tâche à part, après la 5.2) : une lecture partagée de Voiture par Saison, au lieu d'un signal.
