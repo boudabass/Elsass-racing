@@ -63,7 +63,7 @@ export function NouvellePersonne() {
         <input name="nom" required maxLength={80} className={CHAMP} autoComplete="off" />
       </Champ>
       <Champ libelle="Rôle habituel">
-        <select name="roleHabituel" required defaultValue="" className={CHAMP}>
+        <select name="roleHabituel" aria-label="Rôle habituel" required defaultValue="" className={CHAMP}>
           <option value="" disabled>
             Choisir un rôle
           </option>
@@ -149,7 +149,7 @@ function champsLicence(valeurs?: ValeursLicence) {
   return (
     <>
       <Champ libelle="Type de licence">
-        <select name="type" required defaultValue={valeurs?.type ?? ""} className={CHAMP}>
+        <select name="type" aria-label="Type de licence" required defaultValue={valeurs?.type ?? ""} className={CHAMP}>
           {!valeurs && (
             <option value="" disabled>
               Choisir un type
@@ -257,7 +257,7 @@ function champsEquipement(valeurs?: ValeursEquipement) {
   return (
     <>
       <Champ libelle="Type d'équipement">
-        <select name="type" required defaultValue={valeurs?.type ?? ""} className={CHAMP}>
+        <select name="type" aria-label="Type d'équipement" required defaultValue={valeurs?.type ?? ""} className={CHAMP}>
           {!valeurs && (
             <option value="" disabled>
               Choisir un type
