@@ -49,7 +49,7 @@ test("refus hors ligne : la raison est visible au retour du réseau, reste aprè
   await indicateur.click()
   const tiroir = page.getByRole("dialog")
   await expect(tiroir.getByText("Intervention : Refus hors ligne visible")).toBeVisible()
-  await expect(tiroir.getByText("Votre compte n'a pas de fiche personne dans la team : le responsable doit la créer.")).toBeVisible()
+  await expect(tiroir.getByText("Ton compte n'a pas de fiche personne dans la team : le responsable doit la créer.")).toBeVisible()
   await page.keyboard.press("Escape")
 
   // Le refus reste après un rechargement : il est gardé sur l'appareil.

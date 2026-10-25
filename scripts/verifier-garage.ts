@@ -599,7 +599,7 @@ async function main() {
     // Création à la main : voiture, date et cause (nettoyée) ; une date inexistante est refusée avec sa raison.
     const demain = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
     const dateInvalide = await refuse(casses.creerFicheCasseDans(ctx, { vehicleId: vehicule, date: "2026-02-30", eventId: null, cause: null }))
-    controle("une date qui n'existe pas est refusée avec sa raison", dateInvalide === "Indiquez la date de la casse.", dateInvalide ?? "acceptée")
+    controle("une date qui n'existe pas est refusée avec sa raison", dateInvalide === "Indique la date de la casse.", dateInvalide ?? "acceptée")
     const voitureInconnue = await refuse(casses.creerFicheCasseDans(ctx, { vehicleId: randomUUID(), date: demain, eventId: null, cause: null }))
     controle("une voiture hors de la team est refusée", voitureInconnue === "Cette voiture n'existe pas dans la team.", voitureInconnue ?? "")
     const ficheMain = await casses.creerFicheCasseDans(ctx, { vehicleId: vehicule, date: demain, eventId: null, cause: "  Sortie dans un virage  " })
@@ -613,7 +613,7 @@ async function main() {
     })
     if (!montage) throw new EcartGarage("aucune pièce montée sur la voiture pour la complétion de casse")
     const typeInvalide = await refuse(casses.completerFicheCasseDans(ctx, ficheMain, { type: "inconnue", cause: null, organesIds: [], piecesIds: [] }))
-    controle("un type hors liste est refusé avec sa raison", typeInvalide === "Choisissez le type de casse.", typeInvalide ?? "accepté")
+    controle("un type hors liste est refusé avec sa raison", typeInvalide === "Choisis le type de casse.", typeInvalide ?? "accepté")
     const organeEtranger = await refuse(
       casses.completerFicheCasseDans(ctx, ficheMain, { type: "accident", cause: null, organesIds: [randomUUID()], piecesIds: [] }),
     )
@@ -760,7 +760,7 @@ async function main() {
       `${equipementCree?.valeurCents} ${equipementCree?.prochainControleLe?.toISOString()}`,
     )
     const refusNom = await refuse(equipementsServeur.creerEquipementDans(ctx, { nom: "  ", categorie: "remorque", valeur: null }))
-    controle("un équipement sans nom est refusé avec sa raison", refusNom === "Indiquez le nom de l'équipement.", `${refusNom}`)
+    controle("un équipement sans nom est refusé avec sa raison", refusNom === "Indique le nom de l'équipement.", `${refusNom}`)
     const refusNegatif = await refuse(equipementsServeur.creerEquipementDans(ctx, { nom: "Négatif", categorie: "levage", valeur: "-10" }))
     controle("une valeur négative est refusée avec sa raison", refusNegatif?.includes("positif") === true, `${refusNegatif}`)
 

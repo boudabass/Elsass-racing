@@ -624,7 +624,7 @@ test("responsable : un véhicule sans plan propose un modèle, et la création p
   const sansPlan = new URL(page.url()).pathname.split("/")[4]
   await page.goto(`/apps/voiture/vehicules/${sansPlan}?onglet=deco`)
   // Après le goto, le streaming garde une copie cachée du texte : on ne vise que l'exemplaire visible.
-  await expect(page.getByText("Ce véhicule n'a pas encore de plan. Choisissez un modèle de plan pour y placer vos emplacements.").filter({ visible: true })).toBeVisible()
+  await expect(page.getByText("Ce véhicule n'a pas encore de plan. Choisis un modèle de plan pour y placer tes emplacements.").filter({ visible: true })).toBeVisible()
   await expect(page.getByRole("group", { name: /^Plan de Sans plan/ })).toHaveCount(0)
   await capturerEcran(page, "voiture-deco-sans-plan-1440.png")
 
