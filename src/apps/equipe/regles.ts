@@ -66,6 +66,17 @@ export function palierDepuis(nombreEpreuves: number, palierAtteint: Palier): Pal
   return rang(calcule) >= rang(palierAtteint) ? calcule : palierAtteint
 }
 
+// Barre vers le palier suivant : la part du chemin entre le seuil du palier courant et celui du suivant, en pourcentage
+// entier. Null au dernier palier (rien à atteindre).
+export function progressionPalier(nombreEpreuves: number, palier: Palier): { suivant: Palier; restant: number; pourcentage: number } | null {
+  const suivant = PALIERS[rang(palier) + 1]
+  if (!suivant) return null
+  const debut = SEUIL_PALIER[palier]
+  const fin = SEUIL_PALIER[suivant]
+  const part = Math.round(((nombreEpreuves - debut) / (fin - debut)) * 100)
+  return { suivant, restant: Math.max(0, fin - nombreEpreuves), pourcentage: Math.min(100, Math.max(0, part)) }
+}
+
 // Épreuves d'assistance : celles où la personne était affectée ET a répondu « vient ». Les deux listes sont des
 // identifiants d'épreuve, sans doublon compté deux fois.
 export function epreuvesAssistanceIds(affectees: string[], venues: string[]): string[] {

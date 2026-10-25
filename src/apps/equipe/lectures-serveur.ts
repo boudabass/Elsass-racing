@@ -6,6 +6,7 @@
 
 import { lireResultatsValidesEngagements, type ResultatValideEngagement } from "@/apps/saison/lectures-partagees"
 import { ludiqueAfficheDansLaTeam } from "@/apps/settings/preferences-serveur"
+import { nombreEpreuvesDePalier } from "./palier-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 import { jourDeParis } from "@/core/dates"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
@@ -34,7 +35,6 @@ import {
 import { personneDuMembre } from "./services-serveur"
 
 
-// Membres actifs de la team qui ont une personne liée (l'invité n'a pas accès à Équipe). Une personne par ligne.
 export interface MembrePersonne {
   personId: string
   prenom: string
@@ -42,18 +42,41 @@ export interface MembrePersonne {
   photoFileId: string | null
 }
 
-export async function lireMembres(ctx: ContexteTeam): Promise<MembrePersonne[]> {
-  const membres = await prismaPourTeam(ctx.teamId, ctx.userId).coreMembership.findMany({
-    where: { teamId: ctx.teamId, statut: "actif", deletedAt: null, role: { not: "invite" }, personId: { not: null } },
-    select: { person: { select: { id: true, prenom: true, nom: true, photoFileId: true, deletedAt: true } } },
+// Personnes de l'équipe, sur deux listes. Actives : une adhésion active (hors invité), ou une personne créée dans Équipe
+// sans adhésion (elle a un profil, et aucune adhésion). Anciennes : adhésion partie, sans adhésion active. Le retrait
+// d'un membre ne supprime rien : sa personne et son historique restent (Réglages passe l'adhésion à « parti »).
+async function lirePersonnesEquipe(ctx: ContexteTeam): Promise<{ actives: MembrePersonne[]; anciennes: MembrePersonne[] }> {
+  const personnes = await prismaPourTeam(ctx.teamId, ctx.userId).corePerson.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null },
+    select: {
+      id: true,
+      prenom: true,
+      nom: true,
+      photoFileId: true,
+      memberships: { where: { teamId: ctx.teamId, deletedAt: null, role: { not: "invite" } }, select: { statut: true } },
+      equipeProfiles: { where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true }, take: 1 },
+    },
+    orderBy: [{ prenom: "asc" }, { nom: "asc" }],
   })
-  const parPersonne = new Map<string, MembrePersonne>()
-  for (const membre of membres) {
-    const personne = membre.person
-    if (!personne || personne.deletedAt) continue
-    parPersonne.set(personne.id, { personId: personne.id, prenom: personne.prenom, nom: personne.nom, photoFileId: personne.photoFileId })
+  const actives: MembrePersonne[] = []
+  const anciennes: MembrePersonne[] = []
+  for (const personne of personnes) {
+    const ligne = { personId: personne.id, prenom: personne.prenom, nom: personne.nom, photoFileId: personne.photoFileId }
+    const statuts = personne.memberships.map((membre) => membre.statut)
+    if (statuts.includes("actif") || (statuts.length === 0 && personne.equipeProfiles.length > 0)) actives.push(ligne)
+    else if (statuts.includes("parti")) anciennes.push(ligne)
   }
-  return Array.from(parPersonne.values())
+  return { actives, anciennes }
+}
+
+// Membres actifs de l'équipe, personnes créées dans Équipe comprises (une personne par ligne).
+export async function lireMembres(ctx: ContexteTeam): Promise<MembrePersonne[]> {
+  return (await lirePersonnesEquipe(ctx)).actives
+}
+
+// Anciens membres : repliés dans l'écran, jamais effacés. Leur historique (licences, affectations, statistiques) reste lisible.
+export async function lireAnciensMembres(ctx: ContexteTeam): Promise<MembrePersonne[]> {
+  return (await lirePersonnesEquipe(ctx)).anciennes
 }
 
 // Prochaine épreuve : la première à venir (aujourd'hui compris, jour de Paris), envisagée ou en cours.
@@ -234,6 +257,7 @@ export interface FicheLicence {
   libelle: string
   numero: string | null
   saison: string | null
+  valableDu: Date | null
   valableAu: Date | null
   statut: StatutEcheance | null
   // Montant : visible au niveau écriture ou plus (c'est une dépense de la team).
@@ -246,6 +270,8 @@ export interface FicheEquipement {
   marque: string | null
   modele: string | null
   norme: string | null
+  taille: string | null
+  acheteLe: Date | null
   finHomologation: Date | null
   statut: StatutEcheance | null
 }
@@ -274,8 +300,12 @@ export interface FichePersonne {
   estSoi: boolean
   roles: RoleHabituel[]
   debutSportAuto: Date | null
+  // Palier affiché (null si la personne masque ses trophées ou si le ludique de la team est désactivé).
   palier: Palier | null
+  // Réglage propre de la personne : affiché dans son profil, même quand le palier est masqué pour l'équipe.
+  afficherTrophees: boolean
   // Contact d'urgence et taille : au niveau écriture ou plus, et au dossier propre.
+  voitContact: boolean
   tailleVetements: string | null
   contactUrgence: string | null
   licences: FicheLicence[]
@@ -283,6 +313,8 @@ export interface FichePersonne {
   specialites: FicheSpecialite[]
   disponibilites: FicheDisponibilite[]
   statistiques: StatistiquesPersonne
+  // Épreuves qui comptent pour le palier (équipage validé ∪ assistance « vient ») : la barre vers le palier suivant.
+  nombreEpreuvesPalier: number
   // Ressenti moyen des derniers débriefs : au niveau écriture ou plus uniquement (privé à l'équipage).
   ressenti: number | null
 }
@@ -307,11 +339,11 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
     client.equipeLicence.findMany({
       where: { teamId: ctx.teamId, personId, deletedAt: null },
       orderBy: { valableAu: "desc" },
-      select: { id: true, type: true, numero: true, saison: true, valableAu: true, montantCents: true },
+      select: { id: true, type: true, numero: true, saison: true, valableDu: true, valableAu: true, montantCents: true },
     }),
     client.equipeGear.findMany({
       where: { teamId: ctx.teamId, personId, deletedAt: null },
-      select: { id: true, type: true, marque: true, modele: true, norme: true, finHomologation: true },
+      select: { id: true, type: true, marque: true, modele: true, norme: true, taille: true, acheteLe: true, finHomologation: true },
     }),
     client.equipeSkill.findMany({
       where: { teamId: ctx.teamId, personId, deletedAt: null },
@@ -342,6 +374,8 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
     roles: profil?.rolesHabituels ?? [],
     debutSportAuto: profil?.debutSportAuto ?? null,
     palier: profil ? palierAffiche(profil.palier, profil.afficherTrophees, ludique) : null,
+    afficherTrophees: profil?.afficherTrophees ?? false,
+    voitContact,
     tailleVetements: voitContact ? (profil?.tailleVetements ?? null) : null,
     contactUrgence: voitContact ? (profil?.contactUrgence ?? null) : null,
     licences: licences.map((licence) => ({
@@ -350,6 +384,7 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
       libelle: LIBELLES_TYPE_LICENCE[licence.type],
       numero: licence.numero,
       saison: licence.saison,
+      valableDu: licence.valableDu,
       valableAu: licence.valableAu,
       statut: licence.valableAu ? statutLicence(licence.valableAu, maintenant) : null,
       montantCents: voitPrive ? licence.montantCents : null,
@@ -360,6 +395,8 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
       marque: equipement.marque,
       modele: equipement.modele,
       norme: equipement.norme,
+      taille: equipement.taille,
+      acheteLe: equipement.acheteLe,
       finHomologation: equipement.finHomologation,
       statut: equipement.finHomologation ? statutEquipement(equipement.finHomologation, maintenant) : null,
     })),
@@ -372,6 +409,7 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
       jours: dispo.jours,
     })),
     statistiques,
+    nombreEpreuvesPalier: await nombreEpreuvesDePalier(ctx, personId),
     ressenti: voitPrive ? ressentiMoyen(moods.map((mood) => mood.ressenti)) : null,
   }
 }

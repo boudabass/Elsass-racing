@@ -9,6 +9,7 @@ import {
   NOMBRE_RESSENTIS_MOYENNE,
   LIBELLES_ROLE_EPREUVE,
   palierDepuis,
+  progressionPalier,
   peutChangerTache,
   ressentiMoyen,
   ROLES_EPREUVE,
@@ -198,5 +199,20 @@ describe("tâches liées aux affectations", () => {
   it("le niveau écriture change toute tâche de l'équipe", () => {
     expect(peutChangerTache("ecriture", "anne", "luc")).toBe(true)
     expect(peutChangerTache("gestion", null, null)).toBe(true)
+  })
+})
+
+describe("progression vers le palier suivant", () => {
+  it("à mi-chemin entre confirmé (5) et expérimenté (15) : 50 %, restant 5", () => {
+    expect(progressionPalier(10, "confirme")).toEqual({ suivant: "experimente", restant: 5, pourcentage: 50 })
+  })
+
+  it("au dernier palier : rien à atteindre", () => {
+    expect(progressionPalier(80, "figure")).toBeNull()
+  })
+
+  it("ne dépasse ni 100 % ni un restant négatif quand le palier est déjà atteint sans les épreuves", () => {
+    expect(progressionPalier(2, "confirme")).toEqual({ suivant: "experimente", restant: 13, pourcentage: 0 })
+    expect(progressionPalier(20, "rookie")).toEqual({ suivant: "confirme", restant: 0, pourcentage: 100 })
   })
 })

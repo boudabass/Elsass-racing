@@ -7,7 +7,7 @@
 //   - settings.membre_retire : rien n'est effacé, l'historique reste (le statut de l'adhésion suffit).
 //   - settings.ludique_modifie : le réglage se lit à l'affichage (ludiqueAfficheDansLaTeam).
 
-import { lireEpreuvesEquipageValidees, lireRessentiDebrief } from "@/apps/saison/lectures-partagees"
+import { lireRessentiDebrief } from "@/apps/saison/lectures-partagees"
 import { ludiqueAfficheDansLaTeam } from "@/apps/settings/preferences-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 import { emettre } from "@/core/evenements/bus-serveur"
@@ -24,24 +24,11 @@ import {
   chargeResultatEngagement,
   cleDisponibilite,
 } from "./charges"
-import { epreuvesAssistanceIds, epreuvesDuPalier, palierDepuis } from "./regles"
+import { palierDepuis } from "./regles"
+import { nombreEpreuvesDePalier } from "./palier-serveur"
 import { assurerProfilDans } from "./services-serveur"
 
 // --- Palier d'expérience --------------------------------------------------------------------
-
-// Épreuves d'assistance : affectée ET « vient ». Le palier compte les épreuves, jamais les classements.
-async function epreuvesAssistanceDe(ctx: ContexteTeam, personId: string): Promise<string[]> {
-  const client = prismaPourTeam(ctx.teamId, ctx.userId)
-  const affectations = await client.equipeAssignment.findMany({ where: { teamId: ctx.teamId, personId, deletedAt: null }, select: { eventId: true } })
-  const venues = await client.equipeAvailability.findMany({
-    where: { teamId: ctx.teamId, personId, reponse: "vient", deletedAt: null },
-    select: { eventId: true },
-  })
-  return epreuvesAssistanceIds(
-    affectations.map((affectation) => affectation.eventId),
-    venues.map((venue) => venue.eventId),
-  )
-}
 
 // Recalcule le palier d'une personne. Il ne descend jamais (palierDepuis). Un passage de palier n'est annoncé que si la
 // personne affiche ses trophées et si le ludique de la team est actif ; le palier est gardé dans tous les cas.
@@ -54,9 +41,7 @@ export async function mettreAJourPalierDans(ctx: ContexteTeam, personId: string)
   })
   if (!profil) return
 
-  const equipage = await lireEpreuvesEquipageValidees(ctx, personId)
-  const assistance = await epreuvesAssistanceDe(ctx, personId)
-  const nouveau = palierDepuis(epreuvesDuPalier(equipage, assistance), profil.palier)
+  const nouveau = palierDepuis(await nombreEpreuvesDePalier(ctx, personId), profil.palier)
   if (nouveau === profil.palier) return
 
   await avecReprisePourConflit(() =>

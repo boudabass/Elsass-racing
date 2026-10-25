@@ -157,6 +157,45 @@ export type EntreeLicence = z.input<typeof schemaLicence>
 export type EntreeEquipement = z.input<typeof schemaEquipement>
 export type EntreeSpecialite = z.input<typeof schemaSpecialite>
 
+// --- Nouvelle personne ----------------------------------------------------------------------
+
+const schemaPersonne = z
+  .object({
+    prenom: z.string().trim().min(1, "Le prénom est obligatoire.").max(80),
+    nom: z.string().trim().min(1, "Le nom est obligatoire.").max(80),
+    roleHabituel: z.enum(ROLES_HABITUELS),
+  })
+  .strict()
+
+export type EntreePersonne = z.input<typeof schemaPersonne>
+
+// Nouvelle personne de l'équipe (fiche core_person) avec son profil et son rôle habituel. L'invitation à rejoindre la
+// team ne vient pas d'ici : elle se fait dans Réglages (Équipe n'écrit pas les invitations).
+export async function creerPersonne(entree: EntreePersonne): Promise<string> {
+  const { ctx } = await accesEquipe("ecriture")
+  const donnees = schemaPersonne.parse(entree)
+  const id = newId()
+  const profilId = newId()
+  await avecReprisePourConflit(() =>
+    executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+      await tx.corePerson.create({
+        data: { id, teamId: ctx.teamId, prenom: donnees.prenom, nom: donnees.nom, createdBy: ctx.userId, updatedBy: ctx.userId },
+      })
+      await tx.equipeProfile.create({
+        data: {
+          id: profilId,
+          teamId: ctx.teamId,
+          personId: id,
+          rolesHabituels: [donnees.roleHabituel],
+          createdBy: ctx.userId,
+          updatedBy: ctx.userId,
+        },
+      })
+    }),
+  )
+  return id
+}
+
 // --- Profil ---------------------------------------------------------------------------------
 
 // Profil de la personne, créé à la première écriture (une lecture ne crée rien). Une seule ligne active par personne :
