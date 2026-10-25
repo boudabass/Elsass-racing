@@ -276,6 +276,16 @@ Rien n'est supprimé à ce stade : l'inventaire vient d'abord. Les aides marqué
 - **e2e** : `e2e/garage-equipements.spec.ts` (un seul spec, depuis le QG, la tuile, le menu et le bouton +). Responsable : ajout d'une remorque au contrôle dépassé de trois jours et d'un compresseur sans contrôle, mots d'échéance, total (2 850,00 €), modification (2 000 €), retrait. Assistance : liste et échéances sans valeur ni bouton d'écriture, avec la raison. Captures à 1440 et 360 px dans `docs/captures/garage-equipements-*`.
 - **Menu +** : `src/components/qg/entrees-plus.test.ts` : « Équipement » pour le responsable et l'équipage, hors terrain, jamais pour l'assistance.
 
+## Lot 4 : vérification du parcours complet (tâche 4.7)
+
+- **Unitaires** : `src/components/formulaire/avertissement-sortie.test.ts` (2 tests) : sans envoi en cours, la sortie passe sans message ; pendant un envoi, elle est retenue avec un message.
+- **e2e** : `e2e/garage-parcours-complet.spec.ts`, un seul test en neuf étapes, depuis le QG et ses tuiles : préparation de l'atelier, réparation et remplacement avec destination de l'ancienne pièce, commande reçue et proposition Budget confirmée, engagement et paiement, résultat avec usure validée par un autre équipier, réglage d'une durée de vie en zone rouge, plan avant épreuve et ordre à faire avant, réparation puis indice remonté, abandon validé par un troisième équipier puis casse ouverte jusqu'à sa réparation. Captures à 1440 et 360 px aux étapes 1, 6, 7 et 9 (`docs/captures/garage-parcours-*`). Durée : 48,3 s.
+- **Base** : après l'usure validée, une ligne de journal par pièce montée (`source` = `resultat_saison`), km +12,5, épreuves +1, `rev` +1, le tout attendu jusqu'à ce que le journal ait exactement une ligne par pièce.
+- **Navigation contrôlée** : le clic de menu du Garage (« Casses ») vérifie l'URL d'arrivée ; sans navigation, il est relancé une fois et compté dans le log (`clic sur « Casses » perdu : relancé`). Cause du cas vécu (run 40148965567) non établie côté app ; le test ne la masque pas, il la compte.
+- **Compteurs à suivre** : « 418 toléré » (0 au run 40150590450) ; `e2e/voiture-deco.spec.ts:337` (vert au run 40150590450).
+- **Runs de la tâche** : 40142463326 (étape 2, Budget : clic pendant le chargement), 40144019675 (étape 5 : la règle ne demande pas d'autre membre au responsable), 40145611004 (étape 8 : fiabilité absente, amortisseurs non critiques), 40147196409 (étape 9 : lien de connexion déjà consommé), 40148965567 (étape 9 : clic « Casses » perdu), 40150590450 (vert, 22dccd5).
+- **Hors CI** : le rendu clair et sombre à 1440 et 360 px n'est pas vérifié dans un navigateur sur le poste ; seules les captures CI le montrent.
+
 ## Enchaînement recommandé
 
 ```

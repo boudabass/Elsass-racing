@@ -294,8 +294,21 @@ Décisions de John (20/10) :
 - Brief : `docs/briefs/4.6-garage-equipements.md`. Livré le 24/10 sur verif (985f75a, dc17dca, a65d71e, puis captures et journal). État en texte libre (choix 3 tranché), pas de lien Budget, pas de migration. Run vert 40136799334 (a65d71e) : unitaires 883, e2e 151, `db:verifier-garage` section 16. Sur dev après ce run, à tester par John avec le lot 4.
 
 ### 4.7 Vérification du lot 4
-- Parcours e2e complet (de l'achat à l'usure validée, à la zone rouge, au plan avant épreuve et à l'indice de Saison), audit Impeccable des écrans, corrections. Puis test de John sur dev.
-- Point ouvert (tiroirs, décidé le 21/10) : quitter ou recharger la page pendant « Révocation… » ou tout autre envoi coupe l'action, sans avertissement. Traitement unique plus tard : avertissement beforeunload tant que `enCours`, dans `FormulaireTiroir` (`src/components/formulaire/tiroir.tsx`). Cas vécu : `e2e/partenaire-page.spec.ts:198` (run 39523629008).
+- Brief : `docs/briefs/4.7-verification-lot-4.md`. Parcours e2e complet en neuf étapes (`e2e/garage-parcours-complet.spec.ts`), par clics depuis le QG, de la préparation de l'atelier à la casse. Run vert 40150590450 (22dccd5) : unitaires 885, e2e 152, 48,3 s pour le parcours. Vérifications en base faites dans le parcours : usure comptée une fois par pièce montée (km +12,5, épreuves +1, `rev` +1), proposition Budget « Pièces achetées (Garage) » de 25,00 € confirmée, liaison casse, réparation et ordre.
+- Captures 1440 et 360 px des étapes 1, 6, 7 et 9 : `docs/captures/garage-parcours-*`, relues.
+- Audit des écrans du lot 4 (règles de CLAUDE.md, vocabulaire 954 §4, prix masqués à l'assistance, cibles de 44 px) : aucun prix ni valeur servi hors niveau écriture, aucune couleur seule pour un état. Corrigés : le titre d'un ordre dans Travaux n'avait pas la cible de 44 px (`LIEN`, b3a01f2) ; le placeholder d'état des équipements disait « à changer » (954 §4, remplacé par un exemple neutre, b3a01f2).
+- Constats laissés en l'état, à trancher par l'orchestrateur : dans la fiche d'une casse, la liste « Organes touchés » affiche quatre fois « Freins » et deux fois « Transmissions », sans la position (avant gauche, arrière droite…) : on ne sait pas lequel cocher ; à 360 px, le statut d'une carte d'organe au Plan avant épreuve passe sur sa propre ligne (« Amortisseurs · arrière gauche »), là où les autres restent sur une ligne.
+- Avertissement de sortie pendant un envoi : fait (`beforeunload` tant que `enCours` dans `FormulaireTiroir`, `src/components/formulaire/tiroir.tsx`, fonction `avertirAvantSortie`, 40c14fd). Ce point était ouvert depuis le 21/10 (cas vécu : `e2e/partenaire-page.spec.ts:198`, run 39523629008).
+- Compteurs du run 40150590450 : « 418 toléré » absent du log (0) ; `e2e/voiture-deco.spec.ts:337` vert.
+- Parcours, cas perdus : au run 40148965567, le clic sur « Casses » juste après l'arrivée sur l'Atelier n'a pas navigué (l'URL est restée sur l'Atelier, cause non établie) ; même classe de défaut qu'à l'étape 2 (Budget). Le test contrôle maintenant la navigation et relance le clic une fois, en le comptant dans le log (« clic sur « Casses » perdu : relancé ») ; ce compteur n'est pas apparu au run vert. À trancher par l'orchestrateur : faut-il corriger le fond côté app.
+- Reportés (hors lot 4, à inscrire ici) :
+  - Stock : écart avec 954 §2, à reprendre ;
+  - notes et photos sur les ordres (service du socle à concevoir) ;
+  - statut et avancement d'un ordre hors ligne ;
+  - lecture locale de Travaux hors ligne ;
+  - `checklist.probleme_signale` (lot 5) ;
+  - rendu des widgets Garage au Tableau de bord (lot 6) : le widget Garage n'est pas rendu aujourd'hui.
+- Limites : le rendu clair et sombre à 1440 et 360 px n'a été vérifié que par les captures CI, pas dans un navigateur sur le poste. Le test de John sur dev reste à faire, avec `docs/test-john-lot-4.md`.
 
 ## 6. Méthode de travail
 
