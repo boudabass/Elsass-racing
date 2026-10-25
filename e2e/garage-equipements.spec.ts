@@ -7,6 +7,7 @@ import path from "node:path"
 import type { Browser, Page } from "@playwright/test"
 
 import { envoyer } from "./aide/envoi"
+import { jourParis } from "./aide/dates"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
 import { ajouterMembreConnectable, type Membre } from "./aide/session"
@@ -48,11 +49,6 @@ function tuile(page: Page, cle: string) {
 }
 
 // Jour de Paris décalé de n jours, en « AAAA-MM-JJ » (une date de contrôle est une date civile).
-function jourParis(decalage: number): string {
-  const instant = new Date(Date.now() + decalage * 86_400_000)
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(instant)
-}
-
 // Carte d'un équipement, par son nom (la carte est un élément de liste qui contient le nom).
 function carte(page: Page, nom: string) {
   return page.locator("li").filter({ has: page.getByText(nom, { exact: true }) })

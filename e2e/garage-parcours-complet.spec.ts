@@ -11,6 +11,7 @@ import type { Browser, Page } from "@playwright/test"
 import { TYPES_DEFAUT } from "../src/apps/garage/types-defaut"
 
 import { envoyer } from "./aide/envoi"
+import { jourParis } from "./aide/dates"
 import {
   fournisseurDeTest,
   journalUsureResultatEnBase,
@@ -49,11 +50,6 @@ const TITRE_NON_SUIVIE = "Le Garage ne suit pas encore cette voiture."
 const EPREUVE_PASSEE = "Rallye parcours e2e"
 const EPREUVE_SUIVANTE = "Rallye suivant parcours e2e"
 const EPREUVE_ABANDON = "Rallye abandon parcours e2e"
-
-// Date civile à `decalage` jours d'aujourd'hui : les épreuves restent passées ou à venir quel que soit le jour du run.
-function jour(decalage: number): string {
-  return new Date(Date.now() + decalage * 86_400_000).toISOString().slice(0, 10)
-}
 
 // Capture pleine page : éléments fixes masqués, sauf le tiroir ouvert (même convention que les autres specs du Garage).
 async function capturer(page: Page, nom: string): Promise<void> {
@@ -166,9 +162,9 @@ test("parcours complet du Garage : les neuf étapes du lot 4, de la préparation
   // l'épreuve suivante, un fournisseur, deux équipiers avec accès à Saison.
   const vehicleId = await ajouterVoitureSaxo(equipe, SAXO)
   const saisonId = await preparerSaison(equipe, ANNEE)
-  const passee = await ajouterEpreuveEnBase(equipe, saisonId, EPREUVE_PASSEE, jour(-60), jour(-59))
-  const suivante = await ajouterEpreuveEnBase(equipe, saisonId, EPREUVE_SUIVANTE, jour(30), jour(31))
-  const abandon = await ajouterEpreuveEnBase(equipe, saisonId, EPREUVE_ABANDON, jour(-30), jour(-29))
+  const passee = await ajouterEpreuveEnBase(equipe, saisonId, EPREUVE_PASSEE, jourParis(-60), jourParis(-59))
+  const suivante = await ajouterEpreuveEnBase(equipe, saisonId, EPREUVE_SUIVANTE, jourParis(30), jourParis(31))
+  const abandon = await ajouterEpreuveEnBase(equipe, saisonId, EPREUVE_ABANDON, jourParis(-30), jourParis(-29))
   await ajouterSpecialeEnBase(equipe, passee, 1, "ES 1 parcours", KM_SPECIALE, 1)
   await ajouterSpecialeEnBase(equipe, abandon, 1, "ES 1 abandon", 8, 1)
   await engagerVehiculeEnBase(equipe, suivante, vehicleId, "inscrit")
