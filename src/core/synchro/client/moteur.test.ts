@@ -128,22 +128,73 @@ describe("moteur : une modification refusée", () => {
 })
 
 describe("moteur : une autre opération reste sur la ligne", () => {
-  it("garde le refus, et l'opération restante reste dans la file", async () => {
+  it("une modification écrite pendant l'envoi d'une autre n'est pas fondue : refusée la première, la seconde reste en file", async () => {
     const { moteur } = nouveauMoteur()
     serveur.lignes.core_note = [ligne("note-1", { texte: "Ancien" })]
     await moteur.synchroniser()
 
     await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-1", champs: { texte: "Premier" } })
-    await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-1", champs: { texte: "Second" } })
-
-    // Le serveur ne répond que pour la première opération : la seconde reste en file.
-    serveur.pousser = (operations) => [{ idOperation: operations[0]!.idOperation, statut: "refusee" as const, raison: "Premier refusé." }]
+    // Pendant que « Premier » part, une seconde modification de la même ligne est écrite : elle est en vol ailleurs, donc
+    // elle reste une opération à part.
+    const fetchSimule = globalThis.fetch
+    let dejaFait = false
+    vi.stubGlobal("fetch", async (chemin: string, init: RequestInit) => {
+      if (chemin === "/api/synchro/pousser" && !dejaFait) {
+        dejaFait = true
+        await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-1", champs: { texte: "Second" } })
+      }
+      return fetchSimule(chemin, init)
+    })
+    // Le serveur ne répond que pour « Premier » : « Second » n'a pas de résultat et reste en file.
+    serveur.pousser = (operations) =>
+      operations.filter((o) => o.champs?.texte === "Premier").map((o) => ({ idOperation: o.idOperation, statut: "refusee" as const, raison: "Premier refusé." }))
     await moteur.synchroniser()
 
     const refus = await moteur.lireRefus()
     expect(refus).toHaveLength(1)
     expect(refus[0]).toMatchObject({ idLigne: "note-1", raison: "Premier refusé." })
     expect(moteur.lireEtat().enAttente).toBe(1)
+  })
+})
+
+describe("moteur : modifications successives hors ligne", () => {
+  it("deux modifications d'une même ligne, avant envoi, ne forment qu'une opération, avec la version lue de la première", async () => {
+    const { moteur } = nouveauMoteur()
+    serveur.lignes.core_note = [ligne("note-m", { texte: "Ancien" }, 3)]
+    await moteur.synchroniser()
+
+    await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-m", champs: { texte: "Premier" } })
+    await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-m", champs: { texte: "Second" } })
+    const envoyees = capturerEnvois()
+    await moteur.synchroniser()
+
+    expect(envoyees.flat()).toEqual([expect.objectContaining({ type: "modifier", id: "note-m", revLue: 3, champs: { texte: "Second" } })])
+    // Une seule opération : pas de conflit journalisé.
+    expect(envoyees).toHaveLength(1)
+  })
+
+  it("une modification écrite pendant l'envoi d'une autre part avec la version qui en résulte, sans faux conflit", async () => {
+    const { moteur } = nouveauMoteur()
+    serveur.lignes.core_note = [ligne("note-n", { texte: "Ancien" }, 3)]
+    await moteur.synchroniser()
+
+    await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-n", champs: { texte: "Premier" } })
+    const fetchSimule = globalThis.fetch
+    let dejaFait = false
+    vi.stubGlobal("fetch", async (chemin: string, init: RequestInit) => {
+      if (chemin === "/api/synchro/pousser" && !dejaFait) {
+        dejaFait = true
+        await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-n", champs: { texte: "Pendant l'envoi" } })
+      }
+      return fetchSimule(chemin, init)
+    })
+    const envoyees = capturerEnvois()
+    await moteur.synchroniser()
+
+    // « Premier » part avec la version 3 et est appliquée (le serveur passe à 4) ; « Pendant l'envoi » part ensuite avec 4.
+    expect(envoyees).toHaveLength(2)
+    expect(envoyees[0]).toEqual([expect.objectContaining({ type: "modifier", revLue: 3 })])
+    expect(envoyees[1]).toEqual([expect.objectContaining({ type: "modifier", revLue: 4, champs: { texte: "Pendant l'envoi" } })])
   })
 })
 

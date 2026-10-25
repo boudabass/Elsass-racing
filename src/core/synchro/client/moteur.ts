@@ -157,6 +157,7 @@ export class MoteurSynchro {
     const file = tx.objectStore("operations_en_attente")
     const surLigne = (await file.getAll()).filter((o) => o.table === table && o.id === operation.id)
     const creationEnFile = surLigne.find((o) => o.type === "creer" && !this.enVol.has(o.idOperation))
+    const modificationEnFile = surLigne.find((o) => o.type === "modifier" && !this.enVol.has(o.idOperation))
     const nouvelleOperation = (revLue?: number): OperationEnAttente => ({
       idOperation: newId(),
       table,
@@ -192,6 +193,11 @@ export class MoteurSynchro {
       if (creationEnFile) {
         // Pas encore envoyée : les champs se fondent dans la création, sans nouvelle opération.
         await file.put({ ...creationEnFile, champs: { ...creationEnFile.champs, ...operation.champs } })
+        await magasin.put({ ...existante, ...operation.champs, updatedAt: maintenant, enAttente: true })
+      } else if (modificationEnFile) {
+        // Modification pas encore envoyée sur la même ligne : les champs se fondent dans elle. Sa version lue reste
+        // celle de la première : c'est la version que la ligne avait avant ces modifications.
+        await file.put({ ...modificationEnFile, champs: { ...modificationEnFile.champs, ...operation.champs } })
         await magasin.put({ ...existante, ...operation.champs, updatedAt: maintenant, enAttente: true })
       } else {
         await magasin.put({ ...existante, ...operation.champs, updatedAt: maintenant, enAttente: true })
@@ -319,6 +325,19 @@ export class MoteurSynchro {
     if (resultat.statut === "appliquee" && operation.type === "creer") {
       const creee = await db.get(table, operation.id)
       if (creee && creee.rev < 1) await db.put(table, { ...creee, rev: 1 })
+    }
+    // Modification notée : le serveur est passé à revLue + 1. La ligne locale prend cette version, et les opérations
+    // restées sur la ligne (écrites pendant l'envoi, sur la version précédente) la prennent aussi : sinon elles
+    // seraient notées comme conflit à tort.
+    if ((resultat.statut === "appliquee" || resultat.statut === "conflit_resolu") && operation.type === "modifier" && operation.revLue !== undefined) {
+      const nouvelle = operation.revLue + 1
+      const notee = await db.get(table, operation.id)
+      if (notee && notee.rev < nouvelle) await db.put(table, { ...notee, rev: nouvelle })
+      for (const suivante of await db.getAll("operations_en_attente")) {
+        if (suivante.table === table && suivante.id === operation.id && suivante.type !== "creer" && suivante.revLue !== undefined) {
+          await db.put("operations_en_attente", { ...suivante, revLue: nouvelle })
+        }
+      }
     }
     const restantes = (await db.getAll("operations_en_attente")).some((o) => o.id === operation.id)
     if (restantes) return
