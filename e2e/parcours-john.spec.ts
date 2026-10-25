@@ -324,8 +324,8 @@ test("parcours de John : le QG, l'atelier du rouge au vert, Commandes, Budget, l
   await expect(page.getByRole("heading", { name: "Casse du 19 septembre 2026", exact: true, level: 1 })).toBeVisible()
   await page.getByLabel("Type de casse").selectOption({ label: "Casse mécanique" })
   await page.getByLabel("Cause (facultatif)").fill("Casse de cardan")
-  // Quatre organes s'appellent « Freins » (un par roue) : le premier, comme carteFreins.
-  await page.getByRole("checkbox", { name: "Freins", exact: true }).first().check()
+  // Quatre organes s'appellent « Freins » (un par roue) : chacun se distingue par sa position. On coche celui de l'avant gauche.
+  await page.getByRole("checkbox", { name: "Freins · avant gauche", exact: true }).check()
   await envoyer(page, page.getByRole("button", { name: "Enregistrer la fiche", exact: true }))
   await expect(page.getByText("À compléter", { exact: true })).toHaveCount(0)
   await page.setViewportSize(TELEPHONE)
