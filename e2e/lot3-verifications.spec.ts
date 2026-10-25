@@ -3,6 +3,7 @@
 // base (comme dans lot3-parcours) ; chaque contrôle se lit à l'écran.
 import type { Page } from "@playwright/test"
 
+import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
 import { noterJetonDeTest, preparerPageDePartenaire, type PageDePartenaire } from "./aide/partenaire-page"
@@ -62,21 +63,33 @@ test("historique Voiture : une épreuve terminée avec un résultat validé comp
   await expect(page.getByText("32,8 km de spéciale", { exact: true })).toBeVisible()
 })
 
-// 2. Papiers : une assurance qui expire dans 20 jours, avant une épreuve dans 60 jours, fait apparaître le point
-// « Papiers » ouvert dans l'indice de préparation de cette épreuve.
-test("papiers : une assurance qui expire avant la prochaine épreuve fait apparaître le point « Papiers » dans l'indice", async ({ page, equipe }) => {
+// 2. Papiers (5.2b) : une assurance qui expire dans 20 jours, avant une épreuve dans 60 jours, ouvre le point « Papiers »
+// de « Prêt pour l'épreuve ? » ; « Régler » mène à l'onglet Papiers de la fiche Voiture ; un renouvellement saisi par
+// clics ferme le point. Le point se lit chez Voiture à la date de l'épreuve, sans signal.
+test("papiers : une assurance qui expire avant la prochaine épreuve ouvre « Papiers » ; Régler mène à Voiture ; le renouvellement ferme le point", async ({ page, equipe }) => {
   const saisonId = await preparerSaison(equipe, new Date().getFullYear())
   const vehiculeId = await ajouterVoitureSaxo(equipe, "Saxo papiers")
   const epreuveId = await ajouterEpreuveEnBase(equipe, saisonId, "Rallye des papiers", jourDans(60), jourDans(61))
   await engagerVehiculeEnBase(equipe, epreuveId, vehiculeId)
   await ajouterPapierEnBase(equipe, vehiculeId, "assurance", jourDans(20))
   await connecterParLien(page, equipe)
-  // Le QG, ouvert, recalcule les papiers : l'assurance à renouveler pose le point « Papiers » sur l'engagement.
-  await page.goto("/qg")
   await page.goto(`/apps/saison/epreuves/${epreuveId}?onglet=pret`)
 
   const engagement = page.locator("article").filter({ has: page.getByRole("heading", { name: "Saxo papiers", exact: true }) })
   await expect(engagement.locator("li").filter({ hasText: "Papiers" })).toContainText("Ouvert", { timeout: 30_000 })
+
+  // « Régler » mène à l'onglet Papiers de la fiche du véhicule.
+  await engagement.locator("li").filter({ hasText: "Papiers" }).getByRole("link", { name: "Régler", exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`/apps/voiture/vehicules/${vehiculeId}\\?onglet=papiers$`))
+
+  // Le renouvellement, saisi par clics : une assurance valable après l'épreuve. Le point se ferme au retour dans Saison.
+  await page.getByText("Ajouter un papier").click()
+  await page.getByRole("dialog").locator('select[name="type"]').selectOption("assurance")
+  await page.getByRole("dialog").locator('input[name="valableJusquAu"]').fill(jourDans(365))
+  await envoyer(page, page.getByRole("button", { name: "Ajouter le papier", exact: true }))
+
+  await page.goto(`/apps/saison/epreuves/${epreuveId}?onglet=pret`)
+  await expect(engagement.locator("li").filter({ hasText: "Papiers" })).toContainText("Réglé", { timeout: 30_000 })
 })
 
 // 3. Résultat annulé : un résultat validé, visible sur la page partenaire, disparaît quand il est contesté dans Saison.
