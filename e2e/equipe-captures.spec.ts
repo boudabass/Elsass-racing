@@ -5,7 +5,16 @@ import { ajouterEquipement, ajouterLicence, capturer, choisirTheme, creerPersonn
 import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien, tuilesDuQg } from "./aide/navigation"
-import { ajouterEpreuveEnBase, preparerSaison } from "./aide/session"
+import {
+  ajouterEpreuveEnBase,
+  ajouterResultatValideEnBase,
+  ajouterVoitureSaxo,
+  definirEquipageEnBase,
+  engagerVehiculeEnBase,
+  passerEpreuveDansLePasseEnBase,
+  preparerSaison,
+  statutEpreuveEnBase,
+} from "./aide/session"
 
 const SAISON = 2032
 const BUREAU = { largeur: "1440", width: 1440, height: 900 }
@@ -19,11 +28,12 @@ test("captures · équipe en cartes et fiche personne (Statistiques, Licences), 
   await page.setViewportSize({ width: BUREAU.width, height: BUREAU.height })
 
   // Des données réelles du parcours : deux personnes, une licence et un casque pour Luc.
-  await creerPersonne(page, "Luc", "Martin", "Pilote")
+  const luc = await creerPersonne(page, "Luc", "Martin", "Pilote")
   await ajouterLicence(page, "Licence FFSA nationale", "N-2032", `${SAISON}-12-31`)
   await ajouterEquipement(page, "Casque", "Bell")
   await page.getByRole("link", { name: "Retour à l'équipe", exact: true }).click()
   await creerPersonne(page, "Anne", "Lenoir", "Assistance")
+  const theo = await creerPersonne(page, "Théo", "Roux", "Copilote")
 
   // Vivier et prochaine épreuve avec des données : Luc au vivier pour la logistique, Anne affectée à l'épreuve.
   const menu = page.getByRole("navigation", { name: "Menu de Équipe" })
@@ -43,6 +53,18 @@ test("captures · équipe en cartes et fiche personne (Statistiques, Licences), 
   await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Affecter", exact: true }))
   await expect(page.getByText("Logistique · à faire")).toBeVisible()
 
+  // Des chiffres réels, pas de chiffres de test : une épreuve passée à résultat validé, Luc pilote et Théo copilote.
+  // Elle devient « terminée » au QG, qui compte l'arrivée. Les cartes, les statistiques et les binômes la lisent.
+  const annee = new Date().getFullYear()
+  const epreuvePassee = await ajouterEpreuveEnBase(equipe, saisonId, "Rallye passé captures", `${SAISON}-03-10`, `${SAISON}-03-11`)
+  const vehiculeBinome = await ajouterVoitureSaxo(equipe, "Saxo binôme")
+  const entreeBinome = await engagerVehiculeEnBase(equipe, epreuvePassee, vehiculeBinome, "parti")
+  await definirEquipageEnBase(equipe, entreeBinome, luc, theo)
+  await ajouterResultatValideEnBase(equipe, entreeBinome, 12)
+  await passerEpreuveDansLePasseEnBase(equipe, epreuvePassee, `${annee}-03-01`, `${annee}-03-02`)
+  await page.goto("/qg")
+  await expect.poll(() => statutEpreuveEnBase(equipe, epreuvePassee), { timeout: 30_000 }).toBe("terminee")
+
   for (const theme of ["sombre", "clair"] as const) {
     await choisirTheme(page, theme)
     await page.getByRole("link", { name: /retour au QG/ }).click()
@@ -59,8 +81,8 @@ test("captures · équipe en cartes et fiche personne (Statistiques, Licences), 
       await page.getByRole("link", { name: /Luc Martin/ }).click()
       await expect(page.getByRole("heading", { name: "Luc Martin", exact: true })).toBeVisible()
       await page.getByRole("link", { name: "Statistiques", exact: true }).click()
-      // Attendre le contenu de l'onglet : sans cela, la capture part encore sur le Profil.
-      await expect(page.getByText("5 épreuves avant Confirmé")).toBeVisible()
+      // Attendre le contenu de l'onglet, avec son chiffre : sans cela, la capture part encore sur le Profil ou à zéro.
+      await expect(page.locator("dl > div").filter({ has: page.getByText("Épreuves", { exact: true }) }).locator("dd")).toHaveText("1")
       await capturer(page, `equipe-fiche-statistiques-${taille.largeur}-${theme}.png`)
 
       await page.getByRole("link", { name: "Licences", exact: true }).click()
@@ -78,6 +100,7 @@ test("captures · équipe en cartes et fiche personne (Statistiques, Licences), 
 
       await menu.getByRole("link", { name: "Binômes", exact: true }).click()
       await expect(page.getByRole("heading", { name: "Binômes", exact: true })).toBeVisible()
+      await expect(page.getByText("Théo Roux", { exact: true })).toBeVisible()
       await capturer(page, `equipe-binomes-${taille.largeur}-${theme}.png`)
 
       // Retour au QG : chaque taille repart de la tuile Équipe du QG.

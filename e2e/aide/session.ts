@@ -560,6 +560,16 @@ export async function engagerVehiculeEnBase(equipe: Equipe, eventId: string, veh
   return id
 }
 
+// Équipage d'un engagement : pilote et copilote, par leur identifiant de personne (créées par l'interface).
+export async function definirEquipageEnBase(equipe: Equipe, entryId: string, piloteId: string, copiloteId: string): Promise<void> {
+  await bd().query("UPDATE core_event_entry SET pilote_id = $1, copilote_id = $2, updated_at = now() WHERE id = $3 AND team_id = $4", [
+    piloteId,
+    copiloteId,
+    entryId,
+    equipe.teamId,
+  ])
+}
+
 // Résultat validé d'un engagement : une arrivée, classée au général.
 export async function ajouterResultatValideEnBase(equipe: Equipe, entryId: string, classementGeneral: number): Promise<void> {
   await bd().query(
