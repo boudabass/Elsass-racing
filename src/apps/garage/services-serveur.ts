@@ -355,7 +355,7 @@ async function ecrireOrgane(ctx: ContexteTeam, vehicleId: string, ecriture: (tx:
   try {
     await ecrireEtEmettre(ctx, vehicleId, ecriture)
   } catch (erreur) {
-    if (estDoublon(erreur)) refus("Un organe de ce type existe déjà à cette position sur ce véhicule. Indiquez une autre position.")
+    if (estDoublon(erreur)) refus("Un organe de ce type existe déjà à cette position sur ce véhicule. Indique une autre position.")
     throw erreur
   }
 }
@@ -670,7 +670,7 @@ export async function poserNouvellePieceDans(
     tx.garagePartMount.findFirst({ where: { vehicleComponentId, deposeeLe: null, deletedAt: null }, select: { id: true } }),
   )
   if (enPlace && (!options.motifDepose || !options.destinationAncienne)) {
-    refus("Indiquez le motif de dépose et ce que devient l'ancienne pièce.")
+    refus("Indique le motif de dépose et ce que devient l'ancienne pièce.")
   }
 
   let partId: string
@@ -886,7 +886,7 @@ export async function ajouterUsureManuelle(vehicleId: string, entree: EntreeUsur
 
 export async function ajouterUsureManuelleDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeUsureManuelle): Promise<void> {
   const donnees = schemaUsureManuelle.parse(entree)
-  if (donnees.km === 0 && !donnees.epreuve) refus("Indiquez des kilomètres, une épreuve, ou les deux.")
+  if (donnees.km === 0 && !donnees.epreuve) refus("Indique des kilomètres, une épreuve, ou les deux.")
   const date = donnees.date ? new Date(donnees.date) : new Date()
 
   await ecrireEtEmettre(ctx, vehicleId, async (tx) => {
@@ -973,7 +973,7 @@ async function verifierAffecte(tx: Tx, ctx: ContexteTeam, workOrderId: string): 
   const lien = personneId
     ? await tx.garageWorkOrderPerson.findFirst({ where: { workOrderId, personId: personneId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
     : null
-  if (!lien) refus("Cet ordre ne vous est pas affecté.")
+  if (!lien) refus("Cet ordre ne t'est pas affecté.")
 }
 
 async function ordreDans(tx: Tx, teamId: string, id: string) {
@@ -1252,7 +1252,7 @@ export async function terminerOrdre(id: string, options: OptionsFin = {}): Promi
   return terminerOrdreDans(ctx, id, options, niveau)
 }
 
-const MESSAGE_ETAT_REQUIS = "Indiquez l'état de la pièce après réparation, en pourcentage de 0 à 100."
+const MESSAGE_ETAT_REQUIS = "Indique l'état de la pièce après réparation, en pourcentage de 0 à 100."
 
 // Pose active d'un organe, avec les cumuls de la pièce : la base de la saisie après réparation. Null sans pièce montée.
 async function pieceMonteeDans(tx: Tx, teamId: string, vehicleComponentId: string) {
@@ -1356,7 +1356,7 @@ async function emettreSansBloquer(ctx: ContexteTeam, nom: string, charge: Record
 
 const schemaIntervention = z
   .object({
-    vehicleComponentId: z.string().min(1, "Choisissez l'organe."),
+    vehicleComponentId: z.string().min(1, "Choisis l'organe."),
     titre: z.string().trim().min(1, "Dites ce qui a été fait.").max(200),
     partId: z.string().min(1).nullable().optional(),
     motifDepose: z.enum(MOTIFS).nullable().optional(),
@@ -1388,7 +1388,7 @@ export async function creerInterventionDans(
     const organe = await organeDans(tx, ctx.teamId, donnees.vehicleComponentId)
     if (organe.vehicleId !== vehicleId) refus("Cet organe n'est pas sur ce véhicule.")
     const personneId = await personneDuCompte(tx, ctx)
-    if (!personneId) refus("Votre compte n'a pas de fiche personne dans la team : le responsable doit la créer.")
+    if (!personneId) refus("Ton compte n'a pas de fiche personne dans la team : le responsable doit la créer.")
 
     // Une pièce posée sur un organe occupé exige la destination de l'ancienne. Vérifié avant l'écriture de l'ordre : un refus
     // n'écrit rien (la transaction annulerait de toute façon).
@@ -1435,12 +1435,12 @@ export async function creerInterventionDans(
 // par updateMany avant la création des pièces, dans la même transaction. Une pièce par unité, en stock, avec le prix et le
 // fournisseur. L'événement part après la transaction (D7).
 
-const dateCivile = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Indiquez une date (AAAA-MM-JJ).")
+const dateCivile = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Indique une date (AAAA-MM-JJ).")
 
 const schemaLigneCommande = z
   .object({
     designation: z.string().trim().min(1, "Désignez la pièce.").max(200),
-    componentTypeId: z.string().min(1, "Choisissez l'organe de la pièce."),
+    componentTypeId: z.string().min(1, "Choisis l'organe de la pièce."),
     reference: texte(100),
     quantite: z.number().int("La quantité doit être un nombre entier.").min(1).max(50),
     prixUnitaireCents: z.number().int().min(0),
@@ -1450,10 +1450,10 @@ const schemaLigneCommande = z
 
 const schemaCommande = z
   .object({
-    supplierContactId: z.string().min(1, "Choisissez le fournisseur."),
+    supplierContactId: z.string().min(1, "Choisis le fournisseur."),
     commandeeLe: dateCivile,
     livraisonPrevueLe: dateCivile.nullable().optional(),
-    lignes: z.array(schemaLigneCommande).min(1, "Ajoutez au moins une ligne.").max(10),
+    lignes: z.array(schemaLigneCommande).min(1, "Ajoute au moins une ligne.").max(10),
   })
   .strict()
 

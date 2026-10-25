@@ -88,7 +88,7 @@ export async function ajouterTrainAcheteDans(ctx: ContexteTeam, vehicleId: strin
 
   const refusPrix = prixImposeFournisseur(entree.prixCents, entree.fournisseurContactId)
   if (refusPrix) refus(refusPrix)
-  if (!entree.fournisseurContactId) refus("Choisissez le fournisseur du train.")
+  if (!entree.fournisseurContactId) refus("Choisis le fournisseur du train.")
 
   const typePneus = await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
     tx.garageComponentType.findFirst({ where: { teamId: ctx.teamId, cle: "pneus", deletedAt: null }, select: { id: true } }),

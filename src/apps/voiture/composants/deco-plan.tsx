@@ -155,7 +155,7 @@ function DecoInteractif({ ficheId, nomVehicule, gabarit, emplacements, peutEcrir
 
       {!gabarit && (
         <div className="flex flex-col gap-3 rounded-lg border border-bordure p-4">
-          <p className="text-texte">Ce véhicule n'a pas encore de plan. Choisissez un modèle de plan pour y placer vos emplacements.</p>
+          <p className="text-texte">Ce véhicule n'a pas encore de plan. Choisis un modèle de plan pour y placer tes emplacements.</p>
           {peutEcrire && <ChoisirModele ficheId={ficheId} vue={vue} />}
         </div>
       )}

@@ -142,7 +142,7 @@ export type EntreeEmplacement = z.input<typeof schemaEmplacement>
 const schemaReservation = z
   .object({
     partenaireId: z.string().min(1).nullable().optional(),
-    partenaireNom: z.string().trim().min(1, "Indiquez le nom du partenaire.").max(120),
+    partenaireNom: z.string().trim().min(1, "Indique le nom du partenaire.").max(120),
     logoFileId: z.string().min(1).nullable().optional(),
     du: jourCivil.nullable().optional(),
     au: jourCivil.nullable().optional(),
@@ -834,7 +834,7 @@ export async function modifierReglageDans(ctx: ContexteTeam, id: string, entree:
 
 function verifierPropriete(createdBy: string | null, ctx: ContexteTeam, niveau: Niveau): void {
   if (niveau === "contribution" && createdBy !== ctx.userId) {
-    refus("Vous ne pouvez modifier que vos propres fiches de réglage.")
+    refus("Tu ne peux modifier que tes propres fiches de réglage.")
   }
 }
 

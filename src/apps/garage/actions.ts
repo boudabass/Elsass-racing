@@ -369,7 +369,7 @@ export async function monterTrainAction(_etat: Resultat | null, donnees: FormDat
 export async function saisirUsureTrainAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executerGarage(async () => {
     const usureEstimeePct = entierOuNull(donnees, "usureEstimeePct", "L'usure estimée")
-    if (usureEstimeePct === null) refus("Indiquez l'usure estimée, de 0 à 100 %.")
+    if (usureEstimeePct === null) refus("Indique l'usure estimée, de 0 à 100 %.")
     await saisirUsureTrain(texte(donnees, "tyreSetId"), { usureEstimeePct, statut: texte(donnees, "statut") })
   })
 }

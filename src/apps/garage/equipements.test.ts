@@ -121,11 +121,11 @@ describe("validation de la saisie", () => {
   })
 
   it("refuse un nom vide, avec sa raison", () => {
-    expect(validerSaisieEquipement({ ...complete, nom: "   " })).toEqual({ erreur: "Indiquez le nom de l'équipement." })
+    expect(validerSaisieEquipement({ ...complete, nom: "   " })).toEqual({ erreur: "Indique le nom de l'équipement." })
   })
 
   it("refuse une catégorie inconnue, avec sa raison", () => {
-    expect(validerSaisieEquipement({ ...complete, categorie: "bateau" })).toEqual({ erreur: "Choisissez la catégorie de l'équipement." })
+    expect(validerSaisieEquipement({ ...complete, categorie: "bateau" })).toEqual({ erreur: "Choisis la catégorie de l'équipement." })
   })
 
   it("refuse une valeur négative, avec sa raison", () => {

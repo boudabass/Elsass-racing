@@ -50,7 +50,7 @@ export function FormulaireCommande({ vehicleId, fournisseurs, types, aujourdhui 
               </option>
             ))}
           </select>
-          {fournisseurs.length === 0 && <span className="text-texte-discret">Ajoutez d&apos;abord un fournisseur dans l&apos;app Partenaires.</span>}
+          {fournisseurs.length === 0 && <span className="text-texte-discret">Ajoute d&apos;abord un fournisseur dans l&apos;app Partenaires.</span>}
         </label>
 
         <div className="grid gap-4 sm:grid-cols-2">

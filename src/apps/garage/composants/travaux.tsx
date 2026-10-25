@@ -108,7 +108,7 @@ export function TravauxEcran({ vehicules, choisi, travaux, choix }: TravauxEcran
           ))}
         </nav>
         {!travaux.peutEcrire && (
-          <p className="text-sm text-texte-discret">Vous ne voyez que les ordres qui vous sont affectés.</p>
+          <p className="text-sm text-texte-discret">Tu ne vois que les ordres qui te sont affectés.</p>
         )}
       </header>
 

@@ -367,7 +367,7 @@ describe("remplacement : destination de l'ancienne pièce et prix", () => {
 
 describe("destination de l'ancienne pièce à l'intervention rapide", () => {
   it("une pose sur un organe occupé sans destination est refusée, avec sa raison", () => {
-    expect(destinationManqueePourIntervention(true, true, null)).toBe("Indiquez ce que devient l'ancienne pièce : réserve, rebut ou vendue.")
+    expect(destinationManqueePourIntervention(true, true, null)).toBe("Indique ce que devient l'ancienne pièce : réserve, rebut ou vendue.")
   })
 
   it("avec une destination, la pose passe", () => {

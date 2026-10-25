@@ -181,7 +181,7 @@ export async function completerGabaritAction(_etat: ResultatComplement | null, d
   const bilan: { conserves: string[] } = { conserves: [] }
   const resultat = await executerVoiture(async () => {
     const vue = VUES_DU_PLAN.find((v) => v === texte(donnees, "vue"))
-    if (!vue) refus("Choisissez une vue du plan avant de compléter le gabarit.")
+    if (!vue) refus("Choisis une vue du plan avant de compléter le gabarit.")
     bilan.conserves = (await completerGabarit(texte(donnees, "vehicleId"), vue)).conserves
   })
   if (!resultat.ok) return resultat
@@ -193,7 +193,7 @@ export async function choisirGabaritAction(_etat: ResultatComplement | null, don
   const bilan: { conserves: string[] } = { conserves: [] }
   const resultat = await executerVoiture(async () => {
     const vue = VUES_DU_PLAN.find((v) => v === texte(donnees, "vue"))
-    if (!vue) refus("Choisissez une vue du plan avant de choisir le modèle.")
+    if (!vue) refus("Choisis une vue du plan avant de choisir le modèle.")
     bilan.conserves = (await choisirGabarit(texte(donnees, "vehicleId"), texte(donnees, "gabaritCle"), vue)).conserves
   })
   if (!resultat.ok) return resultat

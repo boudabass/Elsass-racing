@@ -19,7 +19,7 @@ export default async function PageIntervention({ searchParams }: { searchParams:
       <EcranVide
         icone={Wrench}
         titre="Intervention"
-        lignes={["Ajoutez d'abord votre voiture dans l'app Voiture."]}
+        lignes={["Ajoute d'abord ta voiture dans l'app Voiture."]}
         action={{ libelle: "Ouvrir l'app Voiture", href: "/apps/voiture" }}
       />
     )

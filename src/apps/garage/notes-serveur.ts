@@ -84,7 +84,7 @@ export function controleOrdre(ordreId: string): ControleFiche {
       if (!peutVoirFiche(niveau)) refus("Tu n'as pas accès au Garage.")
       const affectee = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => (await ordresAffectes(tx, ctx)).includes(ordreId))
       if (!peutAjouterSurFiche({ niveau, affectee })) {
-        if (niveau === "contribution") refus("Cet ordre ne vous est pas affecté.")
+        if (niveau === "contribution") refus("Cet ordre ne t'est pas affecté.")
         refus("Tu n'as pas le droit d'ajouter une note ici.")
       }
     },

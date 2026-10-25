@@ -21,7 +21,7 @@ export default async function PageAtelier({ searchParams }: { searchParams: Prom
       <EcranVide
         icone={Wrench}
         titre="Atelier"
-        lignes={["Ajoutez d'abord votre voiture dans l'app Voiture."]}
+        lignes={["Ajoute d'abord ta voiture dans l'app Voiture."]}
         action={{ libelle: "Ouvrir l'app Voiture", href: "/apps/voiture" }}
       />
     )

@@ -20,7 +20,7 @@ describe("refus de la synchro : ce qui est gardé", () => {
   it("une intervention refusée porte son titre, son libellé et la raison du serveur", () => {
     const refus = refusDepuisOperation(
       operation({ table: "garage_work_order", type: "creer", champs: { vehicleId: "v", vehicleComponentId: "o", titre: "Plaquettes avant" } }),
-      { idOperation: "op-1", statut: "refusee", raison: "Votre compte n'a pas de fiche personne dans la team." },
+      { idOperation: "op-1", statut: "refusee", raison: "Ton compte n'a pas de fiche personne dans la team." },
       COMPTE,
       "2026-10-21T09:05:00.000Z",
     )
@@ -33,7 +33,7 @@ describe("refus de la synchro : ce qui est gardé", () => {
       type: "creer",
       libelle: "Intervention",
       resume: "Plaquettes avant",
-      raison: "Votre compte n'a pas de fiche personne dans la team.",
+      raison: "Ton compte n'a pas de fiche personne dans la team.",
       creeLe: "2026-10-21T09:00:00.000Z",
       refuseLe: "2026-10-21T09:05:00.000Z",
     })

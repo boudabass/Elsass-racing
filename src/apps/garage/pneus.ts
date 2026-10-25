@@ -29,8 +29,8 @@ export const MESSAGE_TRAIN_SANS_LIGNE = "Ces données de train ne correspondent 
 
 // Marque et type sont obligatoires pour un train (954 §2) : la ligne de commande n'a pas de type de pneus.
 export function trainValide(entree: { marque: string; type: string }): string | null {
-  if (entree.marque.trim() === "") return "Indiquez la marque du train."
-  if (!(TYPES_PNEUS as readonly string[]).includes(entree.type)) return "Choisissez le type du train : asphalte, terre, pluie ou neige."
+  if (entree.marque.trim() === "") return "Indique la marque du train."
+  if (!(TYPES_PNEUS as readonly string[]).includes(entree.type)) return "Choisis le type du train : asphalte, terre, pluie ou neige."
   return null
 }
 
@@ -84,7 +84,7 @@ export function separerDateAchat(entree: EntreeTrain & { acheteLe?: string | nul
 // Valide la saisie du train. Renvoie le train, ou la raison à afficher.
 export function validerSaisieTrain(entree: unknown): { train: TrainSaisi } | { erreur: string } {
   const analyse = schemaSaisieTrain.safeParse(entree)
-  if (!analyse.success) return { erreur: "Ce train n'est pas enregistrable : vérifiez la saisie." }
+  if (!analyse.success) return { erreur: "Ce train n'est pas enregistrable : vérifie la saisie." }
   const donnees = analyse.data
   const erreur = trainValide({ marque: donnees.marque, type: donnees.type })
   if (erreur) return { erreur }

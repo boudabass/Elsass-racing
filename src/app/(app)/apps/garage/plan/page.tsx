@@ -22,7 +22,7 @@ export default async function PagePlan({ searchParams }: { searchParams: Promise
       <EcranVide
         icone={Wrench}
         titre="Plan avant épreuve"
-        lignes={["Ajoutez d'abord votre voiture dans l'app Voiture."]}
+        lignes={["Ajoute d'abord ta voiture dans l'app Voiture."]}
         action={{ libelle: "Ouvrir l'app Voiture", href: "/apps/voiture" }}
       />
     )

@@ -9,11 +9,11 @@ describe("trainValide", () => {
   })
 
   it("refuse une marque vide ou faite d'espaces, avec sa raison", () => {
-    expect(trainValide({ marque: "   ", type: "terre" })).toBe("Indiquez la marque du train.")
+    expect(trainValide({ marque: "   ", type: "terre" })).toBe("Indique la marque du train.")
   })
 
   it("refuse un type hors liste, avec sa raison", () => {
-    expect(trainValide({ marque: "Pirelli", type: "slick" })).toBe("Choisissez le type du train : asphalte, terre, pluie ou neige.")
+    expect(trainValide({ marque: "Pirelli", type: "slick" })).toBe("Choisis le type du train : asphalte, terre, pluie ou neige.")
   })
 })
 
@@ -74,7 +74,7 @@ describe("saisie complète d'un train, date d'achat comprise", () => {
   })
 
   it("une date d'achat laissée dans la saisie est refusée par le schéma strict", () => {
-    expect(validerSaisieTrain(saisieComplete)).toEqual({ erreur: "Ce train n'est pas enregistrable : vérifiez la saisie." })
+    expect(validerSaisieTrain(saisieComplete)).toEqual({ erreur: "Ce train n'est pas enregistrable : vérifie la saisie." })
   })
 
   it("sans date d'achat, la date est nulle et le train reste valide", () => {
@@ -84,9 +84,9 @@ describe("saisie complète d'un train, date d'achat comprise", () => {
   })
 
   it("une marque vide ou un type inconnu sont refusés avec leur raison", () => {
-    expect(validerSaisieTrain({ marque: " ", type: "terre" })).toEqual({ erreur: "Indiquez la marque du train." })
+    expect(validerSaisieTrain({ marque: " ", type: "terre" })).toEqual({ erreur: "Indique la marque du train." })
     expect(validerSaisieTrain({ marque: "Pirelli", type: "slick" })).toEqual({
-      erreur: "Choisissez le type du train : asphalte, terre, pluie ou neige.",
+      erreur: "Choisis le type du train : asphalte, terre, pluie ou neige.",
     })
   })
 })

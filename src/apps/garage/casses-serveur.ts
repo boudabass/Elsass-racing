@@ -86,7 +86,7 @@ export async function creerFicheCasse(entree: EntreeFicheManuelle): Promise<stri
 
 export async function creerFicheCasseDans(ctx: ContexteTeam, entree: EntreeFicheManuelle): Promise<string> {
   const date = dateCivileValide(entree.date)
-  if (!date) refus("Indiquez la date de la casse.")
+  if (!date) refus("Indique la date de la casse.")
   const cause = causeValide(entree.cause)
   const id = newId()
   await avecReprisePourConflit(() =>
@@ -137,7 +137,7 @@ export async function completerFicheCasse(id: string, entree: EntreeCompletionFi
 // Une pièce cassée doit avoir été montée sur un organe touché à la date de la casse. Le Garage ne change pas le statut de la
 // pièce : c'est le remplacement ou la dépose qui le fait (954, principe du 21/10).
 export async function completerFicheCasseDans(ctx: ContexteTeam, id: string, entree: EntreeCompletionFiche): Promise<void> {
-  if (!typeCasseValide(entree.type)) refus("Choisissez le type de casse.")
+  if (!typeCasseValide(entree.type)) refus("Choisis le type de casse.")
   const type: TypeCasse = entree.type
   const cause = causeValide(entree.cause)
   await avecReprisePourConflit(() =>

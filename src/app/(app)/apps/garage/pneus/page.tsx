@@ -20,7 +20,7 @@ export default async function PagePneus({ searchParams }: { searchParams: Promis
       <EcranVide
         icone={Wrench}
         titre="Pneus"
-        lignes={["Ajoutez d'abord votre voiture dans l'app Voiture."]}
+        lignes={["Ajoute d'abord ta voiture dans l'app Voiture."]}
         action={{ libelle: "Ouvrir l'app Voiture", href: "/apps/voiture" }}
       />
     )

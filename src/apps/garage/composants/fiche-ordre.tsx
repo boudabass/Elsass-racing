@@ -386,7 +386,7 @@ export function FicheOrdreEcran({ fiche, choix, stock, peutAvancer }: FicheOrdre
         </div>
         {termine && <p className="text-sm text-texte-discret">Cet ordre est terminé : il ne se modifie plus.</p>}
         {!termine && !peutAvancer && !fiche.peutEcrire && (
-          <p className="text-sm text-texte-discret">Vous ne pouvez pas agir sur cet ordre.</p>
+          <p className="text-sm text-texte-discret">Tu ne peux pas agir sur cet ordre.</p>
         )}
       </section>
     </div>

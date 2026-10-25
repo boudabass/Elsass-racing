@@ -114,7 +114,7 @@ const garageWorkOrderSynchro: DeclarationSynchro = {
     const organe = await tx.garageVehicleComponent.findFirst({ where: { id: donnees.vehicleComponentId, teamId: ctx.teamId, deletedAt: null }, select: { vehicleId: true } })
     if (!organe || organe.vehicleId !== donnees.vehicleId) throw new RefusSynchro("Cet organe n'est pas sur ce véhicule.")
     const personneId = await personneDuCompte(tx, ctx.teamId, ctx.userId)
-    if (!personneId) throw new RefusSynchro("Votre compte n'a pas de fiche personne dans la team : le responsable doit la créer.")
+    if (!personneId) throw new RefusSynchro("Ton compte n'a pas de fiche personne dans la team : le responsable doit la créer.")
 
     await tx.garageWorkOrder.create({
       data: {

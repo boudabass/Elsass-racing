@@ -178,17 +178,17 @@ const schemaModifierConvention = z
 const schemaSignature = z
   .object({
     signeeLe: jourCivil,
-    signataires: z.string().trim().min(1, "Indiquez les signataires.").max(300),
+    signataires: z.string().trim().min(1, "Indique les signataires.").max(300),
     documentSigneFileId: identifiant.nullable().optional(),
   })
   .strict()
 
-const schemaResiliation = z.object({ motif: z.string().trim().min(1, "Indiquez le motif de la résiliation.").max(1000) }).strict()
+const schemaResiliation = z.object({ motif: z.string().trim().min(1, "Indique le motif de la résiliation.").max(1000) }).strict()
 
 const schemaAvenant = z
   .object({
     date: jourCivil,
-    motif: z.string().trim().min(1, "Indiquez le motif.").max(300),
+    motif: z.string().trim().min(1, "Indique le motif.").max(300),
     changements: z.string().trim().min(1, "Décrivez les changements.").max(4000),
     documentFileId: identifiant.nullable().optional(),
     signeLe: jourCivil.nullable().optional(),
@@ -204,7 +204,7 @@ const schemaContrepartie = z
     unite: texte(40),
   })
   .strict()
-  .refine((d) => Boolean(d.catalogId) || Boolean(d.libelle), { message: "Choisissez une contrepartie de la liste, ou écrivez-la.", path: ["libelle"] })
+  .refine((d) => Boolean(d.catalogId) || Boolean(d.libelle), { message: "Choisis une contrepartie de la liste, ou écrivez-la.", path: ["libelle"] })
 
 const schemaModifierContrepartie = z
   .object({
@@ -230,7 +230,7 @@ const schemaPreuve = z
     visiblePartenaire: z.boolean().optional(),
   })
   .strict()
-  .refine((d) => Boolean(d.fileId) || Boolean(d.lien), { message: "Ajoutez un fichier ou un lien.", path: ["fichier"] })
+  .refine((d) => Boolean(d.fileId) || Boolean(d.lien), { message: "Ajoute un fichier ou un lien.", path: ["fichier"] })
 
 const schemaSections = z.object({ sections: z.array(z.enum(SECTIONS_PAGE)) }).strict()
 

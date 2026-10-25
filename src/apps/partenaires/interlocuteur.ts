@@ -8,7 +8,7 @@ export function interlocuteurSaisi(prenom: string, nom: string): SaisieInterlocu
   const prenomNet = prenom.trim()
   const nomNet = nom.trim()
   if (prenomNet === "" && nomNet === "") return { ok: true, personne: null }
-  if (prenomNet === "") return { ok: false, message: "Indiquez aussi le prénom de l'interlocuteur, ou laissez les deux champs vides." }
-  if (nomNet === "") return { ok: false, message: "Indiquez aussi le nom de l'interlocuteur, ou laissez les deux champs vides." }
+  if (prenomNet === "") return { ok: false, message: "Indique aussi le prénom de l'interlocuteur, ou laisse les deux champs vides." }
+  if (nomNet === "") return { ok: false, message: "Indique aussi le nom de l'interlocuteur, ou laisse les deux champs vides." }
   return { ok: true, personne: { prenom: prenomNet, nom: nomNet } }
 }

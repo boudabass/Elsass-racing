@@ -99,11 +99,11 @@ const nettoye = (valeur: string | null | undefined): string | null => valeur?.tr
 
 export function validerSaisieEquipement(brute: SaisieBrute): { saisie: SaisieEquipement } | { erreur: string } {
   const nom = nettoye(brute.nom)
-  if (nom === null) return { erreur: "Indiquez le nom de l'équipement." }
+  if (nom === null) return { erreur: "Indique le nom de l'équipement." }
   if (nom.length > NOM_MAX) return { erreur: `Le nom tient en ${NOM_MAX} caractères au plus.` }
 
   if (!brute.categorie || !categorieValide(brute.categorie)) {
-    return { erreur: "Choisissez la catégorie de l'équipement." }
+    return { erreur: "Choisis la catégorie de l'équipement." }
   }
 
   const etat = nettoye(brute.etat)
