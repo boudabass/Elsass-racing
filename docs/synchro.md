@@ -134,6 +134,7 @@ Un envoi que le serveur refuse ne disparaît pas en silence (règle 8 : tout ref
 - Une suppression d'une ligne jamais envoyée retire sa création et ses modifications de la file ; rien ne part au serveur, la ligne disparaît de l'appareil.
 - Une écriture et son effet sur la file tiennent dans une seule transaction IndexedDB. La file est lue et libérée sous un verrou du moteur, jamais pendant l'appel réseau.
 - Une opération en vol (dans un paquet envoyé, pas encore notée) n'est jamais fondue. Une modification faite pendant son envoi part dans une opération à part.
+- Deux modifications successives d'une même ligne, faites avant un envoi, ne forment qu'une opération : les champs se fondent, et la version lue est celle de la première. Une modification faite pendant l'envoi d'une autre part à part ; une fois la réponse « appliquée » ou « conflit résolu » reçue, la ligne locale et les opérations restées sur elle prennent la version qui en résulte (`revLue` + 1). Sans cela, elles seraient journalisées comme conflit à tort (correctif de la 5.1, point 0).
 - Une création appliquée pose `rev: 1` sur la ligne locale : le serveur part toujours de `rev @default(1)` (`prisma/schema.prisma`). Le serveur ne renvoie pas de rev à la création.
 - Une modification part avec `revLue` = version locale, jamais 0 (`versionLue`). Une ligne en rev 0 sans création en attente ne doit pas exister : le moteur le signale dans la console de développement, et garde rev 1.
 
@@ -151,7 +152,6 @@ Un envoi que le serveur refuse ne disparaît pas en silence (règle 8 : tout ref
 - Les auteurs sont affichés « Toi » ou « Un membre » : pas encore de nom sur les notes.
 - Le conflit est visible dans le journal de la fiche, pas dans une interface dédiée.
 - Le rejeu d'une écriture n'est sûr que si le serveur a bien reçu la première : l'idempotence repose sur `idOperation`.
-- Deux modifications successives d'une même ligne, faites avant un envoi, partent avec la même version lue (la version locale, qui ne change pas entre les deux écritures). La seconde est appliquée, mais journalisée comme conflit (`conflit_synchro`) : une trace inutile dans le journal de la fiche. Constaté pendant le correctif de la 5.0, non corrigé.
 - Le cache des pages est partagé par tous les comptes de l'appareil jusqu'à la prochaine déconnexion : il ne contient que des pages déjà visitées.
 
 ## Vérification
