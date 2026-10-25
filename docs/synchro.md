@@ -123,7 +123,25 @@ Un envoi que le serveur refuse ne disparaît pas en silence (règle 8 : tout ref
 - **Effet sur la ligne locale** : une création refusée est retirée de l'écran. Une modification ou une suppression refusée remet le curseur de la table à zéro : au tirage suivant, la ligne reprend la valeur du serveur (les lignes encore en attente sur l'appareil gardent leur version locale, comme avant).
 - **Écran** : l'indicateur passe à « N envoi(s) refusé(s) » (rouge, icône et texte, visible aussi sur téléphone). Son tiroir liste chaque refus avec sa raison et un bouton « Compris », qui efface le refus. Hook : `useRefusSynchro()` (`src/core/synchro/client/react.tsx`).
 - **Libellés** : `LIBELLES_TABLES` a une entrée par table de `TABLES_LOCALES`. `refus.test.ts` échoue si une table du registre serveur n'a pas de libellé.
-- **Tests** : `refus.test.ts` (ce qui est gardé, visibilité par compte, libellé, couverture du registre), `pousser.test.ts` (quand `apresApplication` suit une écriture). Le moteur lui-même (IndexedDB) n'a pas de test unitaire : l'environnement de test est `node`, sans IndexedDB. Son câblage est couvert par `e2e/garage-refus-hors-ligne.spec.ts` (raison visible au retour du réseau, persistance après rechargement, « Compris »).
+- **Tests** : `refus.test.ts` (ce qui est gardé, visibilité par compte, libellé, couverture du registre), `pousser.test.ts` (quand `apresApplication` suit une écriture). Le moteur est testé sur une base IndexedDB simulée (`fake-indexeddb`, `moteur.test.ts`). Son câblage est aussi couvert par `e2e/garage-refus-hors-ligne.spec.ts` (raison visible au retour du réseau, persistance après rechargement, « Compris »).
+
+## Création puis modification avant l'envoi (correctif, tâche 5.0)
+
+**Le défaut.** Depuis le lot 1, une modification faite sur une ligne créée sur l'appareil, et pas encore envoyée, partait avec `revLue: 0`. Le serveur refuse `revLue` < 1 (`protocole.ts`) et répondait 400 pour tout le paquet : la création et les modifications restaient en file, toutes tables confondues. Trouvé par `e2e/notes-fiche.spec.ts` (run 40209527419), mais il touchait toutes les tables synchronisées (notes de team, Saison, Budget, Voiture, Garage).
+
+**Ce qui change (client, `src/core/synchro/client/moteur.ts`).**
+- Une modification d'une création pas encore partie se fond dans cette création : une seule opération part, avec les champs fondus.
+- Une suppression d'une ligne jamais envoyée retire sa création et ses modifications de la file ; rien ne part au serveur, la ligne disparaît de l'appareil.
+- Une écriture et son effet sur la file tiennent dans une seule transaction IndexedDB. La file est lue et libérée sous un verrou du moteur, jamais pendant l'appel réseau.
+- Une opération en vol (dans un paquet envoyé, pas encore notée) n'est jamais fondue. Une modification faite pendant son envoi part dans une opération à part.
+- Une création appliquée pose `rev: 1` sur la ligne locale : le serveur part toujours de `rev @default(1)` (`prisma/schema.prisma`). Le serveur ne renvoie pas de rev à la création.
+- Une modification part avec `revLue` = version locale, jamais 0 (`versionLue`). Une ligne en rev 0 sans création en attente ne doit pas exister : le moteur le signale dans la console de développement, et garde rev 1.
+
+**Ce qui change (serveur, `/api/synchro/pousser`).** Le 400 ne reste que pour l'enveloppe invalide : pas de tableau, opération sans identifiant UUID, plus de 200 opérations. Une opération mal formée est notée `refusee` avec la raison « Envoi mal formé : rien n'a été enregistré. », et apparaît dans les envois refusés (4.3b). Les autres opérations du paquet sont appliquées (`analyserEnvoi`, `protocole.ts`).
+
+**Conséquence pour les appareils.** Une opération restée en file avec `revLue: 0`, créée avant ce correctif, est maintenant refusée seule : elle apparaît dans « envois refusés », avec sa raison, et les autres passent. La personne la reprend à la main.
+
+**Tests.** `moteur.test.ts` : création puis modification (une opération), création puis suppression (rien ne part), création appliquée puis modification (`revLue` 1), modification pendant l'envoi d'une création, ligne en rev 0 sans création. `protocole.test.ts` : une opération mal formée est refusée seule ; l'enveloppe exige un identifiant.
 
 ## Limites connues
 
@@ -133,6 +151,7 @@ Un envoi que le serveur refuse ne disparaît pas en silence (règle 8 : tout ref
 - Les auteurs sont affichés « Toi » ou « Un membre » : pas encore de nom sur les notes.
 - Le conflit est visible dans le journal de la fiche, pas dans une interface dédiée.
 - Le rejeu d'une écriture n'est sûr que si le serveur a bien reçu la première : l'idempotence repose sur `idOperation`.
+- Deux modifications successives d'une même ligne, faites avant un envoi, partent avec la même version lue (la version locale, qui ne change pas entre les deux écritures). La seconde est appliquée, mais journalisée comme conflit (`conflit_synchro`) : une trace inutile dans le journal de la fiche. Constaté pendant le correctif de la 5.0, non corrigé.
 - Le cache des pages est partagé par tous les comptes de l'appareil jusqu'à la prochaine déconnexion : il ne contient que des pages déjà visitées.
 
 ## Vérification

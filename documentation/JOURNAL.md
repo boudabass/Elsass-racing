@@ -557,3 +557,11 @@
 - Garage : le bloc `NotesEtPhotos` (composant commun) sur la fiche d'un ordre de travail. Notes lues et écrites sur la base locale, photos et retrait par la gestion en ligne seulement, avec la raison affichée.
 - Vérification : `db:verifier-synchro`, section 13 (cinq contrôles de fiche). Unitaires : `src/core/notes/regles.test.ts`.
 - Reportés levés : « notes et photos sur les ordres » (4.3 et 4.7). Restent reportés : statut et avancement hors ligne, lecture locale de Travaux, avertissement de sortie pendant une photo.
+
+## 25/10/2026 : défaut de synchro, création puis modification avant l'envoi (correctif de la 5.0)
+
+- Trouvé par le run 40209527419 (`e2e/notes-fiche.spec.ts`, « En attente d'envoi » qui ne partait pas) : une modification faite sur une ligne créée sur l'appareil, pas encore envoyée, partait avec `revLue: 0`. Le serveur refuse `revLue` < 1 et répondait 400 pour tout le paquet : la création et les modifications restaient en file. Le défaut existait depuis le lot 1, pour toutes les tables synchronisées.
+- Correctif décidé par l'orchestrateur : fusion dans la création non envoyée, suppression qui retire la création sans rien envoyer, rev 1 après une création appliquée, `revLue` jamais 0 (garde en développement), verrou et transaction sur la file, et côté serveur une opération mal formée refusée seule (le 400 ne reste que pour l'enveloppe).
+- Vérification : tests unitaires du moteur et du protocole (sept cas nouveaux), `docs/synchro.md`, section « Création puis modification avant l'envoi ».
+- Une opération restée en file avec `revLue: 0` avant ce correctif est refusée seule et apparaît dans « envois refusés ».
+- Constaté, non corrigé : deux modifications successives d'une même ligne hors ligne se journalisent comme conflit (limite connue dans `docs/synchro.md`).
