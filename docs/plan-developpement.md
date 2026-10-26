@@ -331,6 +331,7 @@ Décisions de John (25/10) :
 
 ### 5.2b Saison : papiers du véhicule lus chez Voiture
 - Défaut relevé en 5.2 : un papier valide n'émet aucun signal, et un renouvellement ne règle pas un point « Papiers » resté ouvert dans « Prêt pour l'épreuve ? ». Même remède que les licences en 5.2 : Saison lit l'état des papiers par une lecture partagée de Voiture.
+- Livrée le 26/10 sur verif (47a121f, fd92058, fccaf6f) : lecture à la date de l'épreuve, gestionnaire du signal retiré, rangs en clair (scratch et classe). Runs verts 40247176727 et 40248925783, 157 e2e. Captures relues et commitées.
 
 ### 5.3 Documents : coffre-fort
 - Tables `documents_` de 957 §3, dossiers types créés à la première écriture (Association, Assurances, Règlements, Rallyes archivés, Modèles, Attestations, Divers), documents propres, versions, accès interne pour l'assistance (`documents_access`). Écrans : coffre-fort en cartes avec jauge de complétude, liste d'un dossier, fiche document. `documents.document_ajoute`, `documents.reglement_publie`.

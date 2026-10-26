@@ -613,3 +613,20 @@
 - Journal serveur de la passe dev : 403 lignes `uncaughtException` liées à ECONNRESET, sans échec ; même motif que les 380 lignes du run verif 40242651880, à suivre.
 - Membres retirés : tiroir « Anciens membres », historique lisible (licences, affectations, statistiques). Implémenté ; couvert par l'étape 1.4 du test de John, pas encore vérifié par lui.
 - Ouvert : captures Binômes et Statistiques vides dans les runs de la passe (à traiter en 5.2b, `docs/briefs/5.2b-saison-papiers-voiture.md`). `verifier-bus.ts:319` garde un timestamp en ms, volontaire.
+
+## 26/10/2026 : tâche 5.2b, papiers du véhicule lus chez Voiture (brief 5.2b)
+
+- Défaut : le point « Papiers » de « Prêt pour l'épreuve ? » vivait d'un signal (`voiture.papier_expire_bientot`). Un papier valide n'émettait rien, et un renouvellement ne fermait jamais le point. Même remède que les licences en 5.2 : lecture partagée.
+- Lecture : `lirePapiersVehicules` et `voitureActivee` (`src/apps/voiture/lectures-partagees.ts`), lecture seule, sans numéro ni document. Saison la lit à la date de l'épreuve (`src/apps/saison/preparation-voiture-serveur.ts`).
+- Règles : `pointPapiersDeVehicule` et `statutPapier` de Voiture (importée). Un type est réglé s'il a au moins un papier non expiré à la date de l'épreuve ; un papier sans échéance ne bloque pas ; « à renouveler » sans expiration ne bloque pas ; aucun papier : ouvert. « Autre » se regroupe par libellé. « Régler » mène à l'onglet Papiers de la fiche véhicule.
+- Le gestionnaire Saison de `voiture.papier_expire_bientot` est retiré, avec `signalerPreparation`. Les lignes « papiers » posées par signal restent en base, ignorées ; pas de migration. Le catalogue 962 ne change pas.
+- Écart au brief, à valider : les libellés de détail ne nomment pas le véhicule (« Carte grise expire le 3 novembre », « Papiers du véhicule non renseignés »). Le véhicule est affiché sur la carte de l'engagement, et ce libellé évite les accords (« de la Saxo » ou « du… »).
+- Vérification du bus (`scripts/verifier-bus.ts`) : le signal ne pose plus de ligne ; un véhicule sans papier est ouvert ; une carte grise expirée à l'épreuve est ouverte avec son échéance ; renouvelée, elle est réglée.
+- Tests : 11 unitaires sur les règles (`preparation.test.ts`), 968 au total.
+- e2e : `lot3-verifications` (papiers) prolongé : ouvert, « Régler » mène à Voiture, renouvellement saisi par clics, « Réglé ». Captures d'Équipe : un copilote (Théo Roux) et une épreuve passée à résultat validé pour le binôme Luc-Théo, pour que Binômes, Statistiques et Cartes montrent de vrais chiffres (`e2e/aide/session.ts`, `definirEquipageEnBase`).
+- Rangs en clair (demande de l'orchestrateur) : scratch et classe calculés séparément, pour la personne comme pour le binôme (`meilleurScratch`, `meilleurClasse`, `null` sans rang connu). Affichage : « Meilleur résultat : 12e au scratch » et « Meilleure place en classe : 3e de classe », « — » si inconnu, sur la carte binôme, la fiche personne et les statistiques (`libelleRang`, `libelles.test.ts`).
+- Runs verif : 40247176727 (47a121f) vert, 157 e2e, 968 unitaires ; 40248925783 (fccaf6f) vert, 157 e2e. Le run 40244364352 (2a9b506, doc seule) annulé plus tôt.
+- Captures relues une à une (12 : Binômes, Statistiques, Cartes, sombre et clair, 1440 et 360 px) et commitées dans `docs/captures/equipe-*`. Reste à voir pour John : « Km chronométrés 0 km », car le jeu de données n'a pas de spéciale.
+- Test de John : étape 10 ajoutée à `docs/test-john-lot-5.md` (papiers de Voiture dans « Prêt pour l'épreuve ? »).
+- Le journal de la passe e2e a des `uncaughtException` ECONNRESET sans échec, comme aux runs précédents.
+- Ouvert : la 5.3 (Documents, coffre-fort) n'est pas commencée. Son brief reste à écrire. Les listes de check-lists de John sont nécessaires avant la 5.5.
