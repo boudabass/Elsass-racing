@@ -112,19 +112,26 @@ export interface StatistiquesPersonne {
   // Part des épreuves terminées à l'arrivée, entre 0 et 1 ; null sans épreuve.
   tauxArrivee: number | null
   kmChronometres: number
-  // Meilleur classement de classe parmi les arrivées ; null sans arrivée classée.
-  meilleurClassement: number | null
+  // Meilleur rang au scratch et meilleur rang de classe parmi les arrivées classées ; null sans arrivée classée.
+  meilleurScratch: number | null
+  meilleurClasse: number | null
+}
+
+// Plus petit rang non nul d'une liste, ou null sans rang : le meilleur d'une série de classements.
+function meilleurRang(rangs: Array<number | null>): number | null {
+  const connus = rangs.filter((rang): rang is number => rang !== null)
+  return connus.length === 0 ? null : Math.min(...connus)
 }
 
 export function statistiquesPersonne(resultats: ResultatValide[]): StatistiquesPersonne {
   const arrivees = resultats.filter((r) => r.statutFinal === "arrivee")
-  const classements = arrivees.map((r) => r.classementClasse).filter((c): c is number => c !== null)
   return {
     epreuves: resultats.length,
     arrivees: arrivees.length,
     tauxArrivee: resultats.length === 0 ? null : arrivees.length / resultats.length,
     kmChronometres: resultats.reduce((total, r) => total + r.kmSpeciale, 0),
-    meilleurClassement: classements.length === 0 ? null : Math.min(...classements),
+    meilleurScratch: meilleurRang(arrivees.map((r) => r.classementGeneral)),
+    meilleurClasse: meilleurRang(arrivees.map((r) => r.classementClasse)),
   }
 }
 
@@ -132,19 +139,20 @@ export interface StatistiquesBinome {
   epreuvesCommunes: number
   kmEnsemble: number
   arriveesEnsemble: number
-  // Meilleur classement général ensemble parmi les arrivées ; null sans arrivée classée.
-  meilleurResultat: number | null
+  // Meilleurs rangs ensemble parmi les arrivées classées ; null sans rang connu.
+  meilleurScratch: number | null
+  meilleurClasse: number | null
 }
 
 // Binôme pilote et copilote : les résultats sont ceux des engagements où les deux étaient inscrits.
 export function statistiquesBinome(resultats: ResultatValide[]): StatistiquesBinome {
   const arrivees = resultats.filter((r) => r.statutFinal === "arrivee")
-  const classements = arrivees.map((r) => r.classementGeneral).filter((c): c is number => c !== null)
   return {
     epreuvesCommunes: resultats.length,
     kmEnsemble: resultats.reduce((total, r) => total + r.kmSpeciale, 0),
     arriveesEnsemble: arrivees.length,
-    meilleurResultat: classements.length === 0 ? null : Math.min(...classements),
+    meilleurScratch: meilleurRang(arrivees.map((r) => r.classementGeneral)),
+    meilleurClasse: meilleurRang(arrivees.map((r) => r.classementClasse)),
   }
 }
 

@@ -1,4 +1,5 @@
 import type { PageBinomes } from "../lectures-ecran"
+import { LIBELLE_MEILLEURE_CLASSE, LIBELLE_MEILLEUR_SCRATCH, libelleMeilleureClasse, libelleMeilleurScratch } from "../libelles"
 
 // Binômes (tâche 5.2) : un pilote et son copilote, avec leurs chiffres sur les épreuves à résultat validé.
 // Lecture seule : l'équipage se choisit dans Saison, sur l'engagement.
@@ -30,8 +31,16 @@ export function PageBinomesEcran({ donnees }: { donnees: PageBinomes }) {
                   <span className="text-texte-discret">Copilote : </span>
                   <span className="font-semibold">{binome.copilote}</span>
                 </p>
+                <p>
+                  <span className="text-texte-discret">{LIBELLE_MEILLEUR_SCRATCH} : </span>
+                  <span className="font-semibold">{libelleMeilleurScratch(binome.stats.meilleurScratch)}</span>
+                </p>
+                <p>
+                  <span className="text-texte-discret">{LIBELLE_MEILLEURE_CLASSE} : </span>
+                  <span className="font-semibold">{libelleMeilleureClasse(binome.stats.meilleurClasse)}</span>
+                </p>
               </div>
-              <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
                 <div>
                   <dt className="text-texte-discret">Épreuves</dt>
                   <dd className="chiffre font-semibold">{binome.stats.epreuvesCommunes}</dd>
@@ -43,19 +52,6 @@ export function PageBinomesEcran({ donnees }: { donnees: PageBinomes }) {
                 <div>
                   <dt className="text-texte-discret">Km chronométrés</dt>
                   <dd className="chiffre font-semibold">{NOMBRE.format(binome.stats.kmEnsemble)} km</dd>
-                </div>
-                <div>
-                  <dt className="text-texte-discret">Meilleur résultat</dt>
-                  <dd className="chiffre font-semibold">
-                    {binome.stats.meilleurResultat === null ? (
-                      <>
-                        <span aria-hidden="true">—</span>
-                        <span className="sr-only">pas encore de classement</span>
-                      </>
-                    ) : (
-                      binome.stats.meilleurResultat
-                    )}
-                  </dd>
                 </div>
               </dl>
             </li>

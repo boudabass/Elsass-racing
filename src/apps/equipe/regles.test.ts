@@ -86,28 +86,45 @@ const arrivee = (classementClasse: number | null, km: number, classementGeneral:
 const abandon: ResultatValide = { statutFinal: "abandon", classementGeneral: null, classementClasse: null, kmSpeciale: 0 }
 
 describe("statistiques d'une personne", () => {
-  it("compte les épreuves, les arrivées, le taux d'arrivée, les km et le meilleur classement de classe", () => {
-    const stats = statistiquesPersonne([arrivee(4, 40), arrivee(2, 25), abandon])
-    expect(stats).toEqual({ epreuves: 3, arrivees: 2, tauxArrivee: 2 / 3, kmChronometres: 65, meilleurClassement: 2 })
+  it("compte les épreuves, les arrivées, le taux d'arrivée, les km et les meilleurs rangs (scratch et classe)", () => {
+    const stats = statistiquesPersonne([arrivee(4, 40, 9), arrivee(2, 25, 12), abandon])
+    expect(stats).toEqual({ epreuves: 3, arrivees: 2, tauxArrivee: 2 / 3, kmChronometres: 65, meilleurScratch: 9, meilleurClasse: 2 })
   })
 
-  it("sans épreuve : zéros, et pas de taux ni de classement", () => {
-    expect(statistiquesPersonne([])).toEqual({ epreuves: 0, arrivees: 0, tauxArrivee: null, kmChronometres: 0, meilleurClassement: null })
+  it("le scratch et la classe se lisent séparément : une arrivée sans rang au scratch garde son rang de classe", () => {
+    expect(statistiquesPersonne([arrivee(3, 10)])).toMatchObject({ meilleurScratch: null, meilleurClasse: 3 })
   })
 
-  it("une arrivée sans classement de classe n'a pas de meilleur classement", () => {
-    expect(statistiquesPersonne([arrivee(null, 10)]).meilleurClassement).toBeNull()
+  it("sans épreuve : zéros, et pas de taux ni de rang", () => {
+    expect(statistiquesPersonne([])).toEqual({
+      epreuves: 0,
+      arrivees: 0,
+      tauxArrivee: null,
+      kmChronometres: 0,
+      meilleurScratch: null,
+      meilleurClasse: null,
+    })
+  })
+
+  it("une arrivée sans classement de classe n'a pas de meilleure classe", () => {
+    expect(statistiquesPersonne([arrivee(null, 10)]).meilleurClasse).toBeNull()
   })
 })
 
 describe("statistiques d'un binôme", () => {
-  it("compte les épreuves communes, les km et les arrivées ensemble, et le meilleur résultat ensemble", () => {
+  it("compte les épreuves communes, les km et les arrivées ensemble, et les meilleurs rangs ensemble", () => {
     const stats = statistiquesBinome([arrivee(null, 30, 7), arrivee(null, 20, 3), abandon])
-    expect(stats).toEqual({ epreuvesCommunes: 3, kmEnsemble: 50, arriveesEnsemble: 2, meilleurResultat: 3 })
+    expect(stats).toEqual({ epreuvesCommunes: 3, kmEnsemble: 50, arriveesEnsemble: 2, meilleurScratch: 3, meilleurClasse: null })
   })
 
-  it("sans épreuve commune : zéros et pas de meilleur résultat", () => {
-    expect(statistiquesBinome([])).toEqual({ epreuvesCommunes: 0, kmEnsemble: 0, arriveesEnsemble: 0, meilleurResultat: null })
+  it("sans épreuve commune : zéros et pas de rang", () => {
+    expect(statistiquesBinome([])).toEqual({
+      epreuvesCommunes: 0,
+      kmEnsemble: 0,
+      arriveesEnsemble: 0,
+      meilleurScratch: null,
+      meilleurClasse: null,
+    })
   })
 })
 

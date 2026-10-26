@@ -12,7 +12,17 @@ import {
   ModifierProfil,
   RepondreDisponibilite,
 } from "./formulaires-equipe"
-import { COULEUR_ECHEANCE, LIBELLE_ECHEANCE, LIBELLE_PALIER, LIBELLE_REPONSE, LIBELLE_ROLE_HABITUEL } from "../libelles"
+import {
+  COULEUR_ECHEANCE,
+  LIBELLE_ECHEANCE,
+  LIBELLE_MEILLEURE_CLASSE,
+  LIBELLE_MEILLEUR_SCRATCH,
+  LIBELLE_PALIER,
+  LIBELLE_REPONSE,
+  LIBELLE_ROLE_HABITUEL,
+  libelleMeilleureClasse,
+  libelleMeilleurScratch,
+} from "../libelles"
 import type { PagePersonne } from "../lectures-ecran"
 import { estEquipage, LIBELLES_TYPE_EQUIPEMENT, LIBELLES_TYPE_LICENCE, progressionPalier, type RoleHabituel } from "../regles"
 
@@ -175,15 +185,10 @@ function StatistiquesFiche({ donnees }: { donnees: PagePersonne }) {
         </div>
       </dl>
       <p className="text-sm">
-        Meilleur classement de classe :{" "}
-        {stats.meilleurClassement === null ? (
-          <>
-            <span aria-hidden="true">—</span>
-            <span className="sr-only">pas encore de classement</span>
-          </>
-        ) : (
-          <span className="chiffre font-semibold">{stats.meilleurClassement}</span>
-        )}
+        {LIBELLE_MEILLEUR_SCRATCH} : <span className="font-semibold">{libelleMeilleurScratch(stats.meilleurScratch)}</span>
+      </p>
+      <p className="text-sm">
+        {LIBELLE_MEILLEURE_CLASSE} : <span className="font-semibold">{libelleMeilleureClasse(stats.meilleurClasse)}</span>
       </p>
 
       {fiche.palier && (
@@ -398,7 +403,13 @@ function BinomesFiche({ donnees }: { donnees: PagePersonne }) {
             <li key={binome.partenaireId} className="flex flex-col gap-2 rounded-lg border border-bordure p-4">
               <p className="font-medium">{binome.partenaireNom}</p>
               <p className="text-sm text-texte-discret">Rôle dans le binôme : {binome.role === "pilote" ? "pilote" : "copilote"}</p>
-              <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <p className="text-sm">
+                {LIBELLE_MEILLEUR_SCRATCH} : <span className="font-semibold">{libelleMeilleurScratch(binome.stats.meilleurScratch)}</span>
+              </p>
+              <p className="text-sm">
+                {LIBELLE_MEILLEURE_CLASSE} : <span className="font-semibold">{libelleMeilleureClasse(binome.stats.meilleurClasse)}</span>
+              </p>
+              <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
                 <div>
                   <dt className="text-texte-discret">Épreuves</dt>
                   <dd className="chiffre font-semibold">{binome.stats.epreuvesCommunes}</dd>
@@ -410,19 +421,6 @@ function BinomesFiche({ donnees }: { donnees: PagePersonne }) {
                 <div>
                   <dt className="text-texte-discret">Km chronométrés</dt>
                   <dd className="chiffre font-semibold">{NOMBRE.format(binome.stats.kmEnsemble)} km</dd>
-                </div>
-                <div>
-                  <dt className="text-texte-discret">Meilleur résultat</dt>
-                  <dd className="chiffre font-semibold">
-                    {binome.stats.meilleurResultat === null ? (
-                      <>
-                        <span aria-hidden="true">—</span>
-                        <span className="sr-only">pas encore de classement</span>
-                      </>
-                    ) : (
-                      binome.stats.meilleurResultat
-                    )}
-                  </dd>
                 </div>
               </dl>
             </li>

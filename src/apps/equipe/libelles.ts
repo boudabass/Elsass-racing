@@ -41,3 +41,22 @@ export const LIBELLE_INTERET: Record<InteretVivier, string> = {
   moyen: "Moyen",
   fort: "Fort",
 }
+
+// Classements en vocabulaire du rallye : « 1er », « 2e », « 12e ». Un rang inconnu s'écrit « — ».
+export function libelleRang(rang: number): string {
+  return rang === 1 ? "1er" : `${rang}e`
+}
+
+// Meilleur résultat au scratch : « 12e au scratch ».
+export function libelleMeilleurScratch(rang: number | null): string {
+  return rang === null ? "—" : `${libelleRang(rang)} au scratch`
+}
+
+// Meilleure place dans sa classe : « 3e de classe ».
+export function libelleMeilleureClasse(rang: number | null): string {
+  return rang === null ? "—" : `${libelleRang(rang)} de classe`
+}
+
+// Les deux libellés des chiffres : même texte sur la carte binôme, sur la fiche et dans les statistiques.
+export const LIBELLE_MEILLEUR_SCRATCH = "Meilleur résultat"
+export const LIBELLE_MEILLEURE_CLASSE = "Meilleure place en classe"
