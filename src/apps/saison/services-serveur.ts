@@ -11,7 +11,6 @@ import { z } from "zod"
 import type { Prisma } from "@/generated/prisma/client"
 import type { EpreuvePourCloture } from "./regles"
 import { enregistrerGestionnaire, type EvenementRecu } from "@/core/evenements/gestionnaires"
-import type { PointPreparation } from "./preparation"
 import { rappelsDues, type EpreuveRappel } from "./rappels"
 
 import type { ContexteTeam } from "@/core/contexte"
