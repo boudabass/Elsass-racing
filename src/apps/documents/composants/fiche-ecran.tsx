@@ -86,7 +86,7 @@ export function FicheEcran({
         </div>
 
         <div className="flex flex-col gap-3 rounded-lg border border-bordure bg-surface p-4">
-          <h2 className="font-semibold">Échéance</h2>
+          <h2 className="font-semibold">Informations</h2>
           {fiche.dateValidite ? (
             <>
               <p className={`text-lg font-semibold ${fiche.zone ? COULEUR_ZONE[fiche.zone] : ""}`}>{fiche.texteEcheance}</p>
@@ -172,7 +172,7 @@ function AccesPartage({ acces }: { acces: AccesLigne[] }) {
     <div className="flex flex-col gap-3 rounded-lg border border-bordure bg-surface p-4">
       <h2 className="font-semibold">Partagé avec</h2>
       {acces.length === 0 ? (
-        <p className="text-sm text-texte-discret">Ce document n&apos;est partagé avec personne en plus de la visibilité du dossier.</p>
+        <p className="text-sm text-texte-discret">Aucun partage en plus de ceux qui voient déjà ce dossier.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {acces.map((ligne) => (
