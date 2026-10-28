@@ -42,6 +42,7 @@ type Visible = {
   status: "actif" | "archive"
   visibility: Visibilite
   ownerPersonId: string | null
+  createdBy: string | null
 }
 
 type DossierLigne = {
@@ -56,6 +57,18 @@ type DossierLigne = {
 
 async function qui(ctx: ContexteTeam, niveau: QuiAgit["niveau"]): Promise<QuiAgit> {
   return { personId: await personneDuMembre(ctx), niveau }
+}
+
+// E-mails des comptes qui ont créé un document ou une version : le repli d'auteur quand le compte n'a pas de fiche
+// personne (libelleAuteur). Ces lectures restent dans la team.
+async function emailsDeComptes(ctx: ContexteTeam, ids: Array<string | null>): Promise<Map<string, string>> {
+  const uniques = Array.from(new Set(ids.filter((id): id is string => id !== null)))
+  if (uniques.length === 0) return new Map()
+  const comptes = await prismaPourTeam(ctx.teamId, ctx.userId).coreUser.findMany({
+    where: { id: { in: uniques } },
+    select: { id: true, email: true },
+  })
+  return new Map(comptes.map((compte) => [compte.id, compte.email]))
 }
 
 // Dossier virtuel d'un type pas encore créé : visible de tous, vide.
@@ -74,7 +87,7 @@ async function charger(ctx: ContexteTeam, personId: string | null) {
     }),
     client.documentsDoc.findMany({
       where: { teamId: ctx.teamId, deletedAt: null },
-      select: { id: true, folderId: true, title: true, docType: true, validUntil: true, status: true, visibility: true, ownerPersonId: true },
+      select: { id: true, folderId: true, title: true, docType: true, validUntil: true, status: true, visibility: true, ownerPersonId: true, createdBy: true },
       orderBy: [{ validUntil: "asc" }, { title: "asc" }],
     }),
     personId
@@ -240,6 +253,7 @@ export async function lireDossier(param: string, filtres: { type?: string; propr
     select: { id: true, prenom: true, nom: true },
   })
   const nomDe = new Map(personnes.map((personne) => [personne.id, `${personne.prenom} ${personne.nom}`]))
+  const emails = await emailsDeComptes(ctx, visibles.map((doc) => doc.createdBy))
 
   const ligneDe = (doc: Visible): LigneDocument => {
     const zone = zoneDocument(doc.validUntil, maintenant)
@@ -250,7 +264,10 @@ export async function lireDossier(param: string, filtres: { type?: string; propr
       typeDocument: doc.docType,
       validite: texteEcheance(doc.validUntil, maintenant),
       zone,
-      proprietaire: libelleAuteur(doc.ownerPersonId ? (nomDe.get(doc.ownerPersonId) ?? null) : null, null),
+      proprietaire: libelleAuteur(
+        doc.ownerPersonId ? (nomDe.get(doc.ownerPersonId) ?? null) : null,
+        doc.createdBy ? (emails.get(doc.createdBy) ?? null) : null,
+      ),
       visibilite: doc.visibility,
       statut: doc.status,
       joursRestants: doc.validUntil ? joursAvantEcheance(doc.validUntil, maintenant) : null,
@@ -344,6 +361,7 @@ export async function lireDocument(id: string): Promise<FicheDocument | null> {
           versionNo: true,
           uploadedAt: true,
           uploadedBy: true,
+          createdBy: true,
           comment: true,
           attachment: { select: { fileId: true } },
         },
@@ -370,6 +388,7 @@ export async function lireDocument(id: string): Promise<FicheDocument | null> {
     select: { id: true, prenom: true, nom: true },
   })
   const nomAuteur = new Map(auteurs.map((personne) => [personne.id, `${personne.prenom} ${personne.nom}`]))
+  const emails = await emailsDeComptes(ctx, doc.versions.map((version) => version.createdBy))
 
   // Liste des accès internes : seulement pour qui peut partager (niveau écriture).
   const partage = peutPartagerDocument(droits, dossier, acteur)
@@ -405,7 +424,10 @@ export async function lireDocument(id: string): Promise<FicheDocument | null> {
       id: version.id,
       numero: version.versionNo,
       date: jourDeParis(version.uploadedAt),
-      auteur: libelleAuteur(version.uploadedBy ? (nomAuteur.get(version.uploadedBy) ?? null) : null, null),
+      auteur: libelleAuteur(
+        version.uploadedBy ? (nomAuteur.get(version.uploadedBy) ?? null) : null,
+        version.createdBy ? (emails.get(version.createdBy) ?? null) : null,
+      ),
       commentaire: version.comment,
       fichierId: version.attachment.fileId,
       nomFichier: nomFichier.get(version.attachment.fileId) ?? "Fichier",

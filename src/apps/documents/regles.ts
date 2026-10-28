@@ -201,8 +201,9 @@ export function peutVoirDocument(document: DocumentPourDroits, dossier: DossierP
   return document.visibility === "prive" && document.accesPersonne !== null
 }
 
-// Nom affiché pour un auteur (uploaded_by, granted_by) : la fiche personne quand elle existe, sinon le nom du compte.
-// Un compte sans fiche n'est jamais bloqué : les champs d'auteur peuvent rester vides, l'écran affiche alors ce repli.
+// Nom affiché pour un auteur (uploaded_by, granted_by) : la fiche personne quand elle existe, sinon l'e-mail du compte,
+// visible seulement dans la team. Un compte sans fiche n'est jamais bloqué : les champs d'auteur peuvent rester vides.
+// « Un membre » ne sert plus qu'en dernier recours, pour un compte sans fiche ni e-mail.
 export function libelleAuteur(personne: string | null, compte: string | null): string {
   return personne ?? compte ?? "Un membre"
 }

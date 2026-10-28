@@ -186,9 +186,9 @@ describe("peutVoirDocument (visibilité)", () => {
     expect(peutVoirDocument(doc({ accesPersonne: "lecture" }), dossierTeam, sansFiche)).toBe(true)
   })
 
-  it("repli d'auteur : la fiche personne, sinon le nom du compte, sinon « Un membre »", () => {
-    expect(libelleAuteur("Luc Koehling", "Compte de Luc")).toBe("Luc Koehling")
-    expect(libelleAuteur(null, "Compte de Luc")).toBe("Compte de Luc")
+  it("repli d'auteur : la fiche personne, sinon l'e-mail du compte, sinon « Un membre »", () => {
+    expect(libelleAuteur("Luc Koehling", "luc@example.test")).toBe("Luc Koehling")
+    expect(libelleAuteur(null, "luc@example.test")).toBe("luc@example.test")
     expect(libelleAuteur(null, null)).toBe("Un membre")
   })
 
