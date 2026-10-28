@@ -181,7 +181,8 @@ test("parcours : coffre-fort, versions, archivage, partage à l'assistance", asy
     const partageGestion = await documentEnBase(equipe, TITRE_PARTAGE)
     expect(await accesDocumentEnBase(equipe, partageGestion?.id ?? "", personneAssistance)).toBe("lecture")
 
-    await assist.reload()
+    // L'assistante est sur la fiche de l'assurance : elle repart du coffre, rechargé depuis le serveur.
+    await assist.goto("/apps/documents")
     await expect(assist.getByRole("link", { name: new RegExp(NOM_GESTION) })).toContainText("1 document")
     await assist.getByRole("link", { name: new RegExp(NOM_GESTION) }).click()
     await expect(assist.getByText("Tu ne vois ici que les documents qui te sont ouverts.", { exact: true })).toBeVisible()
