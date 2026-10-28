@@ -12,16 +12,23 @@ export type Zone = "vert" | "orange" | "rouge"
 export type Visibilite = "team" | "gestion" | "prive"
 export type NiveauAcces = "lecture" | "contribution"
 
-export type TypeDocument =
-  | "statuts"
-  | "recepisse_rna"
-  | "pv_ag"
-  | "reglement_ffsa"
-  | "reglement_particulier"
-  | "modele"
-  | "assurance_asso"
-  | "attestation"
-  | "autre"
+export const TYPES_DOCUMENT = [
+  "statuts",
+  "recepisse_rna",
+  "pv_ag",
+  "reglement_ffsa",
+  "reglement_particulier",
+  "modele",
+  "assurance_asso",
+  "attestation",
+  "autre",
+] as const
+export type TypeDocument = (typeof TYPES_DOCUMENT)[number]
+
+export const VISIBILITES = ["team", "gestion", "prive"] as const
+
+// Niveaux d'un partage interne (documents_access) : lecture, ou contribution (l'assistance peut ajouter une version).
+export const NIVEAUX_ACCES_INTERNE = ["lecture", "contribution"] as const
 
 // ─── Zones d'échéance ────────────────────────────────────────────────────────
 
@@ -71,6 +78,8 @@ export function texteEcheance(valableJusquAu: Date | null, maintenant: Date): st
 // ─── Dossiers types (957, §1) ────────────────────────────────────────────────
 
 export interface DossierType {
+  // Clé courte, dans l'URL d'un dossier type (« /dossier/association »). Ne se renomme pas.
+  cle: string
   nom: string
   // Types attendus pour la jauge de complétude. Vide : pas de jauge (la carte affiche seulement le nombre de documents).
   typesAttendus: readonly TypeDocument[]
@@ -78,14 +87,18 @@ export interface DossierType {
 
 // Constante unique : la base reprend ces nombres dans documents_folder.expected_count (complétude, brief §1).
 export const DOSSIERS_TYPES: readonly DossierType[] = [
-  { nom: "Association", typesAttendus: ["statuts", "recepisse_rna", "pv_ag"] },
-  { nom: "Assurances", typesAttendus: ["assurance_asso"] },
-  { nom: "Règlements", typesAttendus: ["reglement_ffsa"] },
-  { nom: "Rallyes archivés", typesAttendus: [] },
-  { nom: "Modèles", typesAttendus: [] },
-  { nom: "Attestations", typesAttendus: [] },
-  { nom: "Divers", typesAttendus: [] },
+  { cle: "association", nom: "Association", typesAttendus: ["statuts", "recepisse_rna", "pv_ag"] },
+  { cle: "assurances", nom: "Assurances", typesAttendus: ["assurance_asso"] },
+  { cle: "reglements", nom: "Règlements", typesAttendus: ["reglement_ffsa"] },
+  { cle: "rallyes-archives", nom: "Rallyes archivés", typesAttendus: [] },
+  { cle: "modeles", nom: "Modèles", typesAttendus: [] },
+  { cle: "attestations", nom: "Attestations", typesAttendus: [] },
+  { cle: "divers", nom: "Divers", typesAttendus: [] },
 ]
+
+export function dossierTypeParCle(cle: string): DossierType | null {
+  return DOSSIERS_TYPES.find((dossier) => dossier.cle === cle) ?? null
+}
 
 // Nombre attendu pour la jauge d'un dossier type, null sans jauge.
 export function nombreAttenduDossierType(dossier: DossierType): number | null {
