@@ -630,3 +630,17 @@
 - Test de John : étape 10 ajoutée à `docs/test-john-lot-5.md` (papiers de Voiture dans « Prêt pour l'épreuve ? »).
 - Le journal de la passe e2e a des `uncaughtException` ECONNRESET sans échec, comme aux runs précédents.
 - Ouvert : la 5.3 (Documents, coffre-fort) n'est pas commencée. Son brief reste à écrire. Les listes de check-lists de John sont nécessaires avant la 5.5.
+
+## 28/10/2026 : tâche 5.3, Documents, coffre-fort (brief 5.3)
+
+- Reliquat de la 5.2b repris en premier (`a3a4d67`) : le point Papiers nomme le véhicule (« Saxo : papiers non renseignés »), commit à part, avant le schéma.
+- Schéma décrit (`5b1a19c`), point d'arrêt avant la migration, puis validé par l'orchestrateur avec cinq corrections (`6b34edf`) : pas de version ni de version en cours sans fichier ; visibilité sur le document et sur le dossier, la plus stricte s'applique ; `uploaded_by` et `granted_by` facultatifs, repli sur le nom du compte ; clés croisées en `ON DELETE RESTRICT` ; `current_version_id` ajouté après les deux tables ; `rattacherFichier` renvoie l'id du rattachement (`3cdaa80`, commit du socle à part).
+- Migration `1aa22ed` : sept tables `documents_`, RLS `cloisonnement_team` forcée. Catalogue : Documents en 0.2.0 (`017bccd`). Règles pures (`d0a6924`, zones, complétude, visibilité, gardes), 30 tests unitaires.
+- Services, lectures et actions gardés (`3b1c1d8`) ; écritures appelables avec un contexte (`dbee7c6`). Les sept dossiers types sont créés à la première écriture, une seule fois, même en écritures simultanées.
+- Écrans (`4ebd24f`) : coffre-fort en cartes avec compteurs et jauge, liste d'un dossier avec filtres dans l'URL et archivés en tiroir, fiche avec aperçu, échéance en toutes lettres, partage et historique des versions.
+- `db:verifier-documents` (`0b0b479`), branché sur la CI : dossiers uniques, version 2 courante et version 1 gardée, rattachement de la version, cloisonnement entre deux teams, contraintes en base.
+- e2e : parcours par clics (`65402d5`), avec l'assistance qui ne voit que ce qu'on lui partage, et captures (`2b250a2`, `3162f0a`). Corrections de sélecteurs : `aria-label` sur les selects (`682aeab`, un `getByLabel` sur un select dans son label trouvait aussi les options), `.first()` et lien de section sans ambiguïté (`48a4f10`).
+- Runs verts : `40755351372` (d0a6924, deux jobs), `40767705417` (48a4f10, 159 e2e), `40771677433` (3162f0a, 1005 unitaires, 159 e2e, 18,5 min). Dans ces runs : pas de « 418 toléré », pas de « clic relancé ».
+- Captures : seize `documents-*` (coffre, dossier, fiche, échéance ; 1440 et 360 px ; sombre et clair) relues une à une sur le run 40771677433, commitées dans `docs/captures/`.
+- Ouvert, à décider : « Coffre-fort » apparaît deux fois sur le dossier et la fiche (chip du menu de l'app et lien de retour) ; la carte répète son titre comme type ; le repli « Un membre » quand le compte n'a pas de fiche ; la recherche globale n'est pas branchée à l'index des documents ; pas d'écoute du socle sur `documents.*` (à venir en 5.7) ; règle stricte de l'assistance sur les dossiers.
+- Tests de service (gardes par niveau d'accès) non écrits en Vitest : ils demandent une base, couverts par `db:verifier-documents` et par l'e2e.

@@ -332,10 +332,11 @@ Décisions de John (25/10) :
 ### 5.2b Saison : papiers du véhicule lus chez Voiture
 - Défaut relevé en 5.2 : un papier valide n'émet aucun signal, et un renouvellement ne règle pas un point « Papiers » resté ouvert dans « Prêt pour l'épreuve ? ». Même remède que les licences en 5.2 : Saison lit l'état des papiers par une lecture partagée de Voiture.
 - Livrée le 26/10 sur verif (47a121f, fd92058, fccaf6f) : lecture à la date de l'épreuve, gestionnaire du signal retiré, rangs en clair (scratch et classe). Runs verts 40247176727 et 40248925783, 157 e2e. Captures relues et commitées.
-- Reliquat à reprendre en tête de la 5.3 : le détail du point Papiers ne nomme pas le véhicule (« Papiers du véhicule non renseignés », « Carte grise expire le … ») ; il doit dire « de la Saxo » (nom court du véhicule de l'engagement).
+- Reliquat (détail du point Papiers qui nomme le véhicule) repris en tête de la 5.3, commit `a3a4d67`. Fait.
 
 ### 5.3 Documents : coffre-fort
 - Tables `documents_` de 957 §3, dossiers types créés à la première écriture (Association, Assurances, Règlements, Rallyes archivés, Modèles, Attestations, Divers), documents propres, versions, accès interne pour l'assistance (`documents_access`). Écrans : coffre-fort en cartes avec jauge de complétude, liste d'un dossier, fiche document. `documents.document_ajoute`, `documents.reglement_publie`.
+- Livrée le 28/10 sur verif (de `a3a4d67` à `3162f0a`, schéma validé avec corrections, migration `1aa22ed`) : runs verts `40755351372`, `40767705417` et `40771677433` (1005 unitaires, 159 e2e). Captures `documents-*` relues une à une et commitées. Étape 11 ajoutée à `docs/test-john-lot-5.md`. Reste à voir : test de John avant la fusion dans main.
 
 ### 5.4 Documents : échéances, vue unifiée, partages
 - Échéances centralisées (J-60, J-30, J-7, expiré) des documents propres et des échéances reçues (`voiture.papier_expire_bientot`, `equipe.licence_expire_bientot`, `equipe.homologation_expire_bientot`), chaque carte ouvre la fiche dans son app. Vue unifiée de `core_attachment` qui respecte les droits de l'app d'origine. Liens de partage temporaires (7 jours, révocables, ouvertures journalisées), page publique sur le modèle de `/p/`.

@@ -77,8 +77,23 @@ Chaque étape dit ce que tu fais, puis ce que tu dois voir. Si ce n'est pas ce q
 2. Dans **Saison**, le panneau de cet engagement montre **Papiers** **ouvert**, avec la phrase « Assurance expire le … ». **Régler** mène à l'onglet Papiers de la fiche du véhicule.
 3. Ajoute une assurance valable après l'épreuve : le point **Papiers** repasse **réglé** au retour dans Saison. Un papier sans date de fin ne bloque jamais.
 
+## Étape 11 : Documents, le coffre-fort
+
+1. Menu du QG, tuile **Documents** : trois compteurs (**Expirés ou à 7 jours**, **À 60 jours**, **À jour**) et une carte par dossier. Les sept dossiers types sont là une seule fois, même si tu crées plusieurs documents d'un coup.
+2. Bouton **Document** : crée un document **Statuts de l'association**, type **Statuts de l'association**, dossier **Association**, avec un PDF. La carte **Association** affiche **1 sur 3**.
+3. Crée un document **Assurance de l'association** dans **Assurances**, avec une date de validité dans cinq jours : le compteur **Expirés ou à 7 jours** passe à 1, et la fiche dit « Expire dans 5 jours ».
+4. Ouvre les **Statuts**, clique sur **Remplacer le fichier**, ajoute une photo avec un commentaire : la fiche montre **Version 2** et l'aperçu de la photo. **Historique des versions (2)** liste la version 1, et son lien ouvre encore le PDF.
+5. Clique sur **Archiver** dans la fiche des Statuts : la carte **Association** passe à **0 sur 3**, et le document apparaît dans **Archivés (1)** du dossier.
+6. Ouvre une fenêtre privée avec un compte **assistance**. Le coffre ne montre ni **Association** ni **Assurances** ; le bouton **Dossier** n'existe pas, **Document** oui.
+7. Avec ce compte, crée un document **Attestation de l'assistance** dans **Attestations** : il apparaît, et lui seul le voit.
+8. Depuis ton compte, ouvre l'assurance, **Partager avec un membre**, choisis la personne de l'assistance (niveau **Lecture**). Dans la fenêtre privée, recharge le coffre : **Assurances** apparaît, et la fiche de l'assurance s'ouvre.
+9. Sur téléphone (ou en réduisant la fenêtre à 360 px), le coffre, la liste d'un dossier et la fiche se lisent sans défilement horizontal, et les boutons se touchent au doigt.
+
 ## Ce qui n'est pas encore là
 
 - Photo des personnes (les initiales tiennent lieu de photo pour l'instant).
 - Statistiques après un résultat validé : à vérifier quand la prochaine épreuve sera jouée.
 - Trophées affichés pour les personnes déjà présentes avant ce lot : leur choix n'a pas changé (seul le défaut des nouvelles personnes est coché).
+- Recherche globale dans les documents : pas encore branchée à l'index.
+- Alertes d'échéance vers le QG : les actions viennent avec les check-lists (5.7).
+- Nom de la personne qui a déposé une version quand son compte n'a pas de fiche : affiché « Un membre ».
