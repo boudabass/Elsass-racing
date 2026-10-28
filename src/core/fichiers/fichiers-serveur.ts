@@ -99,7 +99,8 @@ export interface Rattachement {
 }
 
 // Rattache un fichier à une fiche. Seul l'envoyeur, ou une fiche déjà liée à ce fichier, peut le faire.
-export async function rattacherFichier(client: ClientFichier, ctx: ContexteTeam, rattachement: Rattachement): Promise<void> {
+// Renvoie l'identifiant du rattachement, existant ou créé (Documents s'en sert comme attachment_id de sa version).
+export async function rattacherFichier(client: ClientFichier, ctx: ContexteTeam, rattachement: Rattachement): Promise<string> {
   const { fileId, app, ficheType, ficheId } = rattachement
   const fichier = await client.coreFile.findFirst({ where: { id: fileId, teamId: ctx.teamId, deletedAt: null }, select: { createdBy: true } })
   if (!fichier) refus("Fichier introuvable dans cette team.")
@@ -108,7 +109,7 @@ export async function rattacherFichier(client: ClientFichier, ctx: ContexteTeam,
   const dejaLie = await client.coreAttachment.findFirst({ where: surLaFiche, select: { id: true } })
   if (fichier.createdBy !== ctx.userId && !dejaLie) refus("Ce fichier a été envoyé par quelqu'un d'autre : envoie le tien.")
 
-  await attacher(client, ctx, rattachement)
+  return attacher(client, ctx, rattachement)
 }
 
 // Fiche d'où vient un fichier, pour une liaison entre apps (brief 3.8, §1).
@@ -125,7 +126,7 @@ export async function rattacherDepuisSource(
   client: ClientFichier,
   ctx: ContexteTeam,
   { fileId, source, cible }: { fileId: string; source: FicheSource; cible: Omit<Rattachement, "fileId"> },
-): Promise<void> {
+): Promise<string> {
   const fichier = await client.coreFile.findFirst({ where: { id: fileId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
   if (!fichier) refus("Fichier introuvable dans cette team.")
 
@@ -135,19 +136,22 @@ export async function rattacherDepuisSource(
   })
   if (!dansLaSource) refus("Ce fichier n'est pas rattaché à la fiche d'origine : la liaison est refusée.")
 
-  await attacher(client, ctx, { fileId, ...cible })
+  return attacher(client, ctx, { fileId, ...cible })
 }
 
-// Crée le rattachement, sans doublon : même fichier, même fiche, même rôle.
-async function attacher(client: ClientFichier, ctx: ContexteTeam, rattachement: Rattachement): Promise<void> {
+// Crée le rattachement, sans doublon : même fichier, même fiche, même rôle. Renvoie l'identifiant de la ligne,
+// existante ou créée.
+async function attacher(client: ClientFichier, ctx: ContexteTeam, rattachement: Rattachement): Promise<string> {
   const { fileId, app, ficheType, ficheId, role } = rattachement
   const surLaFiche = { teamId: ctx.teamId, fileId, app, ficheType, ficheId, deletedAt: null }
   const memeRole = await client.coreAttachment.findFirst({ where: { ...surLaFiche, role }, select: { id: true } })
-  if (memeRole) return
+  if (memeRole) return memeRole.id
 
+  const id = newId()
   await client.coreAttachment.create({
-    data: { id: newId(), teamId: ctx.teamId, fileId, app, ficheType, ficheId, role, createdBy: ctx.userId, updatedBy: ctx.userId },
+    data: { id, teamId: ctx.teamId, fileId, app, ficheType, ficheId, role, createdBy: ctx.userId, updatedBy: ctx.userId },
   })
+  return id
 }
 
 // Un fichier en remplace un autre (logo, ticket) : l'ancien reçoit deletedAt. Le fichier physique reste
