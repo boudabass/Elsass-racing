@@ -64,10 +64,12 @@ test("parcours : coffre-fort, versions, archivage, partage à l'assistance", asy
   expect(await echeanceEnBase(equipe, assurance?.id ?? "")).toBe(jourParis(5))
 
   await page.getByRole("link", { name: /Assurances/ }).click()
+  // Le dossier n'a pas de lien de retour vers le coffre : le menu de l'app suffit.
+  await expect(page.locator("section").getByRole("link", { name: "Coffre-fort", exact: true })).toHaveCount(0)
   await page.getByRole("link", { name: TITRE_ASSURANCE }).click()
   await expect(page.getByText("Expire dans 5 jours", { exact: true })).toBeVisible()
   await page.getByRole("link", { name: "Assurances", exact: true }).click()
-  await page.locator("section").getByRole("link", { name: "Coffre-fort", exact: true }).click()
+  await page.getByRole("link", { name: "Coffre-fort", exact: true }).click()
 
   // 3. Nouvelle version du Statuts : la version 2 devient la version en cours, la version 1 reste lisible.
   await page.getByRole("link", { name: /Association/ }).click()
@@ -106,7 +108,7 @@ test("parcours : coffre-fort, versions, archivage, partage à l'assistance", asy
   await expect(page.getByRole("dialog").getByRole("link", { name: new RegExp(TITRE_STATUTS) })).toBeVisible()
   await page.getByRole("button", { name: "Fermer", exact: true }).click()
   await expect(page.getByRole("dialog")).toHaveCount(0)
-  await page.locator("section").getByRole("link", { name: "Coffre-fort", exact: true }).click()
+  await page.getByRole("link", { name: "Coffre-fort", exact: true }).click()
   await expect(page.getByRole("link", { name: /Association/ })).toContainText("0 sur 3")
 
   // 5. Assistance : elle ne voit ni l'assurance ni le Statuts. Elle ajoute son propre document, puis voit celui

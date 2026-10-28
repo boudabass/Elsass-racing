@@ -3,7 +3,7 @@
 
 import Link from "next/link"
 
-import { BOUTON_SECONDAIRE, LIEN } from "@/lib/classes-formulaire"
+import { BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
 
 import type { DossierDonnees, LigneDocument } from "../lectures-serveur"
 import { COULEUR_ZONE, LIBELLE_TYPE_DOCUMENT, LIBELLE_VISIBILITE } from "../libelles"
@@ -27,9 +27,6 @@ export function DossierEcran({
   return (
     <section className="flex w-full max-w-6xl flex-col gap-6">
       <header className="flex flex-col gap-3">
-        <Link href="/apps/documents" className={LIEN}>
-          Coffre-fort
-        </Link>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex flex-col gap-1">
             <h1 className="titre-rallye text-3xl">{donnees.nom}</h1>
