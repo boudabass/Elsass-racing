@@ -17,6 +17,9 @@ const PHOTO = path.join(__dirname, "fichiers", "photo.jpg")
 const TITRE_STATUTS = "Statuts de l'association"
 const TITRE_ASSURANCE = "Assurance de l'association"
 const TITRE_ATTESTATION = "Attestation de l'assistance"
+const NOM_GESTION = "Dossier de gestion"
+const TITRE_PARTAGE = "Note partagée"
+const TITRE_PRIVE = "Note privée"
 
 test("parcours : coffre-fort, versions, archivage, partage à l'assistance", async ({ page, equipe, browser }) => {
   test.setTimeout(420_000)
@@ -150,6 +153,40 @@ test("parcours : coffre-fort, versions, archivage, partage à l'assistance", asy
     await assist.getByRole("link", { name: /Assurances/ }).click()
     await assist.getByRole("link", { name: TITRE_ASSURANCE }).click()
     await expect(assist.getByText("Expire dans 5 jours", { exact: true })).toBeVisible()
+
+    // 6. Dossier « gestion » : l'assistance ne le voit pas, sauf le document partagé avec elle. Le dossier apparaît avec
+    // ce seul document, sans jauge, et le dit ; l'autre document du dossier reste caché.
+    await page.getByRole("link", { name: "Coffre-fort", exact: true }).click()
+    await page.getByRole("button", { name: "Dossier", exact: true }).click()
+    const tiroirDossier = page.getByRole("dialog")
+    await tiroirDossier.getByLabel("Nom", { exact: true }).fill(NOM_GESTION)
+    await tiroirDossier.getByLabel("Qui peut voir", { exact: true }).selectOption("gestion")
+    await envoyer(page, tiroirDossier.getByRole("button", { name: "Créer le dossier", exact: true }))
+
+    for (const titre of [TITRE_PARTAGE, TITRE_PRIVE]) {
+      await page.getByRole("button", { name: "Document", exact: true }).click()
+      const tiroirGestion = page.getByRole("dialog")
+      await tiroirGestion.getByLabel("Titre", { exact: true }).fill(titre)
+      await tiroirGestion.getByLabel("Type de document", { exact: true }).selectOption("autre")
+      await tiroirGestion.getByLabel("Dossier", { exact: true }).selectOption({ label: NOM_GESTION })
+      await envoyer(page, tiroirGestion.getByRole("button", { name: "Ajouter le document", exact: true }))
+    }
+
+    await page.getByRole("link", { name: new RegExp(NOM_GESTION) }).click()
+    await page.getByRole("link", { name: TITRE_PARTAGE }).click()
+    await page.getByRole("button", { name: "Partager avec un membre", exact: true }).click()
+    const tiroirPartageGestion = page.getByRole("dialog")
+    await tiroirPartageGestion.getByLabel("Membre", { exact: true }).selectOption({ label: "Anne Assistance" })
+    await envoyer(page, tiroirPartageGestion.getByRole("button", { name: "Partager", exact: true }))
+    const partageGestion = await documentEnBase(equipe, TITRE_PARTAGE)
+    expect(await accesDocumentEnBase(equipe, partageGestion?.id ?? "", personneAssistance)).toBe("lecture")
+
+    await assist.reload()
+    await expect(assist.getByRole("link", { name: new RegExp(NOM_GESTION) })).toContainText("1 document")
+    await assist.getByRole("link", { name: new RegExp(NOM_GESTION) }).click()
+    await expect(assist.getByText("Tu ne vois ici que les documents qui te sont ouverts.", { exact: true })).toBeVisible()
+    await expect(assist.getByRole("link", { name: new RegExp(TITRE_PARTAGE) })).toBeVisible()
+    await expect(assist.getByRole("link", { name: new RegExp(TITRE_PRIVE) })).toHaveCount(0)
   } finally {
     await contexte.close()
   }

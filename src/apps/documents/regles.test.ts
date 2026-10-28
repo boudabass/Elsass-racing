@@ -152,13 +152,13 @@ describe("peutVoirDocument (visibilité)", () => {
     expect(peutVoirDocument(d, dossierTeam, AUCUN)).toBe(false)
   })
 
-  it("visibilité gestion : niveau gestion et propriétaire seulement, l'accès interne ne suffit pas", () => {
+  it("visibilité gestion : niveau gestion et propriétaire seulement ; un accès interne l'ouvre à la personne", () => {
     const sansAcces = doc({ visibility: "gestion" })
     const avecAcces = doc({ visibility: "gestion", accesPersonne: "lecture" })
     expect(peutVoirDocument(sansAcces, dossierTeam, GESTION)).toBe(true)
     expect(peutVoirDocument(sansAcces, dossierTeam, ECRIVAIN)).toBe(true)
     expect(peutVoirDocument(sansAcces, dossierTeam, LECTEUR)).toBe(false)
-    expect(peutVoirDocument(avecAcces, dossierTeam, LECTEUR)).toBe(false)
+    expect(peutVoirDocument(avecAcces, dossierTeam, LECTEUR)).toBe(true)
   })
 
   it("visibilité prive : propriétaire, personnes ouvertes et gestion", () => {
@@ -174,10 +174,22 @@ describe("peutVoirDocument (visibilité)", () => {
     expect(peutVoirDocument(doc({ visibility: "gestion", accesPersonne: "contribution" }), dossierTeam, ASSISTANCE)).toBe(true)
   })
 
-  it("la plus stricte des deux visibilités décide : un document ouvert ou à soi dans un dossier de gestion reste caché à l'assistance", () => {
+  it("sans accès, la visibilité du dossier décide : un document à soi dans un dossier de gestion reste caché à l'assistance", () => {
     const sien = doc({ ownerPersonId: "assistance", visibility: "team" })
     expect(peutVoirDocument(sien, dossierGestion, ASSISTANCE)).toBe(false)
-    expect(peutVoirDocument({ ...sien, accesPersonne: "contribution" }, dossierGestion, ASSISTANCE)).toBe(false)
+  })
+
+  it("un accès interne ouvre le document dans un dossier caché : l'assistance et les membres qui lisent le voient", () => {
+    const partage = doc({ visibility: "team", accesPersonne: "lecture" })
+    expect(peutVoirDocument(partage, dossierGestion, ASSISTANCE)).toBe(true)
+    expect(peutVoirDocument(partage, dossierGestion, LECTEUR)).toBe(true)
+    expect(peutVoirDocument(partage, dossierGestion, ECRIVAIN)).toBe(true)
+    expect(peutVoirDocument(partage, dossierGestion, AUCUN)).toBe(false)
+  })
+
+  it("un accès en lecture ne donne pas le dossier : ses autres documents restent cachés", () => {
+    const autre = doc({ visibility: "team", accesPersonne: null })
+    expect(peutVoirDocument(autre, dossierGestion, LECTEUR)).toBe(false)
   })
 
   it("un compte sans fiche personne ne possède rien : il ne voit que ce qui lui est ouvert ou visible par son niveau", () => {

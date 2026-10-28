@@ -1,9 +1,9 @@
 // Règles pures de Documents (tâche 5.3, brief section 3). Aucun accès à la base : les services et les lectures passent
 // les valeurs déjà lues, ces fonctions renvoient une décision, testée dans regles.test.ts.
 //
-// Visibilité : un dossier invisible cache ses documents, sauf pour l'assistance (niveau contribution), qui ne voit que
-// les siens et ceux qui lui sont ouverts. Un accès interne (documents_access) ouvre le document à la personne, mais
-// pas un dossier caché aux membres du niveau lecture ou écriture.
+// Visibilité : un accès interne (documents_access) ouvre le document à la personne, même si son dossier lui est caché
+// (c'est le but du partage, surtout pour l'assistance). Sans accès, un dossier invisible cache ses documents, et
+// l'assistance (niveau contribution) ne voit que les siens.
 
 import { jourDeParis } from "@/core/dates"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
@@ -181,24 +181,23 @@ export function peutVoirDossier(dossier: DossierPourDroits, qui: QuiAgit): boole
   return dossier.visibility === "team"
 }
 
-// Un document. Validé par l'orchestrateur (28/10) : c'est la plus stricte des deux visibilités, dossier et document,
-// qui décide. Dans l'ordre :
+// Un document. Dans l'ordre :
 // - le niveau gestion voit tout ;
-// - le dossier doit être visible (un dossier invisible cache ses documents, l'assistance comprise) ;
-// - l'assistance (contribution) ne voit ensuite que les documents dont elle est propriétaire et ceux qui lui sont
-//   ouverts, quelle que soit la visibilité du document ;
-// - les membres au niveau lecture ou écriture : « team » pour tout le monde ; « gestion » pour le propriétaire seul ;
-//   « prive » pour le propriétaire et les personnes ouvertes.
+// - un accès interne (documents_access) ouvre le document, dans un dossier caché à la personne comme ailleurs, et quelle
+//   que soit la visibilité du document (règle du 28/10, décidée par l'orchestrateur) ;
+// - sans accès, le dossier doit être visible à la personne (un dossier invisible cache ses documents) ;
+// - l'assistance (contribution) ne voit alors que les documents dont elle est propriétaire ;
+// - les membres au niveau lecture ou écriture : « team » pour tout le monde ; « gestion » et « prive » pour le
+//   propriétaire seul.
 export function peutVoirDocument(document: DocumentPourDroits, dossier: DossierPourDroits, qui: QuiAgit): boolean {
   if (!aAuMoins(qui.niveau, "lecture")) return false
   if (aAuMoins(qui.niveau, "gestion")) return true
+  if (document.accesPersonne !== null) return true
   if (!peutVoirDossier(dossier, qui)) return false
 
-  const proprietaire = estProprietaire(document.ownerPersonId, qui)
-  if (qui.niveau === "contribution") return proprietaire || document.accesPersonne !== null
-  if (document.visibility === "team") return true
-  if (proprietaire) return true
-  return document.visibility === "prive" && document.accesPersonne !== null
+  if (estProprietaire(document.ownerPersonId, qui)) return true
+  if (qui.niveau === "contribution") return false
+  return document.visibility === "team"
 }
 
 // Nom affiché pour un auteur (uploaded_by, granted_by) : la fiche personne quand elle existe, sinon l'e-mail du compte,

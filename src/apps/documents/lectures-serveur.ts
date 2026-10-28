@@ -147,17 +147,20 @@ export async function lireCoffre(): Promise<CoffreDonnees> {
     vert: zones.filter((zone) => zone === "vert").length,
   }
 
-  // Cartes : les sept dossiers types (virtuels s'ils ne sont pas encore créés), puis les dossiers de la team, dans la
-  // mesure où la personne voit le dossier. L'assistance ne voit que les cartes où elle a des documents.
+  // Cartes : les sept dossiers types (virtuels s'ils ne sont pas encore créés), puis les dossiers de la team. Un dossier
+  // caché à la personne apparaît tout de même s'il contient un document qui lui est ouvert : la carte ne montre alors
+  // que ces documents, et n'a pas de jauge (la complétude d'un dossier caché ne se calcule pas sur une partie seulement).
   const cartes: CarteDossier[] = []
   for (const type of DOSSIERS_TYPES) {
     const ligne = dossiers.find((dossier) => dossier.kind === "systeme" && dossier.name === type.nom) ?? dossierVirtuel(type.nom)
-    if (!peutVoirDossier(dossierPourDroits(ligne), acteur)) continue
-    cartes.push(carte(type.cle, ligne, actifs, maintenant, type.typesAttendus, true))
+    const voit = peutVoirDossier(dossierPourDroits(ligne), acteur)
+    if (!voit && !contientVisible(ligne, visibles)) continue
+    cartes.push(carte(type.cle, ligne, actifs, maintenant, type.typesAttendus, true, voit))
   }
   for (const dossier of dossiers.filter((dossier) => dossier.kind === "perso")) {
-    if (!peutVoirDossier(dossierPourDroits(dossier), acteur)) continue
-    cartes.push(carte(dossier.id, dossier, actifs, maintenant, [], false))
+    const voit = peutVoirDossier(dossierPourDroits(dossier), acteur)
+    if (!voit && !contientVisible(dossier, visibles)) continue
+    cartes.push(carte(dossier.id, dossier, actifs, maintenant, [], false, voit))
   }
 
   const assistance = acteur.niveau === "contribution"
@@ -170,14 +173,27 @@ export async function lireCoffre(): Promise<CoffreDonnees> {
   }
 }
 
+// Vrai si la personne voit au moins un document de ce dossier (accès interne ou propriété), même sans voir le dossier.
+function contientVisible(dossier: DossierLigne, visibles: Visible[]): boolean {
+  return dossier.id !== "" && visibles.some((doc) => doc.folderId === dossier.id)
+}
+
 // Carte d'un dossier. Les documents arrivent triés par échéance, la plus proche d'abord : le premier qui a une date
-// donne le texte de la pastille (la pire zone du dossier).
-function carte(param: string, dossier: DossierLigne, actifs: Visible[], maintenant: Date, typesAttendus: readonly TypeDocument[], systeme: boolean): CarteDossier {
+// donne le texte de la pastille (la pire zone du dossier). Sans voir le dossier, la carte n'a pas de jauge.
+function carte(
+  param: string,
+  dossier: DossierLigne,
+  actifs: Visible[],
+  maintenant: Date,
+  typesAttendus: readonly TypeDocument[],
+  systeme: boolean,
+  dossierVisible: boolean,
+): CarteDossier {
   const docs = dossier.id === "" ? [] : actifs.filter((doc) => doc.folderId === dossier.id)
   const zone = pireZone(docs.map((doc) => zoneDocument(doc.validUntil, maintenant)))
   const plusProche = docs.find((doc) => doc.validUntil !== null)
   const jauge =
-    typesAttendus.length > 0
+    typesAttendus.length > 0 && dossierVisible
       ? completude(
           typesAttendus,
           docs.map((doc) => ({ docType: doc.docType as TypeDocument, status: doc.status, valableJusquAu: doc.validUntil })),
@@ -220,6 +236,8 @@ export type DossierDonnees = {
   peutAjouter: Decision
   peutGerer: Decision
   visibilite: Visibilite
+  // Dossier caché à la personne : elle n'y voit que les documents qui lui sont ouverts.
+  partiel: boolean
 }
 
 export async function lireDossier(param: string, filtres: { type?: string; proprietaire?: string }): Promise<DossierDonnees | null> {
@@ -233,13 +251,15 @@ export async function lireDossier(param: string, filtres: { type?: string; propr
     ? (dossiers.find((dossier) => dossier.kind === "systeme" && dossier.name === type.nom) ?? dossierVirtuel(type.nom))
     : dossiers.find((dossier) => dossier.id === param && dossier.kind === "perso")
   if (!ligne) return null
-  if (!peutVoirDossier(dossierPourDroits(ligne), acteur)) return null
 
   const visibles = documents.filter((doc) => {
     if (doc.folderId !== ligne.id || ligne.id === "") return false
     const dossier = dossiersParId.get(doc.folderId)
     return dossier !== undefined && peutVoirDocument(documentPourDroits(doc, accesParDoc.get(doc.id) ?? null), dossierPourDroits(dossier), acteur)
   })
+  // Un dossier caché ne s'ouvre que par les documents qui y sont ouverts à la personne.
+  const partiel = !peutVoirDossier(dossierPourDroits(ligne), acteur)
+  if (partiel && visibles.length === 0) return null
   const actifs = visibles.filter((doc) => doc.status === "actif")
   const filtres1 = actifs.filter((doc) => (filtres.type ? doc.docType === filtres.type : true))
   const filtres2 = filtres1.filter((doc) => {
@@ -284,6 +304,7 @@ export async function lireDossier(param: string, filtres: { type?: string; propr
     peutAjouter: peutAjouterDocument(acteur),
     peutGerer: peutGererDossier(acteur),
     visibilite: ligne.visibility,
+    partiel,
   }
 }
 

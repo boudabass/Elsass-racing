@@ -24,13 +24,19 @@ export function DossierEcran({
   type: string | null
   proprietaire: string | null
 }) {
+  const sousTitre = donnees.partiel
+    ? "Tu ne vois ici que les documents qui te sont ouverts."
+    : donnees.systeme
+      ? "Dossier type"
+      : `Qui peut voir : ${LIBELLE_VISIBILITE[donnees.visibilite]}`
+
   return (
     <section className="flex w-full max-w-6xl flex-col gap-6">
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex flex-col gap-1">
             <h1 className="titre-rallye text-3xl">{donnees.nom}</h1>
-            <p className="text-texte-discret">{donnees.systeme ? "Dossier type" : `Qui peut voir : ${LIBELLE_VISIBILITE[donnees.visibilite]}`}</p>
+            <p className="text-texte-discret">{sousTitre}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {donnees.peutGerer.permis && <ModifierDossier id={donnees.param} nom={donnees.nom} visibilite={donnees.visibilite} systeme={donnees.systeme} />}
