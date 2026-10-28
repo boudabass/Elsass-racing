@@ -36,7 +36,7 @@ test("captures · coffre-fort, dossier et fiche de document, 1440 et 360 px, som
   await assurance.getByLabel("Date de validité", { exact: true }).fill(jourParis(5))
   await envoyer(page, assurance.getByRole("button", { name: "Ajouter le document", exact: true }))
   await expect(page.getByRole("link", { name: /Assurances/ })).toBeVisible()
-  await page.getByRole("link", { name: /retour au qg/i }).click()
+  await page.getByRole("link", { name: /retour au qg/i }).first().click()
   await expect(page).toHaveURL(/\/qg$/)
 
   for (const theme of ["sombre", "clair"] as const) {
@@ -61,7 +61,7 @@ test("captures · coffre-fort, dossier et fiche de document, 1440 et 360 px, som
       await capturer(page, `documents-fiche-${taille.largeur}-${theme}.png`)
 
       // Retour au QG : chaque taille repart de la tuile Documents du QG.
-      await page.getByRole("link", { name: /retour au qg/i }).click()
+      await page.getByRole("link", { name: /retour au qg/i }).first().click()
       await expect(page).toHaveURL(/\/qg$/)
     }
   }
