@@ -213,6 +213,13 @@ enum SettingsPorteeSuppression {
 
 // Une team : la racine de tout le reste. Son id est la team_id de ses données.
 model CoreTeam {
+  documentsFolders DocumentsFolder[]
+  documentsDocs DocumentsDoc[]
+  documentsVersions DocumentsVersion[]
+  documentsDeadlines DocumentsDeadline[]
+  documentsAccesses DocumentsAccess[]
+  documentsShares DocumentsShare[]
+  documentsShareLogs DocumentsShareLog[]
   equipeProfiles EquipeProfile[]
   equipeLicences EquipeLicence[]
   equipeGears EquipeGear[]
@@ -560,6 +567,11 @@ model CoreAppAccess {
 // Personne physique : pilote, copilote, membre de l'équipe, ou contact d'une entreprise.
 // userId la relie à un compte, contactId à l'entreprise qui l'emploie.
 model CorePerson {
+  documentsFoldersOwner DocumentsFolder[] @relation("DocumentsFolderOwner")
+  documentsDocsOwner DocumentsDoc[] @relation("DocumentsDocOwner")
+  documentsVersionsUploaded DocumentsVersion[] @relation("DocumentsVersionUploadedBy")
+  documentsAccessesPersonne DocumentsAccess[] @relation("DocumentsAccessPersonne")
+  documentsAccessesAccordes DocumentsAccess[] @relation("DocumentsAccessGrantedBy")
   equipeProfiles EquipeProfile[]
   equipeLicences EquipeLicence[]
   equipeGears EquipeGear[]
@@ -801,6 +813,7 @@ model CoreVehicle {
 
 // Entreprise ou organisme : partenaire, fournisseur, ASA, photographe, prestataire.
 model CoreContact {
+  documentsSharesContact DocumentsShare[] @relation("DocumentsShareContact")
   equipeLicencesAsa EquipeLicence[] @relation("EquipeLicenceAsa")
 
   id         String                 @id @db.Uuid
@@ -913,6 +926,7 @@ model CoreFile {
 // Rattache un fichier à une fiche de n'importe quelle app. Le trio (app, ficheType,
 // ficheId) désigne la fiche sans clé étrangère (cf. docs/conventions-schema.md).
 model CoreAttachment {
+  documentsVersions DocumentsVersion[] @relation("DocumentsVersionAttachment")
   equipeLicencesDocument EquipeLicence[] @relation("EquipeLicenceDocument")
   equipeGearsDocument EquipeGear[] @relation("EquipeGearDocument")
   equipeSkillsJustificatif EquipeSkill[] @relation("EquipeSkillJustificatif")
@@ -1028,6 +1042,7 @@ model CoreTask {
 
 // Alerte à traiter. Le niveau et le statut donnent sa priorité.
 model CoreAlert {
+  documentsDeadlines DocumentsDeadline[] @relation("DocumentsDeadlineAlert")
   id        String          @id @db.Uuid
   teamId    String          @map("team_id") @db.Uuid
   app       String
@@ -3808,4 +3823,283 @@ model EquipePool {
   @@index([teamId, deletedAt])
   @@index([personId])
   @@map("equipe_pool")
+}
+
+// ─── Documents (tâche 5.3, docs/schema-documents.md) ─────────────────────────
+
+enum DocumentsKindDossier {
+  systeme
+  perso
+
+  @@map("documents_kind_dossier")
+}
+
+enum DocumentsVisibilite {
+  team
+  gestion
+  prive
+
+  @@map("documents_visibilite")
+}
+
+enum DocumentsTypeDocument {
+  statuts
+  recepisse_rna
+  pv_ag
+  reglement_ffsa
+  reglement_particulier
+  modele
+  assurance_asso
+  attestation
+  autre
+
+  @@map("documents_type_document")
+}
+
+enum DocumentsStatut {
+  actif
+  archive
+
+  @@map("documents_statut")
+}
+
+enum DocumentsNiveauAcces {
+  lecture
+  contribution
+
+  @@map("documents_niveau_acces")
+}
+
+enum DocumentsZone {
+  vert
+  orange
+  rouge
+
+  @@map("documents_zone")
+}
+
+enum DocumentsEtapeAlerte {
+  J60
+  J30
+  J7
+  expire
+
+  @@map("documents_etape_alerte")
+}
+
+// Dossier du coffre-fort : type fourni (systeme) ou créé par la team (perso).
+model DocumentsFolder {
+  id            String               @id @db.Uuid
+  teamId        String               @map("team_id") @db.Uuid
+  name          String
+  icon          String?
+  kind          DocumentsKindDossier @default(perso)
+  parentId      String?              @map("parent_id") @db.Uuid
+  sort          Int                  @default(0)
+  expectedCount Int?                 @map("expected_count")
+  visibility    DocumentsVisibilite  @default(team)
+  ownerPersonId String?              @map("owner_person_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team        CoreTeam          @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  parent      DocumentsFolder?  @relation("DocumentsFolderParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children    DocumentsFolder[] @relation("DocumentsFolderParent")
+  ownerPerson CorePerson?       @relation("DocumentsFolderOwner", fields: [ownerPersonId], references: [id], onDelete: Restrict)
+  docs        DocumentsDoc[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("documents_folder")
+}
+
+// Document propre à la team, sans équivalent dans une autre app.
+model DocumentsDoc {
+  id               String                @id @db.Uuid
+  teamId           String                @map("team_id") @db.Uuid
+  folderId         String                @map("folder_id") @db.Uuid
+  title            String
+  docType          DocumentsTypeDocument @map("doc_type")
+  reference        String?
+  issuedOn         DateTime?             @map("issued_on") @db.Date
+  validUntil       DateTime?             @map("valid_until") @db.Date
+  ownerPersonId    String?               @map("owner_person_id") @db.Uuid
+  notes            String?
+  status           DocumentsStatut       @default(actif)
+  visibility       DocumentsVisibilite   @default(team)
+  currentVersionId String?               @map("current_version_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team           CoreTeam           @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  folder         DocumentsFolder    @relation(fields: [folderId], references: [id], onDelete: Restrict)
+  ownerPerson    CorePerson?        @relation("DocumentsDocOwner", fields: [ownerPersonId], references: [id], onDelete: Restrict)
+  currentVersion DocumentsVersion?  @relation("DocumentsDocCourante", fields: [currentVersionId], references: [id], onDelete: Restrict)
+  versions       DocumentsVersion[] @relation("DocumentsDocVersions")
+  accesses       DocumentsAccess[]
+  shares         DocumentsShare[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([folderId])
+  @@index([ownerPersonId])
+  @@map("documents_doc")
+}
+
+// Fichier d'un document : une ligne par fichier, numéro à partir de 1. Jamais remplacée en base.
+model DocumentsVersion {
+  id           String   @id @db.Uuid
+  teamId       String   @map("team_id") @db.Uuid
+  docId        String   @map("doc_id") @db.Uuid
+  versionNo    Int      @map("version_no")
+  attachmentId String   @map("attachment_id") @db.Uuid
+  uploadedBy   String?  @map("uploaded_by") @db.Uuid
+  uploadedAt   DateTime @default(now()) @map("uploaded_at") @db.Timestamptz(3)
+  comment      String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team         CoreTeam         @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  doc          DocumentsDoc     @relation("DocumentsDocVersions", fields: [docId], references: [id], onDelete: Restrict)
+  attachment   CoreAttachment   @relation("DocumentsVersionAttachment", fields: [attachmentId], references: [id], onDelete: Restrict)
+  uploader     CorePerson?      @relation("DocumentsVersionUploadedBy", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  docsCourante DocumentsDoc[]   @relation("DocumentsDocCourante")
+
+  @@unique([docId, versionNo])
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([docId])
+  @@index([attachmentId])
+  @@map("documents_version")
+}
+
+// Échéance centralisée (tables 5.4, sans service en 5.3). Pas de clé vers la fiche d'origine : elle reste dans son app.
+model DocumentsDeadline {
+  id            String                @id @db.Uuid
+  teamId        String                @map("team_id") @db.Uuid
+  sourceApp     String                @map("source_app")
+  sourceTable   String                @map("source_table")
+  sourceId      String                @map("source_id") @db.Uuid
+  label         String
+  dueOn         DateTime              @map("due_on") @db.Date
+  zone          DocumentsZone
+  lastAlertStep DocumentsEtapeAlerte? @map("last_alert_step")
+  snoozedUntil  DateTime?             @map("snoozed_until") @db.Date
+  alertId       String?               @map("alert_id") @db.Uuid
+  resolvedAt    DateTime?             @map("resolved_at") @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team  CoreTeam   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  alert CoreAlert? @relation("DocumentsDeadlineAlert", fields: [alertId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([sourceApp, sourceId])
+  @@map("documents_deadline")
+}
+
+// Partage interne d'un document à une personne de la team. Un accès actif par document et par personne.
+model DocumentsAccess {
+  id        String               @id @db.Uuid
+  teamId    String               @map("team_id") @db.Uuid
+  docId     String               @map("doc_id") @db.Uuid
+  personId  String               @map("person_id") @db.Uuid
+  level     DocumentsNiveauAcces
+  grantedBy String?              @map("granted_by") @db.Uuid
+  grantedAt DateTime             @default(now()) @map("granted_at") @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team    CoreTeam     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  doc     DocumentsDoc @relation(fields: [docId], references: [id], onDelete: Restrict)
+  person  CorePerson   @relation("DocumentsAccessPersonne", fields: [personId], references: [id], onDelete: Restrict)
+  grantor CorePerson?  @relation("DocumentsAccessGrantedBy", fields: [grantedBy], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([docId])
+  @@index([personId])
+  @@map("documents_access")
+}
+
+// Lien de partage externe (tables 5.4, sans service en 5.3). Seul le hachage du jeton est gardé.
+model DocumentsShare {
+  id                 String    @id @db.Uuid
+  teamId             String    @map("team_id") @db.Uuid
+  docId              String    @map("doc_id") @db.Uuid
+  tokenHash          String    @unique @map("token_hash")
+  recipientLabel     String?   @map("recipient_label")
+  recipientContactId String?   @map("recipient_contact_id") @db.Uuid
+  expiresAt          DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt          DateTime? @map("revoked_at") @db.Timestamptz(3)
+  openCount          Int       @default(0) @map("open_count")
+  lastOpenedAt       DateTime? @map("last_opened_at") @db.Timestamptz(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team             CoreTeam            @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  doc              DocumentsDoc        @relation(fields: [docId], references: [id], onDelete: Restrict)
+  recipientContact CoreContact?        @relation("DocumentsShareContact", fields: [recipientContactId], references: [id], onDelete: SetNull)
+  logs             DocumentsShareLog[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([docId])
+  @@map("documents_share")
+}
+
+// Journal des ouvertures d'un lien de partage (table 5.4). L'IP n'est gardée que hachée.
+model DocumentsShareLog {
+  id        String   @id @db.Uuid
+  teamId    String   @map("team_id") @db.Uuid
+  shareId   String   @map("share_id") @db.Uuid
+  openedAt  DateTime @map("opened_at") @db.Timestamptz(3)
+  ipHash    String?  @map("ip_hash")
+  userAgent String?  @map("user_agent")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+
+  team  CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  share DocumentsShare @relation(fields: [shareId], references: [id], onDelete: Restrict)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([shareId])
+  @@map("documents_share_log")
 }
