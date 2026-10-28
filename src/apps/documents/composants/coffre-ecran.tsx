@@ -64,8 +64,25 @@ export function CoffreEcran({ donnees, rangement }: { donnees: CoffreDonnees; ra
                 </span>
                 <span className="text-sm text-texte-discret">
                   {carte.nombre === 0 ? "Aucun document" : carte.nombre === 1 ? "1 document" : `${carte.nombre} documents`}
-                  {carte.jauge ? ` · ${carte.jauge.presents} sur ${carte.jauge.attendus}` : ""}
                 </span>
+                {/* La jauge se lit par son texte à côté de la barre : jamais par la couleur seule. */}
+                {carte.jauge && (
+                  <span className="flex items-center gap-3 text-sm">
+                    <span
+                      role="progressbar"
+                      aria-label={`Complétude du dossier : ${carte.jauge.presents} sur ${carte.jauge.attendus}`}
+                      aria-valuemin={0}
+                      aria-valuemax={carte.jauge.attendus}
+                      aria-valuenow={carte.jauge.presents}
+                      className="block h-2 flex-1 overflow-hidden rounded-full bg-surface-2"
+                    >
+                      <span className="block h-full bg-marque" style={{ width: `${(carte.jauge.presents / carte.jauge.attendus) * 100}%` }} />
+                    </span>
+                    <span className="chiffre whitespace-nowrap">
+                      {carte.jauge.presents} sur {carte.jauge.attendus}
+                    </span>
+                  </span>
+                )}
               </Link>
             </li>
           ))}
