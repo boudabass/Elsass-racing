@@ -157,12 +157,30 @@ export function pointsEquipeDeEngagement(
   return { licences: bilan(licences), homologations: bilan(homologations) }
 }
 
+// Un libellé de papier dans une phrase : « Carte grise » devient « carte grise », un sigle (« RC Pro ») garde sa casse.
+function libelleDansPhrase(libelle: string): string {
+  const premiere = libelle.charAt(0)
+  const seconde = libelle.charAt(1)
+  const initialeMajuscule = premiere !== premiere.toLowerCase() && seconde === seconde.toLowerCase() && seconde !== seconde.toUpperCase()
+  return initialeMajuscule ? premiere.toLowerCase() + libelle.slice(1) : libelle
+}
+
 // Papiers du véhicule, à la date de l'épreuve (5.2b). Un type de papier est réglé s'il a au moins un papier qui n'est
 // pas expiré ce jour-là, selon statutPapier de Voiture (importée, jamais recopiée). Un papier sans échéance ne bloque
 // jamais ; un renouvellement (nouvelle ligne valable du même type) ferme le point ; « à renouveler » sans être
 // expiré ne bloque pas. Aucun papier saisi : ouvert.
-export function pointPapiersDeVehicule(vehicleId: string, papiers: readonly PapierSituation[], jour: Date): PointVoiture {
-  if (papiers.length === 0) return { etat: "ouvert", detail: "Papiers du véhicule non renseignés", vehicleId }
+// Le détail nomme le véhicule en tête, une fois, sans article (« Saxo : carte grise expire le 3 novembre ») : même
+// forme que les homologations. Sans nom connu, le détail reste sans préfixe.
+export function pointPapiersDeVehicule(
+  vehicleId: string,
+  nomCourt: string | null,
+  papiers: readonly PapierSituation[],
+  jour: Date,
+): PointVoiture {
+  const prefixe = nomCourt ? `${nomCourt} : ` : ""
+  if (papiers.length === 0) {
+    return { etat: "ouvert", detail: nomCourt ? `${prefixe}papiers non renseignés` : "Papiers du véhicule non renseignés", vehicleId }
+  }
 
   // Un type se regroupe à part, sauf « Autre » : chaque libellé saisi est un papier distinct.
   const parPapier = new Map<string, PapierSituation[]>()
@@ -176,10 +194,10 @@ export function pointPapiersDeVehicule(vehicleId: string, papiers: readonly Papi
     if (groupe.some((papier) => statutPapier(papier.valableJusquAu, jour) !== "expire")) continue
     // Tous expirés, donc tous datés : la fin la plus tardive est celle qui a fait défaut.
     const derniere = groupe.reduce((max, papier) => (papier.valableJusquAu!.getTime() > max.valableJusquAu!.getTime() ? papier : max))
-    manques.push(`${libelleDuPapier(derniere.type, derniere.libelle)} expire le ${jourCourt(derniere.valableJusquAu!)}`)
+    manques.push(`${libelleDansPhrase(libelleDuPapier(derniere.type, derniere.libelle))} expire le ${jourCourt(derniere.valableJusquAu!)}`)
   }
   if (manques.length === 0) return { etat: "regle", detail: null, vehicleId }
-  return { etat: "ouvert", detail: manques.join(" ; "), vehicleId }
+  return { etat: "ouvert", detail: `${prefixe}${manques.join(" ; ")}`, vehicleId }
 }
 
 // Où régler un point ouvert, en un geste. Le paiement mène à la fiche engagement ; licences et homologations à la

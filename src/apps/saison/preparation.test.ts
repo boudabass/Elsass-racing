@@ -222,36 +222,41 @@ describe("pointPapiersDeVehicule", () => {
   })
 
   it("aucun papier saisi : ouvert, « non renseignés »", () => {
-    expect(pointPapiersDeVehicule("saxo", [], EPREUVE)).toEqual({ etat: "ouvert", detail: "Papiers du véhicule non renseignés", vehicleId: "saxo" })
+    expect(pointPapiersDeVehicule("saxo", "Saxo", [], EPREUVE)).toEqual({ etat: "ouvert", detail: "Saxo : papiers non renseignés", vehicleId: "saxo" })
+  })
+
+  it("sans nom connu du véhicule : le détail reste sans préfixe", () => {
+    expect(pointPapiersDeVehicule("saxo", null, [], EPREUVE).detail).toBe("Papiers du véhicule non renseignés")
+    expect(pointPapiersDeVehicule("saxo", null, [papier("carte_grise", "2026-11-03")], EPREUVE).detail).toBe("carte grise expire le 3 novembre")
   })
 
   it("tous les papiers valables à l'épreuve : réglé", () => {
     const papiers = [papier("carte_grise", "2027-06-30"), papier("assurance", "2027-01-15")]
-    expect(pointPapiersDeVehicule("saxo", papiers, EPREUVE)).toEqual({ etat: "regle", detail: null, vehicleId: "saxo" })
+    expect(pointPapiersDeVehicule("saxo", "Saxo", papiers, EPREUVE)).toEqual({ etat: "regle", detail: null, vehicleId: "saxo" })
   })
 
   it("un papier expiré à la date de l'épreuve, encore valable aujourd'hui : ouvert, avec la date", () => {
-    const pointe = pointPapiersDeVehicule("saxo", [papier("carte_grise", "2026-11-03")], EPREUVE)
-    expect(pointe).toEqual({ etat: "ouvert", detail: "Carte grise expire le 3 novembre", vehicleId: "saxo" })
-    expect(pointPapiersDeVehicule("saxo", [papier("carte_grise", "2026-11-03")], jour("2026-11-01")).etat).toBe("regle")
+    const pointe = pointPapiersDeVehicule("saxo", "Saxo", [papier("carte_grise", "2026-11-03")], EPREUVE)
+    expect(pointe).toEqual({ etat: "ouvert", detail: "Saxo : carte grise expire le 3 novembre", vehicleId: "saxo" })
+    expect(pointPapiersDeVehicule("saxo", "Saxo", [papier("carte_grise", "2026-11-03")], jour("2026-11-01")).etat).toBe("regle")
   })
 
   it("un papier expiré renouvelé par une ligne valable du même type : réglé", () => {
     const papiers = [papier("carte_grise", "2026-11-06"), papier("carte_grise", "2027-06-30")]
-    expect(pointPapiersDeVehicule("saxo", papiers, EPREUVE).etat).toBe("regle")
+    expect(pointPapiersDeVehicule("saxo", "Saxo", papiers, EPREUVE).etat).toBe("regle")
   })
 
   it("un papier sans date de fin ne bloque jamais", () => {
-    expect(pointPapiersDeVehicule("saxo", [papier("assurance", null)], EPREUVE).etat).toBe("regle")
+    expect(pointPapiersDeVehicule("saxo", "Saxo", [papier("assurance", null)], EPREUVE).etat).toBe("regle")
   })
 
   it("un papier « à renouveler » à l'épreuve, pas encore expiré : réglé", () => {
-    expect(pointPapiersDeVehicule("saxo", [papier("carte_grise", "2026-11-10")], EPREUVE).etat).toBe("regle")
+    expect(pointPapiersDeVehicule("saxo", "Saxo", [papier("carte_grise", "2026-11-10")], EPREUVE).etat).toBe("regle")
   })
 
   it("plusieurs types expirés : ouvert, chacun avec sa date", () => {
     const papiers = [papier("carte_grise", "2026-11-03"), papier("assurance", "2026-11-05")]
-    expect(pointPapiersDeVehicule("saxo", papiers, EPREUVE).detail).toBe("Carte grise expire le 3 novembre ; Assurance expire le 5 novembre")
+    expect(pointPapiersDeVehicule("saxo", "Saxo", papiers, EPREUVE).detail).toBe("Saxo : carte grise expire le 3 novembre ; assurance expire le 5 novembre")
   })
 
   it("« Autre » : chaque libellé saisi est un papier à part, nommé par son libellé", () => {
@@ -259,6 +264,11 @@ describe("pointPapiersDeVehicule", () => {
       { type: "autre", libelle: "Vignette", valableJusquAu: jour("2026-11-02") },
       { type: "autre", libelle: "Certificat", valableJusquAu: jour("2027-03-01") },
     ]
-    expect(pointPapiersDeVehicule("saxo", papiers, EPREUVE)).toEqual({ etat: "ouvert", detail: "Vignette expire le 2 novembre", vehicleId: "saxo" })
+    expect(pointPapiersDeVehicule("saxo", "Saxo", papiers, EPREUVE)).toEqual({ etat: "ouvert", detail: "Saxo : vignette expire le 2 novembre", vehicleId: "saxo" })
+  })
+
+  it("un sigle saisi pour « Autre » garde sa casse dans la phrase", () => {
+    const papiers: PapierSituation[] = [{ type: "autre", libelle: "RC Pro", valableJusquAu: jour("2026-11-02") }]
+    expect(pointPapiersDeVehicule("saxo", "Saxo", papiers, EPREUVE).detail).toBe("Saxo : RC Pro expire le 2 novembre")
   })
 })

@@ -278,7 +278,7 @@ async function main() {
     const voiture2 = await import("../src/apps/voiture/services-serveur")
     await voiture2.creerPapierDans(ctx, vehiculeBus.id, { type: "carte_grise", valableJusquAu: "2030-06-30" })
     const pointsExpire = await lecturePapiers.lirePointsVoiture(ctx, [{ id: entryFuture, vehicleId: vehiculeBus.id }], dateEpreuveBus)
-    controle("une carte grise expirée à la date de l'épreuve : ouvert, avec son échéance", pointsExpire.get(entryFuture)?.detail === "Carte grise expire le 30 juin", JSON.stringify(pointsExpire.get(entryFuture)))
+    controle("une carte grise expirée à la date de l'épreuve : ouvert, avec son échéance", pointsExpire.get(entryFuture)?.detail === "Véhicule test bus : carte grise expire le 30 juin", JSON.stringify(pointsExpire.get(entryFuture)))
     await voiture2.creerPapierDans(ctx, vehiculeBus.id, { type: "carte_grise", valableJusquAu: "2032-06-30" })
     const pointsRenouvele = await lecturePapiers.lirePointsVoiture(ctx, [{ id: entryFuture, vehicleId: vehiculeBus.id }], dateEpreuveBus)
     controle("une carte grise renouvelée par une ligne valable : point « papiers » réglé", pointsRenouvele.get(entryFuture)?.etat === "regle", JSON.stringify(pointsRenouvele.get(entryFuture)))

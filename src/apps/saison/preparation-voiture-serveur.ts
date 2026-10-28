@@ -1,7 +1,7 @@
 // Point Papiers de Saison, lu chez Voiture (tâche 5.2b, brief §1-2). Lecture seule : Saison n'écrit rien chez Voiture.
 // Sans Voiture activée pour la team, les engagements n'ont pas ce point (null).
 
-import { lirePapiersVehicules, voitureActivee } from "@/apps/voiture/lectures-partagees"
+import { lireNomsCourtsVehicules, lirePapiersVehicules, voitureActivee } from "@/apps/voiture/lectures-partagees"
 import type { ContexteTeam } from "@/core/contexte"
 
 import { pointPapiersDeVehicule, type PointVoiture } from "./preparation"
@@ -23,9 +23,12 @@ export async function lirePointsVoiture(
     return resultat
   }
 
-  const papiers = await lirePapiersVehicules(ctx, engagements.map((engagement) => engagement.vehicleId))
+  const vehicleIds = engagements.map((engagement) => engagement.vehicleId)
+  const papiers = await lirePapiersVehicules(ctx, vehicleIds)
+  const noms = await lireNomsCourtsVehicules(ctx, vehicleIds)
   for (const engagement of engagements) {
-    resultat.set(engagement.id, pointPapiersDeVehicule(engagement.vehicleId, papiers.get(engagement.vehicleId) ?? [], dateEpreuve))
+    const nom = noms.get(engagement.vehicleId) ?? null
+    resultat.set(engagement.id, pointPapiersDeVehicule(engagement.vehicleId, nom, papiers.get(engagement.vehicleId) ?? [], dateEpreuve))
   }
   return resultat
 }

@@ -129,3 +129,18 @@ export async function lirePapiersVehicules(ctx: ContexteTeam, vehicleIds: string
   }
   return resultat
 }
+
+// Nom court des véhicules donnés (5.2b, reliquat de la 5.3 : le détail du point Papiers nomme le véhicule). Un véhicule
+// supprimé ou absent n'apparaît pas dans la table renvoyée.
+export async function lireNomsCourtsVehicules(ctx: ContexteTeam, vehicleIds: string[]): Promise<Map<string, string>> {
+  const uniques = Array.from(new Set(vehicleIds))
+  const resultat = new Map<string, string>()
+  if (uniques.length === 0) return resultat
+
+  const vehicules = await prismaPourTeam(ctx.teamId, ctx.userId).coreVehicle.findMany({
+    where: { teamId: ctx.teamId, id: { in: uniques }, deletedAt: null },
+    select: { id: true, nomCourt: true },
+  })
+  for (const vehicule of vehicules) resultat.set(vehicule.id, vehicule.nomCourt)
+  return resultat
+}
