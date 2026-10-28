@@ -1,6 +1,6 @@
 # Documents : schéma (tâche 5.3, point d'arrêt)
 
-Statut : **écrit, migration pas encore écrite** (point d'arrêt avant la migration, brief `docs/briefs/5.3-documents-coffre-fort.md` §2). Spécification : article Odoo 957 (Documents v1.1, 15/10/2026), §3 « Tables » et « Événements ». Socle : 948 ; catalogue : 962 ; modèle : `docs/schema-equipe.md`.
+Statut : **schéma validé le 28/10 (arbitrages ci-dessous) ; migration en cours**. Point d'arrêt d'origine, brief `docs/briefs/5.3-documents-coffre-fort.md` §2). Spécification : article Odoo 957 (Documents v1.1, 15/10/2026), §3 « Tables » et « Événements ». Socle : 948 ; catalogue : 962 ; modèle : `docs/schema-equipe.md`.
 
 ## Décisions reprises du brief (orchestrateur, 28/10)
 
@@ -11,15 +11,15 @@ Statut : **écrit, migration pas encore écrite** (point d'arrêt avant la migra
 - **Archiver plutôt que supprimer** : `documents_doc.status` (`actif` / `archive`). Pas de suppression de document en 5.3 ; `deleted_at` reste réservé aux dossiers perso supprimés vides.
 - **Hors ligne** : aucune table au registre de synchro (`src/core/synchro/registre.ts` inchangé).
 
-## Écarts et choix à valider (répondre avant la migration)
+## Écarts validés par l'orchestrateur (28/10)
 
-1. **Document sans fichier : pas de ligne `documents_version`.** Le brief dit « création = document + version 1 » et « un document sans fichier est permis » (numéro RNA seul). Proposition : chaque fichier est une version, donc un document sans fichier n'a **ni version ni `current_version_id`**. La création avec fichier pose le document, la version 1 et `current_version_id` dans la même transaction. **À confirmer.**
-2. **`visibility` aussi sur `documents_doc`.** 957 ne la pose que sur le dossier. Le brief (§1, « Visibilité ») la demande sur le document et le dossier. Défaut `team`.
-3. **`uploaded_by` et `granted_by` pointent vers `core_person`** (et non `core_user`) : l'écran affiche un nom, et la personne est la fiche lisible. `created_by` du bloc commun reste l'identifiant de compte, comme partout.
-4. **`current_version_id` est une vraie clé** vers `documents_version` (nullable). Création dans l'ordre : document (sans version), version, puis mise à jour de `current_version_id`, dans la même transaction.
-5. **`documents_version.attachment_id` est obligatoire** : une version est un fichier. Le lien inverse (`core_attachment.fiche_type = 'documents_version'`, `fiche_id` = la version) est posé par `rattacherFichier` avec `app = 'documents'`, rôle `document`. Pas de clé inverse côté socle (le socle n'a pas de clé vers les fiches).
-6. **`parent_id` gardé sur `documents_folder`** (957), toujours vide en 5.3 [Orch 28/10].
-7. **Tables 5.4 créées sans service ni écran** : `documents_deadline`, `documents_share`, `documents_share_log`. `documents_access` est utilisée en 5.3 (partage interne).
+1. **Document sans fichier** : ni ligne `documents_version`, ni `current_version_id`. La fiche affiche « Aucun fichier » et un bouton « Ajouter un fichier », qui crée la version 1.
+2. **Visibilité sur le document et sur le dossier**, team par défaut. `peutVoirDocument` applique la plus stricte des deux (règles dans `src/apps/documents/regles.ts`).
+3. **`uploaded_by` et `granted_by` facultatifs**, vers `core_person`. Un compte sans fiche personne n'est jamais bloqué pour envoyer un fichier ; l'écran affiche alors le nom du compte (repli `libelleAuteur`, testé). `created_by` du bloc commun reste l'identifiant de compte.
+4. **`current_version_id`** est une clé vers `documents_version`, nullable. Les deux clés croisées (`documents_doc.current_version_id` et `documents_version.doc_id`) sont en `ON DELETE RESTRICT`. La clé `current_version_id` est créée dans la migration **après** les deux tables.
+5. **`documents_version.attachment_id` obligatoire.** Ordre dans la transaction : générer l'id de la version ; créer le rattachement (fiche `documents_version`, `fiche_id` = cet id, rôle `document`) ; insérer la version avec `attachment_id` = l'identifiant renvoyé par `rattacherFichier` (socle, commit `3cdaa80`).
+6. `parent_id` gardé sur `documents_folder`, vide en 5.3.
+7. **Tables 5.4 créées sans service ni écran** : `documents_deadline`, `documents_share`, `documents_share_log`. `documents_access` est utilisée en 5.3.
 
 ## Enums
 
@@ -80,7 +80,7 @@ Bloc commun sur chaque table. Dates : `DATE` (jour civil, minuit UTC). Pas de mo
 | `doc_id` | uuid → `documents_doc` | obligatoire |
 | `version_no` | entier | obligatoire, à partir de 1, croissant par document |
 | `attachment_id` | uuid → `core_attachment` | obligatoire (écart 5) |
-| `uploaded_by` | uuid → `core_person` | obligatoire |
+| `uploaded_by` | uuid → `core_person` | facultatif (repli : nom du compte, écart 3) |
 | `uploaded_at` | timestamptz | obligatoire, défaut maintenant |
 | `comment` | texte | facultatif (commentaire de la nouvelle version) |
 
@@ -110,7 +110,7 @@ Bloc commun sur chaque table. Dates : `DATE` (jour civil, minuit UTC). Pas de mo
 | `doc_id` | uuid → `documents_doc` | obligatoire |
 | `person_id` | uuid → `core_person` | obligatoire |
 | `level` | enum `documents_niveau_acces` | obligatoire |
-| `granted_by` | uuid → `core_person` | obligatoire |
+| `granted_by` | uuid → `core_person` | facultatif (repli : nom du compte, écart 3) |
 | `granted_at` | timestamptz | obligatoire, défaut maintenant |
 
 **Contraintes**
@@ -151,10 +151,10 @@ Sur chaque table : `team_id` et `(team_id, deleted_at)`. En plus :
 
 | Écrit par Documents | Table(s) | Quand |
 |---|---|---|
-| Socle, à l'ouverture de la team (au premier écrit) | `documents_folder` (7 dossiers `systeme`) | première écriture de Documents dans la team |
+| Services de Documents, à la première écriture de la team (même transaction, sans doublon) | `documents_folder` (7 dossiers `systeme`) | première écriture de Documents dans la team |
 | Services 5.3 | `documents_folder` (perso, renommer, supprimer vide, `visibility`) | niveau écriture |
 | Services 5.3 | `documents_doc`, `documents_version`, `documents_access` | niveau écriture, ou assistance sur ses documents |
-| Socle (`rattacherFichier`) | `core_attachment` (app `documents`, fiche `documents_version`, rôle `document`) | à chaque version |
+| Socle (`rattacherFichier`, appelé par Documents) | `core_attachment` (app `documents`, fiche `documents_version`, rôle `document`) | à chaque version ; l'id renvoyé devient `attachment_id` |
 | Services 5.4 | `documents_deadline`, `documents_share`, `documents_share_log` | non écrit en 5.3 |
 
 Lues, jamais écrites ici : `core_person`, `core_contact`, `core_attachment`, `core_alert` (5.4).

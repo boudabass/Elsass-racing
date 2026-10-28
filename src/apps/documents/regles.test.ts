@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   completude,
   joursAvantEcheance,
+  libelleAuteur,
   numeroVersionSuivant,
   peutAjouterDocument,
   peutArchiverDocument,
@@ -156,14 +157,27 @@ describe("peutVoirDocument (visibilité)", () => {
     expect(peutVoirDocument({ ...d, accesPersonne: "lecture" }, dossierTeam, LECTEUR)).toBe(true)
   })
 
-  it("l'assistance voit un document qui lui est ouvert, quelle que soit la visibilité", () => {
+  it("l'assistance voit un document qui lui est ouvert, quelle que soit la visibilité du document", () => {
     expect(peutVoirDocument(doc({ visibility: "prive", accesPersonne: "lecture" }), dossierTeam, ASSISTANCE)).toBe(true)
-    expect(peutVoirDocument(doc({ visibility: "gestion", accesPersonne: "contribution" }), dossierGestion, ASSISTANCE)).toBe(true)
+    expect(peutVoirDocument(doc({ visibility: "gestion", accesPersonne: "contribution" }), dossierTeam, ASSISTANCE)).toBe(true)
   })
 
-  it("l'assistance voit ses propres documents, même dans un dossier de gestion", () => {
-    const sien = doc({ ownerPersonId: "assistance", visibility: "gestion" })
-    expect(peutVoirDocument(sien, dossierGestion, ASSISTANCE)).toBe(true)
+  it("la plus stricte des deux visibilités décide : un document ouvert ou à soi dans un dossier de gestion reste caché à l'assistance", () => {
+    const sien = doc({ ownerPersonId: "assistance", visibility: "team" })
+    expect(peutVoirDocument(sien, dossierGestion, ASSISTANCE)).toBe(false)
+    expect(peutVoirDocument({ ...sien, accesPersonne: "contribution" }, dossierGestion, ASSISTANCE)).toBe(false)
+  })
+
+  it("un compte sans fiche personne ne possède rien : il ne voit que ce qui lui est ouvert ou visible par son niveau", () => {
+    const sansFiche = { personId: null, niveau: "contribution" as const }
+    expect(peutVoirDocument(doc({ ownerPersonId: null }), dossierTeam, sansFiche)).toBe(false)
+    expect(peutVoirDocument(doc({ accesPersonne: "lecture" }), dossierTeam, sansFiche)).toBe(true)
+  })
+
+  it("repli d'auteur : la fiche personne, sinon le nom du compte, sinon « Un membre »", () => {
+    expect(libelleAuteur("Luc Koehling", "Compte de Luc")).toBe("Luc Koehling")
+    expect(libelleAuteur(null, "Compte de Luc")).toBe("Compte de Luc")
+    expect(libelleAuteur(null, null)).toBe("Un membre")
   })
 
   it("un dossier invisible cache ses documents aux membres (sauf le niveau gestion)", () => {

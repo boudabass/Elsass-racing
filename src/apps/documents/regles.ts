@@ -128,8 +128,9 @@ export function numeroVersionSuivant(numerosExistants: readonly number[]): numbe
 // ─── Visibilité et droits ────────────────────────────────────────────────────
 
 // La personne qui agit : son identifiant de fiche et son niveau d'accès à Documents (core_app_access ou défaut du rôle).
+// Un compte sans fiche personne a personId null : il ne possède rien, mais peut agir selon son niveau.
 export interface QuiAgit {
-  personId: string
+  personId: string | null
   niveau: Niveau
 }
 
@@ -161,24 +162,30 @@ export function peutVoirDossier(dossier: DossierPourDroits, qui: QuiAgit): boole
   return dossier.visibility === "team"
 }
 
-// Un document. Dans l'ordre :
+// Un document. Validé par l'orchestrateur (28/10) : c'est la plus stricte des deux visibilités, dossier et document,
+// qui décide. Dans l'ordre :
 // - le niveau gestion voit tout ;
-// - l'assistance (contribution) ne voit que les documents dont elle est propriétaire et ceux qui lui sont ouverts,
-//   quelle que soit la visibilité et sans regarder le dossier ;
-// - les membres au niveau lecture ou écriture passent par le dossier (un dossier caché cache ses documents), puis
-//   par la visibilité : « team » pour tout membre ; « gestion » pour le propriétaire seulement ; « prive » pour le
-//   propriétaire et les personnes ouvertes.
+// - le dossier doit être visible (un dossier invisible cache ses documents, l'assistance comprise) ;
+// - l'assistance (contribution) ne voit ensuite que les documents dont elle est propriétaire et ceux qui lui sont
+//   ouverts, quelle que soit la visibilité du document ;
+// - les membres au niveau lecture ou écriture : « team » pour tout le monde ; « gestion » pour le propriétaire seul ;
+//   « prive » pour le propriétaire et les personnes ouvertes.
 export function peutVoirDocument(document: DocumentPourDroits, dossier: DossierPourDroits, qui: QuiAgit): boolean {
   if (!aAuMoins(qui.niveau, "lecture")) return false
   if (aAuMoins(qui.niveau, "gestion")) return true
+  if (!peutVoirDossier(dossier, qui)) return false
 
   const proprietaire = estProprietaire(document.ownerPersonId, qui)
   if (qui.niveau === "contribution") return proprietaire || document.accesPersonne !== null
-
-  if (!peutVoirDossier(dossier, qui)) return false
   if (document.visibility === "team") return true
   if (proprietaire) return true
   return document.visibility === "prive" && document.accesPersonne !== null
+}
+
+// Nom affiché pour un auteur (uploaded_by, granted_by) : la fiche personne quand elle existe, sinon le nom du compte.
+// Un compte sans fiche n'est jamais bloqué : les champs d'auteur peuvent rester vides, l'écran affiche alors ce repli.
+export function libelleAuteur(personne: string | null, compte: string | null): string {
+  return personne ?? compte ?? "Un membre"
 }
 
 // Modifier les champs d'un document et ajouter une version. Le niveau écriture ou gestion modifie tout document qu'il
