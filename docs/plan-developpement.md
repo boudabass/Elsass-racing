@@ -379,6 +379,9 @@ Prises le 16/10/2026 :
 En attente :
 - Création de la Koehling Racing Team en production et invitation de Jeoffrey et Aurélie.
 
+Reportés (décidés le 28/10, à placer dans un lot) :
+- Recherche globale : aucune app n'écrit dans `core_search_index`. À concevoir avec un filtre par fiche (visibilité de Documents) : indexer des documents « prive » sans ce filtre les ferait sortir dans les résultats.
+
 ### 3.11 Retours du test de John sur le lot 3
 - Brief : `docs/briefs/3.11-retours-test-john-lot-3.md`. Test de John sur dev le 19/10 : interlocuteur impossible à saisir (PDF bloqué), fiches non rafraîchies, réservation et encaissement non remontés, retour arrière, fiche convention réorganisée, message du PDF, « Tenue » devient « Faite », encadré rouge des notifications retiré, texte blanc sur les boutons rouges. À finir avant la fusion dans main.
 
