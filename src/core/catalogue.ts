@@ -44,7 +44,7 @@ export const APPS: readonly AppCatalogue[] = [
   { cle: "garage", nom: "Garage", icone: "wrench", version: "0.2.0", requiert: ["voiture"] },
   { cle: "equipe", nom: "Équipe", icone: "users", version: "0.2.0", requiert: [] },
   { cle: "checklist", nom: "Check-lists", icone: "list-checks", version: "0.1.0", requiert: ["saison"] },
-  { cle: "documents", nom: "Documents", icone: "folder", version: "0.1.0", requiert: [] },
+  { cle: "documents", nom: "Documents", icone: "folder", version: "0.2.0", requiert: [] },
   { cle: "medias", nom: "Médias", icone: "camera", version: "0.1.0", requiert: ["saison"] },
   { cle: "dashboard", nom: "Tableau de bord", icone: "layout-dashboard", version: "0.1.0", requiert: [] },
   { cle: "settings", nom: "Réglages", icone: "settings", version: "0.1.0", requiert: [] },
