@@ -49,7 +49,7 @@ export function DossierEcran({
         <form method="get" className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">Type</span>
-            <select name="type" defaultValue={type ?? ""} className="min-h-11 rounded-md border border-bordure-champ bg-surface px-3 py-2">
+            <select name="type" aria-label="Type" defaultValue={type ?? ""} className="min-h-11 rounded-md border border-bordure-champ bg-surface px-3 py-2">
               <option value="">Tous les types</option>
               {TYPES_DOCUMENT.map((valeur: TypeDocument) => (
                 <option key={valeur} value={valeur}>
@@ -60,7 +60,7 @@ export function DossierEcran({
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">Propriétaire</span>
-            <select name="proprietaire" defaultValue={proprietaire ?? "tous"} className="min-h-11 rounded-md border border-bordure-champ bg-surface px-3 py-2">
+            <select name="proprietaire" aria-label="Propriétaire" defaultValue={proprietaire ?? "tous"} className="min-h-11 rounded-md border border-bordure-champ bg-surface px-3 py-2">
               <option value="tous">Tous</option>
               <option value="moi">Mes documents</option>
               {donnees.proprietaires.map((personne) => (

@@ -19,7 +19,7 @@ export function NouveauDossier() {
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">Qui peut voir</span>
-        <select name="visibilite" defaultValue="team" className={CHAMP}>
+        <select name="visibilite" aria-label="Qui peut voir" defaultValue="team" className={CHAMP}>
           {VISIBILITES.map((visibilite) => (
             <option key={visibilite} value={visibilite}>
               {LIBELLE_VISIBILITE[visibilite]}
@@ -42,7 +42,7 @@ export function ModifierDossier({ id, nom, visibilite, systeme }: { id: string; 
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">Qui peut voir</span>
-        <select name="visibilite" defaultValue={visibilite} className={CHAMP}>
+        <select name="visibilite" aria-label="Qui peut voir" defaultValue={visibilite} className={CHAMP}>
           {VISIBILITES.map((valeur) => (
             <option key={valeur} value={valeur}>
               {LIBELLE_VISIBILITE[valeur]}

@@ -42,7 +42,7 @@ function ChampsDocument({ valeurs, rangement, dossierDefaut }: { valeurs?: Valeu
         <input name="titre" required maxLength={160} defaultValue={valeurs?.titre ?? ""} className={CHAMP} />
       </Champ>
       <Champ libelle="Type de document">
-        <select name="typeDocument" required defaultValue={valeurs?.typeDocument ?? ""} className={CHAMP}>
+        <select name="typeDocument" aria-label="Type de document" required defaultValue={valeurs?.typeDocument ?? ""} className={CHAMP}>
           {!valeurs && (
             <option value="" disabled>
               Choisir un type
@@ -57,7 +57,7 @@ function ChampsDocument({ valeurs, rangement, dossierDefaut }: { valeurs?: Valeu
       </Champ>
       {rangement && (
         <Champ libelle="Dossier">
-          <select name="dossier" required defaultValue={dossierDefaut ?? ""} className={CHAMP}>
+          <select name="dossier" aria-label="Dossier" required defaultValue={dossierDefaut ?? ""} className={CHAMP}>
             {!dossierDefaut && (
               <option value="" disabled>
                 Choisir un dossier
@@ -83,7 +83,7 @@ function ChampsDocument({ valeurs, rangement, dossierDefaut }: { valeurs?: Valeu
         </Champ>
       </div>
       <Champ libelle="Qui peut voir">
-        <select name="visibilite" defaultValue={valeurs?.visibilite ?? "team"} className={CHAMP}>
+        <select name="visibilite" aria-label="Qui peut voir" defaultValue={valeurs?.visibilite ?? "team"} className={CHAMP}>
           {VISIBILITES.map((visibilite) => (
             <option key={visibilite} value={visibilite}>
               {LIBELLE_VISIBILITE[visibilite]}
@@ -152,7 +152,7 @@ export function DeplacerDocument({ fiche, rangement }: { fiche: FicheDocument; r
     <TiroirAction libelle="Déplacer" titre="Déplacer le document" action={deplacerDocumentAction} libelleBouton="Déplacer" libelleEnCours="Déplacement…" desactive={!fiche.gestes.deplacer.permis}>
       <input type="hidden" name="id" value={fiche.id} />
       <Champ libelle="Nouveau dossier">
-        <select name="dossier" required defaultValue={fiche.dossierParam} className={CHAMP}>
+        <select name="dossier" aria-label="Nouveau dossier" required defaultValue={fiche.dossierParam} className={CHAMP}>
           {rangement.map((dossier) => (
             <option key={dossier.param} value={dossier.param}>
               {dossier.nom}
@@ -201,7 +201,7 @@ export function PartagerDocument({ fiche, personnes }: { fiche: FicheDocument; p
     >
       <input type="hidden" name="id" value={fiche.id} />
       <Champ libelle="Membre">
-        <select name="personneId" required className={CHAMP} defaultValue="">
+        <select name="personneId" aria-label="Membre" required className={CHAMP} defaultValue="">
           <option value="" disabled>
             Choisir un membre
           </option>
@@ -213,7 +213,7 @@ export function PartagerDocument({ fiche, personnes }: { fiche: FicheDocument; p
         </select>
       </Champ>
       <Champ libelle="Ce qu'il peut faire">
-        <select name="niveau" required defaultValue="lecture" className={CHAMP}>
+        <select name="niveau" aria-label="Ce qu'il peut faire" required defaultValue="lecture" className={CHAMP}>
           {NIVEAUX_ACCES_INTERNE.map((niveau) => (
             <option key={niveau} value={niveau}>
               {LIBELLE_NIVEAU_ACCES[niveau]}
