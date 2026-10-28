@@ -245,8 +245,13 @@ async function ajouterVersionDans(tx: Tx, ctx: ContexteTeam, docId: string, fich
 // --- Dossiers ----------------------------------------------------------------------------------
 
 export async function creerDossier(entree: EntreeDossier): Promise<string> {
-  const donnees = schemaDossier.parse(entree)
   const { ctx, niveau } = await accesDocuments("ecriture")
+  return creerDossierPour(ctx, niveau, entree)
+}
+
+// Même écriture, pour un contexte déjà établi (le vérificateur de base l'appelle sans session).
+export async function creerDossierPour(ctx: ContexteTeam, niveau: Niveau, entree: EntreeDossier): Promise<string> {
+  const donnees = schemaDossier.parse(entree)
   gardeDe(peutGererDossier(await quiAgit(ctx, niveau)))
   const id = newId()
   await ecrire(ctx, async (tx) => {
@@ -303,9 +308,13 @@ export async function supprimerDossier(id: string): Promise<void> {
 // --- Documents ---------------------------------------------------------------------------------
 
 export async function creerDocument(entree: EntreeDocument): Promise<string> {
+  const { ctx, niveau } = await accesDocuments("contribution")
+  return creerDocumentPour(ctx, niveau, entree)
+}
+
+export async function creerDocumentPour(ctx: ContexteTeam, niveau: Niveau, entree: EntreeDocument): Promise<string> {
   const donnees = schemaDocument.parse(entree)
   verifierDates(jourOptionnel(donnees.dateEmission), jourOptionnel(donnees.dateValidite))
-  const { ctx, niveau } = await accesDocuments("contribution")
   const qui = await quiAgit(ctx, niveau)
   gardeDe(peutAjouterDocument(qui))
 
@@ -376,6 +385,16 @@ export async function modifierDocument(id: string, entree: EntreeModificationDoc
 // « Remplacer le fichier » et « Ajouter un fichier » : une nouvelle version, l'ancienne reste dans l'historique.
 export async function ajouterVersion(docId: string, fichierId: string, commentaire?: string | null): Promise<string> {
   const { ctx, niveau } = await accesDocuments("contribution")
+  return ajouterVersionPour(ctx, niveau, docId, fichierId, commentaire)
+}
+
+export async function ajouterVersionPour(
+  ctx: ContexteTeam,
+  niveau: Niveau,
+  docId: string,
+  fichierId: string,
+  commentaire?: string | null,
+): Promise<string> {
   const qui = await quiAgit(ctx, niveau)
   return ecrire(ctx, async (tx) => {
     const doc = await documentDans(tx, ctx, docId)
