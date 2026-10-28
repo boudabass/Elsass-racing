@@ -7,7 +7,7 @@ import { LIEN } from "@/lib/classes-formulaire"
 
 import type { AccesLigne, FicheDocument } from "../lectures-serveur"
 import { COULEUR_ZONE, LIBELLE_NIVEAU_ACCES, LIBELLE_TYPE_DOCUMENT, LIBELLE_VISIBILITE } from "../libelles"
-import type { Decision, TypeDocument } from "../regles"
+import { typeRedondant, type Decision, type TypeDocument } from "../regles"
 
 import { AjouterVersion, ArchiverOuRemettre, DeplacerDocument, ModifierDocument, PartagerDocument, RetirerPartage } from "./formulaires-documents"
 import { TiroirListe } from "./tiroir-liste"
@@ -41,6 +41,9 @@ export function FicheEcran({
   const versionCourante = fiche.versions[0] ?? null
   const archive = fiche.statut === "archive"
   const raisons = raisonsRefusees([fiche.gestes.modifier, fiche.gestes.remplacer, fiche.gestes.deplacer, fiche.gestes.archiver, fiche.gestes.partager])
+  // Le type ne se répète pas quand il dit la même chose que le titre.
+  const typeLibelle = LIBELLE_TYPE_DOCUMENT[fiche.typeDocument as TypeDocument]
+  const sousTitre = [typeRedondant(fiche.titre, typeLibelle) ? null : typeLibelle, archive ? "archivé" : null].filter(Boolean).join(" · ")
 
   return (
     <section className="flex w-full max-w-4xl flex-col gap-6">
@@ -49,10 +52,7 @@ export function FicheEcran({
           {fiche.dossierNom}
         </Link>
         <h1 className="titre-rallye text-3xl">{fiche.titre}</h1>
-        <p className="text-texte-discret">
-          {LIBELLE_TYPE_DOCUMENT[fiche.typeDocument as TypeDocument]}
-          {archive ? " · archivé" : ""}
-        </p>
+        {sousTitre && <p className="text-texte-discret">{sousTitre}</p>}
       </header>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

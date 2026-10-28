@@ -75,6 +75,12 @@ export function texteEcheance(valableJusquAu: Date | null, maintenant: Date): st
   return `Expire dans ${jours} jour${jours > 1 ? "s" : ""}`
 }
 
+// Le type ne s'affiche pas quand il dit la même chose que le titre : casse et espaces en trop ignorées.
+export function typeRedondant(titre: string, typeLibelle: string): boolean {
+  const normaliser = (texte: string) => texte.replace(/\s+/g, " ").trim().toLocaleLowerCase("fr-FR")
+  return normaliser(titre) === normaliser(typeLibelle)
+}
+
 // ─── Dossiers types (957, §1) ────────────────────────────────────────────────
 
 export interface DossierType {

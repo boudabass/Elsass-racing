@@ -15,6 +15,7 @@ import {
   peutVoirDossier,
   pireZone,
   texteEcheance,
+  typeRedondant,
   zoneDocument,
   type DocumentPourDroits,
   type DossierPourDroits,
@@ -24,6 +25,17 @@ import {
 // Aujourd'hui : mercredi 28 octobre 2026, midi à Paris. Une date « dans n jours » est le jour civil n jours plus tard.
 const MAINTENANT = new Date("2026-10-28T11:00:00Z")
 const dans = (jours: number) => new Date(Date.UTC(2026, 9, 28 + jours))
+
+describe("type redondant avec le titre", () => {
+  it("le type ne s'affiche pas quand il dit la même chose que le titre, casse et espaces en trop à part", () => {
+    expect(typeRedondant("Statuts de l'association", "Statuts de l'association")).toBe(true)
+    expect(typeRedondant("  STATUTS   de l'association ", "Statuts de l'association")).toBe(true)
+  })
+
+  it("un titre différent garde le type", () => {
+    expect(typeRedondant("Statuts 2026", "Statuts de l'association")).toBe(false)
+  })
+})
 
 describe("zone d'un document", () => {
   it("bornes : vert au-delà de 60 jours, orange de 60 à 8 jours, rouge à 7 jours et moins", () => {

@@ -7,7 +7,7 @@ import { BOUTON_SECONDAIRE } from "@/lib/classes-formulaire"
 
 import type { DossierDonnees, LigneDocument } from "../lectures-serveur"
 import { COULEUR_ZONE, LIBELLE_TYPE_DOCUMENT, LIBELLE_VISIBILITE } from "../libelles"
-import { TYPES_DOCUMENT, type TypeDocument } from "../regles"
+import { TYPES_DOCUMENT, typeRedondant, type TypeDocument } from "../regles"
 
 import { NouveauDocument } from "./formulaires-documents"
 import { ModifierDossier, SupprimerDossier } from "./formulaires-dossier"
@@ -101,6 +101,8 @@ export function DossierEcran({
 }
 
 function LigneDossier({ ligne }: { ligne: LigneDocument }) {
+  // Le type ne se répète pas quand il dit la même chose que le titre.
+  const type = typeRedondant(ligne.titre, ligne.typeLibelle) ? null : ligne.typeLibelle
   return (
     <li>
       <Link href={`/apps/documents/document/${ligne.id}`} className="flex min-h-11 flex-col gap-1 rounded-lg border border-bordure bg-surface p-3 hover:bg-surface-2">
@@ -110,8 +112,7 @@ function LigneDossier({ ligne }: { ligne: LigneDocument }) {
           {!ligne.zone && <span className="text-sm text-texte-discret">{ligne.validite}</span>}
         </span>
         <span className="text-sm text-texte-discret">
-          {ligne.typeLibelle} · {ligne.proprietaire}
-          {ligne.statut === "archive" ? " · archivé" : ""}
+          {[type, ligne.proprietaire, ligne.statut === "archive" ? "archivé" : null].filter(Boolean).join(" · ")}
         </span>
       </Link>
     </li>
