@@ -644,3 +644,15 @@
 - Captures : seize `documents-*` (coffre, dossier, fiche, échéance ; 1440 et 360 px ; sombre et clair) relues une à une sur le run 40771677433, commitées dans `docs/captures/`.
 - Ouvert, à décider : « Coffre-fort » apparaît deux fois sur le dossier et la fiche (chip du menu de l'app et lien de retour) ; la carte répète son titre comme type ; le repli « Un membre » quand le compte n'a pas de fiche ; la recherche globale n'est pas branchée à l'index des documents ; pas d'écoute du socle sur `documents.*` (à venir en 5.7) ; règle stricte de l'assistance sur les dossiers.
 - Tests de service (gardes par niveau d'accès) non écrits en Vitest : ils demandent une base, couverts par `db:verifier-documents` et par l'e2e.
+
+## 29/10/2026 : tâche 5.3, passage de corrections après la relecture de l'orchestrateur
+
+- Six points et trois retouches visuelles, un commit par point : lien « Coffre-fort » retiré de la page d'un dossier (le menu suffit, `c811994`) ; type masqué quand il répète le titre, carte et fiche (`a2818db`, `typeRedondant`) ; repli d'auteur sur l'e-mail du compte, sans « Un membre » (`bae8350`, `libelleAuteur` et son test) ; recherche globale reportée au plan §7 (`16f7a3c`) ; accès interne qui ouvre le document même dans un dossier caché (`7b1947b`) ; fiche « Informations » et phrase de partage (`d81dcdf`) ; jauge de complétude sur les cartes du coffre (`d765260`).
+- Point 5 (écoute du socle sur `documents.*`) : rien à coder, prévu en 5.4 et 5.7.
+- Règle d'accès (point 6) : `peutVoirDocument` ouvre le document dès qu'il existe un accès interne ; sans accès, le dossier doit être visible. Un dossier caché n'apparaît au coffre que s'il contient un document ouvert à la personne : sa carte n'a pas de jauge, sa page dit « Tu ne vois ici que les documents qui te sont ouverts ». Le document compte dans les compteurs, pas dans la complétude. Tests : 34 unitaires sur les documents (règle, accès, repli d'auteur, type redondant).
+- e2e : un dossier « Gestion seulement » avec deux notes, une partagée à l'assistance et une non partagée. L'assistance voit le dossier avec la note partagée et ne voit pas l'autre.
+- Run `40779154379` (16f7a3c) rouge sur un seul e2e : `parcours : coffre-fort…`, l'assistante était restée sur la fiche de l'assurance et le contrôle attendait le lien « Dossier de gestion » sur le coffre. Erreur dans le test (pas dans le code). Corrigée (`7e45c49`, l'assistante repart du coffre) ; `ECONNRESET` du journal serveur, comme aux runs précédents.
+- Run vert `40782617810` (7e45c49) : 1009 unitaires, 159 e2e, deux jobs verts, pas de « 418 toléré », pas de « clic relancé ».
+- Captures : seize `documents-*` refaites sur ce run, relues une à une (coffre, dossier, fiche, échéance ; 1440 et 360 px ; sombre et clair), commitées (`e03e775`).
+- Tests de service non écrits en Vitest : accepté par l'orchestrateur, couvert par `db:verifier-documents` et par l'e2e.
+- Ouvert : l'e-mail du compte remplace « Un membre » sur les fiches et les cartes, visible dans la team seulement (décision de l'orchestrateur). À relire par John sur dev.
