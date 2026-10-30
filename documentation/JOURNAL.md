@@ -656,3 +656,10 @@
 - Captures : seize `documents-*` refaites sur ce run, relues une à une (coffre, dossier, fiche, échéance ; 1440 et 360 px ; sombre et clair), commitées (`e03e775`).
 - Tests de service non écrits en Vitest : accepté par l'orchestrateur, couvert par `db:verifier-documents` et par l'e2e.
 - Ouvert : l'e-mail du compte remplace « Un membre » sur les fiches et les cartes, visible dans la team seulement (décision de l'orchestrateur). À relire par John sur dev.
+
+## 30/10/2026 : tâche 5.3, mise en dev
+
+- Push de `b472761` (doc seule : JOURNAL et état du CLAUDE.md) sur `verif`, puis sur `dev`. Runs verts : verif `41119459914`, dev `41119467804` (typecheck et unitaires, base, build et e2e).
+- Coolify dev : `updated_at` à 20:05:23 UTC le 30/10, contre 00:58:33 UTC le 26/10 ; `/api/sante` renvoie `{"ok":true}` en 200. Le build a duré environ huit minutes. L'API ne donne pas de commit servi, et les écrans sont derrière la connexion : le contrôle du code servi reste à faire par John sur l'app dev.
+- Mise en dev de la 5.3 : le code de la tâche est celui du run vert `40782617810` (7e45c49), `e03e775` ajoute les captures. John teste l'étape 11 de `docs/test-john-lot-5.md` avant toute fusion dans main. main n'a pas été touché.
+- Non suivi, non commité : `docs/briefs/5.4-documents-echeances-partages.md`, brief de l'orchestrateur pour la tâche suivante.
