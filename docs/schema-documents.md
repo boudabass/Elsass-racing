@@ -168,3 +168,10 @@ Lues, jamais écrites ici : `core_person`, `core_contact`, `core_attachment`, `c
 - RLS forcée et politique `cloisonnement_team` sur les 7 tables (`core_team_courante()`).
 - Vérification en base : `scripts/verifier-documents.ts` (`pnpm db:verifier-documents`), jouée par le job `complet` de `.github/workflows/verifications.yml`. Contrôles : une team ne voit pas l'autre ; contraintes ci-dessus ; dossiers types créés une seule fois sous deux écritures concurrentes ; une nouvelle version ne remplace pas l'ancienne en base.
 - Migration : `prisma/migrations/<horodatage>_documents_schema`, écrite (ou complétée à la main) après `pnpm db:migrate --create-only`, relue. Appliquée et vérifiée par GitHub Actions : pas de Docker sur le poste.
+
+## Ajouts de la tâche 5.4 (brief `docs/briefs/5.4-documents-echeances-partages.md`, §2)
+
+- Migration `20261030100000_documents_echeances_partages` : **un seul index unique partiel**, pas de colonne ni de table nouvelle. `documents_deadline_document_actif_key` sur `(team_id, source_table, source_id)` WHERE `deleted_at IS NULL AND resolved_at IS NULL` : une échéance active par document propre sous deux recalculs concurrents (reprise par `avecReprisePourConflit`).
+- `documents_deadline` ne sert qu'aux documents propres (`source_app = 'documents'`, `source_table = 'documents_doc'`). Les échéances reçues (papiers de Voiture, licences et homologations d'Équipe) se lisent par les lectures partagées de l'app d'origine, sans copie.
+- Gestionnaires absents : `voiture.papier_expire_bientot`, `equipe.licence_expire_bientot`, `equipe.homologation_expire_bientot` restent écoutés par Documents dans le catalogue, sans effet (comme Saison depuis la 5.2b).
+- `documents_share.token_hash` unique (déjà en 5.3). Le jeton n'est jamais en base.
