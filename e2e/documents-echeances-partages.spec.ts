@@ -181,6 +181,9 @@ test("partage par lien : page publique sans session, ouverture comptée, révoca
 
     // Révocation depuis Partages : la même adresse ne montre plus rien d'utile.
     await page.getByRole("link", { name: "Partages", exact: true }).click()
+    // La boîte et le compteur se relisent à l'arrivée sur la page : on attend qu'ils soient posés avant d'ouvrir le tiroir,
+    // sinon le bouton du tiroir est remplacé pendant le clic.
+    await page.waitForLoadState("networkidle")
     await page.getByRole("button", { name: "Révoquer", exact: true }).click()
     const tiroirRevoquer = page.getByRole("dialog")
     await envoyer(page, tiroirRevoquer.getByRole("button", { name: "Révoquer le lien", exact: true }))
