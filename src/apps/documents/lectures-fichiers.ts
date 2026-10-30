@@ -26,6 +26,8 @@ export interface FiltresFichiers {
 
 export interface LigneFichier {
   id: string
+  // Identifiant du fichier (core_file) : la route de lecture contrôle les droits de chaque app.
+  fichierId: string
   nom: string
   app: string
   role: keyof typeof LIBELLE_ROLE_FICHIER
@@ -38,7 +40,7 @@ export interface LigneFichier {
 export interface FichiersDonnees {
   lignes: LigneFichier[]
   // Applications proposées dans le filtre : celles qui ont au moins une origine déclarée.
-  applications: string[]
+  applications: Array<{ cle: string; libelle: string }>
   auteurs: Array<{ id: string; libelle: string }>
   page: number
   pagePrecedente: boolean
@@ -61,6 +63,7 @@ export async function lireFichiers(filtres: FiltresFichiers): Promise<FichiersDo
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const page = Math.max(1, filtres.page ?? 1)
   const applicationsDeclarees = Array.from(new Set(ORIGINES.map((origine) => origine.app)))
+  const applicationsAffichees = Array.from(new Set(ORIGINES.filter((origine) => !origine.masque).map((origine) => origine.app)))
   const appsFiltrees = filtres.app && applicationsDeclarees.includes(filtres.app) ? [filtres.app] : applicationsDeclarees
   const role = filtres.role && filtres.role in LIBELLE_ROLE_FICHIER ? (filtres.role as LigneFichier["role"]) : undefined
 
@@ -77,6 +80,7 @@ export async function lireFichiers(filtres: FiltresFichiers): Promise<FichiersDo
     take: TAILLE_PAGE_FICHIERS + 1,
     select: {
       id: true,
+      fileId: true,
       app: true,
       ficheType: true,
       ficheId: true,
@@ -110,6 +114,7 @@ export async function lireFichiers(filtres: FiltresFichiers): Promise<FichiersDo
     if (!origine) continue
     lignes.push({
       id: r.id,
+      fichierId: r.fileId,
       nom: r.file.nom,
       app: r.app,
       role: r.role,
@@ -122,7 +127,7 @@ export async function lireFichiers(filtres: FiltresFichiers): Promise<FichiersDo
 
   return {
     lignes,
-    applications: applicationsDeclarees.map((app) => app),
+    applications: applicationsAffichees.map((app) => ({ cle: app, libelle: BADGES[app] ?? app })),
     auteurs: comptes.map((c) => ({ id: c.id, libelle: c.email })),
     page,
     pagePrecedente: page > 1,
