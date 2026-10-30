@@ -175,3 +175,10 @@ Lues, jamais écrites ici : `core_person`, `core_contact`, `core_attachment`, `c
 - `documents_deadline` ne sert qu'aux documents propres (`source_app = 'documents'`, `source_table = 'documents_doc'`). Les échéances reçues (papiers de Voiture, licences et homologations d'Équipe) se lisent par les lectures partagées de l'app d'origine, sans copie.
 - Gestionnaires absents : `voiture.papier_expire_bientot`, `equipe.licence_expire_bientot`, `equipe.homologation_expire_bientot` restent écoutés par Documents dans le catalogue, sans effet (comme Saison depuis la 5.2b).
 - `documents_share.token_hash` unique (déjà en 5.3). Le jeton n'est jamais en base.
+
+### Fonction `documents_lien_par_empreinte(empreinte)` (migration `20261030110000_documents_lien_par_empreinte`, feu vert du 30/10)
+
+- Seul accès public à `documents_share`, sans session ni contexte de team (la RLS ne laisse rien lire sans team, comme pour `partenaires_portal_link`). `SECURITY DEFINER`, `search_path = public`, `REVOKE ALL FROM PUBLIC`, `GRANT EXECUTE TO elsass_racing_app`.
+- Renvoie `share_id`, `team_id`, `doc_id`, et rien d'autre. Filtres dans la fonction : `revoked_at IS NULL`, `expires_at > now()`, `deleted_at IS NULL`, et le document `actif`, non supprimé, de la même team.
+- Un lien invalide (inconnu, révoqué, expiré, document archivé ou supprimé) ne renvoie aucune ligne. La page `/d/` refait les contrôles sous le contexte de la team trouvée, puis écrit `documents_share_log` et incrémente `open_count` dans une seule transaction.
+- Vérifié par `pnpm db:verifier-documents` (lien valide, révoqué, expiré, document archivé, rôle applicatif sans team).
