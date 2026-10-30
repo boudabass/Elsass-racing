@@ -71,3 +71,60 @@ export async function accesDocumentEnBase(equipe: Equipe, docId: string, personn
   )
   return rows[0]?.niveau ?? null
 }
+
+// Liens de partage d'un document (tâche 5.4) : identifiant, révocation et nombre d'ouvertures, par date de création.
+export async function liensEnBase(equipe: Equipe, docId: string): Promise<Array<{ id: string; revoque: boolean; ouvertures: number }>> {
+  const { rows } = await bd().query<{ id: string; revoque: boolean; ouvertures: number }>(
+    `SELECT id, revoked_at IS NOT NULL AS revoque, open_count AS ouvertures
+     FROM documents_share WHERE team_id = $1 AND doc_id = $2 AND deleted_at IS NULL ORDER BY created_at`,
+    [equipe.teamId, docId],
+  )
+  return rows
+}
+
+// Nombre de lignes du journal d'ouverture d'un lien : une par ouverture de la page publique.
+export async function journalOuverturesEnBase(equipe: Equipe, shareId: string): Promise<number> {
+  const { rows } = await bd().query<{ n: number }>(
+    "SELECT count(*)::int AS n FROM documents_share_log WHERE team_id = $1 AND share_id = $2",
+    [equipe.teamId, shareId],
+  )
+  return rows[0].n
+}
+
+// Échéance d'alerte d'un document propre (tâche 5.4) : date de report (AAAA-MM-JJ) et résolution.
+export async function alerteDocumentEnBase(equipe: Equipe, docId: string): Promise<{ reporteJusquau: string | null; resolue: boolean } | null> {
+  const { rows } = await bd().query<{ reporte: string | null; resolue: boolean }>(
+    `SELECT to_char(snoozed_until, 'YYYY-MM-DD') AS reporte, resolved_at IS NOT NULL AS resolue
+     FROM documents_deadline
+     WHERE team_id = $1 AND source_table = 'documents_doc' AND source_id = $2 AND deleted_at IS NULL
+     ORDER BY created_at DESC LIMIT 1`,
+    [equipe.teamId, docId],
+  )
+  const ligne = rows[0]
+  return ligne ? { reporteJusquau: ligne.reporte, resolue: ligne.resolue } : null
+}
+
+// Justificatif de Budget (dépense et fichier rattachés) : c'est une ligne « Tous les fichiers » de l'app Budget.
+// Les catégories et le payeur viennent de la team de test ; sans eux, l'aide échoue au lieu d'inventer.
+export async function justificatifBudgetEnBase(equipe: Equipe, libelle: string, nomFichier: string): Promise<void> {
+  const depense = newId()
+  const fichier = newId()
+  const { rowCount } = await bd().query(
+    `INSERT INTO budget_expense (id, team_id, date, montant, category_id, libelle, payer_id, confirmee, updated_at)
+     SELECT $1, $2, current_date, 4500, c.id, $3, p.id, true, now()
+     FROM (SELECT id FROM budget_category WHERE team_id = $2 AND sens = 'depense' LIMIT 1) c,
+          (SELECT id FROM budget_payer WHERE team_id = $2 LIMIT 1) p`,
+    [depense, equipe.teamId, libelle],
+  )
+  if (!rowCount) throw new Error("Aucune catégorie de dépense ou payeur Budget dans la team de test.")
+  await bd().query(
+    `INSERT INTO core_file (id, team_id, storage_key, nom, mime_type, taille, empreinte, updated_at)
+     VALUES ($1, $2, $3, $4, 'application/pdf', 1024, 'e2e', now())`,
+    [fichier, equipe.teamId, newId(), nomFichier],
+  )
+  await bd().query(
+    `INSERT INTO core_attachment (id, team_id, file_id, app, fiche_type, fiche_id, role, updated_at)
+     VALUES ($1, $2, $3, 'budget', 'expense', $4, 'ticket', now())`,
+    [newId(), equipe.teamId, fichier, depense],
+  )
+}
