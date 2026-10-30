@@ -72,7 +72,7 @@ export default async function LayoutApp({ children }: { children: ReactNode }) {
   const menus: MenuDeApp[] = donnees.apps.map(({ manifeste, niveau }) => ({
     cle: manifeste.cle,
     nom: manifeste.nom,
-    entrees: manifeste.menu.filter((entree) => entreeVisible(entree, niveau)).map(({ libelle, chemin }) => ({ libelle, chemin })),
+    entrees: manifeste.menu.filter((entree) => entreeVisible(entree, niveau, donnees.role)).map(({ libelle, chemin }) => ({ libelle, chemin })),
   }))
 
   // Bandeau « jour d'épreuve » : épreuve en cours aujourd'hui, pas en mode terrain, pas refusé aujourd'hui.

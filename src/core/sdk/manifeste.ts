@@ -4,7 +4,7 @@
 // l'entrée du catalogue des apps), son menu, ses widgets, et les événements qu'elle émet
 // et écoute. validerManifeste vérifie tout cela contre les catalogues.
 
-import { APPS, type AppCle } from "../catalogue"
+import { APPS, type AppCle, type RoleCore } from "../catalogue"
 import { abonnesDe, emetteurDe, estNomValide } from "../evenements/evenements"
 import { EVENEMENTS } from "../evenements/catalogue"
 
@@ -20,11 +20,14 @@ export interface EntreeMenu {
   // pour lesquels l'entrée est masquée. Sans règle, l'entrée suit le niveau d'accès à l'app.
   niveauMinimum?: Niveau
   masquePour?: Niveau[]
+  // Rôles de compte pour lesquels l'entrée est masquée (ex. « Partages » hors assistance, 957).
+  masquePourRoles?: RoleCore[]
 }
 
 // Vrai si l'entrée doit apparaître pour un membre de ce niveau sur l'app. Pur.
-export function entreeVisible(entree: EntreeMenu, niveau: Niveau): boolean {
+export function entreeVisible(entree: EntreeMenu, niveau: Niveau, role?: string): boolean {
   if (entree.niveauMinimum && !aAuMoins(niveau, entree.niveauMinimum)) return false
+  if (role !== undefined && (entree.masquePourRoles ?? []).some((masque) => masque === role)) return false
   return !(entree.masquePour ?? []).includes(niveau)
 }
 
