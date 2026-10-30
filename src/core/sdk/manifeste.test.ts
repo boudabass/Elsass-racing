@@ -92,3 +92,17 @@ describe("entreeVisible : droits d'une entrée de menu", () => {
     expect(entreeVisible(previsionnel, "gestion")).toBe(true)
   })
 })
+
+describe("entreeVisible : masquage par rôle de compte (tâche 5.4)", () => {
+  const partages = { libelle: "Partages", chemin: "/partages", masquePourRoles: ["assistance" as const] }
+
+  it("masque l'entrée pour le rôle désigné, quel que soit le niveau", () => {
+    expect(entreeVisible(partages, "lecture", "assistance")).toBe(false)
+    expect(entreeVisible(partages, "gestion", "assistance")).toBe(false)
+  })
+
+  it("garde l'entrée pour les autres rôles, et sans rôle fourni", () => {
+    expect(entreeVisible(partages, "ecriture", "responsable")).toBe(true)
+    expect(entreeVisible(partages, "lecture")).toBe(true)
+  })
+})
