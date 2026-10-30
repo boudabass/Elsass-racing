@@ -10,7 +10,9 @@ import { COULEUR_ZONE, LIBELLE_NIVEAU_ACCES, LIBELLE_TYPE_DOCUMENT, LIBELLE_VISI
 import { typeRedondant, type Decision, type TypeDocument } from "../regles"
 
 import { AjouterVersion, ArchiverOuRemettre, DeplacerDocument, ModifierDocument, PartagerDocument, RetirerPartage } from "./formulaires-documents"
+import { ListePartages, PartagerParLien } from "./partages"
 import { TiroirListe } from "./tiroir-liste"
+import type { PartagesDonnees } from "../lectures-partages"
 
 // Au-delà de cette durée, la jauge est pleine. C'est le seuil orange des échéances (60 jours).
 const JAUGE_JOURS = 60
@@ -33,14 +35,22 @@ export function FicheEcran({
   fiche,
   rangement,
   personnes,
+  partages,
+  contacts,
+  ouvrirRenouvellement,
 }: {
   fiche: FicheDocument
   rangement: Array<{ param: string; nom: string }>
   personnes: Array<{ id: string; nom: string }>
+  // Liens de partage de ce document seulement ; null pour qui ne voit pas les liens (assistance).
+  partages: PartagesDonnees | null
+  contacts: Array<{ id: string; libelle: string }>
+  // Entrée depuis Échéances (« Renouveler ») : le tiroir « Remplacer le fichier » s'ouvre à l'affichage.
+  ouvrirRenouvellement: boolean
 }) {
   const versionCourante = fiche.versions[0] ?? null
   const archive = fiche.statut === "archive"
-  const raisons = raisonsRefusees([fiche.gestes.modifier, fiche.gestes.remplacer, fiche.gestes.deplacer, fiche.gestes.archiver, fiche.gestes.partager])
+  const raisons = raisonsRefusees([fiche.gestes.modifier, fiche.gestes.remplacer, fiche.gestes.deplacer, fiche.gestes.archiver, fiche.gestes.partager, ...(fiche.liensVisibles ? [fiche.gestes.partageLien] : [])])
   // Le type ne se répète pas quand il dit la même chose que le titre.
   const typeLibelle = LIBELLE_TYPE_DOCUMENT[fiche.typeDocument as TypeDocument]
   const sousTitre = [typeRedondant(fiche.titre, typeLibelle) ? null : typeLibelle, archive ? "archivé" : null].filter(Boolean).join(" · ")
@@ -82,7 +92,7 @@ export function FicheEcran({
           ) : (
             <p className="text-texte-discret">Aucun fichier</p>
           )}
-          <AjouterVersion fiche={fiche} libelle={versionCourante ? "Remplacer le fichier" : "Ajouter un fichier"} />
+          <AjouterVersion fiche={fiche} libelle={versionCourante ? "Remplacer le fichier" : "Ajouter un fichier"} ouvertDepart={ouvrirRenouvellement} />
         </div>
 
         <div className="flex flex-col gap-3 rounded-lg border border-bordure bg-surface p-4">
@@ -126,6 +136,7 @@ export function FicheEcran({
         <DeplacerDocument fiche={fiche} rangement={rangement} />
         <ArchiverOuRemettre fiche={fiche} />
         {fiche.gestes.partager.permis && <PartagerDocument fiche={fiche} personnes={personnes} />}
+        {fiche.liensVisibles && <PartagerParLien documentId={fiche.id} contacts={contacts} desactive={!fiche.gestes.partageLien.permis} />}
       </div>
       {raisons.length > 0 && (
         <ul className="flex flex-col gap-1 text-sm text-texte-discret">
@@ -136,6 +147,13 @@ export function FicheEcran({
       )}
 
       {fiche.gestes.partager.permis && <AccesPartage acces={fiche.acces} />}
+
+      {fiche.liensVisibles && partages && (
+        <div className="flex flex-col gap-3 rounded-lg border border-bordure bg-surface p-4">
+          <h2 className="font-semibold">Liens de partage</h2>
+          <ListePartages actifs={partages.actifs} inactifs={partages.inactifs} />
+        </div>
+      )}
 
       <div>
         <TiroirListe

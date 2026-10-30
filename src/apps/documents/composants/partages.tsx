@@ -25,7 +25,15 @@ const dateLisible = (date: Date) =>
   date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" })
 
 // Création d'un lien : destinataire en texte (obligatoire), contact facultatif, durée 1, 7 ou 30 jours.
-export function PartagerParLien({ documentId, contacts }: { documentId: string; contacts: Array<{ id: string; libelle: string }> }) {
+export function PartagerParLien({
+  documentId,
+  contacts,
+  desactive = false,
+}: {
+  documentId: string
+  contacts: Array<{ id: string; libelle: string }>
+  desactive?: boolean
+}) {
   const [ouvert, setOuvert] = useState(false)
   const [resultat, setResultat] = useState<ResultatLien | null>(null)
   const [enCours, demarrer] = useTransition()
@@ -42,7 +50,17 @@ export function PartagerParLien({ documentId, contacts }: { documentId: string; 
 
   return (
     <>
-      <button type="button" aria-haspopup="dialog" onClick={() => { setResultat(null); setCopie(false); setOuvert(true) }} className={BOUTON_SECONDAIRE}>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        disabled={desactive}
+        onClick={() => {
+          setResultat(null)
+          setCopie(false)
+          setOuvert(true)
+        }}
+        className={BOUTON_SECONDAIRE}
+      >
         Partager par lien
       </button>
       <Tiroir

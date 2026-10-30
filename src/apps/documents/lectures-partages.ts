@@ -1,7 +1,6 @@
 // Écran Partages et liste d'un document (tâche 5.4, brief §1). Lecture seule. Un lien n'est jamais relu ici : seuls le
 // destinataire, les dates, le nombre d'ouvertures et l'état sortent. Liens actifs d'abord, puis expirés et révoqués.
 
-
 import { prismaPourTeam } from "@/lib/prisma"
 
 import { accesDocuments } from "./services-serveur"
@@ -25,6 +24,12 @@ export interface LignePartage {
 export interface PartagesDonnees {
   actifs: LignePartage[]
   inactifs: LignePartage[]
+}
+
+// Les liens de partage ne sont jamais ouverts à l'assistance (957) : l'écran et la liste de la fiche se cachent pour elle.
+export async function liensVisiblesPourMoi(): Promise<boolean> {
+  const { ctx } = await accesDocuments("lecture")
+  return ctx.membership.role !== "assistance"
 }
 
 export async function lirePartages(documentId?: string): Promise<PartagesDonnees> {

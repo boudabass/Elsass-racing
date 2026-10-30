@@ -126,11 +126,12 @@ export function ModifierDocument({ fiche }: { fiche: FicheDocument }) {
   )
 }
 
-export function AjouterVersion({ fiche, libelle }: { fiche: FicheDocument; libelle: string }) {
+export function AjouterVersion({ fiche, libelle, ouvertDepart = false }: { fiche: FicheDocument; libelle: string; ouvertDepart?: boolean }) {
   const [fichier, setFichier] = useState<string | null>(null)
   return (
     <TiroirAction
       libelle={libelle}
+      ouvertDepart={ouvertDepart}
       titre={libelle}
       sousTitre="Le nouveau fichier devient la version en cours. L'ancien reste consultable dans l'historique."
       action={ajouterVersionAction}

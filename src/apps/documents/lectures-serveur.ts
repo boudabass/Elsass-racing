@@ -15,6 +15,7 @@ import {
   libelleAuteur,
   peutAjouterDocument,
   peutArchiverDocument,
+  peutCreerLien,
   peutDeplacerDocument,
   peutGererDossier,
   peutModifierDocument,
@@ -348,7 +349,10 @@ export type FicheDocument = {
     archiver: Decision
     deplacer: Decision
     partager: Decision
+    partageLien: Decision
   }
+  // Liens de partage et leur liste : jamais pour l'assistance (957).
+  liensVisibles: boolean
 }
 
 const jourCivil = (date: Date | null): string | null => (date ? date.toISOString().slice(0, 10) : null)
@@ -460,7 +464,9 @@ export async function lireDocument(id: string): Promise<FicheDocument | null> {
       archiver: peutArchiverDocument(droits, dossier, acteur),
       deplacer: peutDeplacerDocument(droits, dossier, acteur),
       partager: partage,
+      partageLien: peutCreerLien(droits, dossier, acteur, doc.status === "actif"),
     },
+    liensVisibles: ctx.membership.role !== "assistance",
   }
 }
 
