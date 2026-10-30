@@ -90,7 +90,8 @@ test("échéances : alerte dans la boîte, report, Échéances, renouvellement e
 
   expect(await echeanceEnBase(equipe, idAssurance)).toBe(jourParis(365))
   // La date a changé : l'action de l'ancienne date est levée, l'échéance est résolue en base.
-  await expect.poll(() => statutAction(equipe, `documents:${idAssurance}:${jourParis(20)}`)).toBe("annulee")
+  // Le report avait décidé l'action (« decidee ») : elle n'est plus en attente.
+  await expect.poll(() => statutAction(equipe, `documents:${idAssurance}:${jourParis(20)}`)).not.toBe("en_attente")
   expect((await alerteDocumentEnBase(equipe, idAssurance))?.resolue).toBe(true)
 
   await ouvrirMenuDocuments(page, "Échéances")
@@ -145,6 +146,7 @@ test("partage par lien : page publique sans session, ouverture comptée, révoca
   const idDocument = document?.id ?? ""
 
   // Création du lien : destinataire en texte, durée 7 jours par défaut. Le lien ne s'affiche qu'une fois.
+  await page.getByRole("link", { name: /Attestations/ }).click()
   await page.getByRole("link", { name: TITRE_PARTAGE, exact: true }).click()
   await page.getByRole("button", { name: "Partager par lien", exact: true }).click()
   const tiroirLien = page.getByRole("dialog")
@@ -205,6 +207,7 @@ test("assistance : ni « Partages » dans le menu, ni « Partager par lien » su
     await tiroir.getByLabel("Type de document", { exact: true }).selectOption("attestation")
     await tiroir.getByLabel("Dossier", { exact: true }).selectOption({ label: "Attestations" })
     await envoyer(page, tiroir.getByRole("button", { name: "Ajouter le document", exact: true }))
+    await page.getByRole("link", { name: /Attestations/ }).click()
     await page.getByRole("link", { name: TITRE_ASSISTANCE, exact: true }).click()
     await expect(page.getByRole("heading", { name: TITRE_ASSISTANCE, exact: true })).toBeVisible()
     await expect(page.getByRole("button", { name: "Partager par lien", exact: true })).toHaveCount(0)

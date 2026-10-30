@@ -105,15 +105,27 @@ export async function alerteDocumentEnBase(equipe: Equipe, docId: string): Promi
 }
 
 // Justificatif de Budget (dépense et fichier rattachés) : c'est une ligne « Tous les fichiers » de l'app Budget.
-// Les catégories et le payeur viennent de la team de test ; sans eux, l'aide échoue au lieu d'inventer.
+// Les catégories et le payeur par défaut ne sont créés qu'à la première visite de Budget : l'aide les ajoute s'ils manquent.
 export async function justificatifBudgetEnBase(equipe: Equipe, libelle: string, nomFichier: string): Promise<void> {
   const depense = newId()
   const fichier = newId()
+  await bd().query(
+    `INSERT INTO budget_category (id, team_id, nom, sens, updated_at)
+     SELECT $2, $1, 'Divers e2e', 'depense', now()
+     WHERE NOT EXISTS (SELECT 1 FROM budget_category WHERE team_id = $1 AND sens = 'depense' AND deleted_at IS NULL)`,
+    [equipe.teamId, newId()],
+  )
+  await bd().query(
+    `INSERT INTO budget_payer (id, team_id, type, nom, actif, updated_at)
+     SELECT $2, $1, 'caisse_team', 'Caisse e2e', true, now()
+     WHERE NOT EXISTS (SELECT 1 FROM budget_payer WHERE team_id = $1 AND deleted_at IS NULL)`,
+    [equipe.teamId, newId()],
+  )
   const { rowCount } = await bd().query(
     `INSERT INTO budget_expense (id, team_id, date, montant, category_id, libelle, payer_id, confirmee, updated_at)
      SELECT $1, $2, current_date, 4500, c.id, $3, p.id, true, now()
-     FROM (SELECT id FROM budget_category WHERE team_id = $2 AND sens = 'depense' LIMIT 1) c,
-          (SELECT id FROM budget_payer WHERE team_id = $2 LIMIT 1) p`,
+     FROM (SELECT id FROM budget_category WHERE team_id = $2 AND sens = 'depense' AND deleted_at IS NULL LIMIT 1) c,
+          (SELECT id FROM budget_payer WHERE team_id = $2 AND deleted_at IS NULL LIMIT 1) p`,
     [depense, equipe.teamId, libelle],
   )
   if (!rowCount) throw new Error("Aucune catégorie de dépense ou payeur Budget dans la team de test.")
