@@ -248,3 +248,138 @@ export function peutDeplacerDocument(document: DocumentPourDroits, dossier: Doss
 export function peutPartagerDocument(document: DocumentPourDroits, dossier: DossierPourDroits, qui: QuiAgit): Decision {
   return peutAgirSurDocument(document, dossier, qui, "partager")
 }
+
+// ─── Échéances (tâche 5.4, brief §1) ─────────────────────────────────────────
+
+// Étapes d'alerte d'un document propre, dans l'ordre : 60 jours, 30, 7, puis expiré (au lendemain de la date).
+export type EtapeAlerte = "J60" | "J30" | "J7" | "expire"
+export const ORDRE_ETAPE: Record<EtapeAlerte, number> = { J60: 1, J30: 2, J7: 3, expire: 4 }
+
+// Étape courante d'un document : la plus grave atteinte. Sans date de validité, aucune étape.
+export function etapeAlerte(valableJusquAu: Date | null, maintenant: Date): EtapeAlerte | null {
+  if (valableJusquAu === null) return null
+  const jours = joursAvantEcheance(valableJusquAu, maintenant)
+  if (jours < 0) return "expire"
+  if (jours <= 7) return "J7"
+  if (jours <= 30) return "J30"
+  if (jours <= JOURS_ORANGE) return "J60"
+  return null
+}
+
+// Étape à notifier, une seule fois par étape et par date de validité : l'étape courante n'est envoyée que si elle est
+// plus grave que la dernière envoyée. Une nouvelle date de validité remet la dernière étape à null (appelant).
+// Un document créé à 5 jours de sa fin passe donc directement à J7, sans J60 ni J30.
+export function etapeAEnvoyer(etape: EtapeAlerte | null, derniereEnvoyee: EtapeAlerte | null): EtapeAlerte | null {
+  if (etape === null) return null
+  if (derniereEnvoyee !== null && ORDRE_ETAPE[etape] <= ORDRE_ETAPE[derniereEnvoyee]) return null
+  return etape
+}
+
+// Priorité de l'action « Renouveler » dans la Prochaine étape (socle, src/core/actions/prochaine-etape.ts). Expiré passe
+// avant J7 ; J30 et J60 partagent le rang « Échéance proche » du socle : entre eux, c'est la date qui départage.
+export function prioriteEtape(etape: EtapeAlerte): number {
+  switch (etape) {
+    case "expire":
+      return 2
+    case "J7":
+      return 4
+    case "J30":
+    case "J60":
+      return 9
+  }
+}
+
+// Titre de l'action : « Renouveler Assurance de l'association : expire le 12/11/2026 » ou « … : expirée depuis le … ».
+export function titreRenouvellement(titre: string, valableJusquAu: Date, maintenant: Date): string {
+  const jours = joursAvantEcheance(valableJusquAu, maintenant)
+  const date = dateCourte(valableJusquAu)
+  return jours < 0 ? `Renouveler ${titre} : expirée depuis le ${date}` : `Renouveler ${titre} : expire le ${date}`
+}
+
+// Date courte à la française, lue en jour civil (colonne DATE rendue à minuit UTC).
+export function dateCourte(jour: Date): string {
+  const [annee, mois, jourDuMois] = jour.toISOString().slice(0, 10).split("-")
+  return `${jourDuMois}/${mois}/${annee}`
+}
+
+// Compte à rebours en toutes lettres : « Expiré depuis 3 jours », « Expire aujourd'hui », « Expire dans 12 jours »,
+// et « Expire le 4 mars 2027 » au-delà de 60 jours. Sans date : rien.
+export function compteARebours(valableJusquAu: Date, maintenant: Date): string {
+  const jours = joursAvantEcheance(valableJusquAu, maintenant)
+  if (jours < 0) {
+    const n = -jours
+    return `Expiré depuis ${n} jour${n > 1 ? "s" : ""}`
+  }
+  if (jours === 0) return "Expire aujourd'hui"
+  if (jours <= JOURS_ORANGE) return `Expire dans ${jours} jour${jours > 1 ? "s" : ""}`
+  const lisible = valableJusquAu.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+  return `Expire le ${lisible}`
+}
+
+// Groupes de l'écran Échéances : « À traiter » (rouge), « Bientôt » (orange), « À jour » (vert). Même zone que le coffre.
+export type GroupeEcheance = "a_traiter" | "bientot" | "a_jour"
+export const GROUPES_ECHEANCE: readonly GroupeEcheance[] = ["a_traiter", "bientot", "a_jour"]
+
+export function groupeEcheance(zone: Zone | null): GroupeEcheance | null {
+  if (zone === null) return null
+  if (zone === "rouge") return "a_traiter"
+  if (zone === "orange") return "bientot"
+  return "a_jour"
+}
+
+// Tri d'un groupe : par date de fin, la plus proche d'abord.
+export function trierEcheances<T extends { due: Date }>(echeances: readonly T[]): T[] {
+  return [...echeances].sort((a, b) => a.due.getTime() - b.due.getTime())
+}
+
+// Report d'une semaine (décision « Reporter » de la boîte) : aujourd'hui plus sept jours, en jour civil UTC.
+export function dateReport(maintenant: Date): Date {
+  const aujourdhui = Date.parse(`${jourDeParis(maintenant)}T00:00:00Z`)
+  return new Date(aujourdhui + 7 * 86_400_000)
+}
+
+// ─── Liens de partage (brief §1) ─────────────────────────────────────────────
+
+// Durées proposées à la création d'un lien, en jours. Sept par défaut.
+export const DUREES_LIEN_JOURS = [1, 7, 30] as const
+export const DUREE_LIEN_PAR_DEFAUT = 7
+
+export function dureeAutorisee(jours: number): boolean {
+  return (DUREES_LIEN_JOURS as readonly number[]).includes(jours)
+}
+
+// Date de fin d'un lien : la durée en jours à partir de maintenant.
+export function finDuLien(maintenant: Date, jours: number): Date {
+  return new Date(maintenant.getTime() + jours * 86_400_000)
+}
+
+export type EtatLien = "actif" | "expire" | "revoque" | "indisponible"
+
+// Un lien révoqué l'est pour toujours ; un lien expiré l'est par la date ; un document archivé ou supprimé rend le lien
+// indisponible sans le révoquer. Dans cet ordre.
+export function etatLien(lien: { expiresAt: Date; revokedAt: Date | null }, documentDisponible: boolean, maintenant: Date): EtatLien {
+  if (lien.revokedAt !== null) return "revoque"
+  if (lien.expiresAt.getTime() <= maintenant.getTime()) return "expire"
+  if (!documentDisponible) return "indisponible"
+  return "actif"
+}
+
+export const LIBELLE_ETAT_LIEN: Record<EtatLien, string> = {
+  actif: "Actif",
+  expire: "Expiré",
+  revoque: "Révoqué",
+  indisponible: "Document indisponible",
+}
+
+// Créer un lien : niveau écriture et plus, sur un document actif qu'on voit. L'assistance ne partage jamais (957).
+export function peutCreerLien(document: DocumentPourDroits, dossier: DossierPourDroits, qui: QuiAgit, actif: boolean): Decision {
+  if (!actif) return non("Ce document est archivé : désarchive-le pour le partager.")
+  return peutPartagerDocument(document, dossier, qui)
+}
+
+// Révoquer : l'auteur du lien (au niveau écriture) ou le niveau gestion. Les autres membres ne révoquent pas.
+export function peutRevoquerLien(auteurCompte: string | null, userId: string, niveau: Niveau): Decision {
+  if (aAuMoins(niveau, "gestion")) return OUI
+  if (auteurCompte !== null && auteurCompte === userId && aAuMoins(niveau, "ecriture")) return OUI
+  return non("Seul l'auteur du lien ou un responsable peut le révoquer.")
+}
