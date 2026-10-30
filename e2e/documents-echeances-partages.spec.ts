@@ -26,11 +26,13 @@ const TITRE_PARTAGE = "Attestation partagée"
 const TITRE_ASSISTANCE = "Attestation de l'assistance e2e"
 
 // Ouvre Documents depuis le QG, puis une de ses entrées de menu.
-async function ouvrirMenuDocuments(page: Page, entree: string): Promise<void> {
-  await tuilesDuQg(page)
-    .filter({ has: page.getByRole("heading", { name: "Documents", exact: true }) })
-    .click()
-  await expect(page.getByRole("heading", { name: "Coffre-fort", exact: true })).toBeVisible()
+async function ouvrirMenuDocuments(page: Page, entree: string, depuisQg = true): Promise<void> {
+  if (depuisQg) {
+    await tuilesDuQg(page)
+      .filter({ has: page.getByRole("heading", { name: "Documents", exact: true }) })
+      .click()
+    await expect(page.getByRole("heading", { name: "Coffre-fort", exact: true })).toBeVisible()
+  }
   await page.getByRole("link", { name: entree, exact: true }).click()
 }
 
@@ -94,7 +96,8 @@ test("échéances : alerte dans la boîte, report, Échéances, renouvellement e
   await expect.poll(() => statutAction(equipe, `documents:${idAssurance}:${jourParis(20)}`)).not.toBe("en_attente")
   expect((await alerteDocumentEnBase(equipe, idAssurance))?.resolue).toBe(true)
 
-  await ouvrirMenuDocuments(page, "Échéances")
+  // Depuis la fiche : le menu de l'app suffit, les tuiles ne sont pas sur cette page.
+  await ouvrirMenuDocuments(page, "Échéances", false)
   await page.getByRole("button", { name: /^À jour \(/ }).click()
   await expect(page.getByRole("dialog").getByText(TITRE_ASSURANCE)).toBeVisible()
   await page.keyboard.press("Escape")
@@ -147,7 +150,7 @@ test("partage par lien : page publique sans session, ouverture comptée, révoca
 
   // Création du lien : destinataire en texte, durée 7 jours par défaut. Le lien ne s'affiche qu'une fois.
   await page.getByRole("link", { name: /Attestations/ }).click()
-  await page.getByRole("link", { name: TITRE_PARTAGE, exact: true }).click()
+  await page.getByRole("link", { name: TITRE_PARTAGE }).click()
   await page.getByRole("button", { name: "Partager par lien", exact: true }).click()
   const tiroirLien = page.getByRole("dialog")
   await tiroirLien.getByLabel("Destinataire", { exact: true }).fill("Préfecture test e2e")
@@ -208,7 +211,7 @@ test("assistance : ni « Partages » dans le menu, ni « Partager par lien » su
     await tiroir.getByLabel("Dossier", { exact: true }).selectOption({ label: "Attestations" })
     await envoyer(page, tiroir.getByRole("button", { name: "Ajouter le document", exact: true }))
     await page.getByRole("link", { name: /Attestations/ }).click()
-    await page.getByRole("link", { name: TITRE_ASSISTANCE, exact: true }).click()
+    await page.getByRole("link", { name: TITRE_ASSISTANCE }).click()
     await expect(page.getByRole("heading", { name: TITRE_ASSISTANCE, exact: true })).toBeVisible()
     await expect(page.getByRole("button", { name: "Partager par lien", exact: true })).toHaveCount(0)
   } finally {
