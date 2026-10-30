@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { COOKIE_SESSION, verifierSession } from "@/core/auth/session"
 import { limiteJetonsInvalides, MESSAGE_TROP_DE_TENTATIVES, trouverLienPublic } from "@/apps/partenaires/lien-public"
+import { limiteLiensInvalides, trouverLienDocument } from "@/apps/documents/lien-public"
 import { ipClient } from "@/lib/ip-client"
 import { urlPublique } from "@/lib/url-publique"
 
@@ -61,6 +62,32 @@ async function traiterPagePublique(requete: NextRequest): Promise<NextResponse> 
   return enTetesPublics(NextResponse.next())
 }
 
+// Pages de partage d'un document (tâche 5.4) : même règle que /p/. Le jeton est le premier segment après /d/ :
+// /d/<jeton> et /d/<jeton>/fichier. Un lien qui ne vaut plus part vers la même page 404 (voir app/d/introuvable).
+async function traiterPageDocument(requete: NextRequest): Promise<NextResponse> {
+  const chemin = requete.nextUrl.pathname
+  if (chemin === "/d/introuvable") return enTetesPublics(NextResponse.next())
+
+  const ip = ipClient(requete.headers)
+  if (limiteLiensInvalides.estBloquee(ip)) {
+    return enTetesPublics(
+      new NextResponse("Trop de tentatives. Réessayez dans quelques minutes.", {
+        status: 429,
+        headers: { "Content-Type": "text/plain; charset=utf-8", "Retry-After": "600" },
+      }),
+    )
+  }
+
+  const lien = await trouverLienDocument(chemin.split("/")[2] ?? "")
+  if (!lien) {
+    limiteLiensInvalides.echec(ip)
+    const url = requete.nextUrl.clone()
+    url.pathname = "/d/introuvable"
+    return enTetesPublics(NextResponse.rewrite(url))
+  }
+  return enTetesPublics(NextResponse.next())
+}
+
 function estPublic(chemin: string): boolean {
   return (
     chemin === "/connexion" ||
@@ -79,6 +106,7 @@ function estPublic(chemin: string): boolean {
 export async function middleware(requete: NextRequest) {
   const chemin = requete.nextUrl.pathname
   if (chemin === "/p" || chemin.startsWith("/p/")) return traiterPagePublique(requete)
+  if (chemin === "/d" || chemin.startsWith("/d/")) return traiterPageDocument(requete)
   if (estPublic(chemin)) return NextResponse.next()
 
   // Routes de synchro : pas de redirection (un client attend du JSON). Chaque route exige la
