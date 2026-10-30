@@ -15,6 +15,7 @@ import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 import { avecReprisePourConflit } from "@/lib/reprise-conflit"
 
 import { chargeDocumentAjoute, chargeReglementPublie } from "./charges"
+import { synchroniserEcheanceDans } from "./echeances-serveur"
 import { ErreurDocuments, refus } from "./erreurs"
 import {
   DOSSIERS_TYPES,
@@ -351,6 +352,7 @@ export async function creerDocumentPour(ctx: ContexteTeam, niveau: Niveau, entre
   if (donnees.typeDocument === "reglement_ffsa" || donnees.typeDocument === "reglement_particulier") {
     await emettre(ctx, "documents.reglement_publie", chargeReglementPublie.parse(charge))
   }
+  await synchroniserEcheanceDans(ctx, id)
   return id
 }
 
@@ -380,6 +382,7 @@ export async function modifierDocument(id: string, entree: EntreeModificationDoc
       },
     })
   })
+  await synchroniserEcheanceDans(ctx, id)
 }
 
 // « Remplacer le fichier » et « Ajouter un fichier » : une nouvelle version, l'ancienne reste dans l'historique.
@@ -396,12 +399,15 @@ export async function ajouterVersionPour(
   commentaire?: string | null,
 ): Promise<string> {
   const qui = await quiAgit(ctx, niveau)
-  return ecrire(ctx, async (tx) => {
+  const versionId = await ecrire(ctx, async (tx) => {
     const doc = await documentDans(tx, ctx, docId)
     const acces = await accesDe(tx, ctx, docId, qui.personId)
     gardeDe(peutModifierDocument(documentPourDroits(doc, acces), dossierPourDroits(doc.folder), qui))
     return ajouterVersionDans(tx, ctx, docId, fichierId, qui.personId, commentaire ?? null)
   })
+  // Un renouvellement par une nouvelle version peut changer la date ou lever l'action : le même service le fait.
+  await synchroniserEcheanceDans(ctx, docId)
+  return versionId
 }
 
 export async function deplacerDocument(docId: string, dossierCle: string): Promise<void> {
@@ -427,6 +433,7 @@ async function changerStatut(docId: string, statut: "actif" | "archive"): Promis
     gardeDe(statut === "archive" ? peutArchiverDocument(droits, dossierPourDroits(doc.folder), qui) : peutModifierDocument(droits, dossierPourDroits(doc.folder), qui))
     await tx.documentsDoc.update({ where: { id: doc.id }, data: { status: statut, updatedBy: ctx.userId } })
   })
+  await synchroniserEcheanceDans(ctx, docId)
 }
 
 export async function archiverDocument(docId: string): Promise<void> {
