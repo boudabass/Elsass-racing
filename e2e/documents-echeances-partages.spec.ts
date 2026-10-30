@@ -154,7 +154,10 @@ test("partage par lien : page publique sans session, ouverture comptée, révoca
   await page.getByRole("button", { name: "Partager par lien", exact: true }).click()
   const tiroirLien = page.getByRole("dialog")
   await tiroirLien.getByLabel("Destinataire", { exact: true }).fill("Préfecture test e2e")
-  await envoyer(page, tiroirLien.getByRole("button", { name: "Créer le lien", exact: true }))
+  // Le tiroir reste ouvert après la création : il montre le lien. On attend seulement la réponse du serveur.
+  const reponseLien = page.waitForResponse((r) => r.request().method() === "POST" && r.request().headers()["next-action"] !== undefined)
+  await tiroirLien.getByRole("button", { name: "Créer le lien", exact: true }).click()
+  await reponseLien
   await expect(tiroirLien.getByText("Copie le lien maintenant : il ne sera plus affiché.")).toBeVisible()
   const texte = (await tiroirLien.locator("p.break-all").innerText()).trim()
   const jeton = /\/d\/([A-Za-z0-9_-]{43})$/.exec(texte)?.[1] ?? ""
