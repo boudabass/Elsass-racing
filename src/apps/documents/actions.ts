@@ -3,7 +3,11 @@
 // Server Actions de Documents. N'exportent que des enveloppes des fonctions gardées de services-serveur.ts : chacune
 // contrôle elle-même la session et les droits (la garde est dans le service). Renvoient { ok, id? } ou { ok: false, message }.
 
-import { executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-serveur"
+import { revalidatePath } from "next/cache"
+
+import { executer, journaliserErreurInattendue, messageDe, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-serveur"
+
+import { creerLienPartage, revoquerLienPartage } from "./partages-serveur"
 
 import {
   ajouterVersion,
@@ -120,5 +124,30 @@ export async function partagerDocumentAction(_etat: Resultat | null, donnees: Fo
 export async function retirerAccesAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executer(CHEMIN, async () => {
     await retirerAcces(texte(donnees, "id"))
+  })
+}
+
+// Création d'un lien : le jeton part vers le navigateur une seule fois, dans ce résultat. Il n'est jamais relu ensuite.
+export type ResultatLien = { ok: true; id: string; jeton: string; finLe: string } | { ok: false; message: string }
+
+export async function creerLienPartageAction(_etat: ResultatLien | null, donnees: FormData): Promise<ResultatLien> {
+  try {
+    const contact = texteOuNull(donnees, "contactId")
+    const lien = await creerLienPartage(texte(donnees, "id"), {
+      destinataire: texte(donnees, "destinataire"),
+      contactId: contact,
+      jours: Number(texte(donnees, "jours")),
+    })
+    revalidatePath(CHEMIN, "layout")
+    return { ok: true, id: lien.shareId, jeton: lien.jeton, finLe: lien.finLe.toISOString() }
+  } catch (erreur) {
+    journaliserErreurInattendue(CHEMIN, erreur)
+    return { ok: false, message: messageDe(erreur) }
+  }
+}
+
+export async function revoquerLienPartageAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, async () => {
+    await revoquerLienPartage(texte(donnees, "id"))
   })
 }
