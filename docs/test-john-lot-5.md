@@ -89,6 +89,16 @@ Chaque étape dit ce que tu fais, puis ce que tu dois voir. Si ce n'est pas ce q
 8. Depuis ton compte, ouvre l'assurance, **Partager avec un membre**, choisis la personne de l'assistance (niveau **Lecture**). Dans la fenêtre privée, recharge le coffre : **Assurances** apparaît, et la fiche de l'assurance s'ouvre.
 9. Sur téléphone (ou en réduisant la fenêtre à 360 px), le coffre, la liste d'un dossier et la fiche se lisent sans défilement horizontal, et les boutons se touchent au doigt.
 
+## Étape 12 : Documents, échéances, tous les fichiers, partages
+
+1. Crée (ou modifie) un document **Assurance de l'association** avec une date de validité dans vingt jours. Ouvre le QG, puis la **Boîte d'actions** : une action **Renouveler Assurance de l'association : expire le …** est là. Clique sur **Reporter d'une semaine** : elle disparaît de la boîte.
+2. Menu de **Documents** : **Échéances**. Le document et la **Carte grise** de la Saxo sont dans **Bientôt**, avec leur bouton (**Renouveler**, **Ouvrir dans Voiture**). Le bouton **Renouveler** ouvre la fiche avec le tiroir d'ajout de fichier.
+3. Ajoute un fichier, puis dans **Modifier**, mets une date de validité dans un an. L'échéance passe dans **À jour (1)** (le groupe se déplie dans un tiroir), et la boîte n'affiche plus l'action.
+4. Menu **Tous les fichiers** : le justificatif d'une dépense Budget apparaît, avec son nom, son badge **Budget**, son rôle **Justificatif**, et un lien vers la fiche de la dépense. Les filtres **Application**, **Rôle** et **Ajouté par** changent l'adresse et la liste ; la pagination garde les filtres.
+5. Sur la fiche d'un document, **Partager par lien** : destinataire **Préfecture**, durée **7 jours**. Le lien s'affiche une seule fois, avec **Copier le lien**. Ouvre-le dans une fenêtre privée : le titre et la validité s'affichent, et **Ouvrir le fichier** donne le fichier. Dans **Partages** (menu), le lien compte **1 ouverture**.
+6. Dans **Partages**, **Révoquer** puis **Révoquer le lien** : le lien passe en **Révoqué** (grisé). Recharge le lien dans la fenêtre privée : « Ce lien n'est plus valable. », sans autre détail.
+7. Avec un compte **assistance** : le menu de Documents n'a pas **Partages**, et la fiche d'un de ses documents n'a pas **Partager par lien**.
+
 ## Ce qui n'est pas encore là
 
 - Photo des personnes (les initiales tiennent lieu de photo pour l'instant).
