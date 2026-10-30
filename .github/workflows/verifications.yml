@@ -113,6 +113,9 @@ jobs:
           SPEC: ${{ inputs.e2e }}
           REPEAT: ${{ inputs.repeat }}
           DEBUG: pw:webserver
+          # Sel des empreintes d'IP des liens de partage (tâche 5.4). Valeur de test, sans secret : le build de test
+          # tourne en production, et sans sel les liens seraient refusés.
+          PARTAGE_SEL_IP: elsass-racing-e2e-sel-ip
         run: |
           set -o pipefail
           pnpm test:e2e $SPEC ${REPEAT:+--repeat-each=$REPEAT} 2>&1 | tee "$JOURNAL"
