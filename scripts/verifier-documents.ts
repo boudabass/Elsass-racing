@@ -7,7 +7,9 @@
 //
 // Contrôles : une team ne voit ni n'écrit chez une autre (RLS) ; contraintes (dates, numéro de version, unicité de la
 // version, nom d'un dossier type) ; les sept dossiers types créés une seule fois sous deux écritures simultanées ; une
-// nouvelle version ne remplace pas l'ancienne, et le rattachement du fichier pointe la version.
+// nouvelle version ne remplace pas l'ancienne, et le rattachement du fichier pointe la version ; le lien public ne
+// renvoie que les liens valides (révoqué, expiré, document archivé : rien), et le rôle applicatif sans team ne lit pas
+// documents_share.
 
 import { randomUUID } from "node:crypto"
 
@@ -201,10 +203,51 @@ async function main() {
       }),
     )
     controle("un effectif attendu négatif est refusé", effectifNegatif !== null, effectifNegatif ?? "accepté")
+
+    // 6. Lien public (migration documents_lien_par_empreinte, brief 5.4 §2) : seul un lien valide renvoie sa team, son
+    // document et rien d'autre. Un lien révoqué, expiré, sur un document archivé ou inconnu ne renvoie rien. Le rôle
+    // applicatif, sans contexte de team, ne lit pas documents_share.
+    const { createHash, randomBytes } = await import("node:crypto")
+    const { prisma } = await import("../src/lib/prisma")
+    const empreinte = (jeton: string) => createHash("sha256").update(jeton).digest("hex")
+    const jour = 86_400_000
+    const docArchive = randomUUID()
+    await clientA().documentsDoc.create({
+      data: { id: docArchive, teamId: teamA.id, folderId: dossierAssociation, title: "Document archivé", docType: "statuts", status: "archive", visibility: "team", createdBy: respA.user, updatedBy: respA.user },
+    })
+    const jetons = { valide: randomBytes(32).toString("base64url"), revoque: randomBytes(32).toString("base64url"), expire: randomBytes(32).toString("base64url"), archive: randomBytes(32).toString("base64url") }
+    const creerLien = (jeton: string, cible: string, expiresAt: Date, revokedAt: Date | null) =>
+      proprietaire.documentsShare.create({
+        data: { id: randomUUID(), teamId: teamA.id, docId: cible, tokenHash: empreinte(jeton), expiresAt, revokedAt, createdBy: respA.user, updatedBy: respA.user },
+      })
+    const dans7Jours = new Date(Date.now() + 7 * jour)
+    await creerLien(jetons.valide, docId, dans7Jours, null)
+    await creerLien(jetons.revoque, docId, dans7Jours, new Date())
+    await creerLien(jetons.expire, docId, new Date(Date.now() - jour), null)
+    await creerLien(jetons.archive, docArchive, dans7Jours, null)
+    const trouver = (jeton: string) =>
+      prisma.$queryRaw<{ share_id: string; team_id: string; doc_id: string }[]>`SELECT share_id, team_id, doc_id FROM documents_lien_par_empreinte(${empreinte(jeton)})`
+
+    const valide = await trouver(jetons.valide)
+    controle(
+      "un lien valide renvoie sa team et son document, et rien d'autre",
+      valide.length === 1 && valide[0].team_id === teamA.id && valide[0].doc_id === docId && Object.keys(valide[0]).length === 3,
+      `${valide.length} ligne(s)`,
+    )
+    controle("un lien révoqué ne renvoie rien", (await trouver(jetons.revoque)).length === 0)
+    controle("un lien expiré ne renvoie rien", (await trouver(jetons.expire)).length === 0)
+    controle("un lien sur un document archivé ne renvoie rien", (await trouver(jetons.archive)).length === 0)
+    controle("un jeton inconnu ne renvoie rien", (await trouver(randomBytes(32).toString("base64url"))).length === 0)
+
+    // Lecture directe sans contexte de team : la RLS ne laisse rien passer (ou la lecture échoue : les deux comptent).
+    const lectureSansTeam = await prisma.documentsShare.findMany({ where: { teamId: teamA.id }, select: { id: true } }).catch(() => [])
+    controle("le rôle applicatif sans contexte de team ne lit pas documents_share", lectureSansTeam.length === 0, `${lectureSansTeam.length} ligne(s)`)
   } finally {
-    // Ordre des suppressions : les liens RESTRICT d'abord (version en cours, versions, documents, dossiers, rattachements, fichiers).
+    // Ordre des suppressions : les liens RESTRICT d'abord (version en cours, versions, liens, documents, dossiers, rattachements, fichiers).
     await proprietaire.documentsDoc.updateMany({ where: { teamId: { in: equipes } }, data: { currentVersionId: null } })
     await proprietaire.documentsVersion.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.documentsShareLog.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.documentsShare.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.documentsAccess.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.documentsDeadline.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.documentsDoc.deleteMany({ where: { teamId: { in: equipes } } })
