@@ -181,12 +181,20 @@ test("partage par lien : page publique sans session, ouverture comptée, révoca
 
     // Révocation depuis Partages : la même adresse ne montre plus rien d'utile.
     await page.getByRole("link", { name: "Partages", exact: true }).click()
-    // La boîte et le compteur se relisent à l'arrivée sur la page : on attend qu'ils soient posés avant d'ouvrir le tiroir,
-    // sinon le bouton du tiroir est remplacé pendant le clic.
-    await page.waitForLoadState("networkidle")
-    await page.getByRole("button", { name: "Révoquer", exact: true }).click()
+    // Le bouton peut être affiché avant que React ne l'ait rendu actif : un clic perdu n'ouvre rien. On reclique tant que
+    // le tiroir n'est pas ouvert (un tiroir ouvert couvre la page, on ne reclique alors pas).
     const tiroirRevoquer = page.getByRole("dialog")
-    await envoyer(page, tiroirRevoquer.getByRole("button", { name: "Révoquer le lien", exact: true }))
+    const boutonRevoquer = tiroirRevoquer.getByRole("button", { name: "Révoquer le lien", exact: true })
+    await expect
+      .poll(
+        async () => {
+          if (!(await boutonRevoquer.isVisible())) await page.getByRole("button", { name: "Révoquer", exact: true }).click({ timeout: 2_000 }).catch(() => undefined)
+          return boutonRevoquer.isVisible()
+        },
+        { timeout: 20_000 },
+      )
+      .toBe(true)
+    await envoyer(page, boutonRevoquer)
     expect((await liensEnBase(equipe, idDocument))[0].revoque).toBe(true)
 
     await visiteur.goto(`/d/${jeton}`)
