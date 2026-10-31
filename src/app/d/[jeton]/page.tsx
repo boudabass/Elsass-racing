@@ -5,6 +5,7 @@ import { notFound } from "next/navigation"
 
 import { enregistrerOuverture, lirePageDocument } from "@/apps/documents/page-publique-serveur"
 import { trouverLienDocument } from "@/apps/documents/lien-public"
+import { BOUTON } from "@/lib/classes-formulaire"
 import { ipClient } from "@/lib/ip-client"
 
 // Jamais de cache : la page dépend du lien (révocation, expiration) et compte les ouvertures.
@@ -31,7 +32,7 @@ export default async function PageDocumentPartagee({ params }: { params: Promise
       <p>{page.typeLibelle}</p>
       {page.valableJusquAu ? <p>Valable jusqu&apos;au {dateLongue(page.valableJusquAu, "UTC")}</p> : null}
       {page.fichier ? (
-        <a className="inline-flex min-h-11 items-center justify-center rounded-md bg-marque px-4 text-marque-texte" href={`/d/${jeton}/fichier`}>
+        <a className={BOUTON} href={`/d/${jeton}/fichier`}>
           Ouvrir le fichier
         </a>
       ) : (
