@@ -30,6 +30,7 @@ import {
   listeTermineeAEmettre,
   listeVisiblePour,
   modelesVisiblesPour,
+  reassignationLevee,
   type ActionSurPoint,
   type EcheanceRelative,
   type StatutPoint,
@@ -197,6 +198,27 @@ async function emettreApresChangement(
       await emettre(ctx, "checklist.liste_terminee", chargeListeTerminee.parse({ listeId: liste.id, epreuveId: liste.epreuveId }))
     }
   }
+}
+
+// Réassignation (settings.membre_retire, décision de l'orchestrateur du 01/11) : quand la personne n'a plus aucun point à
+// faire ou en problème, l'action « Réassigner les points » créée pour elle est levée (action_levee, même cleUnicite).
+// Sans action en attente, rien n'est émis.
+export async function levereReassignationSiPlusDePoint(ctx: ContexteTeam, personneId: string): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const enAttente = await client.checklistItem.count({
+    where: {
+      teamId: ctx.teamId,
+      personneId,
+      deletedAt: null,
+      statut: { in: ["a_faire", "probleme"] },
+      section: { deletedAt: null, liste: { deletedAt: null } },
+    },
+  })
+  if (!reassignationLevee(enAttente)) return
+  const cleUnicite = `reassigner_points:${personneId}`
+  const action = await client.coreAction.findFirst({ where: { teamId: ctx.teamId, cleUnicite, statut: "en_attente" }, select: { id: true } })
+  if (!action) return
+  await emettre(ctx, "checklist.action_levee", { cleUnicite })
 }
 
 // ─── Modèles de la team (gestion) ────────────────────────────────────────────
@@ -691,6 +713,7 @@ export async function modifierPoint(pointId: string, changements: ChangementsPoi
     }),
   )
   await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance }, resultat, null)
+  if (point.personneId) await levereReassignationSiPlusDePoint(ctx, point.personneId)
 }
 
 export interface OptionsStatut {
@@ -747,6 +770,7 @@ export async function changerStatutPointDans(ctx: ContexteTeam, niveau: Niveau, 
     ajoute: false,
     pointId,
   })
+  if (point.personneId) await levereReassignationSiPlusDePoint(ctx, point.personneId)
 }
 
 export async function retirerPoint(pointId: string): Promise<void> {
@@ -769,4 +793,5 @@ export async function retirerPointDans(ctx: ContexteTeam, niveau: Niveau, pointI
     }),
   )
   await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance }, resultat, null)
+  if (point.personneId) await levereReassignationSiPlusDePoint(ctx, point.personneId)
 }
