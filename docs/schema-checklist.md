@@ -10,7 +10,7 @@ Chaque question donne la recommandation. Sans réponse contraire, c'est elle qui
 
 **Q1. Discipline de l'épreuve.** L'article 956 parle de discipline (rallye, course de côte, slalom, circuit). Le socle a déjà `core_event.type` (`CoreEventType` : rallye, slalom, course_de_cote, expo, roulage, autre) et aucun champ `discipline` sur l'épreuve. Les vocabulaires ne coïncident pas : `circuit` n'existe pas dans le socle, et `expo`, `roulage`, `autre` n'ont pas d'équivalent dans l'article.
 - *Recommandation* : ne rien changer au socle. L'enum `ChecklistDiscipline` garde les 4 valeurs de l'article. La discipline de l'épreuve se lit dans `core_event.type` par correspondance (rallye → rallye, course_de_cote → course_de_cote, slalom → slalom). `expo`, `roulage`, `autre` ne correspondent à aucune discipline : seuls les modèles sans discipline s'y appliquent. `circuit` ne correspond à rien tant que `CoreEventType` ne le porte pas.
-- *À décider* : ajouter `circuit` à `CoreEventType` (changement du socle, hors de cette tâche, à faire par une tâche socle et après mise à jour de 948) ?
+- *Décision de l'orchestrateur (01/11)* : le socle ne change pas, `circuit` reste dans l'enum de l'article sans épreuve correspondante pour l'instant, et aucune tâche socle n'est ouverte. **Limite** : une épreuve de circuit ne reçoit aucun modèle de discipline tant que `CoreEventType` ne porte pas `circuit`.
 - Le modèle a une discipline **nullable** : vide = modèle transversal, proposé à toute épreuve.
 
 **Q2. `team_id` vide sur les modèles fournis.** Le test `src/core/schema-conventions.test.ts` exige aujourd'hui `teamId String @map("team_id")` non nul sur tout modèle hors `MODELES_SANS_TEAM`. Les modèles fournis n'ont pas de team.
@@ -23,7 +23,7 @@ Chaque question donne la recommandation. Sans réponse contraire, c'est elle qui
 - Pas de colonne ajoutée : le contrôle lit le journal d'événements (`donnees->>'listeId'`).
 
 **Q4. Échéance d'une liste.** L'article donne une échéance relative sur chaque point de modèle (J-7, J-1, jour J) et une échéance sur la liste, mais pas sur le point d'une liste.
-- *Recommandation* : `checklist_list.echeance` est une **DATE** (`@db.Date`, comme les dates de calendrier de `CoreEvent`). À la création depuis un modèle, elle vaut la date de l'épreuve (`core_event.date_debut`) moins le plus petit décalage des points du modèle ; un décalage est J-7 = 7 jours, J-1 = 1 jour, jour J = 0. Une liste sans point à échéance relative n'a pas d'échéance.
+- *Recommandation* : `checklist_list.echeance` est une **DATE** (`@db.Date`, comme les dates de calendrier de `CoreEvent`). À la création depuis un modèle, elle vaut la date de l'épreuve (`core_event.date_debut`) moins le **plus grand** décalage des points du modèle : c'est la première échéance de la liste (un décalage est J-7 = 7 jours, J-1 = 1 jour, jour J = 0). Une liste sans point à échéance relative n'a pas d'échéance (`null`, sans erreur).
 - L'échéance reste modifiable par la gestion (brief §4). Elle ne se recalcule pas si la date de l'épreuve change : c'est à la gestion de la corriger. *À valider*.
 
 **Q5. « L'épreuve a commencé » (ajout de point pendant l'épreuve).** Je propose : `ajoute_pendant_epreuve = true` si la date du jour (Europe/Paris) est **postérieure ou égale** à `core_event.date_debut`. Le choix par phase (épreuve ou retour) a été écarté : une liste peut rester en « avant départ » le jour de l'épreuve.
