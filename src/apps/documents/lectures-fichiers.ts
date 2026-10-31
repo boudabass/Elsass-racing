@@ -5,6 +5,7 @@ import { resoudreOrigines, ORIGINES } from "@/core/fichiers/origines"
 import type { FicheOrigine } from "@/core/fichiers/types-origine"
 import { prismaPourTeam } from "@/lib/prisma"
 
+import { libelleAuteur } from "./regles"
 import { accesDocuments } from "./services-serveur"
 
 export const TAILLE_PAGE_FICHIERS = 50
@@ -107,6 +108,16 @@ export async function lireFichiers(filtres: FiltresFichiers): Promise<FichiersDo
     ? await client.coreUser.findMany({ where: { id: { in: auteursIds } }, select: { id: true, email: true } })
     : []
   const emailDe = new Map(comptes.map((c) => [c.id, c.email]))
+  // Fiche personne de chaque auteur quand il en a une : son nom passe avant l'e-mail (libelleAuteur, règle 5.3).
+  const personnes = auteursIds.length
+    ? await client.corePerson.findMany({
+        where: { teamId: ctx.teamId, userId: { in: auteursIds }, deletedAt: null },
+        select: { userId: true, prenom: true, nom: true },
+      })
+    : []
+  const nomDeCompte = new Map(personnes.flatMap((p) => (p.userId ? [[p.userId, `${p.prenom} ${p.nom}`] as const] : [])))
+  const libelleDe = (compte: string | null) =>
+    libelleAuteur(compte ? (nomDeCompte.get(compte) ?? null) : null, compte ? (emailDe.get(compte) ?? null) : null)
 
   const lignes: LigneFichier[] = []
   for (const r of visibles) {
@@ -118,7 +129,7 @@ export async function lireFichiers(filtres: FiltresFichiers): Promise<FichiersDo
       nom: r.file.nom,
       app: r.app,
       role: r.role,
-      ajoutePar: (r.createdBy && emailDe.get(r.createdBy)) || "Un membre",
+      ajoutePar: libelleDe(r.createdBy),
       ajouteLe: r.createdAt,
       origine,
       badge: BADGES[r.app] ?? r.app,
@@ -128,7 +139,7 @@ export async function lireFichiers(filtres: FiltresFichiers): Promise<FichiersDo
   return {
     lignes,
     applications: applicationsAffichees.map((app) => ({ cle: app, libelle: BADGES[app] ?? app })),
-    auteurs: comptes.map((c) => ({ id: c.id, libelle: c.email })),
+    auteurs: comptes.map((c) => ({ id: c.id, libelle: libelleDe(c.id) })),
     page,
     pagePrecedente: page > 1,
     pageSuivante,

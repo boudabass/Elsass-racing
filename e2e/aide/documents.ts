@@ -135,8 +135,9 @@ export async function justificatifBudgetEnBase(equipe: Equipe, libelle: string, 
     [fichier, equipe.teamId, newId(), nomFichier],
   )
   await bd().query(
-    `INSERT INTO core_attachment (id, team_id, file_id, app, fiche_type, fiche_id, role, updated_at)
-     VALUES ($1, $2, $3, 'budget', 'expense', $4, 'ticket', now())`,
-    [newId(), equipe.teamId, fichier, depense],
+    `INSERT INTO core_attachment (id, team_id, file_id, app, fiche_type, fiche_id, role, created_by, updated_at)
+     VALUES ($1, $2, $3, 'budget', 'expense', $4, 'ticket', $5, now())`,
+    // Un justificatif a toujours un auteur, comme dans la réalité : le responsable de la team de test.
+    [newId(), equipe.teamId, fichier, depense, equipe.responsable.userId],
   )
 }
