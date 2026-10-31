@@ -14,6 +14,9 @@ import {
   jourParis,
   listeTermineeAEmettre,
   listeVisiblePour,
+  doitProposerReassignation,
+  pointEnAttente,
+  reassignationLevee,
   modelesVisiblesPour,
   pointsCritiquesOuverts,
   statutDeListe,
@@ -230,5 +233,26 @@ describe("droits de l'assistance", () => {
     expect(modelesVisiblesPour("invite")).toBe(false)
     expect(modelesVisiblesPour("responsable")).toBe(true)
     expect(modelesVisiblesPour("equipage")).toBe(true)
+  })
+})
+
+describe("réassignation des points d'un membre retiré", () => {
+  it("à faire et en problème sont en attente, fait et sans objet ne le sont pas", () => {
+    expect(pointEnAttente("a_faire")).toBe(true)
+    expect(pointEnAttente("probleme")).toBe(true)
+    expect(pointEnAttente("fait")).toBe(false)
+    expect(pointEnAttente("sans_objet")).toBe(false)
+  })
+
+  it("une action est proposée seulement si un point est à faire ou en problème", () => {
+    expect(doitProposerReassignation([])).toBe(false)
+    expect(doitProposerReassignation(["fait", "sans_objet"])).toBe(false)
+    expect(doitProposerReassignation(["fait", "a_faire"])).toBe(true)
+    expect(doitProposerReassignation(["probleme"])).toBe(true)
+  })
+
+  it("l'action est levée quand plus aucun point en attente ne reste", () => {
+    expect(reassignationLevee(0)).toBe(true)
+    expect(reassignationLevee(1)).toBe(false)
   })
 })

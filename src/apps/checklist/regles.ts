@@ -204,3 +204,20 @@ export function assistancePeut(
   }
   return { autorise: true }
 }
+
+// ─── Réassignation (settings.membre_retire) ──────────────────────────────────
+
+// Un point « en attente » est à faire ou en problème. Un point fait ou sans objet ne compte pas (décision de l'orchestrateur, 01/11).
+export function pointEnAttente(statut: StatutPoint): boolean {
+  return statut === "a_faire" || statut === "probleme"
+}
+
+// Une action de réassignation est proposée quand la personne retirée a au moins un point en attente.
+export function doitProposerReassignation(statuts: StatutPoint[]): boolean {
+  return statuts.some(pointEnAttente)
+}
+
+// L'action est levée quand plus aucun point en attente ne lui est affecté.
+export function reassignationLevee(pointsEnAttente: number): boolean {
+  return pointsEnAttente === 0
+}
