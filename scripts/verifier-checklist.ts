@@ -7,7 +7,7 @@
 //
 // Contrôles : journal de coches en ajout seul ; avancement et zone recalculés après un changement de statut ; l'assistance
 // refusée hors liste ouverte et sur le point d'un autre ; modèles fournis lisibles, jamais écrits ; modèles d'une autre
-// team invisibles.
+// team invisibles ; une seule action de réassignation pour un membre retiré, levée quand plus rien n'est à faire.
 
 import { randomUUID } from "node:crypto"
 
@@ -48,6 +48,7 @@ async function refuse(action: Promise<unknown>): Promise<string | null> {
 async function main() {
   // Import dynamique : .env.local doit être chargé avant la création du client applicatif.
   const services = await import("../src/apps/checklist/services-serveur")
+  const liaisons = await import("../src/apps/checklist/liaisons-serveur")
   const { prismaPourTeam } = await import("../src/lib/prisma")
 
   const suffixe = randomUUID().slice(0, 8)
@@ -164,6 +165,33 @@ async function main() {
     controle("la team n'écrit jamais un modèle fourni", refusEcritureFourni !== null, refusEcritureFourni ?? "aucun refus")
     const modeleAutre = await app.checklistTemplate.findFirst({ where: { id: deLAutre } })
     controle("la team ne lit pas le modèle d'une autre team", modeleAutre === null)
+
+    // 5. Membre retiré : une action « Réassigner les points » (une seule), levée quand plus rien n'est à faire.
+    const membreRetire = { user: randomUUID(), adhesion: randomUUID(), personne: randomUUID(), email: `verif-checklist-retire-${suffixe}@exemple.invalid` }
+    const pointRetire = randomUUID()
+    await proprietaire.coreUser.create({ data: { id: membreRetire.user, email: membreRetire.email } })
+    await proprietaire.corePerson.create({ data: { id: membreRetire.personne, teamId: team.id, nom: "Retiré", prenom: `Verif ${suffixe}` } })
+    await proprietaire.coreMembership.create({
+      data: { id: membreRetire.adhesion, teamId: team.id, userId: membreRetire.user, role: "equipage", statut: "parti", personId: membreRetire.personne },
+    })
+    await proprietaire.checklistItem.create({
+      data: { id: pointRetire, teamId: team.id, sectionId: section, libelle: `Retiré ${suffixe}`, personneId: membreRetire.personne, createdBy: responsable.user },
+    })
+    await liaisons.proposerReassignationDans(ctxResp, membreRetire.adhesion)
+    await liaisons.proposerReassignationDans(ctxResp, membreRetire.adhesion)
+    const actionsOuvertes = await proprietaire.coreAction.findMany({
+      where: { teamId: team.id, cleUnicite: `reassigner_points:${membreRetire.personne}` },
+      select: { statut: true },
+    })
+    controle("une seule action « Réassigner les points » pour la personne retirée", actionsOuvertes.length === 1, `${actionsOuvertes.length}`)
+    controle("l'action est en attente", actionsOuvertes[0]?.statut === "en_attente", actionsOuvertes[0]?.statut)
+
+    await services.changerStatutPointDans(ctxResp, "gestion", pointRetire, "fait")
+    const levee = await proprietaire.coreAction.findMany({
+      where: { teamId: team.id, cleUnicite: `reassigner_points:${membreRetire.personne}` },
+      select: { statut: true },
+    })
+    controle("l'action est levée quand plus aucun point n'est à faire ou en problème", levee[0]?.statut === "annulee", levee[0]?.statut)
   } finally {
     await proprietaire.checklistCheckLog.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.checklistItem.deleteMany({ where: { teamId: { in: equipes } } })
