@@ -2,9 +2,8 @@
 // src/apps/gestionnaires-serveur.ts. Check-lists ne lit que les lignes du socle (core_event, core_event_entry) et écrit
 // dans ses propres tables checklist_ ; il ne modifie jamais une table d'une autre app.
 //
-// Ce qui n'a pas de gestionnaire ici, et pourquoi :
-//   - settings.membre_retire : 956 §5 demande de proposer la réassignation des points affectés. Le schéma n'a pas de type
-//     de proposition pour cela (checklist_proposal.type, 956 §3). Non tranché : voir le compte-rendu de la 5.5a.
+// settings.membre_retire : une action « Réassigner les points » (motif checklist.action_requise), sans ligne
+// checklist_proposal : décision de l'orchestrateur du 01/11, 956 §3 ne prévoit pas de type pour cela.
 
 import type { ContexteTeam } from "@/core/contexte"
 import { emettre } from "@/core/evenements/bus-serveur"
@@ -12,8 +11,8 @@ import { enregistrerGestionnaire, type EvenementRecu } from "@/core/evenements/g
 import { newId } from "@/core/ids"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 
-import { chargeActionRequise, chargeDecisionAction, chargeEngagementCree } from "./charges"
-import { disciplineDeType } from "./regles"
+import { chargeActionRequise, chargeDecisionAction, chargeEngagementCree, chargeMembreRetire } from "./charges"
+import { disciplineDeType, doitProposerReassignation } from "./regles"
 import { creerListeDepuisModeleDans } from "./services-serveur"
 
 // Contenu d'une proposition « créer les listes » (écrit ici, lu à la décision).
@@ -171,3 +170,48 @@ async function appliquerDecisionChecklist(ctx: ContexteTeam, evenement: Evenemen
 }
 
 enregistrerGestionnaire("checklist", "core.action_decidee", appliquerDecisionChecklist)
+
+// ─── Réassignation (settings.membre_retire) ──────────────────────────────────
+
+// Une action par personne retirée, seulement si elle a encore des points à faire ou en problème. Elle mène aux listes
+// (le lien vers l'accueil de Check-lists suffit en 5.5a ; l'écran viendra en 5.6). Levée par checklist.action_levee
+// dès qu'il ne reste plus de point en attente (services-serveur.ts, levereReassignationSiPlusDePoint).
+export async function proposerReassignationDans(ctx: ContexteTeam, membershipId: string): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const membre = await client.coreMembership.findFirst({ where: { id: membershipId, teamId: ctx.teamId }, select: { personId: true } })
+  if (!membre?.personId) return
+  const personne = await client.corePerson.findFirst({
+    where: { id: membre.personId, teamId: ctx.teamId, deletedAt: null },
+    select: { id: true, prenom: true, nom: true },
+  })
+  if (!personne) return
+
+  const points = await client.checklistItem.findMany({
+    where: { teamId: ctx.teamId, personneId: personne.id, deletedAt: null, section: { deletedAt: null, liste: { deletedAt: null } } },
+    select: { statut: true },
+  })
+  if (!doitProposerReassignation(points.map((point) => point.statut))) return
+
+  await emettre(
+    ctx,
+    "checklist.action_requise",
+    chargeActionRequise.parse({
+      type: "reassigner_points",
+      cleUnicite: `reassigner_points:${personne.id}`,
+      titre: `Réassigner les points de ${personne.prenom} ${personne.nom}`,
+      ficheType: "personne",
+      ficheId: personne.id,
+      destinataires: { roles: ["responsable"] },
+      boutons: [{ cle: "voir", libelle: "Voir les listes" }],
+      priorite: 5,
+      niveauRequis: "gestion",
+      cleRegroupement: "listes_checklist",
+    }),
+  )
+}
+
+enregistrerGestionnaire("checklist", "settings.membre_retire", async (ctx: ContexteTeam, evenement: EvenementRecu) => {
+  const analyse = chargeMembreRetire.safeParse(evenement.donnees)
+  if (!analyse.success) return
+  await proposerReassignationDans(ctx, analyse.data.membershipId)
+})
