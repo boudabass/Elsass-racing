@@ -181,20 +181,16 @@ test("partage par lien : page publique sans session, ouverture comptée, révoca
 
     // Révocation depuis Partages : la même adresse ne montre plus rien d'utile.
     await page.getByRole("link", { name: "Partages", exact: true }).click()
-    // Le bouton peut être affiché avant que React ne l'ait rendu actif : un clic perdu n'ouvre rien. On reclique tant que
-    // le tiroir n'est pas ouvert (un tiroir ouvert couvre la page, on ne reclique alors pas).
+    // Tant que la navigation n'est pas validée, la fiche du document reste à l'écran : elle liste aussi ce lien, avec son
+    // propre « Révoquer ». Un clic à ce moment ouvre le tiroir de la fiche, que l'arrivée sur Partages fait disparaître
+    // (trace du run 41155990664 : URL de la fiche au clic, puis /partages sans tiroir). On attend donc le titre de la page
+    // Partages, qui n'existe que dans le nouvel écran, puis un seul clic dans la liste des liens actifs.
+    await expect(page).toHaveURL(/\/apps\/documents\/partages$/)
+    await expect(page.getByRole("heading", { name: "Partages", exact: true, level: 1 })).toBeVisible()
+    await page.getByRole("list", { name: "Liens actifs" }).getByRole("button", { name: "Révoquer", exact: true }).click()
     const tiroirRevoquer = page.getByRole("dialog")
-    const boutonRevoquer = tiroirRevoquer.getByRole("button", { name: "Révoquer le lien", exact: true })
-    await expect
-      .poll(
-        async () => {
-          if (!(await boutonRevoquer.isVisible())) await page.getByRole("button", { name: "Révoquer", exact: true }).click({ timeout: 2_000 }).catch(() => undefined)
-          return boutonRevoquer.isVisible()
-        },
-        { timeout: 20_000 },
-      )
-      .toBe(true)
-    await envoyer(page, boutonRevoquer)
+    await expect(tiroirRevoquer).toBeVisible()
+    await envoyer(page, tiroirRevoquer.getByRole("button", { name: "Révoquer le lien", exact: true }))
     expect((await liensEnBase(equipe, idDocument))[0].revoque).toBe(true)
 
     await visiteur.goto(`/d/${jeton}`)
