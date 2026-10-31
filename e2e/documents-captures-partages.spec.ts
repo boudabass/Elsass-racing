@@ -74,7 +74,8 @@ test("captures · échéances, fichiers, partages, lien, pages publiques, 1440 e
 
       // Création du lien depuis la fiche : le tiroir affiche le lien une seule fois, puis on le capture.
       await page.getByRole("link", { name: /Attestations/ }).click()
-      await page.getByRole("link", { name: TITRE_ATTESTATION, exact: true }).click()
+      // Le nom accessible de la ligne reprend le titre, puis l'échéance et le propriétaire : pas de correspondance exacte.
+      await page.getByRole("link", { name: TITRE_ATTESTATION }).click()
       await expect(page.getByRole("heading", { name: TITRE_ATTESTATION, exact: true })).toBeVisible()
       await page.getByRole("button", { name: "Partager par lien", exact: true }).click()
       const tiroir = page.getByRole("dialog")
@@ -96,7 +97,7 @@ test("captures · échéances, fichiers, partages, lien, pages publiques, 1440 e
       await capturer(page, `documents-echeances-${suffixe}.png`)
 
       await page.getByRole("link", { name: "Tous les fichiers", exact: true }).click()
-      await expect(page.getByRole("link", { name: LIBELLE_JUSTIFICATIF, exact: true })).toBeVisible()
+      await expect(page.getByRole("link", { name: LIBELLE_JUSTIFICATIF })).toBeVisible()
       await capturer(page, `documents-fichiers-${suffixe}.png`)
 
       await page.getByRole("link", { name: "Partages", exact: true }).click()
