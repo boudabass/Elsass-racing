@@ -158,6 +158,18 @@ export function listeTermineeAEmettre(joursDejaEmis: string[], aujourdhui: strin
   return !joursDejaEmis.includes(aujourdhui)
 }
 
+// ─── Discipline ──────────────────────────────────────────────────────────────
+
+// Correspondance entre le type d'épreuve du socle (CoreEventType) et la discipline des modèles (docs/schema-checklist.md, Q1).
+// expo, roulage et autre n'ont pas de discipline : seuls les modèles transversaux s'y appliquent. circuit n'a pas
+// d'épreuve correspondante dans le socle pour l'instant.
+export function disciplineDeType(type: string): "rallye" | "course_de_cote" | "slalom" | null {
+  if (type === "rallye") return "rallye"
+  if (type === "course_de_cote") return "course_de_cote"
+  if (type === "slalom") return "slalom"
+  return null
+}
+
 // ─── Droits ──────────────────────────────────────────────────────────────────
 
 // Les modèles ne sont pas visibles par l'assistance, ni par l'invité (956 §6).

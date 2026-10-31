@@ -5,6 +5,7 @@ import {
   assistancePeut,
   avancementPourcent,
   calculerListe,
+  disciplineDeType,
   echeanceDeListe,
   echeanceProche,
   epreuveCommencee,
@@ -175,6 +176,21 @@ describe("événements", () => {
     expect(listeTermineeAEmettre(["2026-11-01"], "2026-11-01")).toBe(false)
     // Repassée en cours puis terminée un autre jour : nouvel envoi.
     expect(listeTermineeAEmettre(["2026-10-31"], "2026-11-01")).toBe(true)
+  })
+})
+
+describe("discipline de l'épreuve", () => {
+  it("rallye, course de côte et slalom correspondent à leur discipline", () => {
+    expect(disciplineDeType("rallye")).toBe("rallye")
+    expect(disciplineDeType("course_de_cote")).toBe("course_de_cote")
+    expect(disciplineDeType("slalom")).toBe("slalom")
+  })
+
+  it("expo, roulage et autre n'ont pas de discipline, et circuit n'existe pas encore dans le socle", () => {
+    expect(disciplineDeType("expo")).toBeNull()
+    expect(disciplineDeType("roulage")).toBeNull()
+    expect(disciplineDeType("autre")).toBeNull()
+    expect(disciplineDeType("circuit")).toBeNull()
   })
 })
 
