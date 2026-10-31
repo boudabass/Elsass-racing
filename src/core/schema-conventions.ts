@@ -9,6 +9,10 @@ const MODELES_SANS_BLOC = ["CoreApp", "CoreRoleDefault"]
 // pas à une team. CoreUser, CoreAuthToken et CoreDevice.
 const MODELES_SANS_TEAM = ["CoreUser", "CoreAuthToken", "CoreDevice"]
 
+// Modèles dont team_id est vide pour les modèles fournis par la plateforme (docs/schema-checklist.md, Q2) :
+// teamId String? seulement. Les sections et points de modèle recopient le team de leur modèle.
+export const MODELES_TEAM_OPTIONNEL = ["ChecklistTemplate", "ChecklistTemplateSection", "ChecklistTemplateItem"]
+
 // Types scalaires Prisma : une ligne dont le type n'est pas l'un d'eux est une
 // relation (type = modèle) ou un enum. Seuls les scalaires en camelCase exigent un @map.
 const TYPES_SCALAIRES = ["String", "Int", "Boolean", "DateTime", "Json", "Float", "BigInt", "Decimal", "Bytes"]
@@ -60,6 +64,13 @@ export function verifierConventions(schema: string): string[] {
     const porteTeam = /^\s+teamId\s/m.test(corps)
     if (modele === "CoreTeam" || MODELES_SANS_TEAM.includes(modele)) {
       if (porteTeam) erreurs.push(`${modele} : ne doit pas porter team_id`)
+    } else if (MODELES_TEAM_OPTIONNEL.includes(modele)) {
+      if (!/^\s+teamId\s+String\?\s+@map\("team_id"\)\s+@db\.Uuid/m.test(corps)) {
+        erreurs.push(`${modele} : team_id String? @map("team_id") @db.Uuid attendu (modèle fourni, exception)`)
+      }
+      if (!corps.includes("@@index([teamId])")) {
+        erreurs.push(`${modele} : @@index([teamId]) absent`)
+      }
     } else {
       if (!/^\s+teamId\s+String\s+@map\("team_id"\)\s+@db\.Uuid/m.test(corps)) {
         erreurs.push(`${modele} : team_id String @map("team_id") @db.Uuid absent`)

@@ -342,6 +342,14 @@ model CoreTeam {
   partenairesPortalMessages   PartenairesPortalMessage[]
 
   @@index([logoFileId])
+  checklistTemplates ChecklistTemplate[]
+  checklistTemplateSections ChecklistTemplateSection[]
+  checklistTemplateItems ChecklistTemplateItem[]
+  checklistListes ChecklistList[]
+  checklistSections ChecklistSection[]
+  checklistItems ChecklistItem[]
+  checklistCheckLogs ChecklistCheckLog[]
+  checklistProposals ChecklistProposal[]
   @@map("core_team")
 }
 
@@ -372,6 +380,9 @@ model CoreUser {
   suppressionsConcernees SettingsDeletionRequest[] @relation("SuppressionConcerne")
   suppressionsDemandees  SettingsDeletionRequest[] @relation("SuppressionDemandeur")
 
+  checklistItemsCoches ChecklistItem[]
+  checklistCheckLogs ChecklistCheckLog[]
+  checklistProposalsTraitees ChecklistProposal[]
   @@map("core_user")
 }
 
@@ -450,6 +461,7 @@ model CoreDevice {
   syncCursors CoreSyncCursor[]
 
   @@index([userId])
+  checklistCheckLogs ChecklistCheckLog[]
   @@map("core_device")
 }
 
@@ -631,6 +643,7 @@ model CorePerson {
   @@index([userId])
   @@index([contactId])
   @@index([photoFileId])
+  checklistItems ChecklistItem[]
   @@map("core_person")
 }
 
@@ -716,6 +729,7 @@ model CoreEvent {
   @@index([teamId])
   @@index([seasonId])
   @@index([teamId, dateDebut])
+  checklistListes ChecklistList[]
   @@map("core_event")
 }
 
@@ -767,6 +781,7 @@ model CoreEventEntry {
   @@index([vehicleId])
   @@index([piloteId])
   @@index([copiloteId])
+  checklistListes ChecklistList[]
   @@map("core_event_entry")
 }
 
@@ -808,6 +823,7 @@ model CoreVehicle {
 
   @@index([teamId])
   @@index([photoFileId])
+  checklistListes ChecklistList[]
   @@map("core_vehicle")
 }
 
@@ -1113,6 +1129,7 @@ model CoreAction {
   @@index([eventId])
   @@index([decideeParMembershipId])
   @@index([teamId])
+  checklistProposals ChecklistProposal[]
   @@map("core_action")
 }
 
@@ -1197,6 +1214,7 @@ model CoreDomainEvent {
   @@index([teamId, nom])
   @@index([teamId, emisAt])
   @@index([teamId])
+  checklistProposals ChecklistProposal[]
   @@map("core_domain_event")
 }
 
@@ -4102,4 +4120,327 @@ model DocumentsShareLog {
   @@index([teamId, deletedAt])
   @@index([shareId])
   @@map("documents_share_log")
+}
+
+enum ChecklistPortee {
+  engagement
+  epreuve
+  @@map("checklist_portee")
+}
+
+enum ChecklistPhase {
+  avant_depart
+  verifications
+  reconnaissances
+  epreuve
+  retour
+  @@map("checklist_phase")
+}
+
+enum ChecklistDiscipline {
+  rallye
+  course_de_cote
+  slalom
+  circuit
+  @@map("checklist_discipline")
+}
+
+enum ChecklistRoleSuggere {
+  equipage
+  assistance
+  @@map("checklist_role_suggere")
+}
+
+enum ChecklistTypeLien {
+  aucun
+  organe_garage
+  train_pneus
+  papier_voiture
+  logo_voiture
+  licence_equipe
+  homologation_equipe
+  contrepartie_partenaires
+  document_documents
+  @@map("checklist_type_lien")
+}
+
+enum ChecklistEcheanceRelative {
+  j_moins_7
+  j_moins_1
+  jour_j
+  @@map("checklist_echeance_relative")
+}
+
+enum ChecklistStatutPoint {
+  a_faire
+  fait
+  sans_objet
+  probleme
+  @@map("checklist_statut_point")
+}
+
+enum ChecklistStatutListe {
+  a_faire
+  en_cours
+  terminee
+  @@map("checklist_statut_liste")
+}
+
+enum ChecklistZone {
+  vert
+  orange
+  @@map("checklist_zone")
+}
+
+enum ChecklistTypeProposition {
+  creer_listes
+  ajouter_point
+  cocher_point
+  creer_liste_retour
+  relire_liste
+  @@map("checklist_type_proposition")
+}
+
+enum ChecklistStatutProposition {
+  proposee
+  acceptee
+  ignoree
+  @@map("checklist_statut_proposition")
+}
+
+// Modèle de liste (article 956 §3). team_id vide = modèle fourni par la plateforme (docs/schema-checklist.md, Q2).
+model ChecklistTemplate {
+  id              String                @id @db.Uuid
+  teamId    String?  @map("team_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+  nom             String
+  icone           String?
+  portee          ChecklistPortee
+  phase           ChecklistPhase?
+  discipline      ChecklistDiscipline?
+  fourni          Boolean               @default(false)
+  modeleOrigineId String?               @map("modele_origine_id") @db.Uuid
+  version         Int                   @default(1)
+  ordre           Int                   @default(0)
+
+  team           CoreTeam?                 @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  modeleOrigine  ChecklistTemplate?        @relation("ChecklistTemplateOrigine", fields: [modeleOrigineId], references: [id], onDelete: SetNull)
+  modelesDerives ChecklistTemplate[]       @relation("ChecklistTemplateOrigine")
+  sections       ChecklistTemplateSection[]
+  listes         ChecklistList[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@map("checklist_template")
+}
+
+model ChecklistTemplateSection {
+  id       String  @id @db.Uuid
+  teamId    String?  @map("team_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+  modeleId String  @map("modele_id") @db.Uuid
+  titre    String
+  ordre    Int     @default(0)
+
+  team   CoreTeam?         @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  modele ChecklistTemplate @relation(fields: [modeleId], references: [id], onDelete: Restrict)
+  items  ChecklistTemplateItem[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([modeleId])
+  @@map("checklist_template_section")
+}
+
+model ChecklistTemplateItem {
+  id                 String                     @id @db.Uuid
+  teamId    String?  @map("team_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+  sectionId          String                     @map("section_id") @db.Uuid
+  libelle            String
+  aide               String?
+  critique           Boolean                    @default(false)
+  roleSuggere        ChecklistRoleSuggere?      @map("role_suggere")
+  lienType           ChecklistTypeLien          @default(aucun) @map("lien_type")
+  echeanceRelative   ChecklistEcheanceRelative? @map("echeance_relative")
+  ordre              Int                        @default(0)
+
+  team          CoreTeam?                @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  section       ChecklistTemplateSection @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  pointsDerives ChecklistItem[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([sectionId])
+  @@map("checklist_template_item")
+}
+
+// Liste réelle d'une épreuve (article 956 §3). engagement vide = liste commune à l'épreuve.
+model ChecklistList {
+  id                String               @id @db.Uuid
+  teamId    String  @map("team_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+  epreuveId         String               @map("epreuve_id") @db.Uuid
+  engagementId      String?              @map("engagement_id") @db.Uuid
+  vehiculeId        String?              @map("vehicule_id") @db.Uuid
+  modeleSourceId    String?              @map("modele_source_id") @db.Uuid
+  titre             String
+  phase             ChecklistPhase
+  echeance          DateTime?            @db.Date
+  statut            ChecklistStatutListe @default(a_faire)
+  avancement        Int                  @default(0)
+  zone              ChecklistZone        @default(orange)
+  ouverteAssistance Boolean              @default(false) @map("ouverte_assistance")
+
+  team        CoreTeam            @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  epreuve     CoreEvent           @relation(fields: [epreuveId], references: [id], onDelete: Restrict)
+  engagement  CoreEventEntry?     @relation(fields: [engagementId], references: [id], onDelete: Restrict)
+  vehicule    CoreVehicle?        @relation(fields: [vehiculeId], references: [id], onDelete: SetNull)
+  modeleSource ChecklistTemplate? @relation(fields: [modeleSourceId], references: [id], onDelete: SetNull)
+  sections    ChecklistSection[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([teamId, epreuveId])
+  @@index([teamId, engagementId])
+  @@map("checklist_list")
+}
+
+model ChecklistSection {
+  id      String   @id @db.Uuid
+  teamId    String  @map("team_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+  listeId String   @map("liste_id") @db.Uuid
+  titre   String
+  ordre   Int      @default(0)
+
+  team   CoreTeam       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  liste  ChecklistList  @relation(fields: [listeId], references: [id], onDelete: Restrict)
+  items  ChecklistItem[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([listeId])
+  @@map("checklist_section")
+}
+
+// Point d'une liste (article 956 §3). Le lien vers un objet d'une autre app est lu seulement (lien_id, sans clé étrangère).
+model ChecklistItem {
+  id                    String               @id @db.Uuid
+  teamId    String  @map("team_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+  sectionId             String               @map("section_id") @db.Uuid
+  libelle               String
+  critique              Boolean              @default(false)
+  personneId            String?              @map("personne_id") @db.Uuid
+  statut                ChecklistStatutPoint @default(a_faire)
+  cocheParId            String?              @map("coche_par_id") @db.Uuid
+  cocheLe               DateTime?            @map("coche_le") @db.Timestamptz(3)
+  note                  String?
+  lienType              ChecklistTypeLien    @default(aucun) @map("lien_type")
+  lienId                String?              @map("lien_id") @db.Uuid
+  pointModeleOrigineId  String?              @map("point_modele_origine_id") @db.Uuid
+  ajoutePendantEpreuve  Boolean              @default(false) @map("ajoute_pendant_epreuve")
+  ordre                 Int                  @default(0)
+
+  team             CoreTeam                 @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  section          ChecklistSection         @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  personne         CorePerson?              @relation(fields: [personneId], references: [id], onDelete: SetNull)
+  coche            CoreUser?                @relation(fields: [cocheParId], references: [id], onDelete: SetNull)
+  pointModeleOrigine ChecklistTemplateItem? @relation(fields: [pointModeleOrigineId], references: [id], onDelete: SetNull)
+  checkLogs        ChecklistCheckLog[]
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([sectionId])
+  @@index([teamId, personneId])
+  @@map("checklist_item")
+}
+
+// Historique des coches : ajout seul (docs/schema-checklist.md, Q8). Le rôle applicatif n'a ni UPDATE ni DELETE.
+model ChecklistCheckLog {
+  id            String               @id @db.Uuid
+  teamId    String  @map("team_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+  pointId       String               @map("point_id") @db.Uuid
+  ancienStatut  ChecklistStatutPoint @map("ancien_statut")
+  nouveauStatut ChecklistStatutPoint @map("nouveau_statut")
+  parId         String               @map("par_id") @db.Uuid
+  le            DateTime             @default(now()) @db.Timestamptz(3)
+  appareilId    String?              @map("appareil_id") @db.Uuid
+  horsLigne     Boolean              @default(false) @map("hors_ligne")
+
+  team     CoreTeam     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  point    ChecklistItem @relation(fields: [pointId], references: [id], onDelete: Restrict)
+  par      CoreUser     @relation(fields: [parId], references: [id], onDelete: Restrict)
+  appareil CoreDevice?  @relation(fields: [appareilId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([pointId, le])
+  @@map("checklist_check_log")
+}
+
+// Propositions reçues des autres apps (article 956 §3). L'index unique partiel « une proposition creer_listes par engagement » est écrit à la main dans la migration.
+model ChecklistProposal {
+  id                 String                     @id @db.Uuid
+  teamId    String  @map("team_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  rev       Int       @default(1)
+  evenementSourceId  String                     @map("evenement_source_id") @db.Uuid
+  type               ChecklistTypeProposition
+  contenu            Json
+  statut             ChecklistStatutProposition @default(proposee)
+  actionId           String?                    @map("action_id") @db.Uuid
+  traiteeParId       String?                    @map("traitee_par_id") @db.Uuid
+  traiteeLe          DateTime?                  @map("traitee_le") @db.Timestamptz(3)
+
+  team            CoreTeam          @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  evenementSource CoreDomainEvent   @relation(fields: [evenementSourceId], references: [id], onDelete: Restrict)
+  action          CoreAction?       @relation(fields: [actionId], references: [id], onDelete: SetNull)
+  traiteePar      CoreUser?         @relation(fields: [traiteeParId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@index([teamId, deletedAt])
+  @@index([teamId, statut])
+  @@map("checklist_proposal")
 }

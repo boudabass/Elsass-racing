@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url"
 
 import { describe, expect, it } from "vitest"
 
-import { verifierConventions } from "./schema-conventions"
+import { MODELES_TEAM_OPTIONNEL, verifierConventions } from "./schema-conventions"
 
 // Fins de ligne normalisées : le schéma est commité en CRLF, et la regex du dernier test
 // ne traverse pas un \r.
@@ -50,6 +50,24 @@ describe("conventions de prisma/schema.prisma", () => {
       "partenaires_report",
       "partenaires_template",
     ])
+  })
+
+  it("l'exception team_id vide ne couvre que les trois modèles fournis de Check-lists", () => {
+    expect([...MODELES_TEAM_OPTIONNEL].sort()).toEqual(["ChecklistTemplate", "ChecklistTemplateItem", "ChecklistTemplateSection"])
+  })
+
+  it("signale un team_id vide hors de l'exception", () => {
+    const equipeSansTeam = schema.replace(/(model EquipeLicence \{[\s\S]*?)teamId(\s+)String(\s+)@map/, "$1teamId$2String?$3@map")
+    expect(equipeSansTeam).not.toBe(schema)
+    expect(verifierConventions(equipeSansTeam)).toContain('EquipeLicence : team_id String @map("team_id") @db.Uuid absent')
+  })
+
+  it("signale un team_id non vide sur un modèle fourni", () => {
+    const modeleAvecTeam = schema.replace(/(model ChecklistTemplate \{[\s\S]*?)teamId(\s+)String\?/, "$1teamId$2String")
+    expect(modeleAvecTeam).not.toBe(schema)
+    expect(verifierConventions(modeleAvecTeam)).toContain(
+      'ChecklistTemplate : team_id String? @map("team_id") @db.Uuid attendu (modèle fourni, exception)',
+    )
   })
 
   it("core_team porte les trois colonnes d'identité juridique", () => {
