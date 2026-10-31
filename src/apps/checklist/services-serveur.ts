@@ -701,6 +701,12 @@ export interface OptionsStatut {
 // Chaque changement de statut écrit une ligne du journal et recalcule la liste (brief §4).
 export async function changerStatutPoint(pointId: string, nouveau: StatutPoint, options: OptionsStatut = {}): Promise<void> {
   const { ctx, niveau } = await accesChecklist("contribution")
+  return changerStatutPointDans(ctx, niveau, pointId, nouveau, options)
+}
+
+// Sans garde de session : le vérificateur (scripts/verifier-checklist.ts) passe par ici avec son propre contexte. Les
+// droits restent contrôlés (assistancePeut, niveau écriture).
+export async function changerStatutPointDans(ctx: ContexteTeam, niveau: Niveau, pointId: string, nouveau: StatutPoint, options: OptionsStatut = {}): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const point = await pointAvecListe(client, ctx.teamId, pointId)
   const liste = point.section.liste
@@ -745,6 +751,11 @@ export async function changerStatutPoint(pointId: string, nouveau: StatutPoint, 
 
 export async function retirerPoint(pointId: string): Promise<void> {
   const { ctx, niveau } = await accesChecklist("contribution")
+  return retirerPointDans(ctx, niveau, pointId)
+}
+
+// Sans garde de session (voir changerStatutPointDans). L'assistance ne retire que ses propres points.
+export async function retirerPointDans(ctx: ContexteTeam, niveau: Niveau, pointId: string): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const point = await pointAvecListe(client, ctx.teamId, pointId)
   const liste = point.section.liste
