@@ -8,7 +8,7 @@ export const manifesteChecklist: ManifesteApp = {
   cle: "checklist",
   nom: "Check-lists",
   icone: "list-checks",
-  version: "0.1.0",
+  version: "0.2.0",
   requiert: ["saison"],
   menu: [{ libelle: "Accueil", chemin: "/" }],
   widgets: [...WIDGETS.checklist],
