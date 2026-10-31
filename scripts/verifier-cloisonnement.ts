@@ -259,6 +259,53 @@ async function main() {
     }
     controle("création d'une dépense Budget dans la team B sous le contexte A refusée", depenseRefusee)
 
+    // 11. Check-lists (tâche 5.5a) : huit tables, RLS forcé et politique cloisonnement_team. Les modèles fournis (team
+    //     vide) sont lisibles par toutes les teams et jamais écrits par le rôle applicatif. Le journal des coches n'a
+    //     ni UPDATE ni DELETE pour le rôle applicatif.
+    const tablesChecklist = [
+      "checklist_template", "checklist_template_section", "checklist_template_item", "checklist_list",
+      "checklist_section", "checklist_item", "checklist_check_log", "checklist_proposal",
+    ]
+    const checklistSansRls = await proprietaire.$queryRaw<Array<{ table_name: string }>>`
+      SELECT c.relname AS table_name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = ANY(${tablesChecklist}::text[])
+        AND (
+          NOT c.relrowsecurity
+          OR NOT c.relforcerowsecurity
+          OR NOT EXISTS (
+            SELECT 1 FROM pg_policies p
+            WHERE p.schemaname = 'public' AND p.tablename = c.relname AND p.policyname = 'cloisonnement_team'
+          )
+          OR NOT (
+            has_table_privilege('elsass_racing_app', c.oid, 'SELECT')
+            AND has_table_privilege('elsass_racing_app', c.oid, 'INSERT')
+          )
+        )
+      ORDER BY c.relname`
+    controle(
+      "les huit tables checklist_ ont le RLS forcé, la politique cloisonnement_team et les droits du rôle applicatif",
+      checklistSansRls.length === 0 && tablesChecklist.length === 8,
+      checklistSansRls.map((r) => r.table_name).join(", "),
+    )
+    const journalModifiable = await proprietaire.$queryRaw<Array<{ ok: boolean }>>`
+      SELECT (has_table_privilege('elsass_racing_app', 'checklist_check_log', 'UPDATE')
+           OR has_table_privilege('elsass_racing_app', 'checklist_check_log', 'DELETE')) AS ok`
+    controle("le journal des coches n'a ni UPDATE ni DELETE pour le rôle applicatif", journalModifiable[0]?.ok === false)
+
+    const fournisId = randomUUID()
+    await proprietaire.checklistTemplate.create({ data: { id: fournisId, teamId: null, nom: `Fourni RLS ${suffixe}`, portee: "engagement", fourni: true } })
+    const fournisVus = await clientA.checklistTemplate.count({ where: { id: fournisId } })
+    controle("la team A lit un modèle fourni (team vide)", fournisVus === 1, `vu : ${fournisVus}`)
+    const fournisModifies = await clientA.checklistTemplate.updateMany({ where: { id: fournisId }, data: { nom: "piratage" } })
+    controle("la team A n'écrit pas un modèle fourni", fournisModifies.count === 0, `touché : ${fournisModifies.count}`)
+    const modeleB = randomUUID()
+    await proprietaire.checklistTemplate.create({ data: { id: modeleB, teamId: teamB.id, nom: `Modèle B ${suffixe}`, portee: "engagement" } })
+    const modeleBVu = await clientA.checklistTemplate.count({ where: { id: modeleB } })
+    controle("un modèle Check-lists de la team B est invisible sous le contexte A", modeleBVu === 0, `vu : ${modeleBVu}`)
+
     // Voiture (tâche 3.2) : sept tables, même garantie que budget_.
     const tablesVoiture = [
       "voiture_vehicle", "voiture_paper", "voiture_slot", "voiture_slot_assignment",
@@ -484,6 +531,7 @@ async function main() {
     await proprietaire.coreContact.deleteMany({ where: { teamId: { in: [teamA.id, teamB.id] } } })
     await proprietaire.coreMembership.deleteMany({ where: { id: adhesion } })
     await proprietaire.coreSeason.deleteMany({ where: { id: { in: [saisonA, saisonB] } } })
+    await proprietaire.checklistTemplate.deleteMany({ where: { OR: [{ teamId: { in: [teamA.id, teamB.id] } }, { nom: { endsWith: suffixe } }] } })
     await proprietaire.coreTeam.deleteMany({ where: { id: { in: [teamA.id, teamB.id] } } })
     await proprietaire.coreUser.deleteMany({ where: { id: utilisateur.id } })
     await proprietaire.$disconnect()
