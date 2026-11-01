@@ -4,11 +4,11 @@ import { preparerEngagementChecklist } from "./aide/checklist"
 import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
-import { statutAction } from "./aide/session"
+import { passerEpreuveDansLePasseEnBase, statutAction } from "./aide/session"
 
 test("Check-lists · débrief : un point ajouté pendant l'épreuve part dans le modèle d'origine", async ({ page, equipe }) => {
   test.setTimeout(240_000)
-  const { entryId } = await preparerEngagementChecklist(equipe, { commenceAujourdhui: true })
+  const { entryId, eventId } = await preparerEngagementChecklist(equipe, { commenceAujourdhui: true })
   await connecterParLien(page, equipe)
 
   // La proposition est acceptée : les listes de l'engagement viennent du modèle de la team.
@@ -25,6 +25,10 @@ test("Check-lists · débrief : un point ajouté pendant l'épreuve part dans le
   await ajout.getByLabel("Libellé du point", { exact: true }).fill("Point ajouté en épreuve")
   await envoyer(page, ajout.getByRole("button", { name: "Ajouter le point", exact: true }))
   await expect(page.locator("li").filter({ hasText: "Point ajouté en épreuve" })).toBeVisible()
+
+  // Le débrief ne liste que les épreuves passées (dateDebut antérieure à aujourd'hui) : on passe l'épreuve dans le passé,
+  // le point garde sa marque « ajouté pendant l'épreuve », prise à sa création.
+  await passerEpreuveDansLePasseEnBase(equipe, eventId, "2020-06-01", "2020-06-02")
 
   // Débrief : la ligne porte la mention ; « Ajouter au modèle » la reporte dans le modèle d'origine.
   await page.getByRole("link", { name: "Débrief", exact: true }).click()
