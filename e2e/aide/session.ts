@@ -145,7 +145,13 @@ export function emettreActionSaison(equipe: Equipe, cleUnicite: string): void {
 
 // Modèle d'engagement de la team, avec une section et ses points : sans modèle disponible, Check-lists ne propose
 // pas de créer les listes. Les modèles fournis ne sont pas encore en base (lot 5.5b) : le test en crée un.
-export async function ajouterModeleChecklistEnBase(equipe: Equipe, nom: string, libellesPoints: string[]): Promise<string> {
+// `echeanceRelative` pose le décalage de chaque point : l'échéance de la liste en dépend (sans décalage, pas d'échéance).
+export async function ajouterModeleChecklistEnBase(
+  equipe: Equipe,
+  nom: string,
+  libellesPoints: string[],
+  echeanceRelative: "j_moins_7" | "j_moins_1" | "jour_j" | null = null,
+): Promise<string> {
   const modeleId = newId()
   const sectionId = newId()
   await bd().query(
@@ -161,9 +167,9 @@ export async function ajouterModeleChecklistEnBase(equipe: Equipe, nom: string, 
   // Le premier point est critique : c'est lui que l'avertissement avant phase cite (seuls les critiques y figurent).
   for (let ordre = 0; ordre < libellesPoints.length; ordre++) {
     await bd().query(
-      `INSERT INTO checklist_template_item (id, team_id, section_id, libelle, critique, lien_type, ordre, rev, updated_at)
-       VALUES ($1, $2, $3, $4, $5, 'aucun'::checklist_type_lien, $6, 1, now())`,
-      [newId(), equipe.teamId, sectionId, libellesPoints[ordre], ordre === 0, ordre],
+      `INSERT INTO checklist_template_item (id, team_id, section_id, libelle, critique, lien_type, echeance_relative, ordre, rev, updated_at)
+       VALUES ($1, $2, $3, $4, $5, 'aucun'::checklist_type_lien, $6::checklist_echeance_relative, $7, 1, now())`,
+      [newId(), equipe.teamId, sectionId, libellesPoints[ordre], ordre === 0, echeanceRelative, ordre],
     )
   }
   return modeleId

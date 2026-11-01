@@ -46,7 +46,8 @@ test("Problème sans organe : une tâche du socle, et la fiche montre qu'il n'y 
 
 test("Point critique à l'approche de l'échéance : l'action sort dans la boîte, et se lève quand le point est fait", async ({ page, equipe }) => {
   test.setTimeout(300_000)
-  const { entryId } = await preparerEngagementChecklist(equipe, { commenceAujourdhui: true })
+  // Le modèle a un décalage J-7 : la liste tombe à échéance proche (une liste sans échéance n'a jamais d'action).
+  const { entryId } = await preparerEngagementChecklist(equipe, { commenceAujourdhui: true, echeanceRelative: "j_moins_7" })
   await connecterParLien(page, equipe)
   await accepterListes(page, equipe, entryId)
   await ouvrirPremiereListe(page)

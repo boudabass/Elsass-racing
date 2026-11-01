@@ -22,7 +22,11 @@ export interface EngagementChecklist {
 
 // Par défaut l'épreuve est à venir (année suivante). Avec « commence aujourd'hui », elle est commencée : un point créé
 // maintenant est « ajouté pendant l'épreuve » (débrief), et la date est celle de Paris, comme dans l'app.
-export async function preparerEngagementChecklist(equipe: Equipe, options: { commenceAujourdhui?: boolean } = {}): Promise<EngagementChecklist> {
+// `echeanceRelative` : décalage des points du modèle. Sans lui, la liste n'a pas d'échéance (aucune action « point critique »).
+export async function preparerEngagementChecklist(
+  equipe: Equipe,
+  options: { commenceAujourdhui?: boolean; echeanceRelative?: "j_moins_7" | "j_moins_1" | "jour_j" } = {},
+): Promise<EngagementChecklist> {
   const annee = new Date().getFullYear() + 1
   const debut = options.commenceAujourdhui ? jourParis(0) : `${annee}-06-01`
   const fin = options.commenceAujourdhui ? jourParis(1) : `${annee}-06-02`
@@ -31,7 +35,7 @@ export async function preparerEngagementChecklist(equipe: Equipe, options: { com
   const vehicleId = await ajouterVoitureDeCourse(equipe, `Saxo ${equipe.horodatage}`)
   const entryId = await engagerVehiculeEnBase(equipe, eventId, vehicleId, "inscrit")
   // Le modèle de la team doit exister avant l'événement : sans modèle disponible, aucune proposition.
-  await ajouterModeleChecklistEnBase(equipe, "Contrôle avant départ", ["Triangle de présentation", "Trousse de secours"])
+  await ajouterModeleChecklistEnBase(equipe, "Contrôle avant départ", ["Triangle de présentation", "Trousse de secours"], options.echeanceRelative ?? null)
   emettreEvenement(equipe, "saison.engagement_cree", { entryId, eventId, vehicleId })
   return { entryId, eventId, vehicleId }
 }
