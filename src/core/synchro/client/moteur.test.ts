@@ -331,3 +331,51 @@ describe("moteur : une ligne en rev 0 sans création en attente", () => {
     erreurs.mockRestore()
   })
 })
+
+describe("moteur : une coche hors ligne gardée", () => {
+  it("le statut local revient à celui du serveur au tirage suivant, sans refus", async () => {
+    const { moteur } = nouveauMoteur()
+    serveur.lignes.checklist_item = [ligne("point-1", { statut: "fait", cocheLe: null })]
+    await moteur.synchroniser()
+    expect((await moteur.lireTable("checklist_item"))[0]?.statut).toBe("fait")
+
+    // Coche hors ligne : l'écran montre tout de suite le nouveau statut.
+    await moteur.ecrireLocal("checklist_item", { type: "modifier", id: "point-1", champs: { statut: "probleme", cocheLe: MAINTENANT } })
+    expect((await moteur.lireTable("checklist_item"))[0]?.statut).toBe("probleme")
+
+    // Le serveur garde sa version : une coche plus récente est déjà en place. Il répond « conflit résolu », sans refus.
+    serveur.pousser = (operations) =>
+      operations.map((o) => ({ idOperation: o.idOperation, statut: "conflit_resolu" as const, raison: "Une version plus récente est déjà en place." }))
+    const tiragesAvant = serveur.tirages.length
+    await moteur.synchroniser()
+
+    // Le tirage qui suit repart du début de la table : la ligne reprend le statut du serveur.
+    expect(serveur.tirages.slice(tiragesAvant).some((curseurs) => curseurs.checklist_item === null)).toBe(true)
+    const point = (await moteur.lireTable("checklist_item"))[0]
+    expect(point?.statut).toBe("fait")
+    expect(point?.enAttente).toBeFalsy()
+    expect(await moteur.lireRefus()).toHaveLength(0)
+  })
+})
+
+describe("moteur : deux coches successives sur un point, avant l'envoi", () => {
+  it("une seule opération part, avec la dernière coche", async () => {
+    const { moteur } = nouveauMoteur()
+    serveur.lignes.checklist_item = [ligne("point-2", { statut: "a_faire", cocheLe: null })]
+    await moteur.synchroniser()
+
+    await moteur.ecrireLocal("checklist_item", { type: "modifier", id: "point-2", champs: { statut: "fait", cocheLe: "2026-10-21T09:01:00.000Z" } })
+    await moteur.ecrireLocal("checklist_item", { type: "modifier", id: "point-2", champs: { statut: "sans_objet", cocheLe: "2026-10-21T09:02:00.000Z" } })
+
+    const envoyees: Operation[] = []
+    serveur.pousser = (operations) => {
+      envoyees.push(...operations)
+      return operations.map((o) => ({ idOperation: o.idOperation, statut: "appliquee" as const }))
+    }
+    await moteur.synchroniser()
+
+    const deLaLigne = envoyees.filter((o) => o.table === "checklist_item" && o.id === "point-2")
+    expect(deLaLigne).toHaveLength(1)
+    expect(deLaLigne[0]?.champs).toEqual({ statut: "sans_objet", cocheLe: "2026-10-21T09:02:00.000Z" })
+  })
+})

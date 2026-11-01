@@ -326,6 +326,10 @@ export class MoteurSynchro {
       const creee = await db.get(table, operation.id)
       if (creee && creee.rev < 1) await db.put(table, { ...creee, rev: 1 })
     }
+    // Modification en conflit résolu, gardée ou non : le serveur n'a pas retenu la valeur locale, et la ligne ne remonte
+    // pas forcément au tirage (elle n'a pas changé côté serveur). On relit la table depuis le début : la ligne reprend la
+    // valeur du serveur. Les lignes encore en attente sur cet appareil gardent leur version (tirer les saute).
+    if (resultat.statut === "conflit_resolu" && operation.type === "modifier") await db.put("curseurs", { table, curseur: null })
     // Modification notée : le serveur est passé à revLue + 1. La ligne locale prend cette version, et les opérations
     // restées sur la ligne (écrites pendant l'envoi, sur la version précédente) la prennent aussi : sinon elles
     // seraient notées comme conflit à tort.
