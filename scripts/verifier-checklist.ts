@@ -286,7 +286,7 @@ async function main() {
            JOIN information_schema.columns r ON r.table_schema = t.table_schema AND r.table_name = t.table_name AND r.column_name = 'rev'
            JOIN information_schema.columns u ON u.table_schema = t.table_schema AND u.table_name = t.table_name AND u.column_name = 'updated_at'
           WHERE t.table_schema = 'public' AND t.column_name = 'team_id'
-            AND left(t.table_name, 9) <> 'checklist_' AND left(t.table_name, 5) <> 'core_'`,
+            AND left(t.table_name, 10) <> 'checklist_' AND left(t.table_name, 5) <> 'core_'`,
       )
     ).map((ligne) => ligne.table_name)
     const empreinte = async (): Promise<Record<string, string>> => {
