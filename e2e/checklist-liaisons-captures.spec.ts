@@ -2,18 +2,21 @@
 // proposition d'ordre et le point critique, la ligne Check-lists de Saison, à 1440 et à 360 px, en thème sombre et clair.
 // Elles partent dans docs/captures/ (checklist-liaisons-*) ; elles sont téléchargées du run, relues une à une, puis
 // commitées à la main.
+import path from "node:path"
+
 import type { Page } from "@playwright/test"
 
 import { preparerEngagementChecklist } from "./aide/checklist"
-import { capturer, choisirTheme } from "./aide/equipe"
+import { capturer, choisirTheme, DOSSIER_CAPTURES } from "./aide/equipe"
 import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { preparerAtelierSaxo } from "./aide/garage"
 import { connecterParLien } from "./aide/navigation"
 import { statutAction } from "./aide/session"
 
+// Hauteur du téléphone : assez haute pour que la boîte et la fiche tiennent sans être coupées par le tiroir.
 const BUREAU = { largeur: "1440", width: 1440, height: 900 }
-const TELEPHONE = { largeur: "360", width: 360, height: 740 }
+const TELEPHONE = { largeur: "360", width: 360, height: 1000 }
 
 // Réponse d'une server action : à attendre après un envoi qui ne ferme pas de tiroir (cf. envoi.ts).
 const REPONSE_ACTION = (r: { request: () => { method: () => string; headers: () => Record<string, string> } }) =>
@@ -68,8 +71,12 @@ test("captures · liaisons : fiche d'un point lié, boîte d'actions, Saison, 14
       await page.setViewportSize({ width: taille.width, height: taille.height })
 
       await page.goto(ficheUrl)
-      await expect(page.getByRole("dialog").getByRole("region", { name: "Lien" })).toContainText("Moteur")
-      await capturer(page, `checklist-liaisons-fiche-${taille.largeur}-${theme}.png`)
+      const fichePoint = page.getByRole("dialog").first()
+      const sectionLien = fichePoint.getByRole("region", { name: "Lien" })
+      await expect(sectionLien).toContainText("Moteur")
+      // Le tiroir défile : la section Lien est amenée en vue, puis c'est le tiroir qui est capturé.
+      await sectionLien.scrollIntoViewIfNeeded()
+      await fichePoint.screenshot({ path: path.join(DOSSIER_CAPTURES, `checklist-liaisons-fiche-${taille.largeur}-${theme}.png`), animations: "disabled" })
 
       await page.goto(listeUrl)
       await page.getByRole("button", { name: /Boîte d'actions/ }).click()
