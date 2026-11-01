@@ -10,6 +10,8 @@
 // team invisibles ; une seule action de réassignation pour un membre retiré, levée quand plus rien n'est à faire.
 
 import { randomUUID } from "node:crypto"
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
 
 import { config as chargerEnv } from "dotenv"
 import { PrismaPg } from "@prisma/adapter-pg"
@@ -30,6 +32,22 @@ if (!urlProprietaire) {
 const proprietaire = new PrismaClient({ adapter: new PrismaPg({ connectionString: urlProprietaire }) })
 
 class EcartChecklist extends Error {}
+
+// Fin volontaire d'une transaction de contrôle : tout ce qu'elle a écrit est annulé.
+class AnnulationVerification extends Error {}
+
+// Instructions SQL d'une migration, dans l'ordre : sans les lignes de commentaire, coupées au point-virgule. Le fichier
+// est joué tel quel : le contrôle ne recopie pas la requête de conversion.
+function instructionsMigration(nom: string): string[] {
+  const texte = readFileSync(resolve("prisma/migrations", nom, "migration.sql"), "utf8")
+  return texte
+    .split("\n")
+    .filter((ligne) => !ligne.trim().startsWith("--"))
+    .join("\n")
+    .split(";")
+    .map((instruction) => instruction.trim())
+    .filter((instruction) => instruction.length > 0)
+}
 
 function controle(libelle: string, condition: boolean, detail = "") {
   if (!condition) throw new EcartChecklist(`${libelle}${detail ? ` (${detail})` : ""}`)
@@ -192,6 +210,60 @@ async function main() {
       select: { statut: true },
     })
     controle("l'action est levée quand plus aucun point n'est à faire ou en problème", levee[0]?.statut === "annulee", levee[0]?.statut)
+
+    // 6. Migration des boutons-liens (5.6 §0) : des actions au format ancien, jouées par le fichier de la migration, dans
+    // une transaction annulée. Rien ne reste en base, même sur une base partagée.
+    await proprietaire
+      .$transaction(
+        async (tx) => {
+          const personne = randomUUID()
+          const licence = randomUUID()
+          const gear = randomUUID()
+          await tx.corePerson.create({ data: { id: personne, teamId: team.id, nom: "Lien", prenom: `Verif ${suffixe}` } })
+          await tx.equipeLicence.create({ data: { id: licence, teamId: team.id, personId: personne, type: "autre" } })
+          await tx.equipeGear.create({ data: { id: gear, teamId: team.id, personId: personne, type: "casque" } })
+
+          const base = { teamId: team.id, titre: "Verif boutons", destinataires: { roles: ["responsable"] }, priorite: 5 }
+          const ancien = [{ cle: "renouveler", libelle: "Renouveler" }]
+          await tx.coreAction.createMany({
+            data: [
+              { ...base, id: randomUUID(), appOrigine: "equipe", type: "licence_a_renouveler", ficheType: "licence", ficheId: licence, cleUnicite: `boutons-${suffixe}-licence`, boutons: ancien, statut: "en_attente" },
+              { ...base, id: randomUUID(), appOrigine: "equipe", type: "homologation_a_renouveler", ficheType: "gear", ficheId: gear, cleUnicite: `boutons-${suffixe}-gear`, boutons: ancien, statut: "en_attente" },
+              { ...base, id: randomUUID(), appOrigine: "equipe", type: "disponibilite_a_repondre", cleUnicite: `boutons-${suffixe}-dispo`, boutons: [{ cle: "repondre", libelle: "Répondre" }], statut: "en_attente" },
+              { ...base, id: randomUUID(), appOrigine: "checklist", type: "reassigner_points", cleUnicite: `boutons-${suffixe}-reassign`, boutons: [{ cle: "voir", libelle: "Voir les listes" }], statut: "en_attente" },
+              { ...base, id: randomUUID(), appOrigine: "equipe", type: "licence_a_renouveler", ficheType: "licence", ficheId: licence, cleUnicite: `boutons-${suffixe}-decidee`, boutons: ancien, statut: "decidee", decision: "renouveler" },
+              { ...base, id: randomUUID(), appOrigine: "checklist", type: "reassigner_points", cleUnicite: `boutons-${suffixe}-deja`, boutons: [{ cle: "voir", libelle: "Voir", lien: "/apps/checklist/autre" }], statut: "en_attente" },
+            ],
+          })
+
+          const lireBoutons = async () => {
+            const lignes = await tx.coreAction.findMany({ where: { teamId: team.id, cleUnicite: { startsWith: `boutons-${suffixe}` } }, select: { cleUnicite: true, boutons: true } })
+            return Object.fromEntries(lignes.map((ligne) => [ligne.cleUnicite, JSON.stringify(ligne.boutons)]))
+          }
+          const avant = await lireBoutons()
+
+          for (const instruction of instructionsMigration("20261101130000_action_boutons_lien")) await tx.$executeRawUnsafe(instruction)
+          const apres = await lireBoutons()
+          const lien = (cle: string) => JSON.parse(apres[`boutons-${suffixe}-${cle}`] ?? "[]")[0]?.lien
+
+          controle("la licence en attente mène à ses licences", lien("licence") === `/apps/equipe/personnes/${personne}?onglet=licences`, lien("licence"))
+          controle("l'homologation en attente mène à l'onglet Équipement", lien("gear") === `/apps/equipe/personnes/${personne}?onglet=equipement`, lien("gear"))
+          controle("la disponibilité en attente mène à Prochaine épreuve", lien("dispo") === "/apps/equipe/epreuve", lien("dispo"))
+          controle("la réassignation en attente mène à l'accueil de Check-lists", lien("reassign") === "/apps/checklist", lien("reassign"))
+          controle("une action décidée ne change pas", apres[`boutons-${suffixe}-decidee`] === avant[`boutons-${suffixe}-decidee`])
+          controle("une action déjà au format lien ne change pas", apres[`boutons-${suffixe}-deja`] === avant[`boutons-${suffixe}-deja`])
+
+          for (const instruction of instructionsMigration("20261101130000_action_boutons_lien")) await tx.$executeRawUnsafe(instruction)
+          const rejoue = await lireBoutons()
+          controle("rejouer la migration ne change rien", JSON.stringify(rejoue) === JSON.stringify(apres))
+
+          throw new AnnulationVerification()
+        },
+        { timeout: 60000 },
+      )
+      .catch((erreur) => {
+        if (!(erreur instanceof AnnulationVerification)) throw erreur
+      })
   } finally {
     await proprietaire.checklistCheckLog.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.checklistItem.deleteMany({ where: { teamId: { in: equipes } } })
