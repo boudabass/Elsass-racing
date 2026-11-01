@@ -297,3 +297,14 @@ export function avertissementAvantPhase(
   }
   return ouverts
 }
+
+// Action « point critique » (5.7a) : un point critique à faire ou en problème, dans une liste à 7 jours ou moins de son
+// échéance, figure dans la boîte. Une liste sans échéance n'en a pas.
+export function actionPointCritiqueDue(point: { critique: boolean; statut: StatutPoint }, echeance: string | null, aujourdhui: string): boolean {
+  return point.critique && (point.statut === "a_faire" || point.statut === "probleme") && echeanceProche(echeance, aujourdhui)
+}
+
+// L'action se lève quand le point est fait ou sans objet. Le retrait d'un point se traite à part (services-serveur).
+export function actionPointCritiqueLevee(statut: StatutPoint): boolean {
+  return statut === "fait" || statut === "sans_objet"
+}

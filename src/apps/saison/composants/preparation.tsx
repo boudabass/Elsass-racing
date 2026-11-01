@@ -4,6 +4,7 @@ import type { SurveillanceVehicule } from "@/apps/garage/lectures-partagees"
 import { libellePosition } from "@/apps/garage/emplacements"
 import { libelleZone, pourcentage, zoneIndice } from "@/apps/garage/mise-en-forme"
 import { LIBELLE_POINT_PREPARATION, LIBELLE_STATUT_ENGAGEMENT, LIBELLE_STATUT_POINT } from "@/apps/saison/libelles"
+import type { ResumeChecklistEngagement } from "@/apps/checklist/lectures-partagees"
 import { lieuDeReglage, type PointEtabli } from "@/apps/saison/preparation"
 import type { CouleurIndice, IndicePreparation } from "@/apps/saison/regles"
 import { LIEN } from "@/lib/classes-formulaire"
@@ -19,7 +20,7 @@ const COULEUR_INDICE: Record<CouleurIndice, string> = {
 }
 
 // Éléments à côté de l'indice (sans effet sur lui), en attente de leurs apps.
-const A_COTE = ["Avancement des check-lists", "Présents de l'assistance"]
+const A_COTE = ["Présents de l'assistance"]
 
 export interface EngagementPreparation {
   id: string
@@ -28,11 +29,13 @@ export interface EngagementPreparation {
   statut: string
   points: PointEtabli[]
   indice: IndicePreparation | null
+  // Check-lists : information seulement, hors indice (5.7a). Null : aucune liste pour cet engagement.
+  checklist: ResumeChecklistEngagement | null
   // Null si Garage est désactivé, non accessible, ou si l'atelier n'est pas préparé : aucun bloc.
   surveillance: SurveillanceVehicule | null
 }
 
-export function PanneauPreparation({ engagements }: { engagements: EngagementPreparation[] }) {
+export function PanneauPreparation({ engagements, checklistActive }: { engagements: EngagementPreparation[]; checklistActive: boolean }) {
   if (engagements.length === 0) {
     return <p className="text-texte-discret">Aucun engagement à préparer pour l'instant.</p>
   }
@@ -107,6 +110,12 @@ export function PanneauPreparation({ engagements }: { engagements: EngagementPre
                 <span>Fiabilité de la voiture</span>
                 <span className="text-texte-discret">{libelleFiabilite(engagement.surveillance)}</span>
               </li>
+              {checklistActive && (
+                <li className="flex justify-between gap-2">
+                  <span>Check-lists</span>
+                  <span className="text-texte-discret">{libelleChecklist(engagement.checklist)}</span>
+                </li>
+              )}
               {A_COTE.map((libelle) => (
                 <li key={libelle} className="flex justify-between gap-2">
                   <span>{libelle}</span>
@@ -119,6 +128,13 @@ export function PanneauPreparation({ engagements }: { engagements: EngagementPre
       ))}
     </div>
   )
+}
+
+// Check-lists : l'avancement et les critiques ouverts, en texte (jamais la couleur seule). Hors indice.
+function libelleChecklist(resume: ResumeChecklistEngagement | null): string {
+  if (resume === null) return "Aucune liste"
+  const critiques = resume.critiquesOuverts === 0 ? "aucun point critique ouvert" : `${resume.critiquesOuverts} point${resume.critiquesOuverts > 1 ? "s" : ""} critique${resume.critiquesOuverts > 1 ? "s" : ""} ouvert${resume.critiquesOuverts > 1 ? "s" : ""}`
+  return `${resume.avancement} % · ${critiques}`
 }
 
 // Fiabilité de la voiture : le mot de la zone, puis le pourcentage (jamais la couleur seule).

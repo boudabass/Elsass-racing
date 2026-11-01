@@ -29,6 +29,7 @@ import { accesSaison } from "./services-serveur"
 import { indicePourEngagement, pointsDePreparation } from "./preparation"
 import { lirePointsEquipe } from "./preparation-equipe-serveur"
 import { lirePointsVoiture } from "./preparation-voiture-serveur"
+import { lirePreparationChecklist } from "./preparation-checklist-serveur"
 import { lireSurveillance } from "@/apps/garage/lectures-partagees"
 
 
@@ -547,8 +548,11 @@ export async function lirePreparation(eventId: string) {
   const equipes = await lirePointsEquipe(ctx, epreuve.entries, epreuve.dateDebut)
   // Papiers du véhicule : lus chez Voiture à la date de l'épreuve (5.2b), null si Voiture n'est pas activée.
   const voitures = await lirePointsVoiture(ctx, epreuve.entries, epreuve.dateDebut)
+  // Check-lists : avancement et critiques ouverts, à titre d'information seulement (5.7a), null si Check-lists n'est pas activée.
+  const checklists = await lirePreparationChecklist(ctx, epreuve.entries.map((entree) => entree.id))
   return {
     niveau,
+    checklistActive: checklists.active,
     engagements: epreuve.entries.map((entree, rang) => {
       const points = pointsDePreparation(entree.saisonRegistration?.payeLe != null, entree.saisonReadiness, equipes.get(entree.id) ?? null, voitures.get(entree.id) ?? null)
       return {
@@ -559,6 +563,7 @@ export async function lirePreparation(eventId: string) {
         points,
         indice: indicePourEngagement(points, maintenant, epreuve.dateDebut),
         surveillance: surveillances[rang],
+        checklist: checklists.parEngagement.get(entree.id) ?? null,
       }
     }),
   }

@@ -12,6 +12,7 @@ import { recalculerPourQg as recalculerVoiture } from "@/apps/voiture/services-s
 import { recalculerPourQg as recalculerPartenaires } from "@/apps/partenaires/services-serveur"
 import { recalculerPourQg as recalculerEquipe } from "@/apps/equipe/services-serveur"
 import { recalculerPourQg as recalculerDocuments } from "@/apps/documents/echeances-serveur"
+import { recalculerPourQg as recalculerChecklist } from "@/apps/checklist/points-critiques-serveur"
 import { constaterLiensExpiresDans } from "@/apps/documents/partages-serveur"
 
 export async function recalculerQg(contexte: ContexteTeam): Promise<void> {
@@ -20,6 +21,7 @@ export async function recalculerQg(contexte: ContexteTeam): Promise<void> {
   await lancer("partenaires", async () => recalculerPartenaires(contexte, await niveauDe(contexte, "partenaires")))
   await lancer("equipe", async () => recalculerEquipe(contexte, await niveauDe(contexte, "equipe")))
   await lancer("documents", async () => recalculerDocuments(contexte, await niveauDe(contexte, "documents")))
+  await lancer("checklist", async () => recalculerChecklist(contexte, await niveauDe(contexte, "checklist")))
   await lancer("documents-liens", async () => {
     if (aAuMoins(await niveauDe(contexte, "documents"), "lecture")) await constaterLiensExpiresDans(contexte, new Date())
   })

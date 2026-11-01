@@ -20,12 +20,15 @@ import {
 } from "./charges"
 import { ErreurChecklist, refus } from "./erreurs"
 import { cleOrdreDePoint } from "./objets-lies"
+import { cleActionPointCritique, leverActionSiEnAttente, proposerActionPointCritique } from "./points-critiques-serveur"
 import {
   assistancePeut,
   calculerListe,
   echeanceDeListe,
   epreuveCommencee,
   fautSignalerPointCritique,
+  actionPointCritiqueDue,
+  actionPointCritiqueLevee,
   fautSignalerProbleme,
   jourParis,
   liensDuPointCopie,
@@ -161,20 +164,11 @@ export interface ChangementPoint {
   critique: boolean
   ajoute: boolean
   pointId: string
-  // Contexte du point, émis avec checklist.probleme_signale (5.7a).
-  libelle?: string
+  // Contexte du point, émis avec checklist.probleme_signale et l'action point critique (5.7a). Le libellé donne le titre.
+  libelle: string
   lienType?: string | null
   lienId?: string | null
   personneId?: string | null
-}
-
-// Lève l'action en attente de cette clé, si elle existe. Sans action en attente, rien n'est émis.
-export async function leverActionSiEnAttente(ctx: ContexteTeam, cleUnicite: string): Promise<void> {
-  const action = await prismaPourTeam(ctx.teamId, ctx.userId).coreAction.findFirst({
-    where: { teamId: ctx.teamId, cleUnicite, statut: "en_attente" },
-    select: { id: true },
-  })
-  if (action) await emettre(ctx, "checklist.action_levee", { cleUnicite })
 }
 
 // Émet ce qui découle d'un changement, après la transaction. Jamais de rouge : ce sont des informations.
@@ -216,6 +210,13 @@ export async function emettreApresChangement(
         personneId: changement.personneId ?? null,
       }),
     )
+  }
+
+  if (changement && actionPointCritiqueDue({ critique: changement.critique, statut: changement.nouveau }, echeance, aujourdhui)) {
+    await proposerActionPointCritique(ctx, liste, { id: changement.pointId, libelle: changement.libelle })
+  }
+  if (changement && actionPointCritiqueLevee(changement.nouveau)) {
+    await leverActionSiEnAttente(ctx, cleActionPointCritique(changement.pointId))
   }
 
   if (changement && changement.ancien === "probleme" && changement.nouveau !== "probleme") {
@@ -711,6 +712,7 @@ export async function ajouterPoint(sectionId: string, saisie: SaisiePoint): Prom
     critique,
     ajoute: true,
     pointId: id,
+    libelle: saisie.libelle,
   })
   return id
 }
@@ -835,6 +837,7 @@ export async function retirerPointDans(ctx: ContexteTeam, niveau: Niveau, pointI
   )
   await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance, titre: liste.titre }, resultat, null)
   if (point.statut === "probleme") await leverActionSiEnAttente(ctx, cleOrdreDePoint(pointId))
+  if (point.critique) await leverActionSiEnAttente(ctx, cleActionPointCritique(pointId))
   if (point.personneId) await levereReassignationSiPlusDePoint(ctx, point.personneId)
 }
 

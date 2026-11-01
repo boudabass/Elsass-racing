@@ -164,7 +164,7 @@ export default async function PageEpreuve({
       )}
 
       {onglet === "pret" && preparation && (
-        <PanneauPreparation engagements={preparation.engagements} />
+        <PanneauPreparation engagements={preparation.engagements} checklistActive={preparation.checklistActive} />
       )}
 
       {onglet === "reconnaissances" && reco && (

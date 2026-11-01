@@ -28,6 +28,8 @@ import {
   zoneDeListe,
   type ListePhasee,
   type PointRegle,
+  actionPointCritiqueDue,
+  actionPointCritiqueLevee,
 } from "./regles"
 
 const point = (statut: PointRegle["statut"], critique = false): PointRegle => ({ statut, critique })
@@ -396,5 +398,34 @@ describe("avertissement avant une phase (5.6 §1.5)", () => {
     ]
     // Un critique ouvert en « retour » ne concerne pas l'ouverture d'une liste d'« epreuve ».
     expect(avertissementAvantPhase("epreuve", listes)).toEqual([])
+  })
+})
+
+describe("action « point critique » (5.7a)", () => {
+  const critique = { critique: true, statut: "a_faire" as const }
+
+  it("un point critique à faire, dans une liste à 7 jours ou moins, figure dans la boîte", () => {
+    expect(actionPointCritiqueDue(critique, "2026-11-05", "2026-11-01")).toBe(true)
+  })
+
+  it("un point critique en problème figure aussi", () => {
+    expect(actionPointCritiqueDue({ critique: true, statut: "probleme" }, "2026-11-05", "2026-11-01")).toBe(true)
+  })
+
+  it("une liste plus loin que 7 jours : pas d'action, et pas de liste sans échéance", () => {
+    expect(actionPointCritiqueDue(critique, "2026-11-20", "2026-11-01")).toBe(false)
+    expect(actionPointCritiqueDue(critique, null, "2026-11-01")).toBe(false)
+  })
+
+  it("un point qui n'est pas critique, ou déjà fait, n'en a pas", () => {
+    expect(actionPointCritiqueDue({ critique: false, statut: "a_faire" }, "2026-11-05", "2026-11-01")).toBe(false)
+    expect(actionPointCritiqueDue({ critique: true, statut: "fait" }, "2026-11-05", "2026-11-01")).toBe(false)
+  })
+
+  it("se lève quand le point est fait ou sans objet, jamais quand il reste à faire ou en problème", () => {
+    expect(actionPointCritiqueLevee("fait")).toBe(true)
+    expect(actionPointCritiqueLevee("sans_objet")).toBe(true)
+    expect(actionPointCritiqueLevee("a_faire")).toBe(false)
+    expect(actionPointCritiqueLevee("probleme")).toBe(false)
   })
 })
