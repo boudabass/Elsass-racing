@@ -129,7 +129,7 @@ export function exigerDroitPoint(ctx: ContexteTeam, niveau: Niveau, action: Acti
 // ─── Recalcul ────────────────────────────────────────────────────────────────
 
 // Relit les points de la liste, recalcule avancement, zone et statut, et écrit le résultat. Renvoie l'avant et l'après.
-async function recalculerListe(tx: Tx, ctx: ContexteTeam, listeId: string) {
+export async function recalculerListe(tx: Tx, ctx: ContexteTeam, listeId: string) {
   const liste = await tx.checklistList.findFirst({ where: { id: listeId, teamId: ctx.teamId, deletedAt: null } })
   if (!liste) refus("Cette liste n'existe plus.")
   const points = await tx.checklistItem.findMany({
@@ -154,7 +154,7 @@ async function joursListeTerminee(ctx: ContexteTeam, listeId: string): Promise<s
   return emis.map((evenement) => jourParis(evenement.emisAt))
 }
 
-interface ChangementPoint {
+export interface ChangementPoint {
   ancien: StatutPoint | null
   nouveau: StatutPoint
   critique: boolean
@@ -163,7 +163,7 @@ interface ChangementPoint {
 }
 
 // Émet ce qui découle d'un changement, après la transaction. Jamais de rouge : ce sont des informations.
-async function emettreApresChangement(
+export async function emettreApresChangement(
   ctx: ContexteTeam,
   liste: { id: string; epreuveId: string; echeance: Date | null },
   resultat: { avant: { avancement: number; zone: string; statut: string }; apres: { avancement: number; zone: "vert" | "orange"; statut: "a_faire" | "en_cours" | "terminee" } },

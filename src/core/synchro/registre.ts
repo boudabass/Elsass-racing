@@ -16,45 +16,20 @@ import { prisma, prismaPourTeam } from "@/lib/prisma"
 
 import type { PositionCurseur } from "./curseur"
 import type { RegleContribution, VerdictEcriture } from "./contribution"
-import { RefusSynchro } from "./erreurs"
 import { apresPosition } from "./position"
 import { clausesFichesLisibles, controleNoteSynchro } from "@/core/notes/synchro-serveur"
 import { declarationsSaisonSynchro } from "@/apps/saison/synchro-serveur"
 import { declarationsBudgetSynchro } from "@/apps/budget/synchro-serveur"
 import { declarationsVoitureSynchro } from "@/apps/voiture/synchro-serveur"
 import { declarationsGarageSynchro } from "@/apps/garage/synchro-serveur"
+import { declarationsChecklistSynchro } from "@/apps/checklist/synchro-serveur"
 import type { LigneSynchro, MODIFICATION_GARDEE } from "./protocole"
 
 export type ClientTeam = ReturnType<typeof prismaPourTeam>
 export type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
 
-// Champs du socle de toute ligne synchronisée, au format de la synchro (dates en ISO).
-// Déclarés ici (fonctions déclarées, donc disponibles pendant le cycle registre ↔ synchro-serveur des apps).
-export interface Socle {
-  id: string
-  rev: number
-  createdAt: Date
-  updatedAt: Date
-  deletedAt: Date | null
-  createdBy: string | null
-  updatedBy: string | null
-}
-
-export function socleSynchro(ligne: Socle) {
-  return {
-    id: ligne.id,
-    rev: ligne.rev,
-    createdAt: ligne.createdAt.toISOString(),
-    updatedAt: ligne.updatedAt.toISOString(),
-    deletedAt: ligne.deletedAt?.toISOString() ?? null,
-    createdBy: ligne.createdBy,
-    updatedBy: ligne.updatedBy,
-  }
-}
-
-export function refusLectureSeule(): never {
-  throw new RefusSynchro("Cette donnée se lit seulement hors ligne : elle ne s'écrit pas depuis l'appareil.")
-}
+// Helpers du socle (socleSynchro, refusLectureSeule) : voir socle.ts.
+export { refusLectureSeule, socleSynchro, type Socle } from "./socle"
 
 export interface EtatLigneSynchro {
   rev: number
@@ -230,7 +205,7 @@ const noteSynchro: DeclarationSynchro = {
   },
 }
 
-const REGISTRE: DeclarationSynchro[] = [noteSynchro, ...declarationsSaisonSynchro, ...declarationsBudgetSynchro, ...declarationsVoitureSynchro, ...declarationsGarageSynchro]
+const REGISTRE: DeclarationSynchro[] = [noteSynchro, ...declarationsSaisonSynchro, ...declarationsBudgetSynchro, ...declarationsVoitureSynchro, ...declarationsGarageSynchro, ...declarationsChecklistSynchro]
 
 export function declarationDe(cle: string): DeclarationSynchro | undefined {
   return REGISTRE.find((declaration) => declaration.cle === cle)

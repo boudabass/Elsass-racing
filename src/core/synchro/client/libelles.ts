@@ -38,4 +38,7 @@ export const LIBELLES_TABLES: Record<TableLocale, LibelleTable> = {
   garage_work_order: { libelle: "Intervention", resumer: (champs) => texteDe(champs.titre) },
   garage_vehicle_component: { libelle: "Organe" },
   garage_component_type: { libelle: "Type d'organe" },
+  checklist_list: { libelle: "Liste de check", resumer: (champs) => texteDe(champs.titre) },
+  checklist_section: { libelle: "Section de liste" },
+  checklist_item: { libelle: "Point de liste", resumer: (champs) => texteDe(champs.libelle) },
 }

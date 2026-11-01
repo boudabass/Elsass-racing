@@ -41,12 +41,15 @@ export interface SchemaLocal extends DBSchema {
   garage_work_order: { key: string; value: LigneLocale }
   garage_vehicle_component: { key: string; value: LigneLocale }
   garage_component_type: { key: string; value: LigneLocale }
+  checklist_list: { key: string; value: LigneLocale }
+  checklist_section: { key: string; value: LigneLocale }
+  checklist_item: { key: string; value: LigneLocale }
   operations_en_attente: { key: string; value: OperationEnAttente }
   refus_synchro: { key: string; value: RefusLocal }
   curseurs: { key: string; value: CurseurLocal }
 }
 
-export const TABLES_LOCALES = ["core_note", "core_event", "saison_stage", "saison_schedule_item", "saison_recce", "saison_recce_session", "saison_debrief", "budget_expense", "budget_category", "budget_payer", "voiture_setup", "core_vehicle", "voiture_setup_template", "garage_work_order", "garage_vehicle_component", "garage_component_type"] as const
+export const TABLES_LOCALES = ["core_note", "core_event", "saison_stage", "saison_schedule_item", "saison_recce", "saison_recce_session", "saison_debrief", "budget_expense", "budget_category", "budget_payer", "voiture_setup", "core_vehicle", "voiture_setup_template", "garage_work_order", "garage_vehicle_component", "garage_component_type", "checklist_list", "checklist_section", "checklist_item"] as const
 export type TableLocale = (typeof TABLES_LOCALES)[number]
 
 export function nomBase(userId: string, teamId: string): string {
@@ -56,8 +59,9 @@ export function nomBase(userId: string, teamId: string): string {
 // Version 2 : magasins de Saison. Version 3 : magasins de Budget. Version 4 : magasins de Voiture (fiches de
 // réglage, et véhicules et références en lecture seule). Version 5 : magasins du Garage (ordres de travail, organes et
 // types d'organes en lecture seule). Version 6 : magasin des envois refusés (refus_synchro), lus par la personne.
+// Version 7 : magasins de Check-lists (listes et sections en lecture seule, points écrits pour le statut et la coche).
 // Une base plus ancienne reçoit les magasins manquants à l'ouverture.
-export const VERSION_BASE = 6
+export const VERSION_BASE = 7
 
 export function ouvrirBase(userId: string, teamId: string): Promise<IDBPDatabase<SchemaLocal>> {
   return openDB<SchemaLocal>(nomBase(userId, teamId), VERSION_BASE, {
