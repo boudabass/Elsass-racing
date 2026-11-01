@@ -74,7 +74,8 @@ export function ContenuFichePoint({
   personnes: PersonnePointAffectable[]
   photos: PhotoPoint[]
 }) {
-  const lien = point.lienType !== "aucun" ? APP_DU_LIEN[point.lienType] : undefined
+  // « Lié à » seulement quand un objet est posé (lienId) : un type sans objet ne se montre pas.
+  const lien = point.lienId && point.lienType !== "aucun" ? APP_DU_LIEN[point.lienType] : undefined
   const peutEcrire = niveau !== "lecture"
   const peutAffecter = niveau === "ecriture" || niveau === "gestion"
   return (
@@ -180,7 +181,6 @@ export function ContenuFichePoint({
           <h3 className="font-medium">Lié à</h3>
           <p className="text-sm">
             {LIBELLES_LIEN[point.lienType]}
-            {point.lienId ? "" : " (non renseigné)"}
           </p>
           <Link href={`/apps/${lien.cle}`} className={LIEN}>
             Ouvrir dans {lien.libelle}

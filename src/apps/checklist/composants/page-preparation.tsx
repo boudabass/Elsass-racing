@@ -24,7 +24,6 @@ export function PagePreparation({ donnees }: { donnees: Donnees }) {
   const communes = donnees.listes.filter((liste) => liste.engagementId === null)
   const engagements = donnees.listes.filter((liste) => liste.engagementId !== null)
   const rangPhaseEnCours = PHASES_ORDONNEES.indexOf(donnees.phaseEnCours)
-  const zoneGlobale = donnees.avancement >= 90 && donnees.critiquesOuverts === 0 ? "vert" : "orange"
 
   return (
     <div className="flex flex-col gap-8">
@@ -49,10 +48,11 @@ export function PagePreparation({ donnees }: { donnees: Donnees }) {
         <p className="chiffre text-5xl font-semibold" aria-label={`Avancement global : ${donnees.avancement} %`}>
           {donnees.avancement} %
         </p>
-        <div className="h-3 w-full overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
-          <div className="h-full bg-marque" style={{ width: `${donnees.avancement}%` }} />
+        {/* La barre prend la couleur de la zone (vert ou orange), jamais celle de la marque : 956 n'a pas de rouge ici. */}
+        <div className={`h-3 w-full overflow-hidden rounded-full bg-surface-2 ${COULEUR_ZONE[donnees.zone]}`} aria-hidden="true">
+          <div className="h-full bg-current" style={{ width: `${donnees.avancement}%` }} />
         </div>
-        <p className={COULEUR_ZONE[zoneGlobale]}>{LIBELLES_ZONE[zoneGlobale]}</p>
+        <p className={COULEUR_ZONE[donnees.zone]}>{LIBELLES_ZONE[donnees.zone]}</p>
         <p className="text-sm">
           Phase en cours : <span className="font-medium">{LIBELLES_PHASE[donnees.phaseEnCours]}</span>
           {" · "}

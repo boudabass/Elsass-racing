@@ -66,6 +66,14 @@ export function zoneDeListe(points: PointRegle[]): Zone {
   return atteintSeuil && pointsCritiquesOuverts(points).length === 0 ? "vert" : "orange"
 }
 
+// ─── Lien d'un point copié ───────────────────────────────────────────────────
+
+// Un point copié dans une liste reprend le type de lien de son point de modèle, mais pas l'objet lié : le choix de
+// l'objet (quel organe, quel papier) se fera en 5.7 (Liaisons). Sans objet posé, la fiche ne montre pas « Lié à ».
+export function liensDuPointCopie<T extends string>(lienTypeDuModele: T): { lienType: T; lienId: null } {
+  return { lienType: lienTypeDuModele, lienId: null }
+}
+
 // ─── Statut de liste ─────────────────────────────────────────────────────────
 
 // À faire : rien n'a encore avancé (ni fait ni sans objet). Terminée : tous les points sont faits ou sans objet,

@@ -22,6 +22,7 @@ import {
   avertissementAvantPhase,
   pointsCritiquesOuverts,
   statutDeListe,
+  liensDuPointCopie,
   zoneDeListe,
   type ListePhasee,
   type PointRegle,
@@ -89,6 +90,32 @@ describe("zone d'une liste", () => {
   it("jamais de rouge : une liste vide ou incomplète reste orange", () => {
     expect(zoneDeListe([])).toBe("orange")
     expect(zoneDeListe(sansPoints(3, "a_faire"))).toBe("orange")
+  })
+})
+
+describe("zone de la jauge d'une épreuve", () => {
+  it("17 % : orange, la zone ne prend jamais une autre couleur", () => {
+    // Un point fait sur six, aucun critique : 1 / 6, soit 17 %.
+    const tous = [point("fait"), ...sansPoints(5, "a_faire")]
+    expect(avancementPourcent(tous)).toBe(17)
+    expect(zoneDeListe(tous)).toBe("orange")
+  })
+
+  it("89,5 % arrondi à 90 : orange, comme pour une liste", () => {
+    // 179 normaux faits sur 200 : 89,5 %, arrondi à 90, mais la zone reste orange.
+    const tous = [...sansPoints(179, "fait"), ...sansPoints(21, "a_faire")]
+    expect(avancementPourcent(tous)).toBe(90)
+    expect(zoneDeListe(tous)).toBe("orange")
+  })
+})
+
+describe("lien d'un point copié dans une liste", () => {
+  it("reprend le type de lien du modèle, sans objet lié", () => {
+    expect(liensDuPointCopie("organe")).toEqual({ lienType: "organe", lienId: null })
+  })
+
+  it("un point sans lien au modèle reste sans lien", () => {
+    expect(liensDuPointCopie("aucun")).toEqual({ lienType: "aucun", lienId: null })
   })
 })
 

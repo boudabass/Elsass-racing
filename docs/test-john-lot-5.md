@@ -115,7 +115,7 @@ Prérequis : une épreuve à venir avec un engagement dans Saison, et la liste c
 ## Ce qui n'est pas encore là
 
 - Check-lists hors ligne : les coches se font en ligne seulement pour l'instant.
-- « Lié à » dans la fiche d'un point : la section n'apparaît que pour un point lié à un organe, un papier ou une licence. Une liste copie ses points de modèle sans lien (`lienType` forcé à « aucun »), et aucun écran ne pose le lien sur un point de liste : décision produit à prendre avant de l'afficher.
+- « Lié à » dans la fiche d'un point : la section n'apparaît que si un objet est posé (`lienId`). Une liste copie le type de lien de son point de modèle, mais jamais l'objet : le choix de l'objet se fera en 5.7 (Liaisons). Donc rien ne s'affiche par clics pour l'instant.
 - Widgets de Check-lists sur le Tableau de bord : les lectures existent, l'affichage vient au lot 6.
 - Photo des personnes (les initiales tiennent lieu de photo pour l'instant).
 - Statistiques après un résultat validé : à vérifier quand la prochaine épreuve sera jouée.

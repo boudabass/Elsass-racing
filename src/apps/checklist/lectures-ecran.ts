@@ -13,9 +13,11 @@ import {
   modelesVisiblesPour,
   phaseEnCours,
   pointsCritiquesOuverts,
+  zoneDeListe,
   type ListePhasee,
   type PhaseEpreuve,
   type PointRegle,
+  type Zone,
 } from "./regles"
 import { accesChecklist } from "./services-serveur"
 import { controlePoint } from "./photos-serveur"
@@ -61,7 +63,7 @@ export async function pagePreparation(epreuveDemandee: string | undefined) {
     select: { id: true, nom: true, dateDebut: true },
   })
   const epreuve = aVenir.find((e) => e.id === epreuveDemandee) ?? aVenir[0] ?? null
-  if (!epreuve) return { niveau, epreuves: aVenir, epreuve: null, listes: [], phaseEnCours: "avant_depart" as PhaseEpreuve, avancement: 0, critiquesOuverts: 0, prochaine: null }
+  if (!epreuve) return { niveau, epreuves: aVenir, epreuve: null, listes: [], phaseEnCours: "avant_depart" as PhaseEpreuve, avancement: 0, zone: "orange" as Zone, critiquesOuverts: 0, prochaine: null }
 
   const listes = await listesAvecPoints(epreuve.id)
   const tous = listes.flatMap((liste) => liste.points)
@@ -73,6 +75,8 @@ export async function pagePreparation(epreuveDemandee: string | undefined) {
     epreuve,
     phaseEnCours: phaseEnCours(listes),
     avancement: avancementPourcent(tous),
+    // La zone de l'épreuve suit la règle des listes (ratio exact), pas l'avancement arrondi.
+    zone: zoneDeListe(tous),
     critiquesOuverts: pointsCritiquesOuverts(tous).length,
     prochaine: await prochaineEtapeEpreuve(ctx, epreuve.id),
     // Communes d'abord, puis une par engagement (déjà triées par listesDeEpreuve).
