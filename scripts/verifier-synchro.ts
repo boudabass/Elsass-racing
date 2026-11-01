@@ -17,6 +17,8 @@ import { reponseErreurAcces } from "../src/core/synchro/reponses"
 import { executerPourTeam } from "../src/lib/prisma"
 import type { ContexteTeam } from "../src/core/contexte"
 import type { Operation, ResultatOperation } from "../src/core/synchro/protocole"
+import { avancementPourcent, zoneDeListe } from "../src/apps/checklist/regles"
+import { RAISON_LISTE_FERMEE } from "../src/apps/checklist/synchro-serveur"
 
 const url = process.env.DATABASE_URL_MIGRATION
 if (!url) {
@@ -409,6 +411,76 @@ async function main(): Promise<void> {
     const ctxInvite: ContexteTeam = { teamId, userId: inviteUserId, membership: { id: inviteMemId, role: "invite" } }
     const tirageInvite = await tirerPaquets(ctxInvite, {})
     controle("un invité ne reçoit pas la note de l'ordre (pas de lecture sur le Garage)", !(tirageInvite.tables["core_note"]?.lignes ?? []).some((l) => l.id === noteFicheId))
+
+    // 14. Check-lists hors ligne (tâche 5.6b, brief §4). Deux coches sur un même point : la plus récente l'emporte, la
+    // perdante reste au journal. L'assistance ne coche que dans une liste ouverte à elle ; listes et sections sont en
+    // lecture seule ; un point ne s'ajoute pas depuis l'appareil.
+    const listeOuverte = newId()
+    const listeFermee = newId()
+    await bd.checklistList.create({ data: { id: listeOuverte, teamId, epreuveId: epreuveSync, vehiculeId: vehiculeSync, titre: "Liste ouverte synchro", phase: "avant_depart", ouverteAssistance: true } })
+    await bd.checklistList.create({ data: { id: listeFermee, teamId, epreuveId: epreuveSync, vehiculeId: vehiculeSync, titre: "Liste fermée synchro", phase: "avant_depart", ouverteAssistance: false } })
+    const sectionOuverte = newId()
+    const sectionFermee = newId()
+    await bd.checklistSection.create({ data: { id: sectionOuverte, teamId, listeId: listeOuverte, titre: "Section ouverte" } })
+    await bd.checklistSection.create({ data: { id: sectionFermee, teamId, listeId: listeFermee, titre: "Section fermée" } })
+    const pointOuvert = newId()
+    const pointOuvert2 = newId()
+    const pointFerme = newId()
+    await bd.checklistItem.create({ data: { id: pointOuvert, teamId, sectionId: sectionOuverte, libelle: "Pression", critique: true } })
+    await bd.checklistItem.create({ data: { id: pointOuvert2, teamId, sectionId: sectionOuverte, libelle: "Roues" } })
+    await bd.checklistItem.create({ data: { id: pointFerme, teamId, sectionId: sectionFermee, libelle: "Batterie" } })
+
+    const cocheResp = await appliquerOperations(ctxA, devA, [
+      operation({ table: "checklist_item", type: "modifier", id: pointOuvert, revLue: 1, champs: { statut: "fait", cocheLe: new Date().toISOString() } }),
+    ])
+    controle("le responsable coche un point : appliquée", cocheResp[0]?.statut === "appliquee")
+
+    // Coche hors ligne de l'assistance, faite avant la coche du responsable : elle est gardée.
+    const cocheAncienne = await appliquerOperations(ctxB, devB, [
+      operation({ table: "checklist_item", type: "modifier", id: pointOuvert, revLue: 1, champs: { statut: "probleme", cocheLe: new Date(Date.now() - 10 * 60 * 1000).toISOString() } }),
+    ])
+    controle("une coche hors ligne plus ancienne que la coche en place est gardée : conflit résolu", cocheAncienne[0]?.statut === "conflit_resolu")
+
+    const pointDb = await bd.checklistItem.findUnique({ where: { id: pointOuvert }, select: { statut: true, cocheParId: true } })
+    controle("la coche la plus récente reste en place : la coche gardée ne change pas l'état", pointDb?.statut === "fait" && pointDb.cocheParId === respUserId)
+
+    const journalCoches = await bd.checklistCheckLog.findMany({ where: { pointId: pointOuvert }, orderBy: { le: "asc" } })
+    controle(
+      "les deux coches sont au journal, hors ligne, la coche gardée avec son heure",
+      journalCoches.length === 2 && journalCoches.every((c) => c.horsLigne) && journalCoches[0]?.parId === assUserId && journalCoches[0]?.nouveauStatut === "probleme",
+    )
+
+    const pointsListe = await bd.checklistItem.findMany({ where: { teamId, section: { listeId: listeOuverte } }, select: { statut: true, critique: true } })
+    const listeDb = await bd.checklistList.findUnique({ where: { id: listeOuverte }, select: { avancement: true, zone: true } })
+    controle(
+      "l'avancement et la zone de la liste sont recalculés après la coche",
+      listeDb?.avancement === avancementPourcent(pointsListe) && listeDb.zone === zoneDeListe(pointsListe),
+    )
+
+    const refusFerme = await appliquerOperations(ctxB, devB, [
+      operation({ table: "checklist_item", type: "modifier", id: pointFerme, revLue: 1, champs: { statut: "fait", cocheLe: new Date().toISOString() } }),
+    ])
+    controle("l'assistance ne coche pas dans une liste non ouverte à elle, avec la raison", refusFerme[0]?.statut === "refusee" && refusFerme[0]?.raison === RAISON_LISTE_FERMEE)
+    const pointFermeDb = await bd.checklistItem.findUnique({ where: { id: pointFerme }, select: { statut: true } })
+    controle("le point refusé ne change pas", pointFermeDb?.statut === "a_faire")
+
+    const tirageListes = await tirerPaquets(ctxB, {})
+    const listesB = (tirageListes.tables["checklist_list"]?.lignes ?? []).map((l) => l.id)
+    const sectionsB = (tirageListes.tables["checklist_section"]?.lignes ?? []).map((l) => l.id)
+    const pointsB = (tirageListes.tables["checklist_item"]?.lignes ?? []).map((l) => l.id)
+    controle(
+      "l'assistance ne reçoit que les listes ouvertes à elle, leurs sections et leurs points",
+      listesB.includes(listeOuverte) && !listesB.includes(listeFermee) && sectionsB.includes(sectionOuverte) && !sectionsB.includes(sectionFermee) && pointsB.includes(pointOuvert) && !pointsB.includes(pointFerme),
+    )
+
+    const ecritureListe = await appliquerOperations(ctxA, devA, [operation({ table: "checklist_list", type: "modifier", id: listeOuverte, revLue: 1, champs: {} })])
+    controle("une liste de Check-lists se lit hors ligne seulement", ecritureListe[0]?.statut === "refusee" && (ecritureListe[0]?.raison ?? "").includes("se lit seulement"))
+    const ecritureSection = await appliquerOperations(ctxA, devA, [operation({ table: "checklist_section", type: "modifier", id: sectionOuverte, revLue: 1, champs: {} })])
+    controle("une section de Check-lists se lit hors ligne seulement", ecritureSection[0]?.statut === "refusee" && (ecritureSection[0]?.raison ?? "").includes("se lit seulement"))
+    const creationPoint = await appliquerOperations(ctxA, devA, [
+      operation({ table: "checklist_item", type: "creer", id: newId(), champs: { statut: "a_faire", cocheLe: new Date().toISOString() } }),
+    ])
+    controle("un point ne s'ajoute pas depuis l'appareil", creationPoint[0]?.statut === "refusee" && (creationPoint[0]?.raison ?? "").includes("se fait en ligne"))
   } finally {
     await nettoyer([teamId, teamAutreId], [respUserId, assUserId, eqUserId, inviteUserId], [devA, devB])
     console.log("Nettoyage fait.")

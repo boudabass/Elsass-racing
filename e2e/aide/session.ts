@@ -216,6 +216,12 @@ export async function statutPointChecklistEnBase(equipe: Equipe, libelle: string
   return rows[0]?.statut ?? null
 }
 
+// Ouvre à l'assistance toutes les listes de la team, en base : le formulaire ne crée qu'une liste vierge (sans point),
+// et les listes proposées par le modèle restent fermées. Sert au parcours hors ligne de l'assistance.
+export async function ouvrirListesAssistanceEnBase(equipe: Equipe): Promise<void> {
+  await bd().query("UPDATE checklist_list SET ouverte_assistance = true WHERE team_id = $1 AND deleted_at IS NULL", [equipe.teamId])
+}
+
 // Engagements de la team en base, non supprimés : une ligne par voiture engagée.
 export async function engagementsEnBase(equipe: Equipe): Promise<Array<{ id: string }>> {
   const { rows } = await bd().query<{ id: string }>(
