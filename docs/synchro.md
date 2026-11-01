@@ -194,6 +194,6 @@ Tables : `checklist_list` et `checklist_section` se reçoivent (lecture seule, `
 **Limites connues (5.6b)** :
 
 - Une liste jamais ouverte en ligne n'existe pas hors ligne : sa page n'est pas en cache et ses points ne sont pas tirés. Il faut l'ouvrir en ligne avant de partir ; un point absent de l'appareil le dit (« pas sur cet appareil : ouvre la liste en ligne avant de partir »).
-- Mode terrain : pas de bascule hors ligne. Le bouton affiche « demande le réseau » ; la page en cache garde l'état de la préférence.
+- Mode terrain : pas de bascule hors ligne. Le bouton affiche « demande le réseau » ; si le mode terrain est déjà actif, la page dit « Mode terrain actif. Le désactiver demande le réseau. » ; la page en cache garde l'état de la préférence.
 - Ajout et retrait de point, création de liste, « Créer les listes », modèles, débrief, photos : en ligne seulement.
 - La liste hors ligne n'est pas mise à jour par les autres membres tant qu'elle n'est pas tirée au retour du réseau.

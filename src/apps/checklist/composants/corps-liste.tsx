@@ -86,7 +86,15 @@ export function CorpsListe({
 
       {avertissement}
 
-      <div>{enLigne ? modeTerrain : <p className="text-sm text-texte-discret">Mode terrain : demande le réseau. Active-le avant de partir.</p>}</div>
+      <div>
+        {enLigne ? (
+          modeTerrain
+        ) : (
+          <p className="text-sm text-texte-discret">
+            {terrain ? "Mode terrain actif. Le désactiver demande le réseau." : "Mode terrain : demande le réseau. Active-le avant de partir."}
+          </p>
+        )}
+      </div>
 
       {sectionsAffichees.length === 0 && <p className="text-texte-discret">Cette liste n'a pas encore de section.</p>}
 

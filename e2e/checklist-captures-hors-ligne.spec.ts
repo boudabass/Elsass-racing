@@ -73,7 +73,7 @@ test("captures · liste et mode terrain hors ligne, 1440 et 360 px, sombre et cl
       await page.reload()
       await expect(page.getByText("Hors ligne : tes coches restent")).toBeVisible()
       await expect(page.getByRole("main").getByRole("heading", { level: 2 }).first()).toHaveClass(/text-3xl/)
-      await expect(page.getByText("Mode terrain : demande le réseau")).toBeVisible()
+      await expect(page.getByText("Mode terrain actif. Le désactiver demande le réseau.")).toBeVisible()
       await cocherPoint(page, statut)
       statut = statut === "a_faire" ? "fait" : "a_faire"
       await capturer(page, `checklist-hors-ligne-terrain-${taille.largeur}-${theme}.png`)
