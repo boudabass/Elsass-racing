@@ -97,6 +97,9 @@ test("Lien à un organe : le problème propose un ordre dans la boîte, Ouvrir l
   await fiche.getByRole("button", { name: "Problème", exact: true }).click()
   await reponseProbleme
   await expect.poll(() => statutPointChecklistEnBase(equipe, "Niveau d'huile moteur")).toBe("probleme")
+  // La fiche est modale : fermée, elle ne cache plus l'en-tête où s'ouvre la boîte.
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("dialog")).toHaveCount(0)
   await page.getByRole("button", { name: /Boîte d'actions/ }).click()
   const boite = page.getByRole("dialog")
   await expect(boite.getByText("Problème signalé : Moteur", { exact: true })).toBeVisible()
@@ -109,11 +112,9 @@ test("Lien à un organe : le problème propose un ordre dans la boîte, Ouvrir l
   await expect.poll(() => statutActionTitreEnBase(equipe, "ordre_point:", "Problème signalé : Moteur")).toBe("decidee")
   await expect.poll(async () => (await ordresEnBase(equipe, "Problème signalé : Moteur")).map((ordre) => ordre.vehicle_component_id)).toEqual([organes.moteur])
 
-  // La boîte puis la fiche sont modales : fermées, elles ne cachent plus la navigation.
+  // La boîte est modale : fermée, elle ne cache plus la navigation.
   await page.keyboard.press("Escape")
   await expect(boite).toHaveCount(0)
-  await page.keyboard.press("Escape")
-  await expect(page.getByRole("dialog")).toHaveCount(0)
 
   // Dans Garage, par les menus : l'ordre figure dans Travaux.
   await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Garage", exact: true }).click()
