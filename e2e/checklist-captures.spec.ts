@@ -89,6 +89,18 @@ test("captures · préparation, liste, fiche, mode terrain, avertissement, débr
   await expect(page.getByRole("dialog")).toHaveCount(1)
   await expect(fiche.locator('img[src^="/api/fichiers/"]')).toHaveCount(1)
 
+  // Liste de l'engagement : une coche sur « Triangle de présentation » donne un historique à sa fiche.
+  await page.goto("/apps/checklist")
+  await page.getByRole("region", { name: "Par engagement" }).getByRole("link").first().click()
+  await expect(page).toHaveURL(/\/apps\/checklist\/liste\/[^?]+$/)
+  const engagementUrl = page.url()
+  const reponseTriangle = page.waitForResponse(REPONSE_ACTION)
+  await page.locator("li").filter({ hasText: "Triangle de présentation" }).getByRole("button", { name: "Faire", exact: true }).click()
+  await reponseTriangle
+  await page.locator("li").filter({ hasText: "Triangle de présentation" }).getByRole("link", { name: "Détail", exact: true }).click()
+  await expect(page).toHaveURL(/\?point=/)
+  const ficheBasUrl = page.url()
+
   // Chaque écran se rejoint par son URL, en thème et en taille donnés.
   for (const theme of ["sombre", "clair"] as const) {
     await choisirTheme(page, theme)
@@ -107,6 +119,12 @@ test("captures · préparation, liste, fiche, mode terrain, avertissement, débr
       await page.goto(ficheUrl)
       await expect(page.getByRole("dialog").getByRole("button", { name: "Problème", exact: true })).toBeVisible()
       await capturer(page, `checklist-fiche-point-${taille.largeur}-${theme}.png`)
+
+      // Fiche défilée jusqu'à l'historique et aux boutons du bas : le tiroir défile, la capture montre le bas.
+      await page.goto(ficheBasUrl)
+      await page.getByRole("dialog").first().getByRole("button", { name: "Retirer le point", exact: true }).scrollIntoViewIfNeeded()
+      await expect(page.getByRole("region", { name: "Historique des coches" })).toBeVisible()
+      await capturer(page, `checklist-fiche-point-bas-${taille.largeur}-${theme}.png`)
 
       await page.goto(avertissementUrl)
       await expect(page.getByRole("alert", { name: "Avertissement avant phase" })).toBeVisible()
@@ -128,6 +146,12 @@ test("captures · préparation, liste, fiche, mode terrain, avertissement, débr
 
   // Débrief : l'épreuve est passée (Saison la passe à « terminée » au chargement), ses problèmes sont là.
   await passerEpreuveDansLePasseEnBase(equipe, eventId, "2020-06-01", "2020-06-02")
+  // Un point ajouté par clic maintenant, l'épreuve étant commencée : le débrief le marque et propose « Ajouter au modèle ».
+  await page.goto(engagementUrl)
+  await page.getByRole("button", { name: "+ Ajouter un point", exact: true }).click()
+  const ajoutEpreuve = page.getByRole("dialog")
+  await ajoutEpreuve.getByLabel("Libellé du point", { exact: true }).fill("Point ajouté en épreuve")
+  await envoyer(page, ajoutEpreuve.getByRole("button", { name: "Ajouter le point", exact: true }))
   for (const theme of ["sombre", "clair"] as const) {
     await choisirTheme(page, theme)
     for (const taille of [BUREAU, TELEPHONE]) {
