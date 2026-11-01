@@ -34,6 +34,8 @@ test("captures · préparation, liste, fiche, mode terrain, avertissement, débr
 
   await page.getByRole("link", { name: /Test retour/ }).click()
   await page.getByRole("link", { name: "Démarrer quand même", exact: true }).click()
+  // Le lien est client : l'URL change après le clic, on attend qu'elle soit la liste avant de la lire.
+  await expect(page).toHaveURL(/\/apps\/checklist\/liste\/[^?]+$/)
   const listeUrl = page.url()
   for (const [libelle, critique] of [
     ["Pression des pneus", true],
@@ -51,6 +53,7 @@ test("captures · préparation, liste, fiche, mode terrain, avertissement, débr
 
   // Fiche du point critique : Problème, puis une photo.
   await page.locator("li").filter({ hasText: "Pression des pneus" }).getByRole("link", { name: "Détail", exact: true }).click()
+  await expect(page).toHaveURL(/\?point=/)
   const ficheUrl = page.url()
   const fiche = page.getByRole("dialog").first()
   const reponseProbleme = page.waitForResponse((r) => r.request().method() === "POST" && r.request().headers()["next-action"] !== undefined)
