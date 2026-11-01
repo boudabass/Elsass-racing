@@ -158,11 +158,12 @@ export async function ajouterModeleChecklistEnBase(equipe: Equipe, nom: string, 
      VALUES ($1, $2, $3, 'Contrôles', 0, 1, now())`,
     [sectionId, equipe.teamId, modeleId],
   )
+  // Le premier point est critique : c'est lui que l'avertissement avant phase cite (seuls les critiques y figurent).
   for (let ordre = 0; ordre < libellesPoints.length; ordre++) {
     await bd().query(
       `INSERT INTO checklist_template_item (id, team_id, section_id, libelle, critique, lien_type, ordre, rev, updated_at)
-       VALUES ($1, $2, $3, $4, false, 'aucun'::checklist_type_lien, $5, 1, now())`,
-      [newId(), equipe.teamId, sectionId, libellesPoints[ordre], ordre],
+       VALUES ($1, $2, $3, $4, $5, 'aucun'::checklist_type_lien, $6, 1, now())`,
+      [newId(), equipe.teamId, sectionId, libellesPoints[ordre], ordre === 0, ordre],
     )
   }
   return modeleId
