@@ -2,9 +2,11 @@
 // contrôle son propre accès. Elles ne renvoient que les dates de validité et les types d'équipement : jamais le
 // contact d'urgence, la taille, le ressenti ni les montants.
 
+import type { ObjetLieLu } from "@/apps/checklist/objets-types"
 import type { ContexteTeam } from "@/core/contexte"
 import { prismaPourTeam } from "@/lib/prisma"
 
+import { objetEquipement, objetLicence } from "./objets-checklist"
 import type { TypeEquipement } from "./regles"
 
 export interface LicenceSituation {
@@ -65,4 +67,41 @@ export async function lireSituationsPersonnes(ctx: ContexteTeam, personIds: stri
     })
   }
   return situations
+}
+
+// ─── Objets liés par Check-lists (tâche 5.7a, 956 §4) ────────────────────────────────────────────────────────────
+
+// Licences et équipements (homologations) des personnes données : l'équipage d'un engagement. Lecture seule, par team.
+export async function listerObjetsPourChecklist(ctx: ContexteTeam, personIds: string[]): Promise<ObjetLieLu[]> {
+  if (personIds.length === 0) return []
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const [licences, equipements] = await Promise.all([
+    client.equipeLicence.findMany({
+      where: { teamId: ctx.teamId, personId: { in: personIds }, deletedAt: null },
+      select: { id: true, personId: true, type: true, valableAu: true },
+    }),
+    client.equipeGear.findMany({
+      where: { teamId: ctx.teamId, personId: { in: personIds }, deletedAt: null },
+      select: { id: true, personId: true, type: true, finHomologation: true },
+    }),
+  ])
+  const maintenant = new Date()
+  return [...licences.map((licence) => objetLicence(licence, maintenant)), ...equipements.map((equipement) => objetEquipement(equipement, maintenant))]
+}
+
+// Une licence ou un équipement, relu par son identifiant. Null si l'objet n'existe plus dans la team.
+export async function lireObjetPourChecklist(ctx: ContexteTeam, type: "licence_equipe" | "homologation_equipe", id: string): Promise<ObjetLieLu | null> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  if (type === "licence_equipe") {
+    const licence = await client.equipeLicence.findFirst({
+      where: { id, teamId: ctx.teamId, deletedAt: null },
+      select: { id: true, personId: true, type: true, valableAu: true },
+    })
+    return licence ? objetLicence(licence, new Date()) : null
+  }
+  const equipement = await client.equipeGear.findFirst({
+    where: { id, teamId: ctx.teamId, deletedAt: null },
+    select: { id: true, personId: true, type: true, finHomologation: true },
+  })
+  return equipement ? objetEquipement(equipement, new Date()) : null
 }

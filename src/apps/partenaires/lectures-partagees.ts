@@ -2,8 +2,12 @@
 // garde, l'app appelante contrôle son propre accès. Ces fonctions ne renvoient que les champs utiles à la liaison,
 // jamais les fiches d'écriture de Partenaires.
 
+import type { ObjetLieLu } from "@/apps/checklist/objets-types"
 import type { ContexteTeam } from "@/core/contexte"
+import { jourDeParis } from "@/core/dates"
 import { prismaPourTeam } from "@/lib/prisma"
+
+import { objetContrepartie } from "./objets-checklist"
 
 // Emplacements de Voiture que des contreparties logo utilisent encore (non supprimées). Voiture s'en sert pour ne pas
 // retirer un emplacement qu'une convention attend. Lecture seule.
@@ -109,4 +113,26 @@ export async function lireReservationConventionDans(
     dateFin: convention.dateFin.toISOString().slice(0, 10),
     logoFileId: convention.partner.logoFileId,
   }
+}
+
+// ─── Objets liés par Check-lists (tâche 5.7a, 956 §4) ────────────────────────────────────────────────────────────
+
+// Contreparties de la team (toutes les conventions) : elles se proposent sur toutes les listes. Lecture seule.
+export async function listerObjetsPourChecklist(ctx: ContexteTeam): Promise<ObjetLieLu[]> {
+  const contreparties = await prismaPourTeam(ctx.teamId, ctx.userId).partenairesBenefit.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null },
+    select: { id: true, libelle: true, slotNom: true, statut: true, quantitePromise: true, quantiteTenue: true, echeance: true },
+    orderBy: { libelle: "asc" },
+  })
+  const aujourdhui = jourDeParis(new Date())
+  return contreparties.map((contrepartie) => objetContrepartie(contrepartie, aujourdhui))
+}
+
+// Une contrepartie, relue par son identifiant. Null si elle n'existe plus dans la team.
+export async function lireObjetPourChecklist(ctx: ContexteTeam, id: string): Promise<ObjetLieLu | null> {
+  const contrepartie = await prismaPourTeam(ctx.teamId, ctx.userId).partenairesBenefit.findFirst({
+    where: { id, teamId: ctx.teamId, deletedAt: null },
+    select: { id: true, libelle: true, slotNom: true, statut: true, quantitePromise: true, quantiteTenue: true, echeance: true },
+  })
+  return contrepartie ? objetContrepartie(contrepartie, jourDeParis(new Date())) : null
 }

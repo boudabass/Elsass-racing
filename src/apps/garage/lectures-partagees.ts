@@ -1,12 +1,14 @@
 // Lectures du Garage partagées avec les autres apps (tâche 4.5, brief §3 et §2). Ces fonctions ne font pas de garde :
 // l'app appelante contrôle son propre accès. Elles ne renvoient jamais de prix. Lecture seule : rien ici n'écrit.
 
+import type { ObjetLieLu } from "@/apps/checklist/objets-types"
 import type { ContexteTeam } from "@/core/contexte"
 import { lireEngagementsAVenir, type EngagementAVenir } from "@/apps/saison/lectures-partagees"
 import { niveauDe } from "@/core/actions/actions-serveur"
 import { aAuMoins } from "@/core/droits/niveaux"
 import { prismaPourTeam } from "@/lib/prisma"
 
+import { objetOrgane, objetTrain } from "./objets-checklist"
 import {
   dureesEffectives,
   etatPiece,
@@ -262,4 +264,34 @@ export async function lireSurveillance(ctx: ContexteTeam, vehicleId: string): Pr
     zonesRouges: atelier.organes.filter((organe) => organe.zone === "rouge").map(({ id, nom, position, etat }) => ({ id, nom, position, etat })),
     fiabilite: atelier.indice.indice,
   }
+}
+
+// ─── Objets liés par Check-lists (tâche 5.7a, 956 §4) ────────────────────────────────────────────────────────────
+
+// Organes (hors pneus) et trains de pneus d'un véhicule, pour le choix d'un point. Lecture seule, par team.
+export async function listerObjetsPourChecklist(ctx: ContexteTeam, vehicleId: string): Promise<ObjetLieLu[]> {
+  const atelier = await lireEtatsAtelier(ctx, vehicleId)
+  const organes = (atelier?.organes ?? []).filter((organe) => !organe.pneus).map((organe) => objetOrgane(organe, vehicleId))
+  const trains = await prismaPourTeam(ctx.teamId, ctx.userId).garageTyreSet.findMany({
+    where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
+    select: { id: true, marque: true, modele: true, nombreEpreuves: true },
+  })
+  return [...organes, ...trains.map((train) => objetTrain(train, vehicleId))]
+}
+
+// Un organe ou un train, relu par son identifiant. Null si l'objet n'existe plus dans la team.
+export async function lireObjetPourChecklist(ctx: ContexteTeam, type: "organe_garage" | "train_pneus", id: string): Promise<ObjetLieLu | null> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  if (type === "train_pneus") {
+    const train = await client.garageTyreSet.findFirst({
+      where: { id, teamId: ctx.teamId, deletedAt: null },
+      select: { id: true, vehicleId: true, marque: true, modele: true, nombreEpreuves: true },
+    })
+    return train ? objetTrain(train, train.vehicleId) : null
+  }
+  const organe = await client.garageVehicleComponent.findFirst({ where: { id, teamId: ctx.teamId, deletedAt: null }, select: { vehicleId: true } })
+  if (!organe) return null
+  const atelier = await lireEtatsAtelier(ctx, organe.vehicleId)
+  const trouve = atelier?.organes.find((candidat) => candidat.id === id && !candidat.pneus)
+  return trouve ? objetOrgane(trouve, organe.vehicleId) : null
 }

@@ -2,10 +2,12 @@
 // pas de garde, l'app appelante contrôle son propre accès. Ces fonctions ne renvoient que des données de
 // résultat, jamais les fiches d'écriture de Voiture. Partenaires s'en sert pour choisir un emplacement.
 
+import type { ObjetLieLu } from "@/apps/checklist/objets-types"
 import type { ContexteTeam } from "@/core/contexte"
 import { prismaPourTeam } from "@/lib/prisma"
 
 import { gabarit } from "./gabarits"
+import { objetLogo, objetPapier } from "./objets-checklist"
 import type { ElementDessin } from "./gabarits/types"
 import type { TypePapier } from "./libelles"
 import { statutEmplacement, type StatutEmplacement } from "./regles"
@@ -143,4 +145,34 @@ export async function lireNomsCourtsVehicules(ctx: ContexteTeam, vehicleIds: str
   })
   for (const vehicule of vehicules) resultat.set(vehicule.id, vehicule.nomCourt)
   return resultat
+}
+
+// ─── Objets liés par Check-lists (tâche 5.7a, 956 §4) ────────────────────────────────────────────────────────────
+
+// Papiers et logos (emplacements) d'un véhicule, pour le choix d'un point. Lecture seule, par team.
+export async function listerObjetsPourChecklist(ctx: ContexteTeam, vehicleId: string): Promise<ObjetLieLu[]> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const papiers = await client.voiturePaper.findMany({
+    where: { teamId: ctx.teamId, vehicleId, deletedAt: null },
+    select: { id: true, vehicleId: true, type: true, libelle: true, valableJusquAu: true },
+  })
+  const maintenant = new Date()
+  const logos = (await listerEmplacementsPourPartenaires(ctx)).filter((emplacement) => emplacement.vehicleId === vehicleId)
+  return [
+    ...papiers.map((papier) => objetPapier(papier, maintenant)),
+    ...logos.map((emplacement) => objetLogo({ id: emplacement.id, nom: emplacement.nom, vehicleId: emplacement.vehicleId, statut: emplacement.statut })),
+  ]
+}
+
+// Un papier ou un logo, relu par son identifiant. Null si l'objet n'existe plus dans la team.
+export async function lireObjetPourChecklist(ctx: ContexteTeam, type: "papier_voiture" | "logo_voiture", id: string): Promise<ObjetLieLu | null> {
+  if (type === "papier_voiture") {
+    const papier = await prismaPourTeam(ctx.teamId, ctx.userId).voiturePaper.findFirst({
+      where: { id, teamId: ctx.teamId, deletedAt: null },
+      select: { id: true, vehicleId: true, type: true, libelle: true, valableJusquAu: true },
+    })
+    return papier ? objetPapier(papier, new Date()) : null
+  }
+  const emplacement = (await listerEmplacementsPourPartenaires(ctx)).find((candidat) => candidat.id === id)
+  return emplacement ? objetLogo({ id: emplacement.id, nom: emplacement.nom, vehicleId: emplacement.vehicleId, statut: emplacement.statut }) : null
 }
