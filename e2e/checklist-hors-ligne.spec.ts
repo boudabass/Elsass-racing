@@ -16,6 +16,46 @@ async function attendreServiceWorker(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true)
 }
 
+// Attend que la base locale de la page contienne les points de Check-lists : le premier tirage de la synchro doit être
+// fini avant de couper le réseau, sinon la liste n'est jamais sur l'appareil (le tirage ne tourne pas hors ligne).
+// Lecture de la base IndexedDB de l'origine, sans passer par le moteur.
+async function attendreTirageLocal(page: Page, minimum: number): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          for (const { name } of await indexedDB.databases()) {
+            if (!name?.startsWith("elsass-racing-")) continue
+            const compte = await new Promise<number>((resolve) => {
+              const ouverture = indexedDB.open(name)
+              ouverture.onerror = () => resolve(0)
+              ouverture.onsuccess = () => {
+                const base = ouverture.result
+                if (!base.objectStoreNames.contains("checklist_item")) {
+                  base.close()
+                  resolve(0)
+                  return
+                }
+                const requete = base.transaction("checklist_item").objectStore("checklist_item").count()
+                requete.onsuccess = () => {
+                  base.close()
+                  resolve(requete.result)
+                }
+                requete.onerror = () => {
+                  base.close()
+                  resolve(0)
+                }
+              }
+            })
+            if (compte > 0) return compte
+          }
+          return 0
+        }),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThanOrEqual(minimum)
+}
+
 // Liste créée par le modèle de la team (aide preparerEngagementChecklist) : deux points, dont le premier est coché hors ligne.
 const POINT = "Triangle de présentation"
 const AUTRE_POINT = "Trousse de secours"
@@ -39,6 +79,7 @@ test("Check-lists hors ligne : une coche faite sans réseau reste sur l'appareil
 
   // Les points sont tirés sur l'appareil au démarrage de la synchro : on recharge en ligne, puis on coupe le réseau.
   await attendreServiceWorker(page)
+  await attendreTirageLocal(page, 2)
   await context.setOffline(true)
 
   const point = page.locator("li").filter({ hasText: POINT })
@@ -73,6 +114,7 @@ test("Check-lists hors ligne · assistance : une coche sur une liste ouverte à 
   await expect(pageAssistance).toHaveURL(/\/apps\/checklist\/liste\/[^?]+$/)
 
   await attendreServiceWorker(pageAssistance)
+  await attendreTirageLocal(pageAssistance, 2)
   await contexteAssistance.setOffline(true)
 
   const point = pageAssistance.locator("li").filter({ hasText: AUTRE_POINT })
