@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { CandidatEtape } from "./prochaine-etape"
-import { lienEtape, libelleAvancementEpreuve, libelleCritiquesOuverts, libelleEtape, libelleMesPoints, libelleProposition } from "./widgets"
+import { agregerParVoiture, lienEtape, libelleAvancementEpreuve, libelleCritiquesOuverts, libelleEtape, libelleMesPoints, libelleProposition } from "./widgets"
 
 const etape = (surcharge: Partial<CandidatEtape> & Pick<CandidatEtape, "raison">): CandidatEtape => ({
   listeId: "liste-1",
@@ -41,5 +41,33 @@ describe("libellés des widgets de Check-lists (5.6 §3)", () => {
   it("le lien mène au point dans sa liste, ou à la liste pour la phase suivante", () => {
     expect(lienEtape(etape({ raison: "critique" }))).toBe("/apps/checklist/liste/liste-1?point=point-1")
     expect(lienEtape(etape({ raison: "phase_suivante", pointId: null, libelle: null }))).toBe("/apps/checklist/liste/liste-1")
+  })
+})
+
+describe("avancement par voiture (5.6 §3, widget)", () => {
+  it("chaque voiture a son avancement, calculé sur l'ensemble de ses points", () => {
+    const { voitures } = agregerParVoiture([
+      { id: "a", vehiculeId: "saxo", points: [{ statut: "fait", critique: false }, { statut: "a_faire", critique: false }] },
+      { id: "b", vehiculeId: "saxo", points: [{ statut: "fait", critique: false }, { statut: "fait", critique: false }] },
+      { id: "c", vehiculeId: "clio", points: [{ statut: "a_faire", critique: true }] },
+    ])
+    const saxo = voitures.find((voiture) => voiture.vehiculeId === "saxo")
+    const clio = voitures.find((voiture) => voiture.vehiculeId === "clio")
+    expect(saxo).toMatchObject({ listes: 2, avancement: 75, critiquesOuverts: 0 })
+    expect(clio).toMatchObject({ listes: 1, avancement: 0, critiquesOuverts: 1 })
+  })
+
+  it("les listes communes ne sont pas rattachées à une voiture", () => {
+    const { voitures, communes } = agregerParVoiture([
+      { id: "commune", vehiculeId: null, points: [{ statut: "fait", critique: false }] },
+      { id: "voiture", vehiculeId: "saxo", points: [{ statut: "a_faire", critique: false }] },
+    ])
+    expect(voitures.map((voiture) => voiture.vehiculeId)).toEqual(["saxo"])
+    expect(communes).toMatchObject({ listes: 1, avancement: 100 })
+  })
+
+  it("sans liste commune, le résumé des communes est absent ; sans liste, rien", () => {
+    expect(agregerParVoiture([{ id: "voiture", vehiculeId: "saxo", points: [] }]).communes).toBeNull()
+    expect(agregerParVoiture([])).toEqual({ voitures: [], communes: null })
   })
 })

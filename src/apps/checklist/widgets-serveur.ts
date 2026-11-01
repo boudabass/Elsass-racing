@@ -8,8 +8,8 @@ import { prismaPourTeam } from "@/lib/prisma"
 import { prochaineEpreuveDeLEquipe } from "@/apps/saison/widgets-serveur"
 
 import { phaseSuivante, prochaineEtape, comparerEcheance, type CandidatEtape } from "./prochaine-etape"
-import { avancementPourcent, listeVisiblePour, phaseEnCours, pointEnAttente, pointsCritiquesOuverts, zoneDeListe, type PhaseEpreuve } from "./regles"
-import { libelleAvancementEpreuve, libelleCritiquesOuverts, libelleMesPoints, libelleProposition } from "./widgets"
+import { avancementPourcent, listeVisiblePour, phaseEnCours, pointEnAttente, pointsCritiquesOuverts, type PhaseEpreuve } from "./regles"
+import { agregerParVoiture, libelleAvancementEpreuve, libelleCritiquesOuverts, libelleMesPoints, libelleProposition } from "./widgets"
 
 // Nombre de points critiques détaillés dans le widget (le total reste exact).
 const CRITIQUES_AFFICHES = 5
@@ -35,6 +35,7 @@ async function listesVisibles(ctx: ContexteTeam, epreuveId?: string) {
       titre: liste.titre,
       phase: liste.phase as PhaseEpreuve,
       echeance: dateIso(liste.echeance),
+      vehiculeId: liste.vehiculeId,
       ouverteAssistance: liste.ouverteAssistance,
       points: liste.sections.flatMap((section) => section.items),
     }))
@@ -49,22 +50,29 @@ async function personneCourante(ctx: ContexteTeam): Promise<string | null> {
   return membre?.personId ?? null
 }
 
-// Avancement des listes de la prochaine épreuve de la team, liste par liste.
+// Noms des voitures citées par les listes (CoreVehicle.nomCourt), par identifiant.
+async function nomsVoitures(ctx: ContexteTeam, ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map()
+  const vehicules = await prismaPourTeam(ctx.teamId, ctx.userId).coreVehicle.findMany({
+    where: { teamId: ctx.teamId, id: { in: ids }, deletedAt: null },
+    select: { id: true, nomCourt: true },
+  })
+  return new Map(vehicules.map((vehicule) => [vehicule.id, vehicule.nomCourt]))
+}
+
+// Avancement des listes de la prochaine épreuve, par voiture (engagement) ; les listes communes à part (956 §7).
 export async function widgetAvancementProchaineEpreuve(ctx: ContexteTeam, maintenant: Date) {
   const epreuve = await prochaineEpreuveDeLEquipe(ctx, maintenant)
   if (!epreuve) return null
   const listes = await listesVisibles(ctx, epreuve.id)
   const avancement = avancementPourcent(listes.flatMap((liste) => liste.points))
+  const { voitures, communes } = agregerParVoiture(listes.map((liste) => ({ id: liste.id, vehiculeId: liste.vehiculeId, points: liste.points })))
+  const noms = await nomsVoitures(ctx, voitures.map((voiture) => voiture.vehiculeId))
   return {
     epreuveNom: epreuve.nom,
     avancement,
-    listes: listes.map((liste) => ({
-      id: liste.id,
-      titre: liste.titre,
-      avancement: avancementPourcent(liste.points),
-      zone: zoneDeListe(liste.points),
-      critiquesOuverts: pointsCritiquesOuverts(liste.points).length,
-    })),
+    voitures: voitures.map((voiture) => ({ ...voiture, nom: noms.get(voiture.vehiculeId) ?? "Voiture" })),
+    communes,
     libelle: libelleAvancementEpreuve(listes.length, avancement),
   }
 }
