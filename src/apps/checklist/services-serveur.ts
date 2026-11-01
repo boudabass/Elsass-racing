@@ -795,3 +795,33 @@ export async function retirerPointDans(ctx: ContexteTeam, niveau: Niveau, pointI
   await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance }, resultat, null)
   if (point.personneId) await levereReassignationSiPlusDePoint(ctx, point.personneId)
 }
+
+// « Ajouter au modèle » (débrief, 5.6 §1.6) : copie un point ajouté pendant l'épreuve dans le modèle d'origine de sa
+// liste. Gestion seulement. Un modèle fourni ne se modifie pas : il faut le copier d'abord (refus avec la raison).
+export async function ajouterPointAuModele(pointId: string): Promise<string> {
+  const { ctx } = await accesChecklist("gestion")
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const point = await client.checklistItem.findFirst({
+    where: { id: pointId, teamId: ctx.teamId, deletedAt: null },
+    select: { libelle: true, critique: true, section: { select: { titre: true, liste: { select: { modeleSourceId: true } } } } },
+  })
+  if (!point) refus("Ce point n'existe plus.")
+  const modeleId = point.section.liste.modeleSourceId
+  if (!modeleId) refus("Cette liste ne vient pas d'un modèle : il n'y a rien à ajouter au modèle.")
+  const modele = await client.checklistTemplate.findFirst({ where: { id: modeleId, teamId: ctx.teamId, deletedAt: null }, select: { id: true, fourni: true } })
+  if (!modele) refus("Le modèle d'origine n'existe plus dans la team.")
+  if (modele.fourni) refus("Ce modèle est fourni par la plateforme. Copie-le d'abord, puis ajoute le point à ta copie.")
+
+  const deja = await client.checklistTemplateItem.findFirst({
+    where: { teamId: ctx.teamId, deletedAt: null, libelle: point.libelle, section: { modeleId: modele.id, deletedAt: null } },
+    select: { id: true },
+  })
+  if (deja) refus("Ce point est déjà dans le modèle.")
+
+  // Section du modèle de même titre que celle du point, sinon la première section, sinon une nouvelle.
+  const section =
+    (await client.checklistTemplateSection.findFirst({ where: { modeleId: modele.id, teamId: ctx.teamId, titre: point.section.titre, deletedAt: null } })) ??
+    (await client.checklistTemplateSection.findFirst({ where: { modeleId: modele.id, teamId: ctx.teamId, deletedAt: null }, orderBy: { ordre: "asc" } }))
+  const sectionId = section?.id ?? (await ajouterSectionModele(modele.id, point.section.titre))
+  return ajouterPointModele(sectionId, { libelle: point.libelle, critique: point.critique })
+}
