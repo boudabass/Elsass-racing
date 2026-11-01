@@ -4,6 +4,7 @@
 import type { Equipe } from "./session"
 import {
   ajouterEpreuveEnBase,
+  ajouterModeleChecklistEnBase,
   ajouterVoitureDeCourse,
   emettreEvenement,
   engagerVehiculeEnBase,
@@ -23,6 +24,8 @@ export async function preparerEngagementChecklist(equipe: Equipe): Promise<Engag
   const eventId = await ajouterEpreuveEnBase(equipe, saisonId, `Rallye Check-lists ${equipe.horodatage}`, `${annee}-06-01`, `${annee}-06-02`)
   const vehicleId = await ajouterVoitureDeCourse(equipe, `Saxo ${equipe.horodatage}`)
   const entryId = await engagerVehiculeEnBase(equipe, eventId, vehicleId, "inscrit")
+  // Le modèle de la team doit exister avant l'événement : sans modèle disponible, aucune proposition.
+  await ajouterModeleChecklistEnBase(equipe, "Contrôle avant départ", ["Triangle de présentation", "Trousse de secours"])
   emettreEvenement(equipe, "saison.engagement_cree", { entryId, eventId, vehicleId })
   return { entryId, eventId, vehicleId }
 }

@@ -100,6 +100,8 @@ test("Check-lists · responsable : boîte, liste en phase Retour, coche, problè
 })
 
 test("Check-lists · assistance : la préparation s'ouvre, Modèles et Débrief ne sont pas dans le menu", async ({ page, equipe }) => {
+  // Une épreuve à venir : la préparation affiche ses sections (sans épreuve, elle n'en affiche aucune).
+  await preparerEngagementChecklist(equipe)
   const assistance = await ajouterMembreConnectable(equipe, "assistance")
   await connecterParLien(page, { ...equipe, secretLien: assistance.secretLien })
 

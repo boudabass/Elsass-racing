@@ -143,6 +143,31 @@ export function emettreActionSaison(equipe: Equipe, cleUnicite: string): void {
   })
 }
 
+// Modèle d'engagement de la team, avec une section et ses points : sans modèle disponible, Check-lists ne propose
+// pas de créer les listes. Les modèles fournis ne sont pas encore en base (lot 5.5b) : le test en crée un.
+export async function ajouterModeleChecklistEnBase(equipe: Equipe, nom: string, libellesPoints: string[]): Promise<string> {
+  const modeleId = newId()
+  const sectionId = newId()
+  await bd().query(
+    `INSERT INTO checklist_template (id, team_id, nom, portee, fourni, version, ordre, rev, updated_at)
+     VALUES ($1, $2, $3, 'engagement'::checklist_portee, false, 1, 0, 1, now())`,
+    [modeleId, equipe.teamId, nom],
+  )
+  await bd().query(
+    `INSERT INTO checklist_template_section (id, team_id, modele_id, titre, ordre, rev, updated_at)
+     VALUES ($1, $2, $3, 'Contrôles', 0, 1, now())`,
+    [sectionId, equipe.teamId, modeleId],
+  )
+  for (const [ordre, libelle] of libellesPoints.entries()) {
+    await bd().query(
+      `INSERT INTO checklist_template_item (id, team_id, section_id, libelle, critique, lien_type, ordre, rev, updated_at)
+       VALUES ($1, $2, $3, $4, false, 'aucun'::checklist_type_lien, $5, 1, now())`,
+      [newId(), equipe.teamId, sectionId, libelle, ordre],
+    )
+  }
+  return modeleId
+}
+
 // Émet un événement du catalogue par le bus de l'app, dans un processus tsx (cf. emettre-evenement.ts) : les
 // gestionnaires des apps abonnées tournent. Le nom et les données doivent être ceux du catalogue 962.
 export function emettreEvenement(equipe: Equipe, nom: string, donnees: Record<string, unknown>): void {
