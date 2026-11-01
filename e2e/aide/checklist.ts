@@ -1,3 +1,5 @@
+import { expect, type Page } from "@playwright/test"
+
 // Aide des scénarios Check-lists : une épreuve à venir avec un engagement, créé comme le fait Saison
 // (lignes en base, puis saison.engagement_cree par le bus). La proposition « Créer les listes » vient ensuite
 // de l'app Check-lists, comme en production : le test la traite dans la boîte.
@@ -32,4 +34,44 @@ export async function preparerEngagementChecklist(equipe: Equipe, options: { com
   await ajouterModeleChecklistEnBase(equipe, "Contrôle avant départ", ["Triangle de présentation", "Trousse de secours"])
   emettreEvenement(equipe, "saison.engagement_cree", { entryId, eventId, vehicleId })
   return { entryId, eventId, vehicleId }
+}
+
+// Attend que la base locale de la page contienne au moins `minimum` points de Check-lists : le premier tirage de la
+// synchro doit être fini avant de couper le réseau, sinon la liste n'est jamais sur l'appareil (le tirage ne tourne pas
+// hors ligne). Lecture de la base IndexedDB de l'origine, sans passer par le moteur.
+export async function attendreTirageLocal(page: Page, minimum: number): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          for (const { name } of await indexedDB.databases()) {
+            if (!name?.startsWith("elsass-racing-")) continue
+            const compte = await new Promise<number>((resolve) => {
+              const ouverture = indexedDB.open(name)
+              ouverture.onerror = () => resolve(0)
+              ouverture.onsuccess = () => {
+                const base = ouverture.result
+                if (!base.objectStoreNames.contains("checklist_item")) {
+                  base.close()
+                  resolve(0)
+                  return
+                }
+                const requete = base.transaction("checklist_item").objectStore("checklist_item").count()
+                requete.onsuccess = () => {
+                  base.close()
+                  resolve(requete.result)
+                }
+                requete.onerror = () => {
+                  base.close()
+                  resolve(0)
+                }
+              }
+            })
+            if (compte > 0) return compte
+          }
+          return 0
+        }),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThanOrEqual(minimum)
 }
