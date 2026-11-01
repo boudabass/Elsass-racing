@@ -467,8 +467,9 @@ export async function creerListeVierge(epreuveId: string, engagementId: string |
   await epreuveDe(client, ctx.teamId, epreuveId)
   const entry = engagementId ? await engagementDe(client, ctx.teamId, engagementId, epreuveId) : null
   const id = newId()
-  await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
-    tx.checklistList.create({
+  // Une section « Points » par défaut : sans elle, on ne pourrait pas ajouter de point à une liste vierge.
+  await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+    await tx.checklistList.create({
       data: {
         id,
         teamId: ctx.teamId,
@@ -482,8 +483,11 @@ export async function creerListeVierge(epreuveId: string, engagementId: string |
         createdBy: ctx.userId,
         updatedBy: ctx.userId,
       },
-    }),
-  )
+    })
+    await tx.checklistSection.create({
+      data: { id: newId(), teamId: ctx.teamId, listeId: id, titre: "Points", ordre: 0, createdBy: ctx.userId, updatedBy: ctx.userId },
+    })
+  })
   return id
 }
 
