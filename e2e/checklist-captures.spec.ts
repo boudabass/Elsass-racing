@@ -29,7 +29,7 @@ test("captures · préparation, liste, fiche, mode terrain, avertissement, débr
   await page.getByRole("button", { name: "+ Nouvelle liste vierge", exact: true }).click()
   const nouvelle = page.getByRole("dialog")
   await nouvelle.getByLabel("Titre", { exact: true }).fill("Test retour")
-  await nouvelle.getByLabel("Phase", { exact: true }).selectOption("retour")
+  await nouvelle.locator('select[name="phase"]').selectOption("retour")
   await envoyer(page, nouvelle.getByRole("button", { name: "Créer la liste", exact: true }))
 
   await page.getByRole("link", { name: /Test retour/ }).click()
