@@ -114,13 +114,14 @@ test("captures · préparation, liste, fiche, mode terrain, avertissement, débr
 
       // Mode terrain : le réglage est celui du membre, rétabli après la capture.
       await page.goto(listeUrl)
+      // Le bouton de la liste est dans le contenu (main) : la barre haute a un bouton du même nom.
       const reponseTerrain = page.waitForResponse(REPONSE_ACTION)
-      await page.getByRole("button", { name: "Mode terrain", exact: true }).click()
+      await page.getByRole("main").getByRole("button", { name: "Mode terrain", exact: true }).click()
       await reponseTerrain
-      await expect(page.getByRole("button", { name: "Quitter le mode terrain", exact: true })).toBeVisible()
+      await expect(page.getByRole("main").getByRole("button", { name: "Quitter le mode terrain", exact: true })).toBeVisible()
       await capturer(page, `checklist-mode-terrain-${taille.largeur}-${theme}.png`)
       const reponseRetour = page.waitForResponse(REPONSE_ACTION)
-      await page.getByRole("button", { name: "Quitter le mode terrain", exact: true }).click()
+      await page.getByRole("main").getByRole("button", { name: "Quitter le mode terrain", exact: true }).click()
       await reponseRetour
     }
   }
