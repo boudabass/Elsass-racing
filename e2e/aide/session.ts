@@ -143,6 +143,25 @@ export function emettreActionSaison(equipe: Equipe, cleUnicite: string): void {
   })
 }
 
+// Émet un événement du catalogue par le bus de l'app, dans un processus tsx (cf. emettre-evenement.ts) : les
+// gestionnaires des apps abonnées tournent. Le nom et les données doivent être ceux du catalogue 962.
+export function emettreEvenement(equipe: Equipe, nom: string, donnees: Record<string, unknown>): void {
+  const charge = JSON.stringify({
+    teamId: equipe.teamId,
+    userId: equipe.responsable.userId,
+    membershipId: equipe.responsable.membershipId,
+    nom,
+    donnees,
+  })
+  const script = path.join(__dirname, "emettre-evenement.ts")
+  execFileSync(process.execPath, ["--import", "tsx", script, charge], {
+    cwd: path.join(__dirname, "..", ".."),
+    env: process.env,
+    stdio: ["ignore", "pipe", "pipe"],
+    encoding: "utf8",
+  })
+}
+
 // Montant réglé d'un engagement, en centimes (null tant qu'il n'est pas payé). Le statut affiché dépend
 // aussi de la date de l'épreuve (« Parti » une fois commencée), donc le paiement se lit ici.
 export async function montantPayeEnBase(equipe: Equipe, entryId: string): Promise<number | null> {
@@ -157,6 +176,16 @@ export async function statutAction(equipe: Equipe, cleUnicite: string): Promise<
   const { rows } = await bd().query<{ statut: string }>(
     "SELECT statut::text AS statut FROM core_action WHERE team_id = $1 AND cle_unicite = $2",
     [equipe.teamId, cleUnicite],
+  )
+  return rows[0]?.statut ?? null
+}
+
+// Statut d'un point de liste Check-lists, par son libellé (le plus récent, non supprimé).
+export async function statutPointChecklistEnBase(equipe: Equipe, libelle: string): Promise<string | null> {
+  const { rows } = await bd().query<{ statut: string }>(
+    `SELECT statut::text AS statut FROM checklist_item WHERE team_id = $1 AND libelle = $2 AND deleted_at IS NULL
+     ORDER BY created_at DESC LIMIT 1`,
+    [equipe.teamId, libelle],
   )
   return rows[0]?.statut ?? null
 }
