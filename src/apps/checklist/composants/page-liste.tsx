@@ -11,6 +11,8 @@ import { LIBELLES_PHASE } from "../libelles"
 import type { Phase } from "../services-serveur"
 import { CorpsListe } from "./corps-liste"
 import { FormulaireChecklist } from "./formulaire-checklist"
+import type { ObjetLieLu } from "../objets-types"
+import type { ResolutionLien } from "../objets-lies"
 import { FichePointTiroir } from "./fiche-point-tiroir"
 import { ContenuFichePoint, type EntreeHistorique, type PersonnePointAffectable, type PhotoPoint, type PointOuvert } from "./tiroir-point"
 
@@ -21,9 +23,16 @@ export function PageListe({
   pointOuvert,
 }: {
   donnees: Donnees
-  pointOuvert: { point: PointOuvert; historique: EntreeHistorique[]; personnes: PersonnePointAffectable[]; photos: PhotoPoint[] } | null
+  pointOuvert: {
+    point: PointOuvert
+    historique: EntreeHistorique[]
+    personnes: PersonnePointAffectable[]
+    photos: PhotoPoint[]
+    lien: ResolutionLien | null
+    choixLiens: ObjetLieLu[]
+  } | null
 }) {
-  const { liste, niveau, terrain, avertissement, phaseEnCours } = donnees
+  const { liste, niveau, terrain, avertissement, phaseEnCours, etatsLiens } = donnees
   const peutCocher = niveau === "contribution" || niveau === "ecriture" || niveau === "gestion"
   const peutAjouter = peutCocher
 
@@ -90,6 +99,7 @@ export function PageListe({
         terrain={terrain}
         peutCocher={peutCocher}
         sections={liste.sections}
+        etatsLiens={etatsLiens}
         avertissement={bandeau}
         modeTerrain={modeTerrain}
         ajout={ajout}
@@ -103,6 +113,8 @@ export function PageListe({
             niveau={niveau}
             personnes={pointOuvert.personnes}
             photos={pointOuvert.photos}
+            lien={pointOuvert.lien}
+            choixLiens={pointOuvert.choixLiens}
           />
         </FichePointTiroir>
       )}

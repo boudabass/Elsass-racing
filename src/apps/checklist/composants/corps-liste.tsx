@@ -38,6 +38,7 @@ export function CorpsListe({
   avertissement,
   modeTerrain,
   ajout,
+  etatsLiens,
 }: {
   listeId: string
   titre: string
@@ -48,6 +49,8 @@ export function CorpsListe({
   avertissement: ReactNode
   modeTerrain: ReactNode
   ajout: ReactNode
+  // État du lien de chaque point, par identifiant de point (5.7a). Texte seul : la couleur ne le dit jamais.
+  etatsLiens: Record<string, string>
 }) {
   const moteur = useMoteurSynchro()
   const { enLigne } = useEtatSynchro()
@@ -136,6 +139,7 @@ export function CorpsListe({
                       {point.enAttente && " · en attente d'envoi"}
                       {!enLigne && !point.local && " · pas sur cet appareil : ouvre la liste en ligne avant de partir"}
                     </span>
+                    {etatsLiens[point.id] && <span className="block text-sm">{etatsLiens[point.id]}</span>}
                   </div>
                   <Link href={`/apps/checklist/liste/${listeId}?point=${point.id}`} className={`${LIEN} shrink-0`}>
                     Détail

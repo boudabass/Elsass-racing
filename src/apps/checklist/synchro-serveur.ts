@@ -222,9 +222,18 @@ const checklistItemSynchro: DeclarationSynchro = {
     if (meta) {
       // Même forme qu'en ligne (changerStatutPointDans) : ce qui sera émis après le commit.
       meta.effets.checklist = {
-        liste: { id: resultat.liste.id, epreuveId: resultat.liste.epreuveId, echeance: resultat.liste.echeance },
+        liste: { id: resultat.liste.id, epreuveId: resultat.liste.epreuveId, echeance: resultat.liste.echeance, titre: resultat.liste.titre },
         resultat: { avant: resultat.avant, apres: resultat.apres },
-        changement: { ancien: point.statut, nouveau: statut, critique: point.critique, ajoute: false, pointId: id },
+        changement: {
+          ancien: point.statut,
+          nouveau: statut,
+          critique: point.critique,
+          ajoute: false,
+          pointId: id,
+          libelle: point.libelle,
+          lienType: point.lienType,
+          lienId: point.lienId,
+        },
         personneId: point.personneId,
       }
     }
@@ -238,7 +247,7 @@ const checklistItemSynchro: DeclarationSynchro = {
   async apresApplication(ctx, _id, type, effets) {
     const suite = effets?.checklist as
       | {
-          liste: { id: string; epreuveId: string; echeance: Date | null }
+          liste: { id: string; epreuveId: string; echeance: Date | null; titre: string }
           resultat: Parameters<typeof emettreApresChangement>[2]
           changement: NonNullable<Parameters<typeof emettreApresChangement>[3]>
           personneId: string | null

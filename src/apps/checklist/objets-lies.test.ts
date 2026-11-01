@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { cleLien, dansPortee } from "./objets-lies"
+import { cleLien, dansPortee, libelleEtatLien } from "./objets-lies"
 import type { ObjetLieLu, PorteeListe } from "./objets-types"
 
 const VEHICULE = "11111111-1111-4111-8111-111111111111"
@@ -42,5 +42,22 @@ describe("clé d'un objet lié (5.7a)", () => {
   it("combine le type et l'identifiant, pour distinguer deux objets de même id dans deux apps", () => {
     expect(cleLien("organe_garage", "a")).toBe("organe_garage:a")
     expect(cleLien("organe_garage", "a")).not.toBe(cleLien("papier_voiture", "a"))
+  })
+})
+
+describe("texte d'état d'un lien (5.7a)", () => {
+  it("un objet : son libellé, son état ; « À surveiller » en plus quand il alerte", () => {
+    expect(libelleEtatLien({ statut: "objet", objet: objet({ type: "organe_garage", libelle: "Moteur", etat: "Bon" }) })).toBe("Moteur : Bon.")
+    expect(libelleEtatLien({ statut: "objet", objet: objet({ type: "organe_garage", libelle: "Moteur", etat: "Zone rouge", alerte: true }) })).toBe(
+      "Moteur : Zone rouge. À surveiller.",
+    )
+  })
+
+  it("un objet introuvable : texte neutre, sans plantage", () => {
+    expect(libelleEtatLien({ statut: "introuvable" })).toBe("Objet introuvable.")
+  })
+
+  it("un accès refusé : nomme l'app, ne révèle pas l'objet", () => {
+    expect(libelleEtatLien({ statut: "acces_refuse", appLibelle: "Garage" })).toBe("Accès réservé : tu n'as pas accès à Garage.")
   })
 })

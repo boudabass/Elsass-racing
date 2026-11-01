@@ -22,8 +22,18 @@ export const chargePointCritiqueOuvert = z
   .object({ listeId: identifiant, epreuveId: identifiant, pointId: identifiant })
   .strict()
 
+// Le point et sa liste, pour que Garage et le socle n'aient pas à relire Check-lists (règle 2). Les quatre champs
+// sont nullables, et absents des événements émis avant 5.7a : ces événements restent lisibles.
 export const chargeProblemeSignale = z
-  .object({ listeId: identifiant, epreuveId: identifiant, pointId: identifiant })
+  .object({
+    listeId: identifiant,
+    epreuveId: identifiant,
+    pointId: identifiant,
+    libelle: z.string().nullish(),
+    listeTitre: z.string().nullish(),
+    lienType: z.string().nullish(),
+    lienId: identifiant.nullish(),
+  })
   .strict()
 
 // Propositions : le socle reçoit <app>.action_requise (forme de docs/evenements.md).

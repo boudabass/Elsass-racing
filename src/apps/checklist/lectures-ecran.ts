@@ -5,6 +5,9 @@ import { notesEtPhotos } from "@/core/notes/notes-serveur"
 import { prismaPourTeam } from "@/lib/prisma"
 
 import { historiquePoint, listeComplete, listesDeEpreuve, modelesVisibles } from "./lectures-serveur"
+import { cleLien, libelleEtatLien } from "./objets-lies"
+import { choixTousObjetsLies, porteeDeListe, resoudreObjetsLies } from "./objets-lies-serveur"
+import type { TypeObjetLie } from "./objets-types"
 import {
   avancementPourcent,
   avertissementAvantPhase,
@@ -96,9 +99,20 @@ export async function pageListe(listeId: string, avertir: boolean) {
   const ouverts = avertir ? avertissementAvantPhase(liste.phase as PhaseEpreuve, epreuve) : []
   const titres = new Map(epreuve.map((l) => [l.id, l.titre]))
   const libelles = new Map(epreuve.flatMap((l) => l.points.map((p) => [p.id, p.libelle] as const)))
+  // État du lien de chaque point de la liste (5.7a) : une résolution en lot, pour ne pas lire point par point.
+  const portee = await porteeDeListe(ctx, liste.id)
+  const liens = liste.sections
+    .flatMap((section) => section.items)
+    .filter((point) => point.lienId && point.lienType !== "aucun")
+    .map((point) => ({ pointId: point.id, lienType: point.lienType as TypeObjetLie, lienId: point.lienId as string }))
+  const resolus = await resoudreObjetsLies(ctx, portee, liens)
+  const etatsLiens = Object.fromEntries(
+    liens.map((lien) => [lien.pointId, libelleEtatLien(resolus.get(cleLien(lien.lienType, lien.lienId)) ?? { statut: "introuvable" })]),
+  )
   return {
     niveau,
     terrain: await modeTerrainDuMembre(ctx),
+    etatsLiens,
     liste,
     phaseEnCours: phaseEnCours(epreuve),
     avertissement: ouverts.map((o) => ({ listeTitre: titres.get(o.listeId) ?? "", libelle: libelles.get(o.pointId) ?? "" })),
@@ -128,14 +142,20 @@ export async function pagePoint(pointId: string) {
   })
   if (!point || !listeVisiblePour(ctx.membership.role, point.section.liste)) return null
   const peutAffecter = niveau === "ecriture" || niveau === "gestion"
-  const [historique, personnes, { photos }] = await Promise.all([
+  const portee = await porteeDeListe(ctx, point.section.liste.id)
+  const lienActuel = point.lienId && point.lienType !== "aucun" ? [{ lienType: point.lienType as TypeObjetLie, lienId: point.lienId }] : []
+  const [historique, personnes, { photos }, resolus, choixLiens] = await Promise.all([
     historiquePoint(pointId),
     peutAffecter
       ? client.corePerson.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true, prenom: true, nom: true }, orderBy: [{ nom: "asc" }, { prenom: "asc" }] })
       : Promise.resolve([]),
     notesEtPhotos(ctx, controlePoint(pointId)),
+    resoudreObjetsLies(ctx, portee, lienActuel),
+    // Le choix d'un lien ne se propose qu'à l'écriture : la fiche en lecture n'affiche que l'état du lien posé.
+    peutAffecter ? choixTousObjetsLies(ctx, portee) : Promise.resolve([]),
   ])
-  return { niveau, point, historique, personnes, photos }
+  const lien = lienActuel[0] ? (resolus.get(cleLien(lienActuel[0].lienType, lienActuel[0].lienId)) ?? null) : null
+  return { niveau, point, historique, personnes, photos, lien, choixLiens }
 }
 
 // Modèles visibles et niveau de lecture (pour le bouton Copier et le lien de modification).

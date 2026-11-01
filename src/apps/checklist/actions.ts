@@ -27,6 +27,8 @@ import {
   type RoleSuggere,
   type TypeLien,
 } from "./services-serveur"
+import { lierPoint } from "./liens-serveur"
+import { TYPES_OBJET_LIE } from "./objets-types"
 import type { EcheanceRelative, StatutPoint } from "./regles"
 
 const CHEMIN = "/apps/checklist"
@@ -169,4 +171,23 @@ export async function basculerModeTerrainAction(_etat: Resultat | null, donnees:
     const { contexte } = await exigerContexte()
     await fixerModeTerrain(contexte, coche(donnees, "actif"))
   })
+}
+
+// Lien d'un point (5.7a). La valeur du champ « lien » est « type|identifiant » ; vide retire le lien. Le point ne se coche pas.
+export async function lierPointAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, async () => {
+    const pointId = texte(donnees, "pointId")
+    const valeur = texte(donnees, "lien")
+    if (valeur === "") {
+      await lierPoint(pointId, null)
+      return
+    }
+    const [type, id] = valeur.split("|")
+    if (!id) throw new ErreurMetier("Objet lié : valeur inconnue.")
+    await lierPoint(pointId, { lienType: choisi(type ?? "", TYPES_OBJET_LIE, "Type de lien"), lienId: id })
+  })
+}
+
+export async function retirerLienPointAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, () => lierPoint(texte(donnees, "pointId"), null))
 }

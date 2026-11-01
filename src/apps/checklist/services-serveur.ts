@@ -160,12 +160,16 @@ export interface ChangementPoint {
   critique: boolean
   ajoute: boolean
   pointId: string
+  // Contexte du point, émis avec checklist.probleme_signale (5.7a).
+  libelle?: string
+  lienType?: string | null
+  lienId?: string | null
 }
 
 // Émet ce qui découle d'un changement, après la transaction. Jamais de rouge : ce sont des informations.
 export async function emettreApresChangement(
   ctx: ContexteTeam,
-  liste: { id: string; epreuveId: string; echeance: Date | null },
+  liste: { id: string; epreuveId: string; echeance: Date | null; titre: string },
   resultat: { avant: { avancement: number; zone: string; statut: string }; apres: { avancement: number; zone: "vert" | "orange"; statut: "a_faire" | "en_cours" | "terminee" } },
   changement: ChangementPoint | null,
 ): Promise<void> {
@@ -187,7 +191,19 @@ export async function emettreApresChangement(
   }
 
   if (changement && fautSignalerProbleme(changement.ancien, changement.nouveau)) {
-    await emettre(ctx, "checklist.probleme_signale", chargeProblemeSignale.parse({ listeId: liste.id, epreuveId: liste.epreuveId, pointId: changement.pointId }))
+    await emettre(
+      ctx,
+      "checklist.probleme_signale",
+      chargeProblemeSignale.parse({
+        listeId: liste.id,
+        epreuveId: liste.epreuveId,
+        pointId: changement.pointId,
+        libelle: changement.libelle ?? null,
+        listeTitre: liste.titre,
+        lienType: changement.lienType ?? null,
+        lienId: changement.lienId ?? null,
+      }),
+    )
   }
 
   if (changement && fautSignalerPointCritique({ ancien: changement.ancien, nouveau: changement.nouveau, critique: changement.critique, ajoute: changement.ajoute }, echeance, aujourdhui)) {
@@ -673,7 +689,7 @@ export async function ajouterPoint(sectionId: string, saisie: SaisiePoint): Prom
       return recalculerListe(tx, ctx, liste.id)
     }),
   )
-  await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance }, resultat, {
+  await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance, titre: liste.titre }, resultat, {
     ancien: null,
     nouveau: "a_faire",
     critique,
@@ -717,7 +733,7 @@ export async function modifierPoint(pointId: string, changements: ChangementsPoi
       return recalculerListe(tx, ctx, liste.id)
     }),
   )
-  await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance }, resultat, null)
+  await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance, titre: liste.titre }, resultat, null)
   if (point.personneId) await levereReassignationSiPlusDePoint(ctx, point.personneId)
 }
 
@@ -768,12 +784,15 @@ export async function changerStatutPointDans(ctx: ContexteTeam, niveau: Niveau, 
       return recalculerListe(tx, ctx, liste.id)
     }),
   )
-  await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance }, resultat, {
+  await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance, titre: liste.titre }, resultat, {
     ancien,
     nouveau,
     critique: point.critique,
     ajoute: false,
     pointId,
+    libelle: point.libelle,
+    lienType: point.lienType,
+    lienId: point.lienId,
   })
   if (point.personneId) await levereReassignationSiPlusDePoint(ctx, point.personneId)
 }
@@ -797,7 +816,7 @@ export async function retirerPointDans(ctx: ContexteTeam, niveau: Niveau, pointI
       return recalculerListe(tx, ctx, liste.id)
     }),
   )
-  await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance }, resultat, null)
+  await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance, titre: liste.titre }, resultat, null)
   if (point.personneId) await levereReassignationSiPlusDePoint(ctx, point.personneId)
 }
 

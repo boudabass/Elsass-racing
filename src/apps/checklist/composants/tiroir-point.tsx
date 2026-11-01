@@ -6,24 +6,14 @@ import { TiroirAction } from "@/components/formulaire/tiroir"
 import { BOUTON_SECONDAIRE, CHAMP, LIEN } from "@/lib/classes-formulaire"
 import type { Niveau } from "@/core/droits/niveaux"
 
-import { affecterPointAction, ajouterPhotoPointAction, changerStatutPointAction, modifierNotePointAction, retirerPhotoPointAction, retirerPointAction } from "../actions"
+import { affecterPointAction, ajouterPhotoPointAction, changerStatutPointAction, lierPointAction, modifierNotePointAction, retirerLienPointAction, retirerPhotoPointAction, retirerPointAction } from "../actions"
+import { APP_DU_TYPE, libelleEtatLien, type ResolutionLien } from "../objets-lies"
+import { TYPES_OBJET_LIE, type ObjetLieLu, type TypeObjetLie } from "../objets-types"
 import { LIBELLES_LIEN, LIBELLES_STATUT_POINT } from "../libelles"
 import type { StatutPoint } from "../regles"
 import { FormulaireChecklist } from "./formulaire-checklist"
 
 const STATUTS: StatutPoint[] = ["a_faire", "fait", "sans_objet", "probleme"]
-
-// Où mène chaque type de lien (lecture seule : on ouvre l'app, son état est branché en 5.7).
-const APP_DU_LIEN: Record<string, { cle: string; libelle: string }> = {
-  organe_garage: { cle: "garage", libelle: "Garage" },
-  train_pneus: { cle: "garage", libelle: "Garage" },
-  papier_voiture: { cle: "voiture", libelle: "Voiture" },
-  logo_voiture: { cle: "voiture", libelle: "Voiture" },
-  licence_equipe: { cle: "equipe", libelle: "Équipe" },
-  homologation_equipe: { cle: "equipe", libelle: "Équipe" },
-  contrepartie_partenaires: { cle: "partenaires", libelle: "Partenaires" },
-  document_documents: { cle: "documents", libelle: "Documents" },
-}
 
 export interface PointOuvert {
   id: string
@@ -67,17 +57,23 @@ export function ContenuFichePoint({
   niveau,
   personnes,
   photos,
+  lien,
+  choixLiens,
 }: {
   point: PointOuvert
   historique: EntreeHistorique[]
   niveau: Niveau
   personnes: PersonnePointAffectable[]
   photos: PhotoPoint[]
+  lien: ResolutionLien | null
+  choixLiens: ObjetLieLu[]
 }) {
-  // « Lié à » seulement quand un objet est posé (lienId) : un type sans objet ne se montre pas.
-  const lien = point.lienId && point.lienType !== "aucun" ? APP_DU_LIEN[point.lienType] : undefined
   const peutEcrire = niveau !== "lecture"
   const peutAffecter = niveau === "ecriture" || niveau === "gestion"
+  // « Lié à » : posé seulement si un identifiant est là. Le choix ne se propose qu'à l'écriture (956 §6).
+  const lienPose = point.lienId !== null && point.lienType !== "aucun"
+  const valeurLien = lienPose ? `${point.lienType}|${point.lienId}` : ""
+  const groupes = TYPES_OBJET_LIE.map((type) => [type, choixLiens.filter((objet) => objet.type === type)] as const).filter(([, objets]) => objets.length > 0)
   return (
     <div className="flex flex-col gap-6">
       <p className="text-sm">
@@ -176,15 +172,52 @@ export function ContenuFichePoint({
         </ul>
       </section>
 
-      {lien && (
-        <section aria-label="Lien" className="flex flex-col gap-2">
+      {(peutAffecter || lien) && (
+        <section aria-label="Lien" className="flex flex-col gap-3">
           <h3 className="font-medium">Lié à</h3>
-          <p className="text-sm">
-            {LIBELLES_LIEN[point.lienType]}
-          </p>
-          <Link href={`/apps/${lien.cle}`} className={LIEN}>
-            Ouvrir dans {lien.libelle}
-          </Link>
+          {lien ? (
+            <>
+              <p className="text-sm">
+                {LIBELLES_LIEN[point.lienType]} · {libelleEtatLien(lien)}
+              </p>
+              {lien.statut === "objet" && (
+                <Link href={`/apps/${APP_DU_TYPE[point.lienType as TypeObjetLie].cle}`} className={LIEN}>
+                  Ouvrir dans {APP_DU_TYPE[point.lienType as TypeObjetLie].libelle}
+                </Link>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-texte-discret">Aucun objet lié à ce point.</p>
+          )}
+          {peutAffecter && (
+            <>
+              <p className="text-xs text-texte-discret">Un lien n'ajoute ni ne retire aucune coche : le point se coche à la main.</p>
+              <FormulaireChecklist
+                action={lierPointAction}
+                champsCaches={{ pointId: point.id }}
+                libelle="Enregistrer le lien"
+                classe={BOUTON_SECONDAIRE}
+                enfants={
+                  <select name="lien" defaultValue={valeurLien} aria-label="Objet lié" className={CHAMP}>
+                    <option value="">Aucun lien</option>
+                    {lienPose && lien && lien.statut !== "objet" && (
+                      <option value={valeurLien}>{lien.statut === "acces_refuse" ? "Objet non accessible (conservé)" : "Objet introuvable (conservé)"}</option>
+                    )}
+                    {groupes.map(([type, objets]) => (
+                      <optgroup key={type} label={LIBELLES_LIEN[type]}>
+                        {objets.map((objet) => (
+                          <option key={objet.id} value={`${type}|${objet.id}`}>
+                            {objet.libelle} · {objet.etat}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                }
+              />
+              {lienPose && <FormulaireChecklist action={retirerLienPointAction} champsCaches={{ pointId: point.id }} libelle="Retirer le lien" classe={BOUTON_SECONDAIRE} />}
+            </>
+          )}
         </section>
       )}
 
