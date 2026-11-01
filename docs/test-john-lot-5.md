@@ -112,9 +112,21 @@ Prérequis : une épreuve à venir avec un engagement dans Saison, et la liste c
 7. Avec un compte **assistance** (fenêtre privée) : le menu n'a ni **Modèles** ni **Débrief**. Une liste ouverte à l'assistance s'affiche et se coche ; une liste fermée n'apparaît pas.
 8. Sur téléphone (ou en réduisant la fenêtre à 360 px), Préparation et une liste se lisent sans défilement horizontal, et les boutons se touchent au doigt.
 
+## Étape 14 : Check-lists hors ligne (5.6b)
+
+Prérequis : une liste d'engagement (5.5a) acceptée, et ton téléphone connecté à l'app dev.
+
+1. **Ouvre tes listes avant de partir.** Une liste jamais ouverte en ligne n'existe pas hors ligne : ouvre-la une fois en ligne, puis recharge la page. Sans cela, la liste ne s'ouvre pas en mode avion.
+2. **Active le mode terrain avant de partir.** En mode avion, le bouton **Mode terrain** affiche « demande le réseau » : il ne se bascule pas hors ligne. L'état gardé est celui que tu as réglé en ligne.
+3. Passe le téléphone en mode avion. Sur un point, **Faire** : le bouton devient **✓ Fait** et le point porte « en attente d'envoi ». La barre d'avancement avance sur l'appareil. Un point qui n'a pas été ouvert en ligne affiche « pas sur cet appareil » et son bouton reste grisé.
+4. **Ajouter un point** et **Mode terrain** disent « demande le réseau » en mode avion. **Détail** d'un point ouvre encore la fiche en ligne seulement.
+5. Reviens en ligne : « en attente d'envoi » disparaît, et la coche arrive sur un autre appareil (ou dans la liste ouverte depuis le compte responsable).
+6. Coche gardée : sur deux appareils, coche le même point en mode avion sur l'un, puis l'autre en ligne après. La coche la plus récente reste ; sur l'appareil qui a perdu, le statut revient à celui du serveur après la synchro.
+7. Avec un compte **assistance** (fenêtre privée) : une liste ouverte à l'assistance se coche hors ligne ; sa coche part au retour du réseau. Une liste fermée ne se coche pas (refus avec sa raison).
+
 ## Ce qui n'est pas encore là
 
-- Check-lists hors ligne : les coches se font en ligne seulement pour l'instant.
+- Check-lists hors ligne : pas d'ajout ni de retrait de point, pas de création de liste, pas de modèle, pas de débrief, pas de photo hors ligne.
 - « Lié à » dans la fiche d'un point : la section n'apparaît que si un objet est posé (`lienId`). Une liste copie le type de lien de son point de modèle, mais jamais l'objet : le choix de l'objet se fera en 5.7 (Liaisons). Donc rien ne s'affiche par clics pour l'instant.
 - Widgets de Check-lists sur le Tableau de bord : les lectures existent, l'affichage vient au lot 6.
 - Photo des personnes (les initiales tiennent lieu de photo pour l'instant).

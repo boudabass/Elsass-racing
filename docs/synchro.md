@@ -178,3 +178,22 @@ Un envoi que le serveur refuse ne disparaît pas en silence (règle 8 : tout ref
 ## Rafraîchissement après une synchro (tâche 2.9, point 2)
 
 Quand le serveur applique des opérations poussées, le moteur prévient ses abonnés serveur ; le fournisseur de synchro appelle alors `router.refresh()`. Une dépense d'engagement crée ainsi son action dans la boîte, et la boîte, le compteur et le solde se mettent à jour sans rechargement. Reproduction : `e2e/boite-reproduction.spec.ts`.
+
+## Check-lists hors ligne (tâche 5.6b)
+
+Tables : `checklist_list` et `checklist_section` se reçoivent (lecture seule, `lectureSeule`), `checklist_item` s'écrit pour son statut et sa coche (`src/apps/checklist/synchro-serveur.ts`). Le journal `checklist_check_log` est écrit par le serveur seulement. Tirage : une liste est visible selon `listeVisiblePour` (responsable et équipage voient tout, assistance seulement les listes ouvertes à elle), ses sections et ses points avec elle.
+
+- **Règle `controle`** (`regleContribution: "controle"`) : au niveau contribution (assistance), la table décide par ligne. `controleContribution` renvoie la raison du refus (`RAISON_LISTE_FERMEE`, « Cette liste n'est plus ouverte à l'assistance. », ou `RAISON_LISTE_SUPPRIMEE`), ou `null` si la coche passe. Responsable et équipage ne sont pas restreints (956 §6).
+- **Coche gardée** (`decideCoche`, `src/apps/checklist/regles.ts`) : l'heure retenue est l'heure de la coche sur l'appareil, ramenée à l'heure serveur si elle dépasse celle-ci de plus de `MARGE_HEURE_FUTURE_MS` (5 minutes). La plus récente l'emporte. À égalité, la première arrivée garde le statut. La coche perdante est journalisée (`horsLigne: true`) et répond `conflit_resolu` sans toucher à l'état : `modifier` renvoie `MODIFICATION_GARDEE`, et `pousser.ts` n'appelle pas `apresApplication`. Ce n'est pas un refus : la file n'est pas bloquée.
+- **Appareil perdant** : au `conflit_resolu` d'une modification, le moteur remet le curseur de la table à `null` (`moteur.ts`). Le tirage suivant relit la table, et la ligne locale reprend le statut serveur.
+- **Création et retrait de point** : refusés hors ligne (« Ajouter un point se fait en ligne. », « Retirer un point se fait en ligne. »).
+- **Effets** : `MetaEcriture` porte l'appareil et une liste `effets`. La table y note ce qui part après le commit (événements, réassignation) et `apresApplication` le reçoit, comme en ligne.
+- **Affichage hors ligne** : avancement et zone sont recalculés sur la base locale avec les règles pures (`avancementPourcent`, `zoneDeListe`). Le client n'écrit rien d'autre que la coche.
+- **Piège** : importer `refusLectureSeule` et `socleSynchro` depuis `socle.ts`, jamais depuis `registre.ts`. `registre.ts` importe les déclarations des apps : un réexport du registre, lu pendant l'initialisation d'une app, vaut `undefined` (run 41310671236, `db:verifier-synchro`).
+
+**Limites connues (5.6b)** :
+
+- Une liste jamais ouverte en ligne n'existe pas hors ligne : sa page n'est pas en cache et ses points ne sont pas tirés. Il faut l'ouvrir en ligne avant de partir ; un point absent de l'appareil le dit (« pas sur cet appareil : ouvre la liste en ligne avant de partir »).
+- Mode terrain : pas de bascule hors ligne. Le bouton affiche « demande le réseau » ; la page en cache garde l'état de la préférence.
+- Ajout et retrait de point, création de liste, « Créer les listes », modèles, débrief, photos : en ligne seulement.
+- La liste hors ligne n'est pas mise à jour par les autres membres tant qu'elle n'est pas tirée au retour du réseau.
