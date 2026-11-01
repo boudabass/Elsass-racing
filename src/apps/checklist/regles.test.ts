@@ -22,7 +22,9 @@ import {
   avertissementAvantPhase,
   pointsCritiquesOuverts,
   statutDeListe,
+  decideCoche,
   liensDuPointCopie,
+  MARGE_HEURE_FUTURE_MS,
   zoneDeListe,
   type ListePhasee,
   type PointRegle,
@@ -106,6 +108,41 @@ describe("zone de la jauge d'une épreuve", () => {
     const tous = [...sansPoints(179, "fait"), ...sansPoints(21, "a_faire")]
     expect(avancementPourcent(tous)).toBe(90)
     expect(zoneDeListe(tous)).toBe("orange")
+  })
+})
+
+describe("coche hors ligne : la plus récente l'emporte", () => {
+  const recu = new Date("2026-11-01T10:00:00Z")
+  const a = (minutes: number) => new Date(recu.getTime() + minutes * 60_000)
+
+  it("une coche plus récente, arrivée après une plus ancienne, prend le statut", () => {
+    expect(decideCoche({ cocheStockee: a(-10), cocheRecue: a(-5), recuLe: recu }).gagne).toBe(true)
+  })
+
+  it("une coche plus ancienne, arrivée après une plus récente, ne prend pas le statut (elle reste dans l'historique)", () => {
+    const decision = decideCoche({ cocheStockee: a(-5), cocheRecue: a(-10), recuLe: recu })
+    expect(decision.gagne).toBe(false)
+    expect(decision.heure).toEqual(a(-10))
+  })
+
+  it("à heure égale, la première arrivée garde le statut", () => {
+    expect(decideCoche({ cocheStockee: a(-5), cocheRecue: a(-5), recuLe: recu }).gagne).toBe(false)
+  })
+
+  it("sans coche stockée, la coche prend le statut", () => {
+    expect(decideCoche({ cocheStockee: null, cocheRecue: a(-5), recuLe: recu }).gagne).toBe(true)
+  })
+
+  it("une heure future au-delà de la marge est ramenée à l'heure de réception", () => {
+    const decision = decideCoche({ cocheStockee: a(-5), cocheRecue: a(MARGE_HEURE_FUTURE_MS / 60_000 + 10), recuLe: recu })
+    expect(decision.heure).toEqual(recu)
+    // Ramenée à la réception, elle est plus récente que la coche stockée : elle prend le statut.
+    expect(decision.gagne).toBe(true)
+  })
+
+  it("une heure future dans la marge est gardée telle quelle", () => {
+    const decision = decideCoche({ cocheStockee: null, cocheRecue: a(3), recuLe: recu })
+    expect(decision.heure).toEqual(a(3))
   })
 })
 

@@ -74,6 +74,27 @@ export function liensDuPointCopie<T extends string>(lienTypeDuModele: T): { lien
   return { lienType: lienTypeDuModele, lienId: null }
 }
 
+// ─── Coche hors ligne (956 §4) ───────────────────────────────────────────────
+
+// Une coche faite hors ligne porte l'heure de l'appareil. Au-delà de cette avance sur l'heure de réception, l'horloge
+// de l'appareil est fausse : on prend l'heure de réception. Une seule constante, réglable plus tard.
+export const MARGE_HEURE_FUTURE_MS = 5 * 60 * 1000
+
+export interface DecisionCoche {
+  // Heure retenue pour la coche (ramenée à la réception si l'appareil avance trop).
+  heure: Date
+  // Vrai : la coche devient le statut du point. Faux : elle reste dans l'historique, le statut ne bouge pas.
+  gagne: boolean
+}
+
+// La coche la plus récente l'emporte, par son heure et non par son ordre d'arrivée. À égalité, la première arrivée au
+// serveur garde le statut ; la seconde est gardée dans l'historique seulement.
+export function decideCoche({ cocheStockee, cocheRecue, recuLe }: { cocheStockee: Date | null; cocheRecue: Date; recuLe: Date }): DecisionCoche {
+  const heure = cocheRecue.getTime() - recuLe.getTime() > MARGE_HEURE_FUTURE_MS ? recuLe : cocheRecue
+  const gagne = cocheStockee === null || heure.getTime() > cocheStockee.getTime()
+  return { heure, gagne }
+}
+
 // ─── Statut de liste ─────────────────────────────────────────────────────────
 
 // À faire : rien n'a encore avancé (ni fait ni sans objet). Terminée : tous les points sont faits ou sans objet,
