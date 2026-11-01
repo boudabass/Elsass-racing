@@ -4,7 +4,7 @@ import Link from "next/link"
 import { TiroirAction } from "@/components/formulaire/tiroir"
 import { BOUTON_SECONDAIRE, CHAMP, LIEN } from "@/lib/classes-formulaire"
 
-import { ajouterPointModeleAction, ajouterSectionModeleAction, retirerPointModeleAction } from "../actions"
+import { ajouterPointModeleAction, ajouterSectionModeleAction, modifierModeleAction, retirerPointModeleAction } from "../actions"
 import type { pageModele } from "../lectures-ecran"
 import { LIBELLES_LIEN, LIBELLES_PHASE, LIBELLES_ROLE_SUGGERE } from "../libelles"
 import type { Phase } from "../services-serveur"
@@ -31,9 +31,42 @@ export function PageModele({ donnees }: { donnees: Donnees }) {
           {modele.phase ? ` · ${LIBELLES_PHASE[modele.phase as Phase]}` : ""}
           {modele.fourni ? " · Prêt à l'emploi (lecture seule : copie-le pour le modifier)" : ""}
         </p>
+        {modifiable && (
+          <TiroirAction
+            libelle="Modifier le modèle"
+            titre="Modifier le modèle"
+            sousTitre={modele.nom}
+            action={modifierModeleAction}
+            libelleBouton="Enregistrer"
+          >
+            <input type="hidden" name="modeleId" value={modele.id} />
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Nom</span>
+              <input name="nom" required maxLength={120} defaultValue={modele.nom} className={CHAMP} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Portée</span>
+              <select name="portee" defaultValue={modele.portee} className={CHAMP}>
+                <option value="engagement">Par engagement (une voiture et son équipage)</option>
+                <option value="epreuve">Commun à l'épreuve</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Phase par défaut</span>
+              <select name="phase" defaultValue={modele.phase ?? ""} className={CHAMP}>
+                <option value="">Aucune</option>
+                {(Object.keys(LIBELLES_PHASE) as Phase[]).map((phase) => (
+                  <option key={phase} value={phase}>
+                    {LIBELLES_PHASE[phase]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </TiroirAction>
+        )}
       </header>
 
-      {modele.sections.length === 0 && <p className="text-texte-discret">Ce modèle n'a pas encore de section.</p>}
+      {modele.sections.length === 0 &&<p className="text-texte-discret">Ce modèle n'a pas encore de section.</p>}
 
       {modele.sections.map((section) => (
         <section key={section.id} aria-label={section.titre} className="flex flex-col gap-3">
