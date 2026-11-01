@@ -21,6 +21,12 @@ export function statutEquipement(finHomologation: Date | null, maintenant: Date)
   return statutPapier(finHomologation, maintenant)
 }
 
+// L'action « Renouveler » (5.6 §0) se lève quand la fiche sort de la fenêtre de 30 jours : renouvelée, ou sans date.
+// Une fiche retirée se lève aussi, sans passer par cette règle.
+export function renouvellementLeve(statut: StatutEcheance): boolean {
+  return statut === "valide"
+}
+
 // Validité à un jour donné (la date de l'épreuve, pas aujourd'hui). Les dates sont des jours civils (minuit UTC) :
 // elles se comparent en « AAAA-MM-JJ ». Sans date de fin, pas d'expiration ; sans date de début, rien à attendre.
 export function jourCivil(date: Date): string {

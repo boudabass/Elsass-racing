@@ -34,6 +34,7 @@ import {
   ROLES_HABITUELS,
   roleAffectable,
   SPECIALITES,
+  renouvellementLeve,
   statutEquipement,
   statutLicence,
   TYPES_EQUIPEMENT,
@@ -348,6 +349,12 @@ export async function modifierLicenceDans(ctx: ContexteTeam, id: string, entree:
     }),
   )
 
+  // Renouvelée (hors de la fenêtre de 30 jours) : l'action « Renouveler » se lève (5.6 §0).
+  const valableAuApres = donnees.valableAu === undefined ? avant.valableAu : (jourOptionnel(donnees.valableAu) ?? null)
+  if (renouvellementLeve(statutLicence(valableAuApres, new Date()))) {
+    await leverRenouvellementsDans(ctx, "licence_a_renouveler", id)
+  }
+
   // Un montant saisi pour la première fois : la licence est payée, Budget propose la dépense. Une correction ultérieure
   // du montant ne propose rien de plus (la dépense déjà proposée n'est pas modifiée par Équipe).
   const montantAvant = avant.montantCents ?? 0
@@ -371,6 +378,22 @@ export async function retirerLicenceDans(ctx: ContexteTeam, id: string, niveau: 
       tx.equipeLicence.update({ where: { id }, data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId } }),
     ),
   )
+  await leverRenouvellementsDans(ctx, "licence_a_renouveler", id)
+}
+
+// Lève les actions « à renouveler » encore en attente pour une fiche (5.6 §0) : une levée par action ouverte.
+async function leverRenouvellementsDans(
+  ctx: ContexteTeam,
+  type: "licence_a_renouveler" | "homologation_a_renouveler",
+  ficheId: string,
+): Promise<void> {
+  const ouvertes = await prismaPourTeam(ctx.teamId, ctx.userId).coreAction.findMany({
+    where: { teamId: ctx.teamId, appOrigine: "equipe", type, ficheId, statut: "en_attente" },
+    select: { cleUnicite: true },
+  })
+  for (const action of ouvertes) {
+    await emettre(ctx, "equipe.action_levee", { cleUnicite: action.cleUnicite })
+  }
 }
 
 async function emettrePaiementLicence(ctx: ContexteTeam, licenceId: string, personId: string, type: TypeLicence, montantCents: number): Promise<void> {
@@ -470,6 +493,12 @@ export async function modifierEquipementDans(ctx: ContexteTeam, id: string, entr
       }
     }),
   )
+
+  // Homologation renouvelée (hors de la fenêtre de 30 jours) : l'action « Renouveler » se lève (5.6 §0).
+  const finApres = donnees.finHomologation === undefined ? avant.finHomologation : (jourOptionnel(donnees.finHomologation) ?? null)
+  if (renouvellementLeve(statutEquipement(finApres, new Date()))) {
+    await leverRenouvellementsDans(ctx, "homologation_a_renouveler", id)
+  }
 }
 
 export async function retirerEquipement(id: string): Promise<void> {
@@ -486,6 +515,7 @@ export async function retirerEquipementDans(ctx: ContexteTeam, id: string, nivea
       tx.equipeGear.update({ where: { id }, data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId } }),
     ),
   )
+  await leverRenouvellementsDans(ctx, "homologation_a_renouveler", id)
 }
 
 // --- Spécialités ----------------------------------------------------------------------------
@@ -914,7 +944,8 @@ export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> 
         ficheType: "licence",
         ficheId: licence.id,
         destinataires: { memberships: responsables.map((membre) => membre.id) },
-        boutons: [{ cle: "renouveler", libelle: "Renouveler" }],
+        // Lien vers l'onglet Licences de la personne (5.6 §0) : l'action se lève au renouvellement.
+        boutons: [{ cle: "renouveler", libelle: "Renouveler", lien: `/apps/equipe/personnes/${licence.personId}?onglet=licences` }],
         priorite: PRIORITE_ECHEANCE_EQUIPE,
         niveauRequis: "gestion",
         cleRegroupement: "echeances_equipe",
@@ -941,7 +972,8 @@ export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> 
         ficheType: "gear",
         ficheId: equipement.id,
         destinataires: { memberships: responsables.map((membre) => membre.id) },
-        boutons: [{ cle: "renouveler", libelle: "Renouveler" }],
+        // Lien vers l'onglet Équipement de la personne (5.6 §0) : l'action se lève au renouvellement.
+        boutons: [{ cle: "renouveler", libelle: "Renouveler", lien: `/apps/equipe/personnes/${equipement.personId}?onglet=equipement` }],
         priorite: PRIORITE_ECHEANCE_EQUIPE,
         niveauRequis: "gestion",
         cleRegroupement: "echeances_equipe",

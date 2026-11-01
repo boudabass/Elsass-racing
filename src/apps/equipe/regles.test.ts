@@ -13,6 +13,7 @@ import {
   palierDepuis,
   progressionPalier,
   peutChangerTache,
+  renouvellementLeve,
   ressentiMoyen,
   ROLES_EPREUVE,
   roleAffectable,
@@ -28,6 +29,18 @@ import {
 // Dates de colonne `date` : minuit UTC, comme Prisma les rend. « Aujourd'hui » : le 25 octobre 2026, à Paris.
 const MAINTENANT = new Date("2026-10-25T12:00:00Z")
 const dansJours = (jours: number) => new Date(Date.parse("2026-10-25T00:00:00Z") + jours * 86_400_000)
+
+describe("levée de l'action « Renouveler » (5.6 §0)", () => {
+  it("se lève quand la fiche sort de la fenêtre de 30 jours, ou n'a plus de date", () => {
+    expect(renouvellementLeve(statutLicence(dansJours(31), MAINTENANT))).toBe(true)
+    expect(renouvellementLeve(statutLicence(null, MAINTENANT))).toBe(true)
+  })
+
+  it("reste en attente tant que la fiche est à renouveler ou expirée", () => {
+    expect(renouvellementLeve(statutLicence(dansJours(30), MAINTENANT))).toBe(false)
+    expect(renouvellementLeve(statutEquipement(dansJours(-1), MAINTENANT))).toBe(false)
+  })
+})
 
 describe("statut d'une licence et d'un équipement", () => {
   it("valide au-delà de 30 jours, à renouveler jusqu'à 30 jours inclus, expirée après la date", () => {

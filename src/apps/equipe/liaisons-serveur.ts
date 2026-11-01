@@ -159,7 +159,8 @@ export async function demanderDisponibilitesDans(ctx: ContexteTeam, entryId: str
       contexte: engagement.event.nom,
       eventId: engagement.eventId,
       destinataires: { memberships: [membre.id] },
-      boutons: [{ cle: "repondre", libelle: "Répondre" }],
+      // Lien vers la page Prochaine épreuve, où se donnent les disponibilités (5.6 §0) : levée à la réponse.
+      boutons: [{ cle: "repondre", libelle: "Répondre", lien: "/apps/equipe/epreuve" }],
       priorite: 5,
       niveauRequis: "contribution",
     })
