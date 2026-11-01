@@ -106,6 +106,9 @@ describe("poussée : apresApplication ne suit que les écritures", () => {
   })
 })
 
+// Forme des lignes de journal lues par les tests de version remplacée.
+type AppelJournal = { data: { resume?: { motif?: string } } }
+
 describe("poussée : modification gardée (règle de la table, sans refus)", () => {
   beforeEach(() => {
     vi.resetModules()
@@ -127,6 +130,29 @@ describe("poussée : modification gardée (règle de la table, sans refus)", () 
     etat.declaration!.modifier = modifier
     await pousser({ type: "modifier", revLue: 2 })
     expect(modifier).toHaveBeenCalledWith(expect.anything(), ctx, "ligne-1", { titre: "Plaquettes" }, { appareilId: "appareil", effets: {} })
+  })
+
+  // Rien n'est écrit sur la ligne : aucune version n'est remplacée, donc aucune ligne « modifiee » dans la fiche.
+  it("gardée avec une rev dépassée : aucune ligne core_activity « modifiee »", async () => {
+    const journal = vi.fn(async (_args?: AppelJournal) => ({}))
+    faux.tx.coreActivity.create = journal
+    declarer({ trouver: existante(2) })
+    etat.declaration!.modifier = vi.fn(async () => "gardee")
+    const resultat = await pousser({ type: "modifier", revLue: 1 })
+    expect(resultat.statut).toBe("conflit_resolu")
+    const modifiees = journal.mock.calls.filter(([args]) => args?.data.resume?.motif === "modifiee")
+    expect(modifiees).toHaveLength(0)
+  })
+
+  // Contrôle positif : une modification appliquée sur une rev dépassée est bien journalisée « modifiee ».
+  it("appliquée avec une rev dépassée : la version remplacée est journalisée « modifiee »", async () => {
+    const journal = vi.fn(async (_args?: AppelJournal) => ({}))
+    faux.tx.coreActivity.create = journal
+    declarer({ trouver: existante(2) })
+    etat.declaration!.modifier = vi.fn(async () => true)
+    await pousser({ type: "modifier", revLue: 1 })
+    const modifiees = journal.mock.calls.filter(([args]) => args?.data.resume?.motif === "modifiee")
+    expect(modifiees).toHaveLength(1)
   })
 })
 

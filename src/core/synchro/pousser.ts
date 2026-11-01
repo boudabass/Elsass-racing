@@ -151,11 +151,12 @@ async function decider(
     // L'écriture d'abord : si la ligne a disparu entre-temps, rien n'est journalisé.
     const retour = await declaration.modifier(tx, ctx, operation.id, champs.champs, meta)
     if (retour === false) return refus("Cet élément n'existe plus.")
+    // Gardée : la table n'a rien écrit sur la ligne (son journal propre est dans la transaction). Aucune version n'est
+    // remplacée, donc rien n'est journalisé « modifiee » : le test passe avant le journal de la fiche.
+    if (retour === MODIFICATION_GARDEE) return { resultat: { idOperation, statut: "conflit_resolu", raison: RAISON_MODIFICATION_GARDEE }, ecrit: false }
     if (verdictConflit === "appliquer_et_journaliser") {
       await journaliser(tx, ctx, declaration, operation.id, { motif: "modifiee", version_remplacee: etat.contenu })
     }
-    // Gardée : la table n'a rien écrit sur la ligne (son journal propre est dans la transaction). Pas d'effet après.
-    if (retour === MODIFICATION_GARDEE) return { resultat: { idOperation, statut: "conflit_resolu", raison: RAISON_MODIFICATION_GARDEE }, ecrit: false }
     return verdictConflit === "appliquer" ? ecriture("appliquee") : ecriture("conflit_resolu")
   }
 
