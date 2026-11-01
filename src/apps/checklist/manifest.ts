@@ -10,7 +10,12 @@ export const manifesteChecklist: ManifesteApp = {
   icone: "list-checks",
   version: "0.2.0",
   requiert: ["saison"],
-  menu: [{ libelle: "Accueil", chemin: "/" }],
+  // Préparation pour tous ; Modèles sans l'assistance (956 §6) ; Débrief à partir de l'écriture (5.6, décision du 01/11).
+  menu: [
+    { libelle: "Préparation", chemin: "/" },
+    { libelle: "Modèles", chemin: "/modeles", masquePourRoles: ["assistance", "invite"] },
+    { libelle: "Débrief", chemin: "/debrief", niveauMinimum: "ecriture" },
+  ],
   widgets: [...WIDGETS.checklist],
   evenementsEmis: evenementsEmisPar("checklist"),
   evenementsEcoutes: evenementsEcoutesPar("checklist"),
