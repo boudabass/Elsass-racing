@@ -143,22 +143,29 @@ test("captures · modèles vide et rempli, 1440 et 360 px, sombre et clair", asy
   test.setTimeout(300_000)
   await connecterParLien(page, equipe)
 
-  let cree = false
+  // Vide : la team n'a encore aucun modèle, dans les quatre combinaisons (taille, thème).
   for (const theme of ["sombre", "clair"] as const) {
     await choisirTheme(page, theme)
     for (const taille of [BUREAU, TELEPHONE]) {
       await page.setViewportSize({ width: taille.width, height: taille.height })
       await page.goto("/apps/checklist/modeles")
-      if (!cree) {
-        await expect(page.getByText("Aucun modèle de la team pour l'instant.", { exact: true })).toBeVisible()
-        await capturer(page, `checklist-modeles-vide-${taille.largeur}-${theme}.png`)
-        await page.getByRole("button", { name: "+ Nouveau modèle", exact: true }).click()
-        const nouveau = page.getByRole("dialog")
-        await nouveau.getByLabel("Nom", { exact: true }).fill("Contrôle avant départ")
-        await envoyer(page, nouveau.getByRole("button", { name: "Créer le modèle", exact: true }))
-        cree = true
-        await page.goto("/apps/checklist/modeles")
-      }
+      await expect(page.getByText("Aucun modèle de la team pour l'instant.", { exact: true })).toBeVisible()
+      await capturer(page, `checklist-modeles-vide-${taille.largeur}-${theme}.png`)
+    }
+  }
+
+  // Rempli : un modèle créé par l'interface, puis les quatre combinaisons.
+  await page.goto("/apps/checklist/modeles")
+  await page.getByRole("button", { name: "+ Nouveau modèle", exact: true }).click()
+  const nouveau = page.getByRole("dialog")
+  await nouveau.getByLabel("Nom", { exact: true }).fill("Contrôle avant départ")
+  await envoyer(page, nouveau.getByRole("button", { name: "Créer le modèle", exact: true }))
+
+  for (const theme of ["sombre", "clair"] as const) {
+    await choisirTheme(page, theme)
+    for (const taille of [BUREAU, TELEPHONE]) {
+      await page.setViewportSize({ width: taille.width, height: taille.height })
+      await page.goto("/apps/checklist/modeles")
       await expect(page.getByText("Contrôle avant départ", { exact: true })).toBeVisible()
       await capturer(page, `checklist-modeles-rempli-${taille.largeur}-${theme}.png`)
     }
