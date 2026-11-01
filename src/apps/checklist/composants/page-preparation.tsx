@@ -2,12 +2,13 @@
 import Link from "next/link"
 
 import { TiroirAction } from "@/components/formulaire/tiroir"
-import { BOUTON_SECONDAIRE, CHAMP, LIEN } from "@/lib/classes-formulaire"
+import { BOUTON, BOUTON_SECONDAIRE, CHAMP, LIEN } from "@/lib/classes-formulaire"
 
 import { creerListeViergeAction } from "../actions"
 import type { pagePreparation } from "../lectures-ecran"
 import { COULEUR_ZONE, LIBELLES_PHASE, LIBELLES_ZONE, PHASES_ORDONNEES } from "../libelles"
 import type { Phase } from "../services-serveur"
+import { libelleEtape, lienEtape } from "../widgets"
 
 type Donnees = Awaited<ReturnType<typeof pagePreparation>>
 
@@ -60,6 +61,19 @@ export function PagePreparation({ donnees }: { donnees: Donnees }) {
             : `${donnees.critiquesOuverts} point${donnees.critiquesOuverts > 1 ? "s" : ""} critique${donnees.critiquesOuverts > 1 ? "s" : ""} ouvert${donnees.critiquesOuverts > 1 ? "s" : ""}`}
         </p>
       </section>
+
+      {/* Prochaine étape (5.6 §3) : le point critique le plus proche, puis mes points, puis la phase suivante. */}
+      {donnees.prochaine && (
+        <section aria-label="Prochaine étape" className="flex flex-col gap-3 rounded-lg border border-marque bg-surface p-5">
+          <p className="text-sm text-texte-discret">Prochaine étape</p>
+          <p className="font-medium">{libelleEtape(donnees.prochaine)}</p>
+          <div>
+            <Link href={lienEtape(donnees.prochaine)} className={BOUTON}>
+              {donnees.prochaine.raison === "phase_suivante" ? "Ouvrir la liste" : "Voir le point"}
+            </Link>
+          </div>
+        </section>
+      )}
 
       <Groupe titre="Communes à l'épreuve" listes={communes} rangPhaseEnCours={rangPhaseEnCours} vide="Aucune liste commune pour l'instant." />
       <Groupe titre="Par engagement" listes={engagements} rangPhaseEnCours={rangPhaseEnCours} vide="Aucune liste d'engagement pour l'instant." />
