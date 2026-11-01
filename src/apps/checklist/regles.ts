@@ -221,3 +221,50 @@ export function doitProposerReassignation(statuts: StatutPoint[]): boolean {
 export function reassignationLevee(pointsEnAttente: number): boolean {
   return pointsEnAttente === 0
 }
+
+// ─── Phase en cours d'une épreuve (5.6, §1.5, décision de l'orchestrateur du 01/11) ─────
+// Aucune colonne ni table : la phase se lit dans les listes. Ordre fixé par 956 §1.
+
+export type PhaseEpreuve = "avant_depart" | "verifications" | "reconnaissances" | "epreuve" | "retour"
+
+export const ORDRE_PHASES: readonly PhaseEpreuve[] = ["avant_depart", "verifications", "reconnaissances", "epreuve", "retour"]
+
+export interface ListePhasee {
+  id: string
+  phase: PhaseEpreuve
+  points: Array<PointRegle & { id: string }>
+}
+
+// Une liste est « entamée » dès qu'un de ses points n'est plus à faire (fait, sans objet ou problème).
+function listeEntamee(liste: ListePhasee): boolean {
+  return liste.points.some((point) => point.statut !== "a_faire")
+}
+
+// La phase la plus avancée parmi les listes entamées ; aucune liste entamée = avant départ.
+export function phaseEnCours(listes: readonly ListePhasee[]): PhaseEpreuve {
+  let indice = 0
+  for (const liste of listes) {
+    if (!listeEntamee(liste)) continue
+    indice = Math.max(indice, ORDRE_PHASES.indexOf(liste.phase))
+  }
+  return ORDRE_PHASES[indice]
+}
+
+// Points critiques encore ouverts (à faire ou en problème) dans les phases strictement avant la phase ouverte.
+// Vide si la liste ouverte n'est pas postérieure à la phase en cours : rien à avertir.
+export function avertissementAvantPhase(
+  phaseOuverte: PhaseEpreuve,
+  listes: readonly ListePhasee[],
+): Array<{ listeId: string; pointId: string }> {
+  const enCours = phaseEnCours(listes)
+  if (ORDRE_PHASES.indexOf(phaseOuverte) <= ORDRE_PHASES.indexOf(enCours)) return []
+  const rang = ORDRE_PHASES.indexOf(phaseOuverte)
+  const ouverts: Array<{ listeId: string; pointId: string }> = []
+  for (const liste of listes) {
+    if (ORDRE_PHASES.indexOf(liste.phase) >= rang) continue
+    for (const point of liste.points) {
+      if (point.critique && pointEnAttente(point.statut)) ouverts.push({ listeId: liste.id, pointId: point.id })
+    }
+  }
+  return ouverts
+}

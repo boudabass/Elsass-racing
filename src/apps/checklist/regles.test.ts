@@ -18,9 +18,12 @@ import {
   pointEnAttente,
   reassignationLevee,
   modelesVisiblesPour,
+  phaseEnCours,
+  avertissementAvantPhase,
   pointsCritiquesOuverts,
   statutDeListe,
   zoneDeListe,
+  type ListePhasee,
   type PointRegle,
 } from "./regles"
 
@@ -254,5 +257,80 @@ describe("réassignation des points d'un membre retiré", () => {
   it("l'action est levée quand plus aucun point en attente ne reste", () => {
     expect(reassignationLevee(0)).toBe(true)
     expect(reassignationLevee(1)).toBe(false)
+  })
+})
+
+describe("phase en cours d'une épreuve (5.6 §1.5)", () => {
+  const point = (statut: PointRegle["statut"], critique = false, id = `${statut}-${critique}`) => ({ id, statut, critique })
+  const liste = (id: string, phase: ListePhasee["phase"], points: ListePhasee["points"]): ListePhasee => ({ id, phase, points })
+
+  it("aucune liste entamée : avant départ, même si des listes existent déjà dans des phases plus tardives", () => {
+    expect(phaseEnCours([])).toBe("avant_depart")
+    expect(phaseEnCours([liste("a", "retour", [point("a_faire")])])).toBe("avant_depart")
+  })
+
+  it("la phase la plus avancée parmi les listes entamées", () => {
+    const listes = [
+      liste("a", "avant_depart", [point("fait")]),
+      liste("b", "verifications", [point("a_faire")]),
+      liste("c", "reconnaissances", [point("sans_objet")]),
+    ]
+    expect(phaseEnCours(listes)).toBe("reconnaissances")
+  })
+
+  it("une liste entamée par un problème compte aussi", () => {
+    expect(phaseEnCours([liste("a", "epreuve", [point("probleme")])])).toBe("epreuve")
+  })
+
+  it("la première coche d'une liste de phase suivante fait avancer la phase, sans rien mémoriser", () => {
+    const avant = [liste("a", "avant_depart", [point("fait")]), liste("b", "verifications", [point("a_faire")])]
+    expect(phaseEnCours(avant)).toBe("avant_depart")
+    const apres = [liste("a", "avant_depart", [point("fait")]), liste("b", "verifications", [point("fait")])]
+    expect(phaseEnCours(apres)).toBe("verifications")
+  })
+})
+
+describe("avertissement avant une phase (5.6 §1.5)", () => {
+  const point = (statut: PointRegle["statut"], critique = false, id = `${statut}-${critique}`) => ({ id, statut, critique })
+  const liste = (id: string, phase: ListePhasee["phase"], points: ListePhasee["points"]): ListePhasee => ({ id, phase, points })
+
+  it("ouvrir une liste de phase postérieure avec un critique ouvert avant : avertissement", () => {
+    const listes = [
+      liste("verif", "verifications", [point("a_faire", true, "critique")]),
+      liste("epreuve", "epreuve", [point("a_faire")]),
+    ]
+    expect(avertissementAvantPhase("epreuve", listes)).toEqual([{ listeId: "verif", pointId: "critique" }])
+  })
+
+  it("un critique en problème dans une phase précédente compte aussi", () => {
+    const listes = [liste("verif", "verifications", [point("probleme", true, "p")]), liste("epreuve", "epreuve", [point("a_faire")])]
+    expect(avertissementAvantPhase("epreuve", listes)).toEqual([{ listeId: "verif", pointId: "p" }])
+  })
+
+  it("un critique fait ou sans objet n'avertit pas, ni un point normal ouvert", () => {
+    const listes = [
+      liste("verif", "verifications", [point("fait", true, "f"), point("sans_objet", true, "s"), point("a_faire", false, "n")]),
+      liste("epreuve", "epreuve", [point("a_faire")]),
+    ]
+    expect(avertissementAvantPhase("epreuve", listes)).toEqual([])
+  })
+
+  it("pas d'avertissement pour la phase en cours ou une phase antérieure", () => {
+    const listes = [
+      liste("avant", "avant_depart", [point("fait")]),
+      liste("verif", "verifications", [point("a_faire", true, "c")]),
+    ]
+    // Phase en cours : verifications (la liste avant départ est entamée). Ouvrir verifications ou avant_depart : rien.
+    expect(avertissementAvantPhase("verifications", listes)).toEqual([])
+    expect(avertissementAvantPhase("avant_depart", listes)).toEqual([])
+  })
+
+  it("seules les phases strictement avant la phase ouverte comptent", () => {
+    const listes = [
+      liste("retour", "retour", [point("a_faire", true, "tardif")]),
+      liste("epreuve", "epreuve", [point("a_faire")]),
+    ]
+    // Un critique ouvert en « retour » ne concerne pas l'ouverture d'une liste d'« epreuve ».
+    expect(avertissementAvantPhase("epreuve", listes)).toEqual([])
   })
 })
