@@ -10,9 +10,9 @@ import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 
 import { decideModification, decideSuppression } from "./conflit"
 import { peutEcrire } from "./contribution"
-import { resultatDejaNote, type Operation, type ResultatOperation } from "./protocole"
+import { MODIFICATION_GARDEE, RAISON_MODIFICATION_GARDEE, resultatDejaNote, type Operation, type ResultatOperation } from "./protocole"
 import { RefusSynchro } from "./erreurs"
-import { declarationDe, type DeclarationSynchro, type Tx } from "./registre"
+import { declarationDe, type DeclarationSynchro, type MetaEcriture, type Tx } from "./registre"
 
 // Ce que la décision a fait : le résultat à renvoyer, et si la ligne a été écrite. Les effets après
 // application (apresApplication) ne suivent que les écritures : une suppression déjà faite, ou une
@@ -55,11 +55,13 @@ async function appliquerUne(ctx: ContexteTeam, deviceId: string, operation: Oper
     return { idOperation: operation.idOperation, statut: "refusee", raison: "Cette donnée se lit seulement hors ligne : elle ne s'écrit pas depuis l'appareil." }
   }
 
+  // Ce que la table note pendant la transaction (et que apresApplication reçoit après le commit).
+  const meta: MetaEcriture = { appareilId: deviceId, effets: {} }
   let decision: Decision
   try {
     const niveau = await niveauDe(ctx, declaration.app)
     decision = await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
-      const enCours = await decider(tx, ctx, declaration, operation, niveau)
+      const enCours = await decider(tx, ctx, declaration, operation, niveau, meta)
       await tx.coreSyncOperation.create({
         data: {
           id: newId(),
@@ -86,7 +88,7 @@ async function appliquerUne(ctx: ContexteTeam, deviceId: string, operation: Oper
   // Vaut pour toute écriture, appliquée ou conflit résolu (un ordre terminé par une modification en conflit
   // doit émettre comme les autres) ; une écriture sans effet n'émet rien.
   if (decision.ecrit && declaration.apresApplication) {
-    await declaration.apresApplication(ctx, operation.id, operation.type).catch((erreur: unknown) => console.error("[synchro] suite non faite :", erreur))
+    await declaration.apresApplication(ctx, operation.id, operation.type, meta.effets).catch((erreur: unknown) => console.error("[synchro] suite non faite :", erreur))
   }
   return decision.resultat
 }
@@ -97,6 +99,7 @@ async function decider(
   declaration: DeclarationSynchro,
   operation: Operation,
   niveau: Parameters<typeof peutEcrire>[0]["niveau"],
+  meta: MetaEcriture,
 ): Promise<Decision> {
   const { idOperation } = operation
   const refus = (raison: string): Decision => ({ resultat: { idOperation, statut: "refusee", raison }, ecrit: false })
@@ -128,6 +131,7 @@ async function decider(
     contributionPropre: declaration.contributionPropre,
     regle: declaration.regleContribution,
     affecte: await estAffecte(tx, ctx, declaration, operation.id),
+    controle: await controleDeLaTable(tx, ctx, declaration, operation.id),
     auteurId: etat.auteurId,
     userId: ctx.userId,
     creation: false,
@@ -145,10 +149,13 @@ async function decider(
       return { resultat: { idOperation, statut: "conflit_resolu", raison: "Supprimé entre-temps : la modification n'a pas été appliquée." }, ecrit: false }
     }
     // L'écriture d'abord : si la ligne a disparu entre-temps, rien n'est journalisé.
-    if (!(await declaration.modifier(tx, ctx, operation.id, champs.champs))) return refus("Cet élément n'existe plus.")
+    const retour = await declaration.modifier(tx, ctx, operation.id, champs.champs, meta)
+    if (retour === false) return refus("Cet élément n'existe plus.")
     if (verdictConflit === "appliquer_et_journaliser") {
       await journaliser(tx, ctx, declaration, operation.id, { motif: "modifiee", version_remplacee: etat.contenu })
     }
+    // Gardée : la table n'a rien écrit sur la ligne (son journal propre est dans la transaction). Pas d'effet après.
+    if (retour === MODIFICATION_GARDEE) return { resultat: { idOperation, statut: "conflit_resolu", raison: RAISON_MODIFICATION_GARDEE }, ecrit: false }
     return verdictConflit === "appliquer" ? ecriture("appliquee") : ecriture("conflit_resolu")
   }
 
@@ -160,6 +167,14 @@ async function decider(
     await journaliser(tx, ctx, declaration, operation.id, { motif: "supprimee_apres_modification", version_remplacee: etat.contenu })
   }
   return verdictConflit === "supprimer" ? ecriture("appliquee") : ecriture("conflit_resolu")
+}
+
+// Règle « controle » : la table donne la raison du refus, ou null. Une table qui ne fournit pas son contrôle est refusée
+// (défaut sûr). Pour les autres règles, undefined : peutEcrire ne lit rien.
+async function controleDeLaTable(tx: Tx, ctx: ContexteTeam, declaration: DeclarationSynchro, id: string): Promise<string | null | undefined> {
+  if (declaration.regleContribution !== "controle") return undefined
+  if (!declaration.controleContribution) return "Cette donnée ne peut pas être modifiée depuis cet appareil."
+  return declaration.controleContribution(tx, ctx, id)
 }
 
 // Seulement pour la règle « affectation » : la table dit si le membre est affecté à la ligne. Sans

@@ -23,7 +23,7 @@ import { declarationsSaisonSynchro } from "@/apps/saison/synchro-serveur"
 import { declarationsBudgetSynchro } from "@/apps/budget/synchro-serveur"
 import { declarationsVoitureSynchro } from "@/apps/voiture/synchro-serveur"
 import { declarationsGarageSynchro } from "@/apps/garage/synchro-serveur"
-import type { LigneSynchro } from "./protocole"
+import type { LigneSynchro, MODIFICATION_GARDEE } from "./protocole"
 
 export type ClientTeam = ReturnType<typeof prismaPourTeam>
 export type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
@@ -63,6 +63,13 @@ export interface EtatLigneSynchro {
   contenu: Record<string, unknown>
 }
 
+// Ce qui accompagne une écriture de la poussée, en plus des champs. appareilId : l'appareil qui envoie (absent hors
+// appareil). effets : rempli par la table pendant la transaction, et remis à apresApplication après le commit.
+export interface MetaEcriture {
+  appareilId: string | null
+  effets: Record<string, unknown>
+}
+
 export interface DeclarationSynchro {
   cle: string
   // Type de fiche du journal des conflits (core_activity.fiche_type).
@@ -72,6 +79,8 @@ export interface DeclarationSynchro {
   contributionPropre: boolean
   // Règle du niveau contribution (voir contribution.ts). Absent vaut « createur » : la ligne est de son auteur.
   regleContribution?: RegleContribution
+  // Règle « controle » : la table décide par ligne. Renvoie la raison du refus, ou null si la poussée passe.
+  controleContribution?(tx: Tx, ctx: ContexteTeam, id: string): Promise<string | null>
   // Pour la règle « affectation » : le membre est-il affecté à la ligne ? Absent vaut « non ».
   affecte?(tx: Tx, teamId: string, userId: string, id: string): Promise<boolean>
   // Lecture seule depuis l'appareil : reçue hors ligne, jamais écrite par la synchro.
@@ -94,12 +103,14 @@ export interface DeclarationSynchro {
   ): Promise<LigneSynchro[]>
   trouver(tx: Tx, teamId: string, id: string): Promise<EtatLigneSynchro | null>
   creer(tx: Tx, ctx: ContexteTeam, id: string, champs: Record<string, unknown>): Promise<void>
-  // Renvoient false si la ligne n'existe plus (rien n'a été écrit).
-  modifier(tx: Tx, ctx: ContexteTeam, id: string, champs: Record<string, unknown>): Promise<boolean>
+  // Renvoient false si la ligne n'existe plus (rien n'a été écrit). Renvoient « gardee » si la modification n'est pas
+  // appliquée car une version plus récente est en place (voir MODIFICATION_GARDEE). meta est facultatif.
+  modifier(tx: Tx, ctx: ContexteTeam, id: string, champs: Record<string, unknown>, meta?: MetaEcriture): Promise<boolean | typeof MODIFICATION_GARDEE>
   supprimer(tx: Tx, ctx: ContexteTeam, id: string): Promise<boolean>
   // Facultatif : après une opération appliquée (transaction validée), pour les effets qui ne vont pas
-  // dans la transaction, par exemple un événement du bus. Une erreur ici est journalisée, pas renvoyée.
-  apresApplication?(ctx: ContexteTeam, id: string, type: "creer" | "modifier" | "supprimer"): Promise<void>
+  // dans la transaction, par exemple un événement du bus. effets : ce que la table a noté dans meta.effets.
+  // Une erreur ici est journalisée, pas renvoyée.
+  apresApplication?(ctx: ContexteTeam, id: string, type: "creer" | "modifier" | "supprimer", effets?: Record<string, unknown>): Promise<void>
 }
 
 // Après la position du curseur : voir position.ts.

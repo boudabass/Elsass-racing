@@ -9,10 +9,11 @@ import type { Operation } from "./protocole"
 // la décision (statut, écriture ou non) et que apresApplication ne suit que les écritures.
 const etat = vi.hoisted(() => ({
   declaration: null as null | Record<string, unknown>,
+  niveau: "gestion" as string,
 }))
 
 vi.mock("./registre", () => ({ declarationDe: () => etat.declaration }))
-vi.mock("@/core/actions/actions-serveur", () => ({ niveauDe: async () => "gestion" }))
+vi.mock("@/core/actions/actions-serveur", () => ({ niveauDe: async () => etat.niveau }))
 vi.mock("@/lib/prisma", () => ({
   prismaPourTeam: () => ({ coreSyncOperation: { findUnique: async () => null } }),
   executerPourTeam: async (_teamId: string, _userId: string, fn: (tx: unknown) => Promise<unknown>) => fn(faux.tx),
@@ -65,7 +66,7 @@ describe("poussée : apresApplication ne suit que les écritures", () => {
     const resultat = await pousser({ type: "modifier", revLue: 2 })
     expect(resultat).toEqual({ idOperation: "op-1", statut: "appliquee" })
     expect(apres).toHaveBeenCalledTimes(1)
-    expect(apres).toHaveBeenCalledWith(expect.anything(), "ligne-1", "modifier")
+    expect(apres).toHaveBeenCalledWith(expect.anything(), "ligne-1", "modifier", {})
   })
 
   it("une modification en conflit résolu, avec écriture, émet aussi (garage.travail_termine)", async () => {
@@ -93,7 +94,7 @@ describe("poussée : apresApplication ne suit que les écritures", () => {
     const apres = declarer({ trouver: async () => null })
     const resultat = await pousser({ type: "creer", revLue: undefined })
     expect(resultat.statut).toBe("appliquee")
-    expect(apres).toHaveBeenCalledWith(expect.anything(), "ligne-1", "creer")
+    expect(apres).toHaveBeenCalledWith(expect.anything(), "ligne-1", "creer", {})
   })
 
   it("une opération refusée n'émet rien et garde sa raison", async () => {
@@ -102,5 +103,73 @@ describe("poussée : apresApplication ne suit que les écritures", () => {
     expect(resultat.statut).toBe("refusee")
     expect(resultat.raison).toBeTruthy()
     expect(apres).not.toHaveBeenCalled()
+  })
+})
+
+describe("poussée : modification gardée (règle de la table, sans refus)", () => {
+  beforeEach(() => {
+    vi.resetModules()
+    etat.niveau = "gestion"
+  })
+
+  it("une modification gardée est notée en conflit résolu, sans refus, et n'émet rien", async () => {
+    const apres = declarer({ trouver: existante(2) })
+    etat.declaration!.modifier = vi.fn(async () => "gardee")
+    const resultat = await pousser({ type: "modifier", revLue: 2 })
+    expect(resultat.statut).toBe("conflit_resolu")
+    expect(resultat.raison).toMatch(/gardée dans l'historique/)
+    expect(apres).not.toHaveBeenCalled()
+  })
+
+  it("la table reçoit l'appareil et une zone d'effets, pour la modification", async () => {
+    declarer({ trouver: existante(2) })
+    const modifier = vi.fn(async () => true)
+    etat.declaration!.modifier = modifier
+    await pousser({ type: "modifier", revLue: 2 })
+    expect(modifier).toHaveBeenCalledWith(expect.anything(), ctx, "ligne-1", { titre: "Plaquettes" }, { appareilId: "appareil", effets: {} })
+  })
+})
+
+describe("poussée : règle « controle » (la table donne la raison)", () => {
+  beforeEach(() => {
+    vi.resetModules()
+    etat.niveau = "contribution"
+  })
+
+  it("une raison donnée par la table refuse l'opération avec cette raison", async () => {
+    const apres = declarer({ trouver: existante(2) })
+    etat.declaration!.regleContribution = "controle"
+    etat.declaration!.contributionPropre = true
+    etat.declaration!.controleContribution = async () => "Cette liste n'est plus ouverte à l'assistance."
+    const resultat = await pousser({ type: "modifier", revLue: 2 })
+    expect(resultat).toEqual({ idOperation: "op-1", statut: "refusee", raison: "Cette liste n'est plus ouverte à l'assistance." })
+    expect(apres).not.toHaveBeenCalled()
+  })
+
+  it("une table qui laisse passer (null) applique la modification", async () => {
+    declarer({ trouver: existante(2) })
+    etat.declaration!.regleContribution = "controle"
+    etat.declaration!.contributionPropre = true
+    etat.declaration!.controleContribution = async () => null
+    const resultat = await pousser({ type: "modifier", revLue: 2 })
+    expect(resultat.statut).toBe("appliquee")
+  })
+
+  it("une table sans contrôle déclaré est refusée (défaut sûr)", async () => {
+    declarer({ trouver: existante(2) })
+    etat.declaration!.regleContribution = "controle"
+    etat.declaration!.contributionPropre = true
+    const resultat = await pousser({ type: "modifier", revLue: 2 })
+    expect(resultat.statut).toBe("refusee")
+  })
+
+  it("le niveau écriture n'est pas soumis au contrôle", async () => {
+    etat.niveau = "ecriture"
+    declarer({ trouver: existante(2) })
+    etat.declaration!.regleContribution = "controle"
+    etat.declaration!.contributionPropre = true
+    etat.declaration!.controleContribution = async () => "Refus."
+    const resultat = await pousser({ type: "modifier", revLue: 2 })
+    expect(resultat.statut).toBe("appliquee")
   })
 })

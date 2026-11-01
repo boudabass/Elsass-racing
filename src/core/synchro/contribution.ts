@@ -18,7 +18,9 @@ export function perimetreLecture(niveau: Niveau, lectureRequise: Niveau): Perime
 // Ce qui ouvre une ligne au niveau contribution. « createur » (défaut) : la ligne est de son auteur (created_by).
 // « affectation » : la ligne est confiée au membre (par exemple un ordre de travail, article 954). La table dit
 // si le membre est affecté : la règle ne lit jamais la base.
-export type RegleContribution = "createur" | "affectation"
+// « controle » : la table décide elle-même, par ligne (controleContribution). Le socle ne connaît pas ce qu'elle contrôle :
+// il affiche la raison qu'elle donne. Un nom de règle propre à une app n'entre jamais ici (règle 6 du socle).
+export type RegleContribution = "createur" | "affectation" | "controle"
 
 export interface ParametresEcriture {
   niveau: Niveau
@@ -27,17 +29,22 @@ export interface ParametresEcriture {
   regle?: RegleContribution
   // Pour la règle « affectation » : le membre est-il affecté à la ligne visée ? Absent vaut « non ».
   affecte?: boolean
+  // Pour la règle « controle » : la raison donnée par la table, ou null si la table laisse passer. Absent vaut « passe ».
+  controle?: string | null
   // Auteur de la ligne visée (created_by). Vide pour une création : c'est l'auteur qui sera posé.
   auteurId: string | null
   userId: string
   creation: boolean
 }
 
-export function peutEcrire({ niveau, contributionPropre, regle = "createur", affecte = false, auteurId, userId, creation }: ParametresEcriture): VerdictEcriture {
+export function peutEcrire({ niveau, contributionPropre, regle = "createur", affecte = false, controle = null, auteurId, userId, creation }: ParametresEcriture): VerdictEcriture {
   if (!aAuMoins(niveau, "contribution")) {
     return { ok: false, raison: "Tu n'as pas le droit d'écrire ici." }
   }
   if (creation || !contributionPropre || niveau !== "contribution") return { ok: true }
+  if (regle === "controle") {
+    return controle ? { ok: false, raison: controle } : { ok: true }
+  }
   if (regle === "affectation") {
     return affecte ? { ok: true } : { ok: false, raison: "Tu ne peux modifier que les éléments qui te sont affectés." }
   }

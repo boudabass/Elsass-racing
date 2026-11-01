@@ -59,6 +59,13 @@ export interface LigneSynchro {
   [champ: string]: unknown
 }
 
+// Résultat d'une modification que la table garde sans l'appliquer (une version plus récente est déjà en place) : la
+// ligne reste telle quelle, la personne le voit en « conflit résolu » (pas en refus), et rien ne suit (ni apresApplication).
+export const MODIFICATION_GARDEE = "gardee" as const
+
+// Raison donnée à la personne pour une modification gardée. Générique : la table ne dit que « gardée ».
+export const RAISON_MODIFICATION_GARDEE = "Une version plus récente est déjà en place : ta modification est gardée dans l'historique, elle n'a pas changé l'état actuel."
+
 export const STATUTS_OPERATION = ["appliquee", "conflit_resolu", "refusee"] as const
 
 export interface ResultatOperation {
