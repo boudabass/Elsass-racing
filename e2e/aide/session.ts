@@ -222,6 +222,17 @@ export async function statutPointChecklistEnBase(equipe: Equipe, libelle: string
   return rows[0]?.statut ?? null
 }
 
+// Lien d'un point de Check-lists, par son libellé (le plus récent, non supprimé) : type et identifiant, nuls si aucun (5.7a).
+export async function lienPointChecklistEnBase(equipe: Equipe, libelle: string): Promise<{ lienType: string; lienId: string | null } | null> {
+  const { rows } = await bd().query<{ lien_type: string; lien_id: string | null }>(
+    `SELECT lien_type::text AS lien_type, lien_id::text AS lien_id FROM checklist_item WHERE team_id = $1 AND libelle = $2 AND deleted_at IS NULL
+     ORDER BY created_at DESC LIMIT 1`,
+    [equipe.teamId, libelle],
+  )
+  const ligne = rows[0]
+  return ligne ? { lienType: ligne.lien_type, lienId: ligne.lien_id } : null
+}
+
 // Tâches du socle ouvertes pour un point de Check-lists (5.7a) : le titre commence par « Problème : <libellé> ».
 export async function tachesPointChecklistEnBase(equipe: Equipe, libelle: string): Promise<number> {
   const { rows } = await bd().query<{ n: string }>(

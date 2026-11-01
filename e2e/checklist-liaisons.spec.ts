@@ -6,8 +6,9 @@ import type { Page, Response } from "@playwright/test"
 import { preparerEngagementChecklist } from "./aide/checklist"
 import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
+import { preparerAtelierSaxo, ordresEnBase } from "./aide/garage"
 import { connecterParLien } from "./aide/navigation"
-import { statutAction, statutActionTitreEnBase, statutPointChecklistEnBase, tachesPointChecklistEnBase, type Equipe } from "./aide/session"
+import { lienPointChecklistEnBase, statutAction, statutActionTitreEnBase, statutPointChecklistEnBase, tachesPointChecklistEnBase, type Equipe } from "./aide/session"
 
 // Réponse d'une server action : à attendre après un envoi qui ne ferme pas de tiroir (cf. envoi.ts).
 const RESPONSE_ACTION = (r: Response) => r.request().method() === "POST" && r.request().headers()["next-action"] !== undefined
@@ -66,6 +67,71 @@ test("Point critique à l'approche de l'échéance : l'action sort dans la boît
   await reponse
   await expect.poll(() => statutPointChecklistEnBase(equipe, "Pression des pneus")).toBe("fait")
   await expect.poll(() => statutActionTitreEnBase(equipe, "point_critique:", "Pression des pneus")).toBe("annulee")
+})
+
+test("Lien à un organe : le problème propose un ordre dans la boîte, Ouvrir l'ordre l'ouvre dans Travaux ; sans organe, une tâche", async ({ page, equipe }) => {
+  test.setTimeout(420_000)
+  const { entryId, vehicleId } = await preparerEngagementChecklist(equipe)
+  // L'atelier réel de la voiture : ses organes ont des identifiants que le lien et l'ordre reprennent.
+  const organes = await preparerAtelierSaxo(equipe, vehicleId)
+  await connecterParLien(page, equipe)
+  await accepterListes(page, equipe, entryId)
+  await ouvrirPremiereListe(page)
+
+  // Un point ajouté à la liste, lié au moteur dans sa fiche : le choix ne propose que les objets de la voiture.
+  await page.getByRole("button", { name: "+ Ajouter un point", exact: true }).click()
+  const ajout = page.getByRole("dialog")
+  await ajout.getByLabel("Libellé du point", { exact: true }).fill("Niveau d'huile moteur")
+  await envoyer(page, ajout.getByRole("button", { name: "Ajouter le point", exact: true }))
+  await page.locator("li").filter({ hasText: "Niveau d'huile moteur" }).getByRole("link", { name: "Détail", exact: true }).click()
+  const fiche = page.getByRole("dialog").first()
+  await fiche.getByLabel("Objet lié", { exact: true }).selectOption(`organe_garage|${organes.moteur}`)
+  const reponseLien = page.waitForResponse(RESPONSE_ACTION)
+  await fiche.getByRole("button", { name: "Enregistrer le lien", exact: true }).click()
+  await reponseLien
+  await expect.poll(() => lienPointChecklistEnBase(equipe, "Niveau d'huile moteur")).toEqual({ lienType: "organe_garage", lienId: organes.moteur })
+  await expect(fiche.getByRole("region", { name: "Lien" })).toContainText("Moteur")
+
+  // Le problème sur ce point : Garage propose un ordre, il n'en crée aucun avant l'acceptation.
+  const reponseProbleme = page.waitForResponse(RESPONSE_ACTION)
+  await fiche.getByRole("button", { name: "Problème", exact: true }).click()
+  await reponseProbleme
+  await expect.poll(() => statutPointChecklistEnBase(equipe, "Niveau d'huile moteur")).toBe("probleme")
+  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
+  const boite = page.getByRole("dialog")
+  await expect(boite.getByText("Problème signalé : Moteur", { exact: true })).toBeVisible()
+  await expect.poll(() => ordresEnBase(equipe, "Problème signalé : Moteur")).toEqual([])
+
+  // Ouvrir l'ordre : l'ordre part sur l'organe du lien, et l'action est décidée.
+  const reponseOrdre = page.waitForResponse(RESPONSE_ACTION)
+  await boite.getByRole("button", { name: "Ouvrir l'ordre", exact: true }).click()
+  await reponseOrdre
+  await expect.poll(() => statutActionTitreEnBase(equipe, "ordre_point:", "Problème signalé : Moteur")).toBe("decidee")
+  await expect.poll(async () => (await ordresEnBase(equipe, "Problème signalé : Moteur")).map((ordre) => ordre.vehicle_component_id)).toEqual([organes.moteur])
+
+  // La boîte puis la fiche sont modales : fermées, elles ne cachent plus la navigation.
+  await page.keyboard.press("Escape")
+  await expect(boite).toHaveCount(0)
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+
+  // Dans Garage, par les menus : l'ordre figure dans Travaux.
+  await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Garage", exact: true }).click()
+  await page.getByRole("navigation", { name: "Menu de Garage" }).getByRole("link", { name: "Travaux", exact: true }).click()
+  await expect(page.getByText("Problème signalé : Moteur").first()).toBeVisible()
+
+  // Un point sans organe en problème ne fait pas d'ordre : une tâche du socle, une seule.
+  await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Check-lists", exact: true }).click()
+  await page.getByRole("region", { name: "Par engagement" }).getByRole("link").first().click()
+  await expect(page).toHaveURL(/\/apps\/checklist\/liste\/[^?]+$/)
+  await page.locator("li").filter({ hasText: "Trousse de secours" }).getByRole("link", { name: "Détail", exact: true }).click()
+  const ficheTrousse = page.getByRole("dialog").first()
+  const reponseTrousse = page.waitForResponse(RESPONSE_ACTION)
+  await ficheTrousse.getByRole("button", { name: "Problème", exact: true }).click()
+  await reponseTrousse
+  await expect.poll(() => statutPointChecklistEnBase(equipe, "Trousse de secours")).toBe("probleme")
+  await expect.poll(() => tachesPointChecklistEnBase(equipe, "Trousse de secours")).toBe(1)
+  await expect.poll(async () => (await ordresEnBase(equipe, "Problème signalé : Moteur")).length).toBe(1)
 })
 
 test("Saison : l'avancement des check-lists s'affiche à côté de l'indice, sans le modifier", async ({ page, equipe }) => {
