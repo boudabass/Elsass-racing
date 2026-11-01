@@ -8,7 +8,7 @@ export const manifesteChecklist: ManifesteApp = {
   cle: "checklist",
   nom: "Check-lists",
   icone: "list-checks",
-  version: "0.2.0",
+  version: "0.3.0",
   requiert: ["saison"],
   // Préparation pour tous ; Modèles sans l'assistance (956 §6) ; Débrief à partir de l'écriture (5.6, décision du 01/11).
   menu: [
