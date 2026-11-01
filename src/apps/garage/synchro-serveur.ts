@@ -11,7 +11,9 @@ import type { ContexteTeam } from "@/core/contexte"
 import { emettre } from "@/core/evenements/bus-serveur"
 import { RefusSynchro } from "@/core/synchro/erreurs"
 import { apresPosition } from "@/core/synchro/position"
-import { refusLectureSeule, socleSynchro, type ClientTeam, type DeclarationSynchro, type EtatLigneSynchro, type Tx } from "@/core/synchro/registre"
+// Helpers depuis socle.ts (et non registre.ts, qui importe ce fichier : le cycle laisserait refusLectureSeule indéfini).
+import { refusLectureSeule, socleSynchro } from "@/core/synchro/socle"
+import type { ClientTeam, DeclarationSynchro, EtatLigneSynchro, Tx } from "@/core/synchro/registre"
 import { newId } from "@/core/ids"
 import { prismaPourTeam } from "@/lib/prisma"
 

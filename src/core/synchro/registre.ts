@@ -28,9 +28,6 @@ import type { LigneSynchro, MODIFICATION_GARDEE } from "./protocole"
 export type ClientTeam = ReturnType<typeof prismaPourTeam>
 export type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
 
-// Helpers du socle (socleSynchro, refusLectureSeule) : voir socle.ts.
-export { refusLectureSeule, socleSynchro, type Socle } from "./socle"
-
 export interface EtatLigneSynchro {
   rev: number
   auteurId: string | null
