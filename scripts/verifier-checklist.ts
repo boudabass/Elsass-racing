@@ -7,7 +7,9 @@
 //
 // Contrôles : journal de coches en ajout seul ; avancement et zone recalculés après un changement de statut ; l'assistance
 // refusée hors liste ouverte et sur le point d'un autre ; modèles fournis lisibles, jamais écrits ; modèles d'une autre
-// team invisibles ; une seule action de réassignation pour un membre retiré, levée quand plus rien n'est à faire.
+// team invisibles ; une seule action de réassignation pour un membre retiré, levée quand plus rien n'est à faire ; un
+// problème sur un point lié à un organe ne touche aucune table d'une autre app, et l'ordre Garage n'existe qu'à
+// l'acceptation (5.7a).
 
 import { randomUUID } from "node:crypto"
 import { readFileSync } from "node:fs"
@@ -264,6 +266,54 @@ async function main() {
       .catch((erreur) => {
         if (!(erreur instanceof AnnulationVerification)) throw erreur
       })
+
+    // 7. Liaisons (5.7a) : un point lié à un organe passe en problème sans écrire dans les tables d'une autre app (la
+    // proposition passe par le socle), et l'ordre Garage n'existe qu'à l'acceptation. Les tables de la team hors
+    // Check-lists et socle sont comparées avant et après le changement.
+    const typeOrgane = randomUUID()
+    const organe = randomUUID()
+    const pointOrgane = randomUUID()
+    await proprietaire.garageComponentType.create({ data: { id: typeOrgane, teamId: team.id, nom: `Moteur ${suffixe}`, cle: "moteur", icone: "moteur", critique: true, ordre: 1 } })
+    await proprietaire.garageVehicleComponent.create({ data: { id: organe, teamId: team.id, vehicleId: vehicule, componentTypeId: typeOrgane, modeUsure: "les_deux" } })
+    await proprietaire.checklistItem.create({
+      data: { id: pointOrgane, teamId: team.id, sectionId: section, libelle: `Organe ${suffixe}`, lienType: "organe_garage", lienId: organe, createdBy: responsable.user },
+    })
+
+    // Tables de la team, hors Check-lists et socle, avec leur nombre de lignes et leur dernière modification.
+    const tables = (
+      await proprietaire.$queryRawUnsafe<Array<{ table_name: string }>>(
+        `SELECT t.table_name FROM information_schema.columns t
+           JOIN information_schema.columns r ON r.table_schema = t.table_schema AND r.table_name = t.table_name AND r.column_name = 'rev'
+           JOIN information_schema.columns u ON u.table_schema = t.table_schema AND u.table_name = t.table_name AND u.column_name = 'updated_at'
+          WHERE t.table_schema = 'public' AND t.column_name = 'team_id'
+            AND left(t.table_name, 9) <> 'checklist_' AND left(t.table_name, 5) <> 'core_'`,
+      )
+    ).map((ligne) => ligne.table_name)
+    const empreinte = async (): Promise<Record<string, string>> => {
+      const resultat: Record<string, string> = {}
+      for (const table of tables) {
+        const [ligne] = await proprietaire.$queryRawUnsafe<Array<{ n: number; dernier: string | null }>>(
+          `SELECT count(*)::int AS n, max(updated_at)::text AS dernier FROM "${table}" WHERE team_id = $1::uuid`,
+          team.id,
+        )
+        resultat[table] = `${ligne?.n ?? 0}/${ligne?.dernier ?? ""}`
+      }
+      return resultat
+    }
+    const ordresDeLOrgane = () => proprietaire.garageWorkOrder.count({ where: { teamId: team.id, vehicleComponentId: organe } })
+
+    const avant = await empreinte()
+    await services.changerStatutPointDans(ctxResp, "gestion", pointOrgane, "probleme")
+    const apres = await empreinte()
+    const modifiees = tables.filter((table) => avant[table] !== apres[table])
+    controle("un problème sur un point lié à un organe ne touche aucune table d'une autre app", modifiees.length === 0, modifiees.join(", "))
+    controle("aucun ordre Garage avant l'acceptation", (await ordresDeLOrgane()) === 0)
+
+    const garage = await import("../src/apps/garage/ordres-depuis-point-serveur")
+    await garage.appliquerDecisionOrdre(ctxResp, { cleUnicite: `ordre_point:${pointOrgane}`, decision: "ignorer", ficheId: organe })
+    controle("Ignorer n'ouvre aucun ordre", (await ordresDeLOrgane()) === 0)
+    await garage.appliquerDecisionOrdre(ctxResp, { cleUnicite: `ordre_point:${pointOrgane}`, decision: "accepter", ficheId: organe })
+    controle("Ouvrir l'ordre crée un ordre sur l'organe du lien", (await ordresDeLOrgane()) === 1)
   } finally {
     await proprietaire.checklistCheckLog.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.checklistItem.deleteMany({ where: { teamId: { in: equipes } } })
@@ -277,6 +327,9 @@ async function main() {
     await proprietaire.coreEventEntry.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreEvent.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreSeason.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageWorkOrder.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageVehicleComponent.deleteMany({ where: { teamId: { in: equipes } } })
+    await proprietaire.garageComponentType.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreVehicle.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreAppAccess.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreMembership.deleteMany({ where: { teamId: { in: equipes } } })
