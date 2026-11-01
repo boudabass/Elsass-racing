@@ -16,6 +16,7 @@ import {
   type PointRegle,
 } from "./regles"
 import { accesChecklist } from "./services-serveur"
+import { prochaineEtapeEpreuve } from "./widgets-serveur"
 
 // Une liste avec le détail de ses points, pour la jauge, la phase en cours et les avertissements.
 export interface ListeAvecPoints extends ListePhasee {
@@ -57,7 +58,7 @@ export async function pagePreparation(epreuveDemandee: string | undefined) {
     select: { id: true, nom: true, dateDebut: true },
   })
   const epreuve = aVenir.find((e) => e.id === epreuveDemandee) ?? aVenir[0] ?? null
-  if (!epreuve) return { niveau, epreuves: aVenir, epreuve: null, listes: [], phaseEnCours: "avant_depart" as PhaseEpreuve, avancement: 0, critiquesOuverts: 0 }
+  if (!epreuve) return { niveau, epreuves: aVenir, epreuve: null, listes: [], phaseEnCours: "avant_depart" as PhaseEpreuve, avancement: 0, critiquesOuverts: 0, prochaine: null }
 
   const listes = await listesAvecPoints(epreuve.id)
   const tous = listes.flatMap((liste) => liste.points)
@@ -70,6 +71,7 @@ export async function pagePreparation(epreuveDemandee: string | undefined) {
     phaseEnCours: phaseEnCours(listes),
     avancement: avancementPourcent(tous),
     critiquesOuverts: pointsCritiquesOuverts(tous).length,
+    prochaine: await prochaineEtapeEpreuve(ctx, epreuve.id),
     // Communes d'abord, puis une par engagement (déjà triées par listesDeEpreuve).
     listes: listes.map((liste) => ({
       ...meta.get(liste.id)!,
