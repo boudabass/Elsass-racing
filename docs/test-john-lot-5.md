@@ -124,6 +124,15 @@ Prérequis : une liste d'engagement (5.5a) acceptée, et ton téléphone connect
 6. Coche gardée : sur deux appareils, coche le même point en mode avion sur l'un, puis l'autre en ligne après. La coche la plus récente reste ; sur l'appareil qui a perdu, le statut revient à celui du serveur après la synchro.
 7. Avec un compte **assistance** (fenêtre privée) : une liste ouverte à l'assistance se coche hors ligne ; sa coche part au retour du réseau. Une liste fermée ne se coche pas (refus avec sa raison).
 
+## Étape 15 : Check-lists, liaisons (5.7a)
+
+1. Ouvrir un point de liste (« Détail ») : une section « Lié à » apparaît. Sans objet posé, elle dit « Aucun objet lié à ce point. ». Le choix d'objet ne se propose qu'en écriture ; les objets sont ceux de la voiture de la liste (organes, papiers, logos), de l'équipage (licences, homologations), de la team (contreparties, documents).
+2. Lier un point à un objet (s'il y en a un de disponible), puis revenir sur la liste : l'état de l'objet s'écrit sous le point, en texte (« À surveiller » quand il alerte). Le point n'est pas coché pour autant.
+3. Mettre un point sans objet lié en « Problème » : une tâche « Problème : <point> (<liste>) » est créée côté socle. Son affichage n'est pas encore branché : à confirmer avec moi.
+4. Ajouter un point critique à une liste dont l'échéance est à 7 jours ou moins : la boîte propose « point critique à traiter » (bouton « Ouvrir la liste »). Cocher le point : l'action sort de la boîte.
+5. Saison, « Prêt pour l'épreuve ? » : sous « À côté, sans effet sur l'indice », une ligne « Check-lists » donne l'avancement et les points critiques ouverts. L'indice ne bouge pas.
+6. Garage : un problème sur un point lié à un organe propose « Ouvrir l'ordre » dans la boîte ; l'ordre ne se crée qu'à l'acceptation. (Pas encore testé de bout en bout : à faire quand un point est lié à un organe.)
+
 ## Ce qui n'est pas encore là
 
 - Check-lists hors ligne : pas d'ajout ni de retrait de point, pas de création de liste, pas de modèle, pas de débrief, pas de photo hors ligne.

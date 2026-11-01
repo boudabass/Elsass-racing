@@ -148,3 +148,26 @@ Précisions :
 - L'action « Plus tard » des publications est reportée de 3 jours (`reporteeJusquAu`), puis revient en attente.
 - Une publication sans personne qui suit le partenaire, ou dont la personne n'a pas d'adhésion active, ne donne pas d'action « Publications promises ». Une contrepartie déjà tenue n'est pas comptée.
 - `saison.resultat_valide` et `saison.resultat_annule` sont listés dans le catalogue pour Partenaires, mais aucun gestionnaire n'existe dans le lot 3 : les lectures de la page partenaire et du bilan lisent les résultats à l'affichage. À reprendre si un gestionnaire devient nécessaire.
+
+## Liaisons de Check-lists (tâche 5.7a)
+
+| Événement | Écouté par | Effet | Clé d'unicité | Charge lue |
+|---|---|---|---|---|
+| `checklist.probleme_signale` | Garage | si le point est lié à un organe (`lienType` = `organe_garage`, `lienId` posé) : propose un ordre de travail (`garage.action_requise`, type `ordre_depuis_point`, boutons « Ouvrir l'ordre » et « Ignorer ») ; rien n'est créé avant l'acceptation | `ordre_point:<pointId>` | `pointId`, `lienType`, `lienId`, `listeTitre`, `epreuveId` |
+| `checklist.probleme_signale` | core (socle) | sinon, ouvre une tâche `core_task` (app `checklist`, fiche `point`, titre « Problème : <libellé> (<liste>) », assignée à `personneId` s'il existe). Une seule tâche à faire par point | — | `pointId`, `epreuveId`, `libelle`, `listeTitre`, `personneId`, `lienType`, `lienId` |
+| `checklist.point_critique_ouvert` | Saison | aucun gestionnaire : Saison lit l'état des listes à l'affichage (panneau « Prêt pour l'épreuve ? », hors indice) | — | — |
+| `checklist.avancement_change` | Saison | aucun gestionnaire : même lecture à l'affichage | — | — |
+| `checklist.liste_terminee` | core | aucun gestionnaire : la notification aux responsables est reportée (pas de service de notification ni de lecture QG à ce jour) | — | — |
+| `settings.membre_rejoint` | Check-lists | aucun effet : l'événement est au catalogue mais absent de 956 §5 | — | — |
+| `core.action_decidee` (type `ordre_depuis_point`) | Garage | Accepter ouvre l'ordre de réparation sur l'organe (`creerOrdreDans`) ; Ignorer ne fait rien. Un organe disparu rouvre l'action avec son motif | `ordre_point:<pointId>` | `type`, `decision`, `cleUnicite`, `ficheId` |
+
+Précisions :
+
+- `probleme_signale` porte le point et son lien. Les champs `libelle`, `listeTitre`, `lienType`, `lienId`, `personneId` sont nullables ou absents : un événement émis avant 5.7a reste lisible, et le gestionnaire ignore ce qui manque.
+- Le titre de l'ordre se construit depuis le nom de l'organe (« Problème signalé : <organe> »), jamais depuis le libellé du point.
+- Action « point critique » (`checklist.action_requise`, type `point_critique`, clé `point_critique:<pointId>`) : un point critique à faire ou en problème, dans une liste à 7 jours ou moins de son échéance. Elle n'a pas de décision : son bouton « Ouvrir la liste » est un lien. Émise au changement du point, et à l'ouverture du QG pour rattraper l'approche de l'échéance (sans réémettre une action déjà en attente).
+- Levées (`checklist.action_levee`, même `cleUnicite`) : `ordre_point:<pointId>` quand le problème disparaît ou que le point est retiré ; `point_critique:<pointId>` quand le point est fait, sans objet, ou retiré. Une levée n'est émise que s'il existe une action en attente.
+- Types de boîte ajoutés (`src/core/actions/regroupement.ts`) : `ordre_depuis_point`, `point_critique`.
+- Lectures partagées d'objets liés (pas d'événement) : chaque app propriétaire expose sa liste et sa lecture unitaire (`lectures-partagees.ts`). Un objet n'est visible que si son app est ouverte au membre (niveau autre que « aucun »).
+- Lien d'un point : `lienType` et `lienId` sont écrits par Check-lists seul, dans sa table. Un lien ne coche jamais le point.
+- Check-lists 0.5.0 : migration `20261101150000_core_catalogue` (seule la version change).

@@ -216,6 +216,26 @@ export async function statutPointChecklistEnBase(equipe: Equipe, libelle: string
   return rows[0]?.statut ?? null
 }
 
+// Tâches du socle ouvertes pour un point de Check-lists (5.7a) : le titre commence par « Problème : <libellé> ».
+export async function tachesPointChecklistEnBase(equipe: Equipe, libelle: string): Promise<number> {
+  const { rows } = await bd().query<{ n: string }>(
+    `SELECT count(*)::text AS n FROM core_task WHERE team_id = $1 AND app = 'checklist' AND fiche_type = 'point'
+     AND statut = 'a_faire' AND deleted_at IS NULL AND titre LIKE $2`,
+    [equipe.teamId, `Problème : ${libelle}%`],
+  )
+  return Number(rows[0]?.n ?? 0)
+}
+
+// Statut de l'action la plus récente d'une clé (préfixe de cle_unicite) et d'un titre donnés, ou null (5.7a).
+export async function statutActionTitreEnBase(equipe: Equipe, prefixe: string, titre: string): Promise<string | null> {
+  const { rows } = await bd().query<{ statut: string }>(
+    `SELECT statut::text AS statut FROM core_action WHERE team_id = $1 AND cle_unicite LIKE $2 AND titre = $3
+     ORDER BY created_at DESC LIMIT 1`,
+    [equipe.teamId, `${prefixe}%`, titre],
+  )
+  return rows[0]?.statut ?? null
+}
+
 // Ouvre à l'assistance toutes les listes de la team, en base : le formulaire ne crée qu'une liste vierge (sans point),
 // et les listes proposées par le modèle restent fermées. Sert au parcours hors ligne de l'assistance.
 export async function ouvrirListesAssistanceEnBase(equipe: Equipe): Promise<void> {
