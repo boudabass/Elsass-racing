@@ -689,8 +689,9 @@
 - Run vert `41278500593` (d3e1452) : typecheck et unitaires verts (1105 tests), base, build et e2e verts, 169 e2e. Les e2e Check-lists : parcours du responsable (boîte, liste en phase Retour, avertissement, coches, problème, photo, modèle renommé), vue de l'assistance, action-lien (le clic ne décide pas, la levée fait sortir l'action), captures.
 - Captures : 32 images `docs/captures/checklist-*` (préparation, liste, fiche d'un point, avertissement, mode terrain, débrief, modèles vide et rempli ; 1440 et 360 px ; sombre et clair), relues une à une. Aucune casse de mise en page ni de texte.
 - Limites connues :
-  - La capture de la fiche s'arrête à la note et aux photos : le tiroir défile, l'historique et « Ouvrir dans … » n'y figurent pas. La photo de test est un aplat rouge (le fixture).
-  - « Ajouter au modèle » du débrief n'apparaît dans aucune capture ni dans l'e2e : il faut un point ajouté pendant l'épreuve (étape 13 du test de John).
+  - La capture `checklist-fiche-point` s'arrête à la note et aux photos. Une capture `checklist-fiche-point-bas` montre le tiroir défilé jusqu'à l'historique des coches et au bouton « Retirer le point » (ajoutée après `9aae5c6`). La photo de test est un aplat rouge (le fixture).
+  - « Lié à » n'apparaît pas dans la fiche d'un point : une liste copie les points de son modèle avec `lienType` « aucun », et aucun écran ne pose le lien sur un point de liste. Décision produit à prendre (poser le lien à la copie, ou à la création) avant de l'afficher.
+  - « Ajouter au modèle » : `e2e/checklist-debrief.spec.ts` le couvre (point ajouté par clic pendant une épreuve commencée, puis débrief, puis présence dans le modèle). Les captures `checklist-debrief-*` montrent la ligne et le bouton ; le clic n'est pas capturé.
   - Les modèles fournis ne sont ni dans une migration ni dans le seed : c'est le lot 5.5b. Sans modèle d'équipe, aucune proposition « Créer les listes » n'est créée ; les e2e en créent un.
   - Le texte de « Prêts à l'emploi » (« Ils arrivent avec la liste de la plateforme ») est à relire avec John.
   - `/api/fichiers/[id]` contrôle le droit de lecture par niveau d'app, pas par fiche : même limite que les photos du Garage, signalée, non traitée ici.

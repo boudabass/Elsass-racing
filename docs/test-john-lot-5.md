@@ -108,13 +108,14 @@ Prérequis : une épreuve à venir avec un engagement dans Saison, et la liste c
 3. Sur **Niveau d'huile**, clique sur **Faire** : le bouton devient **✓ Fait**, la liste avance. Sur **Pression des pneus**, **Détail** ouvre le tiroir du point : passe-le en **Problème**, saisis une note. Le point reste critique et ouvert ; l'historique du tiroir garde la coche.
 4. Crée une deuxième liste, **Test retour**, phase **Retour**, puis ouvre-la depuis **Préparation** : l'avertissement **Phase en cours : Vérifications** apparaît, avec **Revenir** et **Démarrer quand même**. **Démarrer quand même** ouvre la liste sans rien changer.
 5. **Modèles** : **+ Nouveau modèle** « Test 5.6 », puis **+ Nouvelle section**, puis **+ Ajouter un point** dans la section (point critique, rôle suggéré **Équipage**). **Retirer** enlève le point ; un modèle **Prêt à l'emploi** reste en lecture seule.
-6. Sur une épreuve passée, **Débrief** liste les points non cochés ou en problème. **Ajouter au modèle** copie le point dans le modèle **Test 5.6**, et le point y apparaît une seule fois.
+6. **Ajouter au modèle** : sur une épreuve **commencée** (date de début aujourd'hui ou passée), ouvre une liste créée depuis un modèle, une liste d'engagement et pas **Test 5.6** (une liste vierge n'a pas de modèle d'origine). Dans cette liste, **+ Ajouter un point** : **Point ajouté en épreuve**. Puis **Débrief** : la ligne porte « Ajouté pendant l'épreuve » et le bouton **Ajouter au modèle**. Clique-le : le point apparaît une seule fois dans le modèle d'origine de la liste, dans **Modèles**. Un point d'une liste vierge ne propose pas ce bouton.
 7. Avec un compte **assistance** (fenêtre privée) : le menu n'a ni **Modèles** ni **Débrief**. Une liste ouverte à l'assistance s'affiche et se coche ; une liste fermée n'apparaît pas.
 8. Sur téléphone (ou en réduisant la fenêtre à 360 px), Préparation et une liste se lisent sans défilement horizontal, et les boutons se touchent au doigt.
 
 ## Ce qui n'est pas encore là
 
 - Check-lists hors ligne : les coches se font en ligne seulement pour l'instant.
+- « Lié à » dans la fiche d'un point : la section n'apparaît que pour un point lié à un organe, un papier ou une licence. Une liste copie ses points de modèle sans lien (`lienType` forcé à « aucun »), et aucun écran ne pose le lien sur un point de liste : décision produit à prendre avant de l'afficher.
 - Widgets de Check-lists sur le Tableau de bord : les lectures existent, l'affichage vient au lot 6.
 - Photo des personnes (les initiales tiennent lieu de photo pour l'instant).
 - Statistiques après un résultat validé : à vérifier quand la prochaine épreuve sera jouée.
