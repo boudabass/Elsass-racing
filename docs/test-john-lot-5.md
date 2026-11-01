@@ -99,8 +99,23 @@ Chaque étape dit ce que tu fais, puis ce que tu dois voir. Si ce n'est pas ce q
 6. Dans **Partages**, **Révoquer** puis **Révoquer le lien** : le lien passe en **Révoqué** (grisé). Recharge le lien dans la fenêtre privée : « Ce lien n'est plus valable. », sans autre détail.
 7. Avec un compte **assistance** : le menu de Documents n'a pas **Partages**, et la fiche d'un de ses documents n'a pas **Partager par lien**.
 
+## Étape 13 : Check-lists, écrans (5.6)
+
+Prérequis : une épreuve à venir avec un engagement dans Saison, et la liste créée par **Créer les listes** (5.5a).
+
+1. Menu **Check-lists** : **Préparation**, **Modèles**, **Débrief**. La prochaine épreuve s'affiche avec la barre haute (avancement, phase en cours, points critiques ouverts) et la section **Prochaine étape**.
+2. Dans **Préparation**, **+ Nouvelle liste vierge** : crée **Test 5.6**, phase **Vérifications**. La liste s'ouvre avec une section **Points**. **+ Ajouter un point** deux fois : **Pression des pneus** (en point critique), puis **Niveau d'huile**. La carte affiche **1 point critique ouvert**.
+3. Sur **Niveau d'huile**, clique sur **Faire** : le bouton devient **✓ Fait**, la liste avance. Sur **Pression des pneus**, **Détail** ouvre le tiroir du point : passe-le en **Problème**, saisis une note. Le point reste critique et ouvert ; l'historique du tiroir garde la coche.
+4. Crée une deuxième liste, **Test retour**, phase **Retour**, puis ouvre-la depuis **Préparation** : l'avertissement **Phase en cours : Vérifications** apparaît, avec **Revenir** et **Démarrer quand même**. **Démarrer quand même** ouvre la liste sans rien changer.
+5. **Modèles** : **+ Nouveau modèle** « Test 5.6 », puis **+ Nouvelle section**, puis **+ Ajouter un point** dans la section (point critique, rôle suggéré **Équipage**). **Retirer** enlève le point ; un modèle **Prêt à l'emploi** reste en lecture seule.
+6. Sur une épreuve passée, **Débrief** liste les points non cochés ou en problème. **Ajouter au modèle** copie le point dans le modèle **Test 5.6**, et le point y apparaît une seule fois.
+7. Avec un compte **assistance** (fenêtre privée) : le menu n'a ni **Modèles** ni **Débrief**. Une liste ouverte à l'assistance s'affiche et se coche ; une liste fermée n'apparaît pas.
+8. Sur téléphone (ou en réduisant la fenêtre à 360 px), Préparation et une liste se lisent sans défilement horizontal, et les boutons se touchent au doigt.
+
 ## Ce qui n'est pas encore là
 
+- Check-lists hors ligne : les coches se font en ligne seulement pour l'instant.
+- Widgets de Check-lists sur le Tableau de bord : les lectures existent, l'affichage vient au lot 6.
 - Photo des personnes (les initiales tiennent lieu de photo pour l'instant).
 - Statistiques après un résultat validé : à vérifier quand la prochaine épreuve sera jouée.
 - Trophées affichés pour les personnes déjà présentes avant ce lot : leur choix n'a pas changé (seul le défaut des nouvelles personnes est coché).
