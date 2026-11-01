@@ -121,7 +121,7 @@ export function CorpsListe({
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="font-medium">
                       {point.libelle}
-                      {point.critique && <span className="ml-2 text-sm font-semibold">Critique</span>}
+                      {point.critique && <span className="block text-sm font-semibold">Critique</span>}
                     </span>
                     <span className="text-sm text-texte-discret">
                       {LIBELLES_STATUT_POINT[point.statut]}
@@ -129,7 +129,7 @@ export function CorpsListe({
                       {!enLigne && !point.local && " · pas sur cet appareil : ouvre la liste en ligne avant de partir"}
                     </span>
                   </div>
-                  <Link href={`/apps/checklist/liste/${listeId}?point=${point.id}`} className={LIEN}>
+                  <Link href={`/apps/checklist/liste/${listeId}?point=${point.id}`} className={`${LIEN} shrink-0`}>
                     Détail
                   </Link>
                 </li>
