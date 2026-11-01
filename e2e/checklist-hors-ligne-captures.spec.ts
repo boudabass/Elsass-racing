@@ -48,8 +48,8 @@ test("captures · liste et mode terrain hors ligne, 1440 et 360 px, sombre et cl
 
       // Mode terrain : activé en ligne (le réglage est celui de la préférence), puis capturé hors ligne.
       await context.setOffline(false)
-      await envoyer(page, page.getByRole("button", { name: "Mode terrain", exact: true }))
-      await expect(page.getByRole("button", { name: "Quitter le mode terrain", exact: true })).toBeVisible()
+      await envoyer(page, page.getByRole("main").getByRole("button", { name: "Mode terrain", exact: true }))
+      await expect(page.getByRole("main").getByRole("button", { name: "Quitter le mode terrain", exact: true })).toBeVisible()
       await page.goto(listeUrl)
       await attendreTirageLocal(page, 2)
       await context.setOffline(true)
@@ -59,8 +59,8 @@ test("captures · liste et mode terrain hors ligne, 1440 et 360 px, sombre et cl
       // Retour en ligne : le mode terrain se désactive pour la taille suivante.
       await context.setOffline(false)
       await page.goto(listeUrl)
-      await envoyer(page, page.getByRole("button", { name: "Quitter le mode terrain", exact: true }))
-      await expect(page.getByRole("button", { name: "Mode terrain", exact: true })).toBeVisible()
+      await envoyer(page, page.getByRole("main").getByRole("button", { name: "Quitter le mode terrain", exact: true }))
+      await expect(page.getByRole("main").getByRole("button", { name: "Mode terrain", exact: true })).toBeVisible()
     }
   }
 })
