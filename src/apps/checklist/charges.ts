@@ -33,6 +33,7 @@ export const chargeProblemeSignale = z
     listeTitre: z.string().nullish(),
     lienType: z.string().nullish(),
     lienId: identifiant.nullish(),
+    personneId: identifiant.nullish(),
   })
   .strict()
 

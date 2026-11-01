@@ -30,6 +30,8 @@ export const LIBELLES_TYPES: Record<string, { singulier: string; pluriel: string
   marquer_engagement_paye: { singulier: "engagement à marquer payé", pluriel: "engagements à marquer payés" },
   creer_listes: { singulier: "création de listes à faire", pluriel: "créations de listes à faire" },
   reassigner_points: { singulier: "membre retiré à réassigner", pluriel: "membres retirés à réassigner" },
+  ordre_depuis_point: { singulier: "ordre de travail à ouvrir", pluriel: "ordres de travail à ouvrir" },
+  point_critique: { singulier: "point critique à traiter", pluriel: "points critiques à traiter" },
 }
 
 export interface GroupeAction {

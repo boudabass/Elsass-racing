@@ -233,6 +233,7 @@ const checklistItemSynchro: DeclarationSynchro = {
           libelle: point.libelle,
           lienType: point.lienType,
           lienId: point.lienId,
+          personneId: point.personneId,
         },
         personneId: point.personneId,
       }

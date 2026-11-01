@@ -77,3 +77,27 @@ export const chargeAbandonDeclare = z
     stageAbandonId: identifiant.nullable().optional(),
   })
   .passthrough()
+
+// checklist.probleme_signale, lu par Garage (5.7a) : le point et son lien d'organe, sans relire Check-lists (règle 2).
+export const chargeProblemeSignaleLu = z
+  .object({
+    pointId: identifiant,
+    epreuveId: identifiant,
+    libelle: z.string().nullish(),
+    listeTitre: z.string().nullish(),
+    lienType: z.string().nullish(),
+    lienId: identifiant.nullish(),
+  })
+  .passthrough()
+
+// core.action_decidee pour une action de Garage (5.7a) : la décision revient à l'app d'origine (règle 2).
+export const chargeDecisionOrdre = z
+  .object({
+    actionId: identifiant,
+    appOrigine: z.literal("garage"),
+    type: z.literal("ordre_depuis_point"),
+    cleUnicite: identifiant,
+    decision: identifiant,
+    ficheId: identifiant,
+  })
+  .passthrough()

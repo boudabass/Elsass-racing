@@ -19,6 +19,7 @@ import {
   chargeProblemeSignale,
 } from "./charges"
 import { ErreurChecklist, refus } from "./erreurs"
+import { cleOrdreDePoint } from "./objets-lies"
 import {
   assistancePeut,
   calculerListe,
@@ -164,6 +165,16 @@ export interface ChangementPoint {
   libelle?: string
   lienType?: string | null
   lienId?: string | null
+  personneId?: string | null
+}
+
+// Lève l'action en attente de cette clé, si elle existe. Sans action en attente, rien n'est émis.
+export async function leverActionSiEnAttente(ctx: ContexteTeam, cleUnicite: string): Promise<void> {
+  const action = await prismaPourTeam(ctx.teamId, ctx.userId).coreAction.findFirst({
+    where: { teamId: ctx.teamId, cleUnicite, statut: "en_attente" },
+    select: { id: true },
+  })
+  if (action) await emettre(ctx, "checklist.action_levee", { cleUnicite })
 }
 
 // Émet ce qui découle d'un changement, après la transaction. Jamais de rouge : ce sont des informations.
@@ -202,8 +213,13 @@ export async function emettreApresChangement(
         listeTitre: liste.titre,
         lienType: changement.lienType ?? null,
         lienId: changement.lienId ?? null,
+        personneId: changement.personneId ?? null,
       }),
     )
+  }
+
+  if (changement && changement.ancien === "probleme" && changement.nouveau !== "probleme") {
+    await leverActionSiEnAttente(ctx, cleOrdreDePoint(changement.pointId))
   }
 
   if (changement && fautSignalerPointCritique({ ancien: changement.ancien, nouveau: changement.nouveau, critique: changement.critique, ajoute: changement.ajoute }, echeance, aujourdhui)) {
@@ -793,6 +809,7 @@ export async function changerStatutPointDans(ctx: ContexteTeam, niveau: Niveau, 
     libelle: point.libelle,
     lienType: point.lienType,
     lienId: point.lienId,
+    personneId: point.personneId,
   })
   if (point.personneId) await levereReassignationSiPlusDePoint(ctx, point.personneId)
 }
@@ -817,6 +834,7 @@ export async function retirerPointDans(ctx: ContexteTeam, niveau: Niveau, pointI
     }),
   )
   await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance, titre: liste.titre }, resultat, null)
+  if (point.statut === "probleme") await leverActionSiEnAttente(ctx, cleOrdreDePoint(pointId))
   if (point.personneId) await levereReassignationSiPlusDePoint(ctx, point.personneId)
 }
 

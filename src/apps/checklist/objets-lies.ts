@@ -40,6 +40,12 @@ export function libelleEtatLien(resolution: ResolutionLien): string {
   return objet.alerte ? `${objet.libelle} : ${objet.etat}. À surveiller.` : `${objet.libelle} : ${objet.etat}.`
 }
 
+// Clé de l'action « ouvrir un ordre » d'un point lié à un organe (Garage, 5.7a) : une par point. Partagée avec Garage, qui
+// la pose ; Check-lists la lève quand le problème disparaît ou que le point est retiré.
+export function cleOrdreDePoint(pointId: string): string {
+  return `ordre_point:${pointId}`
+}
+
 // Clé d'un objet dans une table de résolution : le type et l'identifiant, pour distinguer deux objets de même id.
 export function cleLien(type: TypeObjetLie, id: string): string {
   return `${type}:${id}`
