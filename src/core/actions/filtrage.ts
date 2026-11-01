@@ -5,6 +5,8 @@ import { aAuMoins, type Niveau } from "../droits/niveaux"
 export interface Bouton {
   cle: string
   libelle: string
+  // Bouton-lien (5.6 §0) : navigue vers ce chemin sous l'app d'origine, sans décider l'action.
+  lien?: string
 }
 
 // Forme de destinataires stockée dans core_action.destinataires (Json).

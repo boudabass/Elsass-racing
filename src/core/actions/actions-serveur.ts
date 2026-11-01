@@ -4,6 +4,7 @@ import { emettre } from "@/core/evenements/bus-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 
 import { actionsPourMembre, lireDestinataires, type ActionBoite, type Bouton } from "./filtrage"
+import { effetDuBouton } from "./liens"
 import { grouperActions, type GroupeAction } from "./regroupement"
 
 // Une action en attente depuis plus de ce délai après son échéance passe à expirée.
@@ -49,7 +50,10 @@ export async function decider(ctx: ContexteTeam, actionId: string, cleBouton: st
   }
 
   const boutons = lireBoutons(action.boutons)
-  if (!boutons.some((b) => b.cle === cleBouton)) throw new Error("Bouton inconnu pour cette action.")
+  const effet = effetDuBouton(boutons, cleBouton)
+  if (effet === null) throw new Error("Bouton inconnu pour cette action.")
+  // Un bouton-lien ouvre la fiche : il ne décide rien. L'action sort quand l'app la lève (docs/evenements.md).
+  if (effet === "lien") throw new Error("Ce bouton ouvre la fiche. L'action se fermera quand la chose sera faite.")
 
   await client.coreAction.update({
     where: { id: action.id },

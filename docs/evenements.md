@@ -32,7 +32,7 @@ Un événement `<app>.action_requise` est traité par le socle (`src/core/action
   contexte?: string,
   ficheType?: string, ficheId?: uuid, eventId?: uuid,
   destinataires: { roles?: CoreRole[], memberships?: string[] },  // au moins un
-  boutons: { cle: string, libelle: string }[],                    // de 1 à 4
+  boutons: { cle: string, libelle: string, lien?: string }[],     // de 1 à 4 ; lien : voir « Boutons-liens »
   priorite: 1..9,
   bloquant?: boolean,
   echeance?: date ISO,
@@ -46,6 +46,13 @@ Un événement `<app>.action_requise` est traité par le socle (`src/core/action
 - Une action déjà décidée, annulée ou expirée est **réouverte** (statut en_attente, décision effacée). Choix du lot 1 : l'unicité par team empêche de créer une seconde ligne.
 - `niveauRequis` et `terrain` sont stockés dans `destinataires` (Json), à côté des destinataires.
 - `<app>.action_levee` avec la même `cleUnicite` passe l'action en attente à `annulee`.
+
+### Boutons-liens (5.6 §0)
+
+- Un bouton avec `lien` (chemin relatif sous `/apps/<app>/...`, de la même app que l'événement) **ouvre la fiche sans décider**. La boîte le rend en lien ; `decider` le refuse avec une raison.
+- Un chemin hors de l'app, une adresse absolue ou un « .. » fait refuser **l'émission** entière (`motifLienRefuse`, `src/core/actions/liens.ts`).
+- **Règle : une action-lien a une levée.** Toute action dont un bouton est un lien doit être levée par son app (`<app>.action_levee`, même `cleUnicite`) à la fin de ce qu'elle demande (renouvellement, réponse, réassignation). Sans levée, elle reste en attente jusqu'à l'expiration de 30 jours après son échéance, comme toute action non traitée. Rien ne le vérifie automatiquement : la règle tient au code de chaque app, et le test de `liens.test.ts` la documente.
+- Actions-liens connues : Équipe « Renouveler » (licence, homologation : levée au renouvellement), Équipe « Répondre » (disponibilités : levée à la réponse), Check-lists « Voir les listes » (réassignation : levée quand plus rien n'est à faire).
 - `decider(ctx, actionId, cleBouton)` : vérifie que l'action est en attente, que le membre en est destinataire, qu'il a le niveau requis sur l'app d'origine, et que le bouton existe. Passe l'action à `decidee`, puis émet `core.action_decidee` vers l'app d'origine.
 - `reporter(ctx, actionId, jusquAu)` : l'action sort de la liste jusqu'à cette date.
 - `listerActionsEnAttente(ctx)` : expire d'abord les actions dont l'échéance dépasse de plus de 30 jours (passage à `expiree`), puis renvoie les actions en attente, non reportées, visibles par le membre, groupées par `cleRegroupement`.

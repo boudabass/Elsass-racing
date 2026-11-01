@@ -49,7 +49,7 @@ const BOUTON_PRINCIPAL = `${BOUTON_BASE} bg-marque text-marque-texte hover:opaci
 const BOUTON_SECONDAIRE = `${BOUTON_BASE} border border-marque text-marque hover:bg-surface-2`
 
 function CarteAction({ action }: { action: ActionBoite }) {
-  const boutons = action.boutons as Array<{ cle: string; libelle: string }>
+  const boutons = action.boutons as Array<{ cle: string; libelle: string; lien?: string }>
   const echeance = action.echeance
     ? new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" }).format(action.echeance)
     : null
@@ -69,14 +69,21 @@ function CarteAction({ action }: { action: ActionBoite }) {
       )}
 
       <div className="mt-3 flex flex-wrap items-start gap-2">
-        {boutons.map((bouton, index) => (
-          <form key={bouton.cle} action={deciderAction}>
-            <input type="hidden" name="actionId" value={action.id} />
-            <button type="submit" name="cleBouton" value={bouton.cle} className={index === 0 ? BOUTON_PRINCIPAL : BOUTON_SECONDAIRE}>
+        {boutons.map((bouton, index) =>
+          // Un bouton-lien ouvre la fiche sans décider l'action (5.6 §0) : c'est un lien, pas un formulaire.
+          bouton.lien ? (
+            <Link key={bouton.cle} href={bouton.lien} className={index === 0 ? BOUTON_PRINCIPAL : BOUTON_SECONDAIRE}>
               {bouton.libelle}
-            </button>
-          </form>
-        ))}
+            </Link>
+          ) : (
+            <form key={bouton.cle} action={deciderAction}>
+              <input type="hidden" name="actionId" value={action.id} />
+              <button type="submit" name="cleBouton" value={bouton.cle} className={index === 0 ? BOUTON_PRINCIPAL : BOUTON_SECONDAIRE}>
+                {bouton.libelle}
+              </button>
+            </form>
+          ),
+        )}
 
         <ReporterAction actionId={action.id} titre={action.titre} />
 

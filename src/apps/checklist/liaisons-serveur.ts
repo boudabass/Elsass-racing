@@ -202,7 +202,8 @@ export async function proposerReassignationDans(ctx: ContexteTeam, membershipId:
       ficheType: "personne",
       ficheId: personne.id,
       destinataires: { roles: ["responsable"] },
-      boutons: [{ cle: "voir", libelle: "Voir les listes" }],
+      // Lien (5.6 §0) : l'action ne se décide pas au clic ; elle sort quand plus aucun point n'est en attente.
+      boutons: [{ cle: "voir", libelle: "Voir les listes", lien: "/apps/checklist" }],
       priorite: 5,
       niveauRequis: "gestion",
       cleRegroupement: "listes_checklist",

@@ -27,7 +27,7 @@ const schemaActionRequise = z.object({
     .refine((d) => (d.roles?.length ?? 0) + (d.memberships?.length ?? 0) > 0, {
       message: "Au moins un destinataire (rôle ou membership) est requis.",
     }),
-  boutons: z.array(z.object({ cle: z.string().min(1), libelle: z.string().min(1) })).min(1).max(4),
+  boutons: z.array(z.object({ cle: z.string().min(1), libelle: z.string().min(1), lien: z.string().min(1).optional() })).min(1).max(4),
   priorite: z.number().int().min(1).max(9),
   bloquant: z.boolean().optional(),
   echeance: z

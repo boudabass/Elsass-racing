@@ -4,6 +4,8 @@ import { newId } from "@/core/ids"
 import { estContexteTeam, type ContexteEvenement } from "../contexte"
 import { clientPourContexte } from "../client-contexte-serveur"
 
+import { motifLienRefuse } from "../actions/liens"
+
 import { EVENEMENTS } from "./catalogue"
 import { emetteurDe, estNomValide } from "./evenements"
 import { traiterEnAttente } from "./traitement-serveur"
@@ -53,6 +55,8 @@ export async function emettre(
   if (!estNomValide(nom)) {
     throw new ErreurEvenement(`Nom d'événement inconnu : « ${nom} ». Aucun événement n'a été émis.`)
   }
+  const motif = motifLienRefuse(nom, donnees)
+  if (motif) throw new ErreurEvenement(`${motif} Aucun événement n'a été émis.`)
 
   const emetteur = emetteurDe(nom) as string
   const client = clientPourContexte(ctx)
