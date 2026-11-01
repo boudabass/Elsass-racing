@@ -75,3 +75,11 @@ export async function attendreTirageLocal(page: Page, minimum: number): Promise<
     )
     .toBeGreaterThanOrEqual(minimum)
 }
+
+// Le service worker doit contrôler la page, pour qu'elle se recharge hors ligne depuis le cache (projet « hors-ligne »).
+export async function attendreServiceWorker(page: Page): Promise<void> {
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await page.reload()
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true)
+}

@@ -3,18 +3,10 @@
 // projet où le service worker existe.
 import type { Page } from "@playwright/test"
 
-import { attendreTirageLocal, preparerEngagementChecklist } from "./aide/checklist"
+import { attendreServiceWorker, attendreTirageLocal, preparerEngagementChecklist } from "./aide/checklist"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
 import { ajouterMembreConnectable, ouvrirListesAssistanceEnBase, statutAction, statutPointChecklistEnBase, type Equipe, type Membre } from "./aide/session"
-
-// Le service worker doit contrôler la page, pour que la liste reste disponible hors ligne (même logique que hors-ligne.spec.ts).
-async function attendreServiceWorker(page: Page): Promise<void> {
-  await page.evaluate(() => navigator.serviceWorker.ready)
-  await page.reload()
-  await page.evaluate(() => navigator.serviceWorker.ready)
-  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true)
-}
 
 // Liste créée par le modèle de la team (aide preparerEngagementChecklist) : deux points, dont le premier est coché hors ligne.
 const POINT = "Triangle de présentation"
