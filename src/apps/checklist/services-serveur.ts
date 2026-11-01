@@ -99,7 +99,7 @@ async function engagementDe(client: Client, teamId: string, engagementId: string
 }
 
 // Un point avec sa section et sa liste (pour les droits et les événements).
-async function pointAvecListe(client: Client, teamId: string, pointId: string) {
+export async function pointAvecListe(client: Client, teamId: string, pointId: string) {
   const point = await client.checklistItem.findFirst({
     where: { id: pointId, teamId, deletedAt: null },
     include: { section: { include: { liste: true } } },
@@ -109,14 +109,14 @@ async function pointAvecListe(client: Client, teamId: string, pointId: string) {
 }
 
 // Liste visible pour ce rôle : l'assistance ne voit que les listes ouvertes à elle.
-function exigerListeVisible(role: string, liste: { ouverteAssistance: boolean }): void {
+export function exigerListeVisible(role: string, liste: { ouverteAssistance: boolean }): void {
   if (!listeVisiblePour(role as Parameters<typeof listeVisiblePour>[0], liste)) {
     refus("Cette liste n'est pas ouverte à l'assistance.")
   }
 }
 
 // Droit sur un point : l'assistance passe par assistancePeut, les autres rôles ont besoin du niveau écriture.
-function exigerDroitPoint(ctx: ContexteTeam, niveau: Niveau, action: ActionSurPoint, liste: { ouverteAssistance: boolean }, point: { createdBy: string | null } | null): void {
+export function exigerDroitPoint(ctx: ContexteTeam, niveau: Niveau, action: ActionSurPoint, liste: { ouverteAssistance: boolean }, point: { createdBy: string | null } | null): void {
   if (ctx.membership.role === "assistance") {
     const decision = assistancePeut(action, liste, point ? { creePar: point.createdBy } : null, ctx.userId)
     if (!decision.autorise) refus(decision.raison)

@@ -1,6 +1,7 @@
 // Lectures des écrans de Check-lists (tâche 5.6, §1). Une lecture n'écrit jamais. Chaque lecture passe par accesChecklist
 // et filtre selon le rôle (listeVisiblePour, modelesVisiblesPour) : l'assistance ne voit que ses listes ouvertes.
 import { modeTerrainDuMembre } from "@/apps/settings/preferences-serveur"
+import { notesEtPhotos } from "@/core/notes/notes-serveur"
 import { prismaPourTeam } from "@/lib/prisma"
 
 import { historiquePoint, listeComplete, listesDeEpreuve, modelesVisibles } from "./lectures-serveur"
@@ -8,6 +9,7 @@ import {
   avancementPourcent,
   avertissementAvantPhase,
   jourParis,
+  listeVisiblePour,
   modelesVisiblesPour,
   phaseEnCours,
   pointsCritiquesOuverts,
@@ -16,6 +18,7 @@ import {
   type PointRegle,
 } from "./regles"
 import { accesChecklist } from "./services-serveur"
+import { controlePoint } from "./photos-serveur"
 import { prochaineEtapeEpreuve } from "./widgets-serveur"
 
 // Une liste avec le détail de ses points, pour la jauge, la phase en cours et les avertissements.
@@ -98,11 +101,12 @@ export async function pageListe(listeId: string, avertir: boolean) {
   }
 }
 
-// Historique d'un point et point lui-même (fiche). Null si le point n'est pas visible.
+// Fiche d'un point : le point, son historique, les personnes qu'on peut lui affecter (écriture et plus) et ses photos.
+// Null si le point n'existe pas ou si sa liste n'est pas visible pour ce rôle.
 export async function pagePoint(pointId: string) {
-  const historique = await historiquePoint(pointId)
   const { ctx, niveau } = await accesChecklist("lecture")
-  const point = await prismaPourTeam(ctx.teamId, ctx.userId).checklistItem.findFirst({
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const point = await client.checklistItem.findFirst({
     where: { id: pointId, teamId: ctx.teamId, deletedAt: null },
     select: {
       id: true,
@@ -113,12 +117,21 @@ export async function pagePoint(pointId: string) {
       lienType: true,
       lienId: true,
       ajoutePendantEpreuve: true,
+      personneId: true,
       personne: { select: { prenom: true, nom: true } },
       section: { select: { liste: { select: { id: true, titre: true, ouverteAssistance: true } } } },
     },
   })
-  if (!point) return null
-  return { niveau, point, historique }
+  if (!point || !listeVisiblePour(ctx.membership.role, point.section.liste)) return null
+  const peutAffecter = niveau === "ecriture" || niveau === "gestion"
+  const [historique, personnes, { photos }] = await Promise.all([
+    historiquePoint(pointId),
+    peutAffecter
+      ? client.corePerson.findMany({ where: { teamId: ctx.teamId, deletedAt: null }, select: { id: true, prenom: true, nom: true }, orderBy: [{ nom: "asc" }, { prenom: "asc" }] })
+      : Promise.resolve([]),
+    notesEtPhotos(ctx, controlePoint(pointId)),
+  ])
+  return { niveau, point, historique, personnes, photos }
 }
 
 // Modèles visibles et niveau de lecture (pour le bouton Copier et le lien de modification).

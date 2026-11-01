@@ -1,12 +1,14 @@
-// Fiche d'un point (tâche 5.6, §1.3) : libellé, critique, note, statut au choix explicite, lien en lecture, historique.
+// Contenu de la fiche d'un point (tâche 5.6, §1.3) : statut, note, personne affectée, photos, lien en lecture, historique.
+// Il est rendu dans le tiroir du socle (FichePointTiroir) : la fermeture et la garde des modifications sont là.
 import Link from "next/link"
 
+import { TiroirAction } from "@/components/formulaire/tiroir"
 import { BOUTON_SECONDAIRE, CHAMP, LIEN } from "@/lib/classes-formulaire"
+import type { Niveau } from "@/core/droits/niveaux"
 
-import { modifierNotePointAction, changerStatutPointAction, retirerPointAction } from "../actions"
+import { affecterPointAction, ajouterPhotoPointAction, changerStatutPointAction, modifierNotePointAction, retirerPhotoPointAction, retirerPointAction } from "../actions"
 import { LIBELLES_LIEN, LIBELLES_STATUT_POINT } from "../libelles"
 import type { StatutPoint } from "../regles"
-import type { Niveau } from "@/core/droits/niveaux"
 import { FormulaireChecklist } from "./formulaire-checklist"
 
 const STATUTS: StatutPoint[] = ["a_faire", "fait", "sans_objet", "probleme"]
@@ -32,6 +34,7 @@ export interface PointOuvert {
   lienType: string
   lienId: string | null
   ajoutePendantEpreuve: boolean
+  personneId: string | null
   personne: { prenom: string; nom: string } | null
   section: { liste: { id: string; titre: string } }
 }
@@ -44,36 +47,45 @@ export interface EntreeHistorique {
   horsLigne: boolean
 }
 
-export function TiroirPoint({
+export interface PersonnePointAffectable {
+  id: string
+  prenom: string
+  nom: string
+}
+
+export interface PhotoPoint {
+  id: string
+  fileId: string
+  nom: string
+  auteur: string
+  retirable: boolean
+}
+
+export function ContenuFichePoint({
   point,
   historique,
   niveau,
-  listeId,
+  personnes,
+  photos,
 }: {
   point: PointOuvert
   historique: EntreeHistorique[]
   niveau: Niveau
-  listeId: string
+  personnes: PersonnePointAffectable[]
+  photos: PhotoPoint[]
 }) {
   const lien = point.lienType !== "aucun" ? APP_DU_LIEN[point.lienType] : undefined
   const peutEcrire = niveau !== "lecture"
+  const peutAffecter = niveau === "ecriture" || niveau === "gestion"
   return (
-    <aside aria-label="Fiche du point" className="flex flex-col gap-5 rounded-lg border border-marque bg-surface p-5">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-xl font-semibold">{point.libelle}</h3>
-        <Link href={`/apps/checklist/liste/${listeId}`} className={LIEN}>
-          Fermer
-        </Link>
-      </div>
-
+    <div className="flex flex-col gap-6">
       <p className="text-sm">
         {point.critique ? "Point critique" : "Point normal"}
-        {point.personne ? ` · Affecté à ${point.personne.prenom} ${point.personne.nom}` : ""}
         {point.ajoutePendantEpreuve ? " · Ajouté pendant l'épreuve" : ""}
       </p>
 
       <section aria-label="Statut" className="flex flex-col gap-2">
-        <h4 className="font-medium">Statut</h4>
+        <h3 className="font-medium">Statut</h3>
         {peutEcrire ? (
           <div className="flex flex-wrap gap-2">
             {STATUTS.map((statut) => (
@@ -91,8 +103,32 @@ export function TiroirPoint({
         )}
       </section>
 
+      <section aria-label="Affectation" className="flex flex-col gap-2">
+        <h3 className="font-medium">Affecté à</h3>
+        {peutAffecter ? (
+          <FormulaireChecklist
+            action={affecterPointAction}
+            champsCaches={{ pointId: point.id }}
+            libelle="Enregistrer l'affectation"
+            classe={BOUTON_SECONDAIRE}
+            enfants={
+              <select name="personneId" defaultValue={point.personneId ?? ""} className={CHAMP}>
+                <option value="">Personne</option>
+                {personnes.map((personne) => (
+                  <option key={personne.id} value={personne.id}>
+                    {personne.prenom} {personne.nom}
+                  </option>
+                ))}
+              </select>
+            }
+          />
+        ) : (
+          <p className="text-sm">{point.personne ? `${point.personne.prenom} ${point.personne.nom}` : "Personne"}</p>
+        )}
+      </section>
+
       <section aria-label="Note" className="flex flex-col gap-2">
-        <h4 className="font-medium">Note</h4>
+        <h3 className="font-medium">Note</h3>
         {peutEcrire ? (
           <FormulaireChecklist
             action={modifierNotePointAction}
@@ -105,9 +141,43 @@ export function TiroirPoint({
         )}
       </section>
 
+      <section aria-label="Photos" className="flex flex-col gap-3">
+        <h3 className="font-medium">Photos</h3>
+        {peutEcrire && (
+          <TiroirAction libelle="Ajouter une photo" titre="Ajouter une photo" libelleBouton="Envoyer la photo" libelleEnCours="Envoi…" action={ajouterPhotoPointAction}>
+            <input type="hidden" name="pointId" value={point.id} />
+            <input type="file" name="fichier" accept="image/*" capture="environment" required className={CHAMP} />
+          </TiroirAction>
+        )}
+        {photos.length === 0 && <p className="text-sm text-texte-discret">Aucune photo sur ce point.</p>}
+        <ul className="grid grid-cols-2 gap-3">
+          {photos.map((photo) => (
+            <li key={photo.id} className="flex flex-col gap-2 rounded-lg border border-bordure bg-surface p-2">
+              {/* Vignette servie par /api/fichiers : les droits de lecture sont contrôlés au serveur. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/api/fichiers/${photo.fileId}`} alt={photo.nom} loading="lazy" className="aspect-square w-full rounded-md object-cover" />
+              <p className="text-sm text-texte-discret">{photo.auteur}</p>
+              {photo.retirable && (
+                <TiroirAction
+                  libelle="Retirer"
+                  danger
+                  titre="Retirer cette photo ?"
+                  question="La photo disparaît de la fiche. Le fichier reste en archive."
+                  libelleBouton="Retirer la photo"
+                  action={retirerPhotoPointAction}
+                >
+                  <input type="hidden" name="pointId" value={point.id} />
+                  <input type="hidden" name="photoId" value={photo.id} />
+                </TiroirAction>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+
       {lien && (
         <section aria-label="Lien" className="flex flex-col gap-2">
-          <h4 className="font-medium">Lié à</h4>
+          <h3 className="font-medium">Lié à</h3>
           <p className="text-sm">
             {LIBELLES_LIEN[point.lienType]}
             {point.lienId ? "" : " (non renseigné)"}
@@ -119,7 +189,7 @@ export function TiroirPoint({
       )}
 
       <section aria-label="Historique des coches" className="flex flex-col gap-2">
-        <h4 className="font-medium">Historique</h4>
+        <h3 className="font-medium">Historique</h3>
         {historique.length === 0 ? (
           <p className="text-sm text-texte-discret">Aucune coche enregistrée.</p>
         ) : (
@@ -139,6 +209,6 @@ export function TiroirPoint({
       {peutEcrire && (
         <FormulaireChecklist action={retirerPointAction} champsCaches={{ pointId: point.id }} libelle="Retirer le point" classe={BOUTON_SECONDAIRE} />
       )}
-    </aside>
+    </div>
   )
 }

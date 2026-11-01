@@ -10,7 +10,8 @@ import { COULEUR_ZONE, LIBELLES_PHASE, LIBELLES_STATUT_POINT, LIBELLES_ZONE } fr
 import { pointsCritiquesOuverts, avancementPourcent, zoneDeListe, type PointRegle } from "../regles"
 import type { Phase } from "../services-serveur"
 import { FormulaireChecklist } from "./formulaire-checklist"
-import { TiroirPoint, type EntreeHistorique, type PointOuvert } from "./tiroir-point"
+import { FichePointTiroir } from "./fiche-point-tiroir"
+import { ContenuFichePoint, type EntreeHistorique, type PersonnePointAffectable, type PhotoPoint, type PointOuvert } from "./tiroir-point"
 
 type Donnees = NonNullable<Awaited<ReturnType<typeof pageListe>>>
 
@@ -19,7 +20,7 @@ export function PageListe({
   pointOuvert,
 }: {
   donnees: Donnees
-  pointOuvert: { point: PointOuvert; historique: EntreeHistorique[] } | null
+  pointOuvert: { point: PointOuvert; historique: EntreeHistorique[]; personnes: PersonnePointAffectable[]; photos: PhotoPoint[] } | null
 }) {
   const { liste, niveau, terrain, avertissement, phaseEnCours } = donnees
   const peutCocher = niveau === "contribution" || niveau === "ecriture" || niveau === "gestion"
@@ -138,7 +139,17 @@ export function PageListe({
         </TiroirAction>
       )}
 
-      {pointOuvert && <TiroirPoint point={pointOuvert.point} historique={pointOuvert.historique} niveau={niveau} listeId={liste.id} />}
+      {pointOuvert && (
+        <FichePointTiroir titre={pointOuvert.point.libelle} sousTitre={liste.titre} retour={`/apps/checklist/liste/${liste.id}`}>
+          <ContenuFichePoint
+            point={pointOuvert.point}
+            historique={pointOuvert.historique}
+            niveau={niveau}
+            personnes={pointOuvert.personnes}
+            photos={pointOuvert.photos}
+          />
+        </FichePointTiroir>
+      )}
     </div>
   )
 }

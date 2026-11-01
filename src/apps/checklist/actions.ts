@@ -4,9 +4,11 @@
 // chacune contrôle elle-même la session et les droits (la garde est dans le service). Renvoient un Resultat.
 
 import { exigerContexte } from "@/core/droits/garde-serveur"
+import { ajouterPhoto, retirerPhoto } from "@/core/notes/notes-serveur"
 import { ErreurMetier, executer, texte, texteOuNull, type Resultat } from "@/core/sdk/actions-serveur"
 import { fixerModeTerrain } from "@/apps/settings/preferences-serveur"
 
+import { controlePoint } from "./photos-serveur"
 import {
   ajouterPoint,
   ajouterPointAuModele,
@@ -16,6 +18,7 @@ import {
   copierModele,
   creerListeVierge,
   creerModele,
+  modifierModele,
   modifierPoint,
   retirerPoint,
   retirerPointModele,
@@ -75,6 +78,40 @@ export async function ajouterPointAction(_etat: Resultat | null, donnees: FormDa
 
 export async function retirerPointAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
   return executer(CHEMIN, () => retirerPoint(texte(donnees, "pointId")))
+}
+
+// Affectation de la personne d'un point (écriture, ou l'assistance sur un point qu'elle a créé : vérifié dans le service).
+export async function affecterPointAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, () => modifierPoint(texte(donnees, "pointId"), { personneId: texteOuNull(donnees, "personneId") }))
+}
+
+// Photo d'un point : le fichier est contrôlé par le service commun (5.0), puis rattaché au point.
+export async function ajouterPhotoPointAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, async () => {
+    const { contexte } = await exigerContexte()
+    const fichier = donnees.get("fichier")
+    if (!(fichier instanceof File) || fichier.size === 0) throw new ErreurMetier("Aucune photo reçue.")
+    const octets = new Uint8Array(await fichier.arrayBuffer())
+    return ajouterPhoto(contexte, controlePoint(texte(donnees, "pointId")), { octets, nomOrigine: fichier.name })
+  })
+}
+
+export async function retirerPhotoPointAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, async () => {
+    const { contexte } = await exigerContexte()
+    await retirerPhoto(contexte, controlePoint(texte(donnees, "pointId")), texte(donnees, "photoId"))
+  })
+}
+
+// Renommer un modèle (et sa portée, sa phase) : une seule modification, gestion seulement, modèle de la team seulement.
+export async function modifierModeleAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
+  return executer(CHEMIN, () =>
+    modifierModele(texte(donnees, "modeleId"), {
+      nom: texte(donnees, "nom"),
+      portee: choisi(texte(donnees, "portee"), PORTEES, "Portée"),
+      phase: texteOuNull(donnees, "phase") ? choisi(texte(donnees, "phase"), PHASES, "Phase") : null,
+    }),
+  )
 }
 
 export async function creerListeViergeAction(_etat: Resultat | null, donnees: FormData): Promise<Resultat> {
