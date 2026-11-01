@@ -308,3 +308,13 @@ export function actionPointCritiqueDue(point: { critique: boolean; statut: Statu
 export function actionPointCritiqueLevee(statut: StatutPoint): boolean {
   return statut === "fait" || statut === "sans_objet"
 }
+
+// Rattrapage du QG (5.7a) : parmi les points dont une action est en attente, ceux qu'elle ne concerne plus. Un point
+// qui n'est plus due (fait, plus critique, liste sans échéance ou repoussée hors des 7 jours) doit lever son action,
+// même sans aucun changement de point : c'est le seul passage du temps qui l'a rendu caduque.
+export function pointsActionADeLever(
+  points: Array<{ id: string; critique: boolean; statut: StatutPoint; echeance: string | null }>,
+  aujourdhui: string,
+): string[] {
+  return points.filter((point) => !actionPointCritiqueDue({ critique: point.critique, statut: point.statut }, point.echeance, aujourdhui)).map((point) => point.id)
+}

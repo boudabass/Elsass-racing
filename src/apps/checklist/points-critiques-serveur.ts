@@ -9,7 +9,9 @@ import { prismaPourTeam } from "@/lib/prisma"
 
 import { chargeActionRequise } from "./charges"
 import { dateLongue } from "./objets-etat"
-import { actionPointCritiqueDue, jourParis } from "./regles"
+import { actionPointCritiqueDue, jourParis, pointsActionADeLever, type StatutPoint } from "./regles"
+
+const PREFIXE_POINT_CRITIQUE = "point_critique:"
 
 export function cleActionPointCritique(pointId: string): string {
   return `point_critique:${pointId}`
@@ -87,5 +89,34 @@ export async function recalculerPourQg(ctx: ContexteTeam, niveau: Niveau): Promi
         }
       }
     }
+  }
+  await leverActionsCaduques(ctx, aujourdhui)
+}
+
+// Lève les actions en attente dont le point n'est plus due (5.7a, décision de l'orchestrateur) : point fait, plus critique,
+// liste sans échéance ou repoussée hors des 7 jours, point retiré. Lecture seule ; la levée passe par le socle.
+async function leverActionsCaduques(ctx: ContexteTeam, aujourdhui: string): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const actions = await client.coreAction.findMany({
+    where: { teamId: ctx.teamId, cleUnicite: { startsWith: PREFIXE_POINT_CRITIQUE }, statut: "en_attente" },
+    select: { cleUnicite: true },
+  })
+  if (actions.length === 0) return
+  const idsDesActions = actions.map((action) => action.cleUnicite.slice(PREFIXE_POINT_CRITIQUE.length))
+  const points = await client.checklistItem.findMany({
+    where: { teamId: ctx.teamId, id: { in: idsDesActions }, deletedAt: null },
+    select: { id: true, critique: true, statut: true, section: { select: { liste: { select: { echeance: true } } } } },
+  })
+  // Un point retiré (ou introuvable) n'a plus d'action à tenir : elle se lève avec lui.
+  const trouves = new Set(points.map((point) => point.id))
+  const retires = idsDesActions.filter((id) => !trouves.has(id))
+  const aVerifier = points.map((point) => ({
+    id: point.id,
+    critique: point.critique,
+    statut: point.statut as StatutPoint,
+    echeance: point.section.liste.echeance ? point.section.liste.echeance.toISOString().slice(0, 10) : null,
+  }))
+  for (const id of [...retires, ...pointsActionADeLever(aVerifier, aujourdhui)]) {
+    await leverActionSiEnAttente(ctx, cleActionPointCritique(id))
   }
 }

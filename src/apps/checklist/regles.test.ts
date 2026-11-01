@@ -30,6 +30,7 @@ import {
   type PointRegle,
   actionPointCritiqueDue,
   actionPointCritiqueLevee,
+  pointsActionADeLever,
 } from "./regles"
 
 const point = (statut: PointRegle["statut"], critique = false): PointRegle => ({ statut, critique })
@@ -427,5 +428,18 @@ describe("action « point critique » (5.7a)", () => {
     expect(actionPointCritiqueLevee("sans_objet")).toBe(true)
     expect(actionPointCritiqueLevee("a_faire")).toBe(false)
     expect(actionPointCritiqueLevee("probleme")).toBe(false)
+  })
+
+  it("le rattrapage lève l'action d'un point qui n'est plus due, et garde celle d'un point toujours due", () => {
+    const due = { id: "due", critique: true, statut: "a_faire" as const, echeance: "2026-11-05" }
+    const repoussee = { id: "repoussee", critique: true, statut: "a_faire" as const, echeance: "2026-11-20" }
+    const sansEcheance = { id: "sans", critique: true, statut: "probleme" as const, echeance: null }
+    const faite = { id: "faite", critique: true, statut: "fait" as const, echeance: "2026-11-05" }
+    const plusCritique = { id: "normal", critique: false, statut: "a_faire" as const, echeance: "2026-11-05" }
+    expect(pointsActionADeLever([due, repoussee, sansEcheance, faite, plusCritique], "2026-11-01")).toEqual(["repoussee", "sans", "faite", "normal"])
+  })
+
+  it("une échéance déjà passée reste due : l'action ne se lève pas tant que le point n'est pas fait", () => {
+    expect(pointsActionADeLever([{ id: "passee", critique: true, statut: "probleme", echeance: "2026-10-30" }], "2026-11-01")).toEqual([])
   })
 })
