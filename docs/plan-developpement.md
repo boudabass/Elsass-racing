@@ -351,7 +351,9 @@ Décisions de John (25/10) :
 - Écoutes de 956 §5 (Garage, Voiture, Équipe, Documents, Partenaires, Saison, Réglages), toujours en propositions. `checklist.probleme_signale` vers Garage (propose un ordre de travail si le point est lié à un organe, sinon tâche). `checklist.avancement_change` et `checklist.point_critique_ouvert` affichés dans « Prêt pour l'épreuve ? » de Saison, à titre d'information, hors indice.
 
 - 5.7a (fait) : lien d'un point vers un objet d'une autre app (choix dans la fiche, état en texte, sans coche automatique) ; `checklist.probleme_signale` vers Garage (ordre proposé pour un point lié à un organe) et vers le socle (tâche, sinon) ; action « point critique » dans la boîte à l'approche de l'échéance, levée à la coche ; avancement et critiques ouverts dans « Prêt pour l'épreuve ? » hors indice.
-- 5.7 reporté : notification aux responsables sur `checklist.liste_terminee` (aucun service de notification ni de lecture QG à ce jour, décision de l'orchestrateur du 01/11) ; écoutes de 956 §5 en propositions (5.7b).
+- 5.7b (livrée sur verif, 02/11) : écoutes de 956 §5 en propositions (liste cible, libellé et effet dans `docs/evenements.md`). Une acceptation n'écrit que dans Check-lists.
+- reporté : Saison n'émet pas l'événement `saison.programme_publie`, et le type « caler les échéances » n'est pas dans 956.
+- reporté : notification aux responsables sur `checklist.liste_terminee` (aucun service de notification ni de lecture QG à ce jour, décision de l'orchestrateur du 01/11).
 - Dette ouverte (lot 5) : Équipe écrit `core_task` directement (`src/apps/equipe/services-serveur.ts`, création de la tâche d'affectation). À passer par un événement du socle, comme les autres apps (règle 2).
 
 ### 5.8 Vérification du lot 5

@@ -171,3 +171,35 @@ Précisions :
 - Lectures partagées d'objets liés (pas d'événement) : chaque app propriétaire expose sa liste et sa lecture unitaire (`lectures-partagees.ts`). Un objet n'est visible que si son app est ouverte au membre (niveau autre que « aucun »).
 - Lien d'un point : `lienType` et `lienId` sont écrits par Check-lists seul, dans sa table. Un lien ne coche jamais le point.
 - Check-lists 0.5.0 : migration `20261101150000_core_catalogue` (seule la version change).
+
+## Propositions des écoutes de Check-lists (tâche 5.7b)
+
+Check-lists 0.6.0 : migration `20261102100000_core_catalogue` (seule la version change). Chaque écoute crée une `checklist_proposal` et son action (`checklist.action_requise`, boutons Accepter et Ignorer, pour les responsables). Accepter écrit dans Check-lists seulement ; Ignorer ne fait rien. La décision revient par `core.action_decidee` (`ficheType` `proposition`, `ficheId` = identifiant de la proposition).
+
+| Événement | Effet à l'émission | Liste cible | Type de proposition | Effet à l'acceptation |
+|---|---|---|---|---|
+| `saison.epreuve_terminee` | une proposition par épreuve : liste retour pour chaque engagement qui n'en a pas, et la commune si elle manque | phase retour, par engagement ou commune de l'épreuve | `creer_liste_retour` | crée les listes depuis les modèles de phase retour |
+| `saison.abandon_declare` | liste retour après abandon, pour cet engagement | phase retour de l'engagement | `creer_liste_retour` | idem |
+| `saison.programme_publie` | aucune écoute (reporté) | — | — | — |
+| `garage.piece_zone_rouge` | point critique « Remplacer la pièce : <organe> », lié à l'organe | avant départ de l'engagement du véhicule, prochaine épreuve | `ajouter_point` | ajoute le point, dans la première section |
+| `garage.travail_termine` | cocher le point lié à l'organe de l'ordre (à faire ou en problème) | listes de l'engagement du véhicule, prochaine épreuve | `cocher_point` | coche le point, sauf s'il est fait ou sans objet |
+| `voiture.logo_pose` | cocher le point lié à l'emplacement du logo (`lienId` = `slotId`, 5.7a) | idem | `cocher_point` | idem |
+| `voiture.papier_expire_bientot` | point critique « Papier à renouveler : <papier> » | vérifications de l'engagement du véhicule, prochaine épreuve | `ajouter_point` | idem |
+| `equipe.licence_expire_bientot` | point critique « Licence à renouveler : <licence> » | vérifications de l'engagement où la personne est pilote ou copilote ; sans un tel engagement, rien | `ajouter_point` | idem |
+| `equipe.homologation_expire_bientot` | point critique « Homologation à renouveler : <équipement> » | idem | `ajouter_point` | idem |
+| `documents.document_expire_bientot` | point critique « Document à renouveler : <titre> » | vérifications de la liste commune de la prochaine épreuve | `ajouter_point` | idem |
+| `documents.reglement_publie` | une seule proposition par règlement | avant départ de la liste commune de la prochaine épreuve | `relire_liste` | point non critique « Relire le règlement : <titre> », lié au document |
+| `partenaires.contrepartie_en_retard` | point critique « Contrepartie en retard : <libellé> » | avant départ de la liste commune de la prochaine épreuve | `ajouter_point` | idem |
+
+Précisions :
+
+- Épreuve visée : la prochaine épreuve où l'objet compte (pour un véhicule, la prochaine où il est engagé ; pour une personne, la prochaine où elle est pilote ou copilote ; pour la team, la prochaine épreuve non terminée). Pour `saison.epreuve_terminee` et `saison.abandon_declare`, l'épreuve qui vient de se terminer.
+- Pas de liste cible, pas de proposition. Pas de repli sur la liste commune pour une licence ou une homologation, qui sont personnelles.
+- Doublon : une proposition existante pour le même type, le même objet et la même liste bloque la suivante, quel que soit son statut (proposée, acceptée ou ignorée). Clé d'objet : `contenu.cle` (`epreuve:`, `engagement:`, `organe:`, `papier:`, `licence:`, `homologation:`, `document:`, `contrepartie:`, `point:`, `reglement:`).
+- Action : clé d'unicité `proposition:<propositionId>`, groupe `propositions_<type>`. Le titre du point proposé se construit depuis le libellé de l'objet de l'autre app, jamais inventé.
+- Un point proposé porte son type et l'identifiant de son objet : il affiche son état dès sa création (5.7a).
+- Cocher ne coche jamais sans acceptation, et ne repasse pas un point fait ou sans objet.
+- Types d'action ajoutés (`chargeActionRequise`) : `ajouter_point`, `cocher_point`, `creer_liste_retour`, `relire_liste`. Libellés de groupe dans `src/core/actions/regroupement.ts`.
+- Lecture partagée ajoutée dans Garage : `organeDeOrdrePourChecklist` (l'organe d'un ordre), sans écriture.
+- Variante après abandon : mêmes modèles de phase retour, pas de modèle spécial.
+- Non écouté, avec motif : `saison.programme_publie` (Saison n'émet pas l'événement, et le type « caler les échéances » n'est pas dans 956 §3), `settings.membre_rejoint` (aucun effet, absent de 956 §5), `checklist.liste_terminee` (reporté : pas de service de notification dans le socle).

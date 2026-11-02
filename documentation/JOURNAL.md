@@ -723,3 +723,14 @@
 - Ouvert à la relecture : type de fiche `point` (tâche) et `organe` (action Garage) choisis ici, à valider au point d'arrêt ; une tâche de problème reste ouverte tant que le socle n'a pas d'écran pour la fermer ; l'action « point critique » ne sort pas si son échéance s'éloigne sans changement de point.
 - Non fait dans cette passe : e2e et captures (le spec `e2e/checklist-liaisons.spec.ts` existe, il tourne sur GitHub Actions) ; `db:verifier-checklist` non étendu aux contrôles de liaison ; le choix d'un objet réel n'est pas couvert en e2e (aucun organe ni document dans l'aide de test).
 - Dette relevée, hors 5.7 : Équipe écrit `core_task` directement (`src/apps/equipe/services-serveur.ts`). Consignée dans le plan, lot 5.
+
+## 02/11/2026 : tâche 5.7b, Check-lists propositions des écoutes (brief 5.7)
+
+- Point d'arrêt écrit le 02/11, validé par l'orchestrateur avec ses réponses : doublon bloquant (même type, objet et liste, quel que soit le statut), pas de repli sur la liste commune pour une licence ou une homologation, logo sur `slotId` (choix de 5.7a), règlement publié = une seule proposition.
+- Premier commit : libellés de groupe (`regroupement.ts`) pour les quatre types de proposition. Le libellé du groupe Garage (`ordre_depuis_point`) était déjà en place depuis 5.7a (044b88d).
+- Règles pures et tests (`propositions-regles.ts`), charges des événements reçus (`charges.ts`), lecture Garage de l'organe d'un ordre (`organeDeOrdrePourChecklist`).
+- Écoutes (`ecoutes-serveur.ts`) : douze écoutes en propositions, décision branchée dans `liaisons-serveur.ts`. Une proposition acceptée n'écrit que dans `checklist_`.
+- Version 0.6.0 : manifeste, catalogue, migration `20261102100000_core_catalogue`.
+- e2e par clics (`checklist-propositions.spec.ts`) : pièce en zone rouge par un roulage, puis réparation terminée sur le moteur ; captures `checklist-propositions-*` dans un spec à part.
+- `db:verifier-checklist` section 8 : acceptation sans écriture hors Check-lists, pas de double ajout, ignorer ne coche pas, un point fait ne se recoche pas.
+- Reporté : `saison.programme_publie` (Saison n'émet pas l'événement, « caler les échéances » n'est pas dans 956) ; `checklist.liste_terminee` (pas de service de notification).

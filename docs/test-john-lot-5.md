@@ -133,6 +133,14 @@ Prérequis : une liste d'engagement (5.5a) acceptée, et ton téléphone connect
 5. Saison, « Prêt pour l'épreuve ? » : sous « À côté, sans effet sur l'indice », une ligne « Check-lists » donne l'avancement et les points critiques ouverts. L'indice ne bouge pas.
 6. Garage : un problème sur un point lié à un organe propose « Ouvrir l'ordre » dans la boîte ; l'ordre ne se crée qu'à l'acceptation. (Pas encore testé de bout en bout : à faire quand un point est lié à un organe.)
 
+## Étape 16 : Check-lists, propositions des écoutes (5.7b)
+
+1. Roule la boîte de la Saxo jusqu'en zone rouge (Garage, Roulage, 16 000 km) : la boîte de Check-lists propose « Remplacer la pièce : Boîte de vitesses ». Accepte : le point apparaît dans la liste, lié à la boîte, et son état s'affiche.
+2. Sur un point lié au moteur, fais une réparation puis termine l'ordre (Garage, Travaux) : la boîte propose « Cocher : <point> ». Accepte : le point passe à fait. Ignore une autre proposition : rien ne s'ajoute ni ne se coche, et elle ne revient pas.
+3. Un papier, une licence ou un document qui expire : la proposition, point critique, apparaît dans la boîte. Une licence ne se propose que si la personne est pilote ou copilote d'une épreuve à venir.
+4. Sans liste ouverte pour l'épreuve visée, aucune proposition n'apparaît : c'est voulu, rien ne crée de liste en douce.
+5. À relire par John : le titre « Points ajoutés » de la section créée quand une liste n'en a pas, et le libellé « Relire le règlement : <titre> ».
+
 ## Ce qui n'est pas encore là
 
 - Check-lists hors ligne : pas d'ajout ni de retrait de point, pas de création de liste, pas de modèle, pas de débrief, pas de photo hors ligne.
