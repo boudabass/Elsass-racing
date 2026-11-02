@@ -12,6 +12,7 @@ import { newId } from "@/core/ids"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 
 import { chargeActionRequise, chargeDecisionAction, chargeEngagementCree, chargeMembreRetire } from "./charges"
+import { appliquerDecisionProposition } from "./ecoutes-serveur"
 import { disciplineDeType, doitProposerReassignation } from "./regles"
 import { creerListeDepuisModeleDans } from "./services-serveur"
 
@@ -130,6 +131,8 @@ enregistrerGestionnaire("checklist", "saison.engagement_cree", async (ctx: Conte
 
 // Accepter crée les listes proposées ; Ignorer ne crée rien. La décision revient à l'app d'origine (règle 2 de CLAUDE.md).
 async function appliquerDecisionChecklist(ctx: ContexteTeam, evenement: EvenementRecu): Promise<void> {
+  // Les propositions des écoutes (5.7b) ont leur propre décision ; elle ne fait rien pour les autres types.
+  await appliquerDecisionProposition(ctx, evenement)
   const analyse = chargeDecisionAction.safeParse(evenement.donnees)
   if (!analyse.success || analyse.data.type !== "creer_listes" || !analyse.data.ficheId) return
   const entryId = analyse.data.ficheId
