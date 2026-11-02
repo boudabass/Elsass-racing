@@ -40,7 +40,7 @@ export const chargeProblemeSignale = z
 // Propositions : le socle reçoit <app>.action_requise (forme de docs/evenements.md).
 export const chargeActionRequise = z
   .object({
-    type: z.enum(["creer_listes", "reassigner_points", "point_critique"]),
+    type: z.enum(["creer_listes", "reassigner_points", "point_critique", "ajouter_point", "cocher_point", "creer_liste_retour", "relire_liste"]),
     cleUnicite: z.string().min(1),
     titre: z.string().min(1),
     contexte: z.string().optional(),
@@ -64,6 +64,37 @@ export const chargeEngagementCree = z
 
 // settings.membre_retire : seul le membre compte (la personne se lit sur l'adhésion).
 export const chargeMembreRetire = z.object({ membershipId: identifiant }).passthrough()
+
+// Événements des autres apps que les écoutes de 5.7b lisent (lus avec safeParse : une charge inattendue est ignorée).
+// saison.epreuve_terminee : l'épreuve, dont on lit les engagements.
+export const chargeEpreuveTerminee = z.object({ eventId: identifiant }).passthrough()
+
+// saison.abandon_declare : l'engagement qui abandonne et son épreuve.
+export const chargeAbandonDeclare = z.object({ entryId: identifiant, eventId: identifiant.nullable() }).passthrough()
+
+// garage.piece_zone_rouge : l'organe touché ; le véhicule donne la portée de la liste.
+export const chargePieceZoneRouge = z.object({ vehicleComponentId: identifiant, vehicleId: identifiant }).passthrough()
+
+// garage.travail_termine : l'ordre, dont on lit l'organe.
+export const chargeTravailTermine = z.object({ workOrderId: identifiant, vehicleId: identifiant }).passthrough()
+
+// voiture.logo_pose : l'emplacement du logo, que le lien d'un point désigne (5.7a, lienId = slotId).
+export const chargeLogoPose = z.object({ vehicleId: identifiant, slotId: identifiant }).passthrough()
+
+// voiture.papier_expire_bientot : le papier du véhicule.
+export const chargePapierExpireBientot = z.object({ vehicleId: identifiant, paperId: identifiant }).passthrough()
+
+// equipe.licence_expire_bientot : la licence et la personne (pilote ou copilote d'un engagement).
+export const chargeLicenceExpireBientot = z.object({ personId: identifiant, licenceId: identifiant }).passthrough()
+
+// equipe.homologation_expire_bientot : l'équipement et la personne.
+export const chargeHomologationExpireBientot = z.object({ personId: identifiant, equipementId: identifiant }).passthrough()
+
+// documents.document_expire_bientot et documents.reglement_publie : le document.
+export const chargeDocument = z.object({ documentId: identifiant }).passthrough()
+
+// partenaires.contrepartie_en_retard : la contrepartie.
+export const chargeContrepartieEnRetard = z.object({ benefitId: identifiant }).passthrough()
 
 // core.action_decidee : livrée à l'app d'origine (src/core/actions/actions-serveur.ts).
 export const chargeDecisionAction = z

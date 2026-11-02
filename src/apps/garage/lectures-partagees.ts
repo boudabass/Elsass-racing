@@ -295,3 +295,13 @@ export async function lireObjetPourChecklist(ctx: ContexteTeam, type: "organe_ga
   const trouve = atelier?.organes.find((candidat) => candidat.id === id && !candidat.pneus)
   return trouve ? objetOrgane(trouve, organe.vehicleId) : null
 }
+
+// L'organe d'un ordre de travail, pour qu'une proposition de Check-lists retrouve le point lié à cet organe (5.7b).
+// Null si l'ordre n'existe plus ou ne porte pas d'organe.
+export async function organeDeOrdrePourChecklist(ctx: ContexteTeam, workOrderId: string): Promise<string | null> {
+  const ordre = await prismaPourTeam(ctx.teamId, ctx.userId).garageWorkOrder.findFirst({
+    where: { id: workOrderId, teamId: ctx.teamId, deletedAt: null },
+    select: { vehicleComponentId: true },
+  })
+  return ordre?.vehicleComponentId ?? null
+}
