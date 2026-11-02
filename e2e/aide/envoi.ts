@@ -5,9 +5,15 @@ import { expect, type Locator, type Page } from "@playwright/test"
 // navigateur annule une requête en vol au premier rechargement, et l'écriture peut alors ne pas avoir lieu.
 // Règle dans docs/tests.md (« Après un envoi : attendre la réponse »).
 export async function envoyer(page: Page, bouton: Locator): Promise<void> {
+  await envoyerSansFermeture(page, bouton)
+  // Un tiroir se ferme à la réponse du serveur : on attend qu'il soit parti avant de naviguer.
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+}
+
+// Clic sur un bouton qui envoie une server action sans fermer le tiroir qui le porte (la boîte d'actions, par
+// exemple : Accepter y laisse le panneau ouvert). On attend seulement la réponse ; le reste du parcours la suit.
+export async function envoyerSansFermeture(page: Page, bouton: Locator): Promise<void> {
   const reponse = page.waitForResponse((r) => r.request().method() === "POST" && r.request().headers()["next-action"] !== undefined)
   await bouton.click()
   await reponse
-  // Un tiroir se ferme à la réponse du serveur : on attend qu'il soit parti avant de naviguer.
-  await expect(page.getByRole("dialog")).toHaveCount(0)
 }

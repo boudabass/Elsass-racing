@@ -4,7 +4,7 @@
 import type { Page } from "@playwright/test"
 
 import { preparerEngagementChecklist } from "./aide/checklist"
-import { envoyer } from "./aide/envoi"
+import { envoyer, envoyerSansFermeture } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { preparerAtelierSaxo } from "./aide/garage"
 import { connecterParLien } from "./aide/navigation"
@@ -34,7 +34,7 @@ async function accepterProposition(page: Page, equipe: Equipe, titre: string): P
   const boite = page.getByRole("dialog")
   const ligne = boite.locator("li").filter({ hasText: titre })
   await expect(ligne.getByText(titre, { exact: true })).toBeVisible()
-  await envoyer(page, ligne.getByRole("button", { name: "Accepter", exact: true }))
+  await envoyerSansFermeture(page, ligne.getByRole("button", { name: "Accepter", exact: true }))
   await expect.poll(() => statutActionTitreEnBase(equipe, "proposition:", titre)).toBe("decidee")
   await page.keyboard.press("Escape")
   await expect(boite).toHaveCount(0)

@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test"
 
 import { preparerEngagementChecklist } from "./aide/checklist"
 import { capturer, choisirTheme } from "./aide/equipe"
-import { envoyer } from "./aide/envoi"
+import { envoyerSansFermeture } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { preparerAtelierSaxo } from "./aide/garage"
 import { connecterParLien } from "./aide/navigation"
@@ -57,7 +57,7 @@ test("captures · propositions : boîte avant acceptation, liste après, 1440 et
   await page.setViewportSize({ width: BUREAU.width, height: BUREAU.height })
   await page.goto("/apps/checklist")
   await page.getByRole("button", { name: /Boîte d'actions/ }).click()
-  await envoyer(page, page.getByRole("dialog").locator("li").filter({ hasText: TITRE }).getByRole("button", { name: "Accepter", exact: true }))
+  await envoyerSansFermeture(page, page.getByRole("dialog").locator("li").filter({ hasText: TITRE }).getByRole("button", { name: "Accepter", exact: true }))
   await expect.poll(() => statutActionTitreEnBase(equipe, "proposition:", TITRE)).toBe("decidee")
   await page.keyboard.press("Escape")
 
