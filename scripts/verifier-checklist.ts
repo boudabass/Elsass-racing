@@ -325,7 +325,9 @@ async function main() {
       >[1]
     const evenementSource = randomUUID()
     await proprietaire.coreDomainEvent.create({ data: { id: evenementSource, teamId: team.id, appEmettrice: "garage", nom: "garage.piece_zone_rouge", donnees: {} } })
-    const libelleAjoute = `Remplacer la pièce : Verif ${suffixe}`
+    const libelleAjoute = `Papier à renouveler : Verif ${suffixe}`
+    // Un objet distinct de pointOrgane : la liste en a déjà un lié à l'organe, et un doublon de lien n'est pas ajouté.
+    const papierAjoute = randomUUID()
     const propositionAjout = randomUUID()
     await proprietaire.checklistProposal.create({
       data: {
@@ -333,7 +335,7 @@ async function main() {
         teamId: team.id,
         evenementSourceId: evenementSource,
         type: "ajouter_point",
-        contenu: { cle: `organe:${organe}`, listeId: liste, lienType: "organe_garage", lienId: organe, libelle: libelleAjoute, critique: true },
+        contenu: { cle: `papier:${papierAjoute}`, listeId: liste, lienType: "papier_voiture", lienId: papierAjoute, libelle: libelleAjoute, critique: true },
         statut: "proposee",
         createdBy: responsable.user,
       },
@@ -349,7 +351,7 @@ async function main() {
     const modifieesAjout = tables.filter((table) => avantAjout[table] !== apresAjout[table])
     controle("accepter une proposition n'écrit dans aucune table d'une autre app", modifieesAjout.length === 0, modifieesAjout.join(", "))
     const pointAjoute = await proprietaire.checklistItem.findFirst({ where: { teamId: team.id, libelle: libelleAjoute, deletedAt: null } })
-    controle("l'acceptation ajoute le point lié à l'organe", pointAjoute?.lienType === "organe_garage" && pointAjoute?.lienId === organe, pointAjoute?.lienType ?? "aucun point")
+    controle("l'acceptation ajoute le point lié à l'objet proposé", pointAjoute?.lienType === "papier_voiture" && pointAjoute?.lienId === papierAjoute, pointAjoute?.lienType ?? "aucun point")
     controle("la proposition acceptée passe à acceptée", (await proprietaire.checklistProposal.findUnique({ where: { id: propositionAjout } }))?.statut === "acceptee")
 
     await ecoutes.appliquerDecisionProposition(ctxResp, decisionDe(propositionAjout, "ajouter_point", "accepter"))
