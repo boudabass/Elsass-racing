@@ -32,6 +32,10 @@ export const LIBELLES_TYPES: Record<string, { singulier: string; pluriel: string
   reassigner_points: { singulier: "membre retiré à réassigner", pluriel: "membres retirés à réassigner" },
   ordre_depuis_point: { singulier: "ordre de travail à ouvrir", pluriel: "ordres de travail à ouvrir" },
   point_critique: { singulier: "point critique à traiter", pluriel: "points critiques à traiter" },
+  ajouter_point: { singulier: "point à ajouter", pluriel: "points à ajouter" },
+  cocher_point: { singulier: "point à cocher", pluriel: "points à cocher" },
+  creer_liste_retour: { singulier: "liste retour à créer", pluriel: "listes retour à créer" },
+  relire_liste: { singulier: "règlement à relire", pluriel: "règlements à relire" },
 }
 
 export interface GroupeAction {
