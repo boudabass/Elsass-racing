@@ -323,6 +323,10 @@ async function main() {
       ({ id: randomUUID(), nom: "core.action_decidee", donnees: { actionId: randomUUID(), appOrigine: "checklist", type, decision, ficheId } }) as Parameters<
         typeof ecoutes.appliquerDecisionProposition
       >[1]
+    // Un point à faire qui lui est propre : les sections précédentes ont déjà fait avancer les autres.
+    const pointCocher = randomUUID()
+    await proprietaire.checklistItem.create({ data: { id: pointCocher, teamId: team.id, sectionId: section, libelle: `À cocher ${suffixe}`, createdBy: responsable.user } })
+
     const evenementSource = randomUUID()
     await proprietaire.coreDomainEvent.create({ data: { id: evenementSource, teamId: team.id, appEmettrice: "garage", nom: "garage.piece_zone_rouge", donnees: {} } })
     const libelleAjoute = `Papier à renouveler : Verif ${suffixe}`
@@ -342,7 +346,7 @@ async function main() {
     })
     const propositionCocher = randomUUID()
     await proprietaire.checklistProposal.create({
-      data: { id: propositionCocher, teamId: team.id, evenementSourceId: evenementSource, type: "cocher_point", contenu: { cle: `point:${pointNormal}`, listeId: liste, pointId: pointNormal }, statut: "proposee", createdBy: responsable.user },
+      data: { id: propositionCocher, teamId: team.id, evenementSourceId: evenementSource, type: "cocher_point", contenu: { cle: `point:${pointCocher}`, listeId: liste, pointId: pointCocher }, statut: "proposee", createdBy: responsable.user },
     })
 
     const avantAjout = await empreinte()
@@ -359,23 +363,23 @@ async function main() {
     controle("une proposition déjà décidée n'ajoute pas le point une seconde fois", nombreAjoute === 1, `${nombreAjoute}`)
 
     await ecoutes.appliquerDecisionProposition(ctxResp, decisionDe(propositionCocher, "cocher_point", "ignorer"))
-    controle("ignorer ne coche pas le point", (await proprietaire.checklistItem.findUnique({ where: { id: pointNormal } }))?.statut === "a_faire")
+    controle("ignorer ne coche pas le point", (await proprietaire.checklistItem.findUnique({ where: { id: pointCocher } }))?.statut === "a_faire")
     controle("ignorer passe la proposition à ignorée", (await proprietaire.checklistProposal.findUnique({ where: { id: propositionCocher } }))?.statut === "ignoree")
 
     const propositionCocherBis = randomUUID()
     await proprietaire.checklistProposal.create({
-      data: { id: propositionCocherBis, teamId: team.id, evenementSourceId: evenementSource, type: "cocher_point", contenu: { cle: `point:${pointNormal}`, listeId: liste, pointId: pointNormal }, statut: "proposee", createdBy: responsable.user },
+      data: { id: propositionCocherBis, teamId: team.id, evenementSourceId: evenementSource, type: "cocher_point", contenu: { cle: `point:${pointCocher}`, listeId: liste, pointId: pointCocher }, statut: "proposee", createdBy: responsable.user },
     })
     await ecoutes.appliquerDecisionProposition(ctxResp, decisionDe(propositionCocherBis, "cocher_point", "accepter"))
-    controle("accepter coche le point à faire", (await proprietaire.checklistItem.findUnique({ where: { id: pointNormal } }))?.statut === "fait")
+    controle("accepter coche le point à faire", (await proprietaire.checklistItem.findUnique({ where: { id: pointCocher } }))?.statut === "fait")
 
-    const journalAvant = await proprietaire.checklistCheckLog.count({ where: { pointId: pointNormal } })
+    const journalAvant = await proprietaire.checklistCheckLog.count({ where: { pointId: pointCocher } })
     const propositionCocherTer = randomUUID()
     await proprietaire.checklistProposal.create({
-      data: { id: propositionCocherTer, teamId: team.id, evenementSourceId: evenementSource, type: "cocher_point", contenu: { cle: `point:${pointNormal}`, listeId: liste, pointId: pointNormal }, statut: "proposee", createdBy: responsable.user },
+      data: { id: propositionCocherTer, teamId: team.id, evenementSourceId: evenementSource, type: "cocher_point", contenu: { cle: `point:${pointCocher}`, listeId: liste, pointId: pointCocher }, statut: "proposee", createdBy: responsable.user },
     })
     await ecoutes.appliquerDecisionProposition(ctxResp, decisionDe(propositionCocherTer, "cocher_point", "accepter"))
-    const journalApres = await proprietaire.checklistCheckLog.count({ where: { pointId: pointNormal } })
+    const journalApres = await proprietaire.checklistCheckLog.count({ where: { pointId: pointCocher } })
     controle("un point déjà fait n'est pas recoché : aucune ligne de journal de plus", journalApres === journalAvant, `${journalAvant} -> ${journalApres}`)
   } finally {
     await proprietaire.checklistCheckLog.deleteMany({ where: { teamId: { in: equipes } } })
