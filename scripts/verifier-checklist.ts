@@ -314,6 +314,67 @@ async function main() {
     controle("Ignorer n'ouvre aucun ordre", (await ordresDeLOrgane()) === 0)
     await garage.appliquerDecisionOrdre(ctxResp, { cleUnicite: `ordre_point:${pointOrgane}`, decision: "accepter", ficheId: organe })
     controle("Ouvrir l'ordre crée un ordre sur l'organe du lien", (await ordresDeLOrgane()) === 1)
+
+    // 8. Propositions des écoutes (5.7b) : accepter une proposition n'écrit que dans Check-lists (aucune table d'une autre
+    // app, ni des autres tables de la team, ne change) ; cocher ne repasse pas un point fait ; ignorer ne fait rien ; une
+    // proposition déjà décidée n'est pas rejouée. La décision passe par le même chemin que la boîte (core.action_decidee).
+    const ecoutes = await import("../src/apps/checklist/ecoutes-serveur")
+    const decisionDe = (ficheId: string, type: string, decision: "accepter" | "ignorer") =>
+      ({ id: randomUUID(), nom: "core.action_decidee", donnees: { actionId: randomUUID(), appOrigine: "checklist", type, decision, ficheId } }) as Parameters<
+        typeof ecoutes.appliquerDecisionProposition
+      >[1]
+    const evenementSource = randomUUID()
+    await proprietaire.coreDomainEvent.create({ data: { id: evenementSource, teamId: team.id, appEmettrice: "garage", nom: "garage.piece_zone_rouge", donnees: {} } })
+    const libelleAjoute = `Remplacer la pièce : Verif ${suffixe}`
+    const propositionAjout = randomUUID()
+    await proprietaire.checklistProposal.create({
+      data: {
+        id: propositionAjout,
+        teamId: team.id,
+        evenementSourceId: evenementSource,
+        type: "ajouter_point",
+        contenu: { cle: `organe:${organe}`, listeId: liste, lienType: "organe_garage", lienId: organe, libelle: libelleAjoute, critique: true },
+        statut: "proposee",
+        createdBy: responsable.user,
+      },
+    })
+    const propositionCocher = randomUUID()
+    await proprietaire.checklistProposal.create({
+      data: { id: propositionCocher, teamId: team.id, evenementSourceId: evenementSource, type: "cocher_point", contenu: { cle: `point:${pointNormal}`, listeId: liste, pointId: pointNormal }, statut: "proposee", createdBy: responsable.user },
+    })
+
+    const avantAjout = await empreinte()
+    await ecoutes.appliquerDecisionProposition(ctxResp, decisionDe(propositionAjout, "ajouter_point", "accepter"))
+    const apresAjout = await empreinte()
+    const modifieesAjout = tables.filter((table) => avantAjout[table] !== apresAjout[table])
+    controle("accepter une proposition n'écrit dans aucune table d'une autre app", modifieesAjout.length === 0, modifieesAjout.join(", "))
+    const pointAjoute = await proprietaire.checklistItem.findFirst({ where: { teamId: team.id, libelle: libelleAjoute, deletedAt: null } })
+    controle("l'acceptation ajoute le point lié à l'organe", pointAjoute?.lienType === "organe_garage" && pointAjoute?.lienId === organe, pointAjoute?.lienType ?? "aucun point")
+    controle("la proposition acceptée passe à acceptée", (await proprietaire.checklistProposal.findUnique({ where: { id: propositionAjout } }))?.statut === "acceptee")
+
+    await ecoutes.appliquerDecisionProposition(ctxResp, decisionDe(propositionAjout, "ajouter_point", "accepter"))
+    const nombreAjoute = await proprietaire.checklistItem.count({ where: { teamId: team.id, libelle: libelleAjoute, deletedAt: null } })
+    controle("une proposition déjà décidée n'ajoute pas le point une seconde fois", nombreAjoute === 1, `${nombreAjoute}`)
+
+    await ecoutes.appliquerDecisionProposition(ctxResp, decisionDe(propositionCocher, "cocher_point", "ignorer"))
+    controle("ignorer ne coche pas le point", (await proprietaire.checklistItem.findUnique({ where: { id: pointNormal } }))?.statut === "a_faire")
+    controle("ignorer passe la proposition à ignorée", (await proprietaire.checklistProposal.findUnique({ where: { id: propositionCocher } }))?.statut === "ignoree")
+
+    const propositionCocherBis = randomUUID()
+    await proprietaire.checklistProposal.create({
+      data: { id: propositionCocherBis, teamId: team.id, evenementSourceId: evenementSource, type: "cocher_point", contenu: { cle: `point:${pointNormal}`, listeId: liste, pointId: pointNormal }, statut: "proposee", createdBy: responsable.user },
+    })
+    await ecoutes.appliquerDecisionProposition(ctxResp, decisionDe(propositionCocherBis, "cocher_point", "accepter"))
+    controle("accepter coche le point à faire", (await proprietaire.checklistItem.findUnique({ where: { id: pointNormal } }))?.statut === "fait")
+
+    const journalAvant = await proprietaire.checklistCheckLog.count({ where: { pointId: pointNormal } })
+    const propositionCocherTer = randomUUID()
+    await proprietaire.checklistProposal.create({
+      data: { id: propositionCocherTer, teamId: team.id, evenementSourceId: evenementSource, type: "cocher_point", contenu: { cle: `point:${pointNormal}`, listeId: liste, pointId: pointNormal }, statut: "proposee", createdBy: responsable.user },
+    })
+    await ecoutes.appliquerDecisionProposition(ctxResp, decisionDe(propositionCocherTer, "cocher_point", "accepter"))
+    const journalApres = await proprietaire.checklistCheckLog.count({ where: { pointId: pointNormal } })
+    controle("un point déjà fait n'est pas recoché : aucune ligne de journal de plus", journalApres === journalAvant, `${journalAvant} -> ${journalApres}`)
   } finally {
     await proprietaire.checklistCheckLog.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.checklistItem.deleteMany({ where: { teamId: { in: equipes } } })
@@ -322,6 +383,7 @@ async function main() {
     await proprietaire.checklistTemplateItem.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.checklistTemplateSection.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.checklistTemplate.deleteMany({ where: { OR: [{ teamId: { in: equipes } }, { nom: { endsWith: suffixe } }] } })
+    await proprietaire.checklistProposal.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreDomainEvent.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreAction.deleteMany({ where: { teamId: { in: equipes } } })
     await proprietaire.coreEventEntry.deleteMany({ where: { teamId: { in: equipes } } })
