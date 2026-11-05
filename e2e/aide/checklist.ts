@@ -40,6 +40,19 @@ export async function preparerEngagementChecklist(
   return { entryId, eventId, vehicleId }
 }
 
+// Épreuve dans `debutDans` jours, sa voiture de course et le modèle de la team, sans engagement : l'engagement se fait
+// par Saison (équipage choisi à l'écran, comme la team le fait). `echeanceRelative` : décalage des points du modèle.
+export async function preparerEpreuveChecklist(
+  equipe: Equipe,
+  options: { debutDans: number; echeanceRelative?: "j_moins_7" | "j_moins_1" | "jour_j" },
+): Promise<{ eventId: string; vehicleId: string }> {
+  const saisonId = await preparerSaison(equipe, new Date().getFullYear())
+  const eventId = await ajouterEpreuveEnBase(equipe, saisonId, `Rallye Check-lists ${equipe.horodatage}`, jourParis(options.debutDans), jourParis(options.debutDans + 1))
+  const vehicleId = await ajouterVoitureDeCourse(equipe, `Saxo ${equipe.horodatage}`)
+  await ajouterModeleChecklistEnBase(equipe, "Contrôle avant départ", ["Triangle de présentation", "Trousse de secours"], options.echeanceRelative ?? null)
+  return { eventId, vehicleId }
+}
+
 // Attend que la base locale de la page contienne au moins `minimum` points de Check-lists : le premier tirage de la
 // synchro doit être fini avant de couper le réseau, sinon la liste n'est jamais sur l'appareil (le tirage ne tourne pas
 // hors ligne). Lecture de la base IndexedDB de l'origine, sans passer par le moteur.
