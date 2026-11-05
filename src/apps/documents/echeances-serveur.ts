@@ -7,6 +7,7 @@
 // Le recalcul n'écrit que les lignes et les événements, une seule fois par étape.
 
 import { niveauDe } from "@/core/actions/actions-serveur"
+import { actionEcheanceProposable } from "@/core/actions/proposable-serveur"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 import type { ContexteTeam } from "@/core/contexte"
 import { emettre } from "@/core/evenements/bus-serveur"
@@ -123,7 +124,13 @@ export async function synchroniserEcheanceDans(ctx: ContexteTeam, documentId: st
         })
 
     const aEnvoyer = etapeAEnvoyer(etape, derniereEnvoyee)
-    if (aEnvoyer === null) return
+    if (aEnvoyer === null) {
+      // Le rang suit la date : une action encore ouverte se met à jour quand le jour change (9 puis 2 le jour J).
+      if (doc.validUntil && (await actionEcheanceProposable(client, ctx, cleAction(doc.id, doc.validUntil)))) {
+        await emettreActionRenouvellement(ctx, { ...doc, validUntil: doc.validUntil }, maintenant)
+      }
+      return
+    }
     await envoyerEtape(ctx, { id: doc.id, title: doc.title, validUntil: doc.validUntil, ownerPersonId: doc.ownerPersonId }, aEnvoyer, maintenant)
     await client.documentsDeadline.update({
       where: { id: ligneCourante.id },
@@ -154,6 +161,16 @@ async function envoyerEtape(
       chargeDocumentExpireBientot.parse({ documentId: doc.id, titre: doc.title, echeance, etape }),
     )
   }
+  await emettreActionRenouvellement(ctx, doc, maintenant)
+}
+
+// L'action « Renouveler » d'une date de validité, pour les responsables du document. Elle se met à jour à chaque recalcul
+// (même cleUnicite) : son rang suit la date.
+async function emettreActionRenouvellement(
+  ctx: ContexteTeam,
+  doc: { id: string; title: string; validUntil: Date; ownerPersonId: string | null },
+  maintenant: Date,
+): Promise<void> {
   const destinataires = await destinatairesDuDocument(ctx, doc.ownerPersonId)
   if (destinataires.length === 0) return
   await emettre(ctx, "documents.action_requise", {
@@ -168,7 +185,8 @@ async function envoyerEtape(
       { cle: "reporter", libelle: "Reporter d'une semaine" },
       { cle: "ignorer", libelle: "Ignorer" },
     ],
-    priorite: prioriteEtape(etape),
+    priorite: prioriteEtape(doc.validUntil, maintenant),
+    echeance: doc.validUntil.toISOString(),
     niveauRequis: "contribution",
     cleRegroupement: "documents_a_renouveler",
   })

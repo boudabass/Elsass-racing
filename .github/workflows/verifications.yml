@@ -104,6 +104,7 @@ jobs:
       - run: pnpm db:verifier-equipe
       - run: pnpm db:verifier-documents
       - run: pnpm db:verifier-checklist
+      - run: pnpm db:verifier-priorites
 
       - run: pnpm exec playwright install --with-deps chromium
 

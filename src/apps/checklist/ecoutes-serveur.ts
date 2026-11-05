@@ -2,6 +2,7 @@
 // (checklist_proposal) et son action (Accepter, Ignorer) pour les responsables. Accepter écrit dans Check-lists ; Ignorer
 // ne fait rien. Check-lists ne lit une autre app que par ses lectures partagées, et n'écrit que dans ses propres tables
 // (règle 2). Gestionnaires enregistrés à l'import par src/apps/gestionnaires-serveur.ts.
+import { PRIORITE } from "@/core/actions/priorites"
 import * as documents from "@/apps/documents/lectures-partagees"
 import * as equipe from "@/apps/equipe/lectures-partagees"
 import * as garage from "@/apps/garage/lectures-partagees"
@@ -202,7 +203,7 @@ function corpsAction(propositionId: string, titre: string, contexte: string, epr
       { cle: "accepter", libelle: "Accepter" },
       { cle: "ignorer", libelle: "Ignorer" },
     ],
-    priorite: 5,
+    priorite: PRIORITE.proposition,
     niveauRequis: "gestion" as const,
     cleRegroupement,
   }

@@ -41,9 +41,11 @@ describe("rappels : clôture des engagements", () => {
     expect(rappelsDues([epreuve({ clotureEngagements: jour("2026-10-30"), engagements: [paye] })], jour("2026-10-16"), new Set())).toEqual([])
   })
 
-  it("priorité 2 et destinataires responsable et équipage", () => {
+  it("priorité 9 avant la clôture, 2 le jour J ; destinataires responsable et équipage", () => {
     const [rappel] = rappelsDues([epreuve({ clotureEngagements: jour("2026-10-30"), engagements: [engagementNonPaye] })], jour("2026-10-16"), new Set())
-    expect(rappel.priorite).toBe(2)
+    expect(rappel.priorite).toBe(9)
+    const [jourJ] = rappelsDues([epreuve({ clotureEngagements: jour("2026-10-30"), engagements: [engagementNonPaye] })], jour("2026-10-30"), new Set())
+    expect(jourJ.priorite).toBe(2)
     expect(rappel.destinataires).toEqual({ kind: "roles", roles: ["responsable", "equipage"] })
   })
 })
@@ -104,7 +106,7 @@ describe("rappels : résultats", () => {
     const epreuves = [epreuve({ statut: "terminee", engagements: [parti({ validation: "saisi", createdAt: saisi })] })]
     const apres48h = new Date("2026-10-16T09:00:00Z")
     const relance = rappelsDues(epreuves, apres48h, new Set()).find((rappel) => rappel.type === "resultat_a_valider")
-    expect(relance).toMatchObject({ cle: "resultat_a_valider:n1", priorite: 6, relance: true, destinataires: { kind: "validation" } })
+    expect(relance).toMatchObject({ cle: "resultat_a_valider:n1", priorite: 3, relance: true, destinataires: { kind: "validation" } })
     expect(rappelsDues(epreuves, new Date("2026-10-15T08:00:00Z"), new Set()).some((rappel) => rappel.type === "resultat_a_valider")).toBe(false)
   })
 

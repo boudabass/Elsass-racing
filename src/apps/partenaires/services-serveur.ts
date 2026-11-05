@@ -5,6 +5,7 @@
 // Niveaux : responsable en gestion, équipage en écriture. L'assistance et l'invité n'y ont aucun accès.
 // Pas d'écran dans cette tâche : les écrans viennent en 3.6 et 3.7.
 
+import { PRIORITE } from "@/core/actions/priorites"
 import { z } from "zod"
 
 import type { ContexteTeam } from "@/core/contexte"
@@ -77,8 +78,8 @@ export const SECTIONS_PAGE = ["conventions", "contreparties", "preuves", "calend
 const STATUTS_CLOS = ["terminee", "resiliee"] as const
 
 // Priorité d'une action de retard : plus haute que le rappel des papiers de Voiture (4).
-const PRIORITE_CONTREPARTIE_EN_RETARD = 5
-const PRIORITE_RELANCE = 6
+const PRIORITE_CONTREPARTIE_EN_RETARD = PRIORITE.contrepartie
+const PRIORITE_RELANCE = PRIORITE.relance
 
 const texte = (max: number) => z.string().trim().max(max).nullable().optional()
 const identifiant = z.string().min(1)
@@ -382,6 +383,9 @@ export async function modifierPartenaireDans(ctx: ContexteTeam, id: string, entr
   await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
     tx.partenairesPartner.update({ where: { id }, data: { ...champs, rev: { increment: 1 }, updatedBy: ctx.userId } }),
   )
+  // Une modification peut changer la date de relance : les relances en attente se lèvent tout de suite (5.8, §3.3).
+  // Si la relance est encore due au prochain recalcul du QG, son action revient.
+  await leverRelancesDe(ctx, id)
 }
 
 export async function poserLogoPartenaire(partnerId: string, fileId: string): Promise<void> {
@@ -531,6 +535,7 @@ export async function supprimerPartenaireDans(ctx: ContexteTeam, id: string): Pr
   await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
     tx.partenairesPartner.update({ where: { id }, data: { deletedAt: new Date(), rev: { increment: 1 }, updatedBy: ctx.userId } }),
   )
+  await leverRelancesDe(ctx, id)
 }
 
 // --- Échanges -------------------------------------------------------------------------------
@@ -1582,6 +1587,7 @@ export async function recalculerStatutsDans(ctx: ContexteTeam): Promise<void> {
     await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
       tx.partenairesPartner.update({ where: { id: partenaire.id }, data: { statut: "ancien_partenaire", rev: { increment: 1 }, updatedBy: ctx.userId } }),
     )
+    await leverRelancesDe(ctx, partenaire.id)
   }
 }
 
@@ -1720,6 +1726,16 @@ async function proposerActionRelance(
     niveauRequis: "ecriture",
     cleRegroupement: "relances",
   })
+}
+
+// Lève les relances en attente d'un partenaire (modification, suppression, sortie du suivi).
+async function leverRelancesDe(ctx: ContexteTeam, partnerId: string): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const actions = await client.coreAction.findMany({
+    where: { teamId: ctx.teamId, cleUnicite: { startsWith: `${PREFIXE_TACHE_RELANCE}${partnerId}:` }, statut: "en_attente" },
+    select: { cleUnicite: true },
+  })
+  for (const action of actions) await emettre(ctx, "partenaires.action_levee", { cleUnicite: action.cleUnicite })
 }
 
 // Lève les actions de relance dont la relance n'est plus due à cette date : date changée, statut sorti du suivi, partenaire retiré.

@@ -6,6 +6,7 @@
 // Écritures : rev incrémenté, updatedBy posé. Montants : cf. masquerMontants (règles pures).
 // Aucun nom d'événement hors du catalogue (src/core/evenements/catalogue.ts).
 
+import { prioriteEcheance } from "@/core/actions/priorites"
 import { z } from "zod"
 
 import type { Prisma } from "@/generated/prisma/client"
@@ -1298,6 +1299,7 @@ async function recalculerRappels(ctx: ContexteTeam, saisonId: string, maintenant
       destinataires,
       boutons: [{ cle: "compris", libelle: "Compris" }],
       priorite: rappel.priorite,
+      ...(rappel.echeance ? { echeance: rappel.echeance.toISOString() } : {}),
       niveauRequis: "lecture",
       terrain: rappel.terrain,
       cleRegroupement: "rappels_saison",
@@ -1328,7 +1330,7 @@ async function proposerMarquagePaye(ctx: ContexteTeam, evenement: EvenementRecu)
   if (inscription?.payeLe) return
   const engagement = await client.coreEventEntry.findFirst({
     where: { id: donnees.entryId, teamId: ctx.teamId, deletedAt: null },
-    select: { eventId: true, event: { select: { nom: true } } },
+    select: { eventId: true, event: { select: { nom: true, dateDebut: true } } },
   })
   if (!engagement) return
   await emettre(ctx, "saison.action_requise", {
@@ -1344,7 +1346,8 @@ async function proposerMarquagePaye(ctx: ContexteTeam, evenement: EvenementRecu)
       { cle: "marquer_paye", libelle: "Marquer payé" },
       { cle: "ignorer", libelle: "Ignorer" },
     ],
-    priorite: 5,
+    priorite: prioriteEcheance(engagement.event.dateDebut, new Date()),
+    echeance: engagement.event.dateDebut.toISOString(),
     niveauRequis: "ecriture",
     cleRegroupement: "engagements_a_marquer",
   })

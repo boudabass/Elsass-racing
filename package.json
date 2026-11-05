@@ -25,6 +25,7 @@
     "db:verifier-equipe": "tsx scripts/verifier-equipe.ts",
     "db:verifier-documents": "tsx scripts/verifier-documents.ts",
     "db:verifier-checklist": "tsx scripts/verifier-checklist.ts",
+    "db:verifier-priorites": "tsx scripts/verifier-priorites.ts",
     "db:initialiser-budget": "tsx scripts/initialiser-budget.ts",
     "donnees:koehling": "tsx scripts/donnees-koehling.ts",
     "db:studio": "prisma studio",

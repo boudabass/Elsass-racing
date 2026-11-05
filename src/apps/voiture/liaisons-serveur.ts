@@ -2,6 +2,7 @@
 // Voiture lit la contrepartie par la lecture partagée de Partenaires, puis propose ses actions (réserver, libérer).
 // Il n'écrit que ses tables, par ses propres fonctions (reserverEmplacementDans, retirerLogoDans).
 
+import { PRIORITE } from "@/core/actions/priorites"
 import { z } from "zod"
 
 import { lireContrepartieLogoPourVoiture, lireReservationConventionDans } from "@/apps/partenaires/lectures-partagees"
@@ -31,8 +32,6 @@ const schemaConventionTerminee = z.object({
   slotIds: z.array(z.string().min(1)),
 })
 
-const PRIORITE_LIAISON = 5
-const PRIORITE_INFORMATION = 6
 
 // --- Convention signée : réserver l'emplacement de chaque contrepartie logo (§2.2) -----------------
 
@@ -68,7 +67,7 @@ export async function proposerReservationsDans(ctx: ContexteTeam, entree: z.inpu
         ficheId: contrepartie.benefitId,
         destinataires: { roles: ["responsable", "equipage"] },
         boutons: [{ cle: "compris", libelle: "Compris" }],
-        priorite: PRIORITE_INFORMATION,
+        priorite: PRIORITE.proposition,
         niveauRequis: "ecriture",
         cleRegroupement: "reservations_emplacements",
       })
@@ -87,7 +86,7 @@ export async function proposerReservationsDans(ctx: ContexteTeam, entree: z.inpu
         { cle: "reserver", libelle: "Réserver" },
         { cle: "ignorer", libelle: "Ignorer" },
       ],
-      priorite: PRIORITE_LIAISON,
+      priorite: PRIORITE.proposition,
       niveauRequis: "ecriture",
       cleRegroupement: "reservations_emplacements",
     })
@@ -121,7 +120,7 @@ export async function proposerLiberationsDans(ctx: ContexteTeam, entree: z.input
         { cle: "liberer", libelle: "Libérer" },
         { cle: "garder", libelle: "Garder" },
       ],
-      priorite: PRIORITE_LIAISON,
+      priorite: PRIORITE.proposition,
       niveauRequis: "ecriture",
       cleRegroupement: "liberations_emplacements",
     })

@@ -4,6 +4,9 @@
 import { differenceInCalendarDays } from "date-fns"
 
 import type { ActionBoite } from "./filtrage"
+import { PRIORITE, pourquoi } from "./priorites"
+
+export { pourquoi }
 
 export interface EpreuveProchaine {
   nom: string
@@ -26,30 +29,6 @@ export type ProchaineEtape =
 const DEUX_JOURS_MS = 48 * 60 * 60 * 1000
 const UN_JOUR_MS = 24 * 60 * 60 * 1000
 
-// Une ligne « pourquoi » par priorité. Le nom de l'épreuve sert à la priorité 1.
-export function pourquoi(priorite: number, epreuve?: EpreuveProchaine): string {
-  switch (priorite) {
-    case 1:
-      return epreuve ? `Bloquant pour ${epreuve.nom}` : "Bloquant"
-    case 2:
-      return "Échéance dépassée ou aujourd'hui"
-    case 3:
-      return "Les trophées et statistiques attendent ce résultat"
-    case 4:
-      return "Mouvement à confirmer"
-    case 5:
-      return "Contrepartie due à un partenaire"
-    case 6:
-      return "Relance due"
-    case 7:
-      return "Suggestion de préparation"
-    case 8:
-      return "Proposition d'une autre app"
-    default:
-      return "Échéance proche"
-  }
-}
-
 // À moins de 48 heures de l'épreuve (en cours ou à venir).
 function epreuveProche(epreuve: EpreuveProchaine | undefined, maintenant: Date): boolean {
   if (!epreuve) return false
@@ -60,8 +39,8 @@ function epreuveProche(epreuve: EpreuveProchaine | undefined, maintenant: Date):
 // Rang de groupe : à moins de 48 h, la priorité 1 passe devant tout, puis la 7, puis le reste.
 function rangGroupe(action: ActionBoite, proche: boolean): number {
   if (!proche) return 2
-  if (action.priorite === 1) return 0
-  if (action.priorite === 7) return 1
+  if (action.priorite === PRIORITE.bloquant) return 0
+  if (action.priorite === PRIORITE.suggestion) return 1
   return 2
 }
 
@@ -91,7 +70,7 @@ export function choisirProchaineEtape({
       genre: "action",
       action,
       libelle: action.titre,
-      pourquoi: pourquoi(action.priorite, prochaineEpreuve),
+      pourquoi: pourquoi(action.priorite, prochaineEpreuve?.nom),
     }
   }
 

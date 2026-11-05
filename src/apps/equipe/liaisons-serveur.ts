@@ -7,6 +7,7 @@
 //   - settings.membre_retire : rien n'est effacé, l'historique reste (le statut de l'adhésion suffit).
 //   - settings.ludique_modifie : le réglage se lit à l'affichage (ludiqueAfficheDansLaTeam).
 
+import { PRIORITE } from "@/core/actions/priorites"
 import { lireRessentiDebrief } from "@/apps/saison/lectures-partagees"
 import { ludiqueAfficheDansLaTeam } from "@/apps/settings/preferences-serveur"
 import type { ContexteTeam } from "@/core/contexte"
@@ -161,7 +162,7 @@ export async function demanderDisponibilitesDans(ctx: ContexteTeam, entryId: str
       destinataires: { memberships: [membre.id] },
       // Lien vers la page Prochaine épreuve, où se donnent les disponibilités (5.6 §0) : levée à la réponse.
       boutons: [{ cle: "repondre", libelle: "Répondre", lien: "/apps/equipe/epreuve" }],
-      priorite: 5,
+      priorite: PRIORITE.suggestion,
       niveauRequis: "contribution",
     })
   }

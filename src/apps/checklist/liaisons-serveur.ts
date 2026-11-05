@@ -5,6 +5,7 @@
 // settings.membre_retire : une action « Réassigner les points » (motif checklist.action_requise), sans ligne
 // checklist_proposal : décision de l'orchestrateur du 01/11, 956 §3 ne prévoit pas de type pour cela.
 
+import { PRIORITE } from "@/core/actions/priorites"
 import type { ContexteTeam } from "@/core/contexte"
 import { emettre } from "@/core/evenements/bus-serveur"
 import { enregistrerGestionnaire, type EvenementRecu } from "@/core/evenements/gestionnaires"
@@ -105,7 +106,7 @@ async function proposerCreationListes(ctx: ContexteTeam, evenement: EvenementRec
       { cle: "accepter", libelle: "Accepter" },
       { cle: "ignorer", libelle: "Ignorer" },
     ],
-    priorite: 5,
+    priorite: PRIORITE.proposition,
     niveauRequis: "gestion",
     cleRegroupement: "listes_checklist",
   })
@@ -207,7 +208,7 @@ export async function proposerReassignationDans(ctx: ContexteTeam, membershipId:
       destinataires: { roles: ["responsable"] },
       // Lien (5.6 §0) : l'action ne se décide pas au clic ; elle sort quand plus aucun point n'est en attente.
       boutons: [{ cle: "voir", libelle: "Voir les listes", lien: "/apps/checklist" }],
-      priorite: 5,
+      priorite: PRIORITE.proposition,
       niveauRequis: "gestion",
       cleRegroupement: "listes_checklist",
     }),

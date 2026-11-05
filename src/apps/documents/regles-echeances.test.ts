@@ -55,11 +55,19 @@ describe("étape à envoyer (une fois par étape)", () => {
   })
 })
 
-describe("priorités de l'action Renouveler", () => {
-  it("expiré passe avant J7, J7 avant J30 et J60 ; J30 et J60 ont le même rang (la date départage)", () => {
-    expect(prioriteEtape("expire")).toBeLessThan(prioriteEtape("J7"))
-    expect(prioriteEtape("J7")).toBeLessThan(prioriteEtape("J30"))
-    expect(prioriteEtape("J30")).toBe(prioriteEtape("J60"))
+describe("priorité de l'action Renouveler", () => {
+  const maintenant = new Date("2026-11-05T10:00:00Z")
+
+  it("2 si la date est passée ou du jour, 9 si elle est à venir (table core/actions/priorites.ts)", () => {
+    expect(prioriteEtape(new Date("2026-11-01T00:00:00Z"), maintenant)).toBe(2)
+    expect(prioriteEtape(new Date("2026-11-05T00:00:00Z"), maintenant)).toBe(2)
+    expect(prioriteEtape(new Date("2026-11-06T00:00:00Z"), maintenant)).toBe(9)
+  })
+
+  it("le rang passe de 9 à 2 le jour J, sans attendre une nouvelle étape", () => {
+    const echeance = new Date("2026-11-12T00:00:00Z")
+    expect(prioriteEtape(echeance, new Date("2026-11-11T20:00:00Z"))).toBe(9)
+    expect(prioriteEtape(echeance, new Date("2026-11-12T08:00:00Z"))).toBe(2)
   })
 })
 

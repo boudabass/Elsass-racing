@@ -33,7 +33,7 @@ Un événement `<app>.action_requise` est traité par le socle (`src/core/action
   ficheType?: string, ficheId?: uuid, eventId?: uuid,
   destinataires: { roles?: CoreRole[], memberships?: string[] },  // au moins un
   boutons: { cle: string, libelle: string, lien?: string }[],     // de 1 à 4 ; lien : voir « Boutons-liens »
-  priorite: 1..9,
+  priorite: 1..9, // rang nommé de la table PRIORITE (src/core/actions/priorites.ts) : une app passe le rang, jamais un chiffre
   bloquant?: boolean,
   echeance?: date ISO,
   cleRegroupement?: string,
@@ -71,8 +71,26 @@ Le bouton flottant n'est plus affiché (brief 3.11, §9, 19/10) : ni sur ordinat
 1. Les actions proposées sont celles du membre, non reportées, et en mode terrain seulement les actions `terrain`.
 2. Tri : priorité croissante (1 à 9), puis échéance la plus proche (sans échéance en dernier), puis ancienneté.
 3. À moins de 48 heures de l'épreuve (et pas plus de 24 heures passées), les priorités 1 puis 7 passent devant tout le reste.
-4. La ligne « pourquoi » vient d'une table par priorité (`pourquoi`).
+4. La ligne « pourquoi » vient d'une table par priorité (`pourquoi`, dans `src/core/actions/priorites.ts`).
 5. Sans action : compte à rebours « J-n <épreuve> » (« Aujourd'hui <épreuve> » le jour même), sinon rien.
+
+### Priorités (table unique `PRIORITE`, article 960 section 5)
+
+Une app passe un rang nommé de `src/core/actions/priorites.ts`, jamais un chiffre. `db:verifier-priorites` contrôle la base contre cette table.
+
+| Rang | Nom | Types (émis par) |
+|---|---|---|
+| 1 | `bloquant` | aucun émis (reporté après le lot 5, plan §5.8) |
+| 2 | `echeance_depassee` | échéance passée ou du jour : `cloture_engagements`, `licence_a_renouveler`, `homologation_a_renouveler`, `papier_a_renouveler`, `renouveler_document`, `marquer_engagement_paye` |
+| 3 | `resultat` | `resultat_a_saisir`, `resultat_a_valider` (relance comprise) |
+| 4 | `mouvement_a_confirmer` | Budget |
+| 5 | `contrepartie` | `preuve_pose`, `publications_promises`, `contrepartie_en_retard` |
+| 6 | `relance` | `tache_relance` (Partenaires) |
+| 7 | `suggestion` | `point_critique`, `tache_probleme` (Check-lists), `reconnaissance`, `programme_du_jour` (Saison), `disponibilite_a_repondre` (Équipe) |
+| 8 | `proposition` | propositions Check-lists (`ajouter_point`, `cocher_point`, `creer_liste_retour`, `relire_liste`, `creer_listes`, `reassigner_points`), `ordre_depuis_point` (Garage), `message_partenaire`, `emplacement_pris`, `emplacement_supprime`, `reserver_emplacement`, `liberer_emplacement` (Voiture et Partenaires), `cloture_saison_proposee` (Saison) |
+| 9 | `echeance_proche` | échéance à venir, ou sans date |
+
+Une échéance est réémise à chaque recalcul de son app (même `cleUnicite`) tant que l'action est en attente : son rang passe de 9 à 2 le jour J. Une action décidée, expirée ou levée ne revient pas toute seule (`actionEcheanceProposable`).
 
 ## Charges utiles
 
@@ -110,7 +128,7 @@ Ce format est une convention de Saison, pas une description du catalogue. Les ap
 
 ### Budget
 
-Charges utiles des événements de Budget : voir `docs/schema-budget.md` (section Événements). Le mouvement à confirmer est une demande de la boîte d'actions : `{ type: "mouvement_a_confirmer", cleUnicite: "budget_suggestion:<id>", ficheType: "mouvement", ficheId, destinataires, boutons: [confirmer, ignorer], priorite: 5 }`.
+Charges utiles des événements de Budget : voir `docs/schema-budget.md` (section Événements). Le mouvement à confirmer est une demande de la boîte d'actions : `{ type: "mouvement_a_confirmer", cleUnicite: "budget_suggestion:<id>", ficheType: "mouvement", ficheId, destinataires, boutons: [confirmer, ignorer], priorite: PRIORITE.mouvement_a_confirmer (4) }`.
 
 ## Vérifier
 

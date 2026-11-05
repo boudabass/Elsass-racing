@@ -91,7 +91,7 @@ Tous dans le catalogue (`src/core/evenements/catalogue.ts`), aucun nom hors cata
 - `budget.recette_encaissee` (partenaires) : à l'encaissement.
 - `budget.remboursement_effectue` (core).
 - `budget.depassement_previsionnel` (core) : une fois au franchissement, par catégorie, saison et franchissement.
-- `budget.action_requise` (motif `budget.action_requise`) : `type: "mouvement_a_confirmer"`, clé `budget_suggestion:<id>`, destinataires responsable et équipage, boutons Confirmer et Ignorer, priorité 5.
+- `budget.action_requise` (motif `budget.action_requise`) : `type: "mouvement_a_confirmer"`, clé `budget_suggestion:<id>`, destinataires responsable et équipage, boutons Confirmer et Ignorer, priorité 4 (table PRIORITE).
 
 ## Correctif du socle : boucle de traitement des livraisons
 

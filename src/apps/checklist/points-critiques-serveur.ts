@@ -2,6 +2,7 @@
 // point critique ouvert dont la liste est à 7 jours ou moins de son échéance. Elle ne se décide pas : son bouton ouvre la
 // liste. Levée quand le point est fait ou sans objet, ou retiré. Check-lists n'écrit que ses propres actions (le socle les
 // tient). Ce module ne dépend pas de services-serveur.ts (sinon cycle) : la levée générique est ici.
+import { PRIORITE } from "@/core/actions/priorites"
 import type { ContexteTeam } from "@/core/contexte"
 import type { Niveau } from "@/core/droits/niveaux"
 import { emettre } from "@/core/evenements/bus-serveur"
@@ -58,7 +59,7 @@ export async function proposerActionPointCritique(ctx: ContexteTeam, liste: List
     eventId: liste.epreuveId,
     destinataires: { roles: ["responsable"] },
     boutons: [{ cle: "ouvrir", libelle: "Ouvrir la liste", lien: `/apps/checklist/liste/${liste.id}` }],
-    priorite: 4,
+    priorite: PRIORITE.suggestion,
     niveauRequis: "contribution",
     cleRegroupement: "points_critiques",
   })
@@ -130,7 +131,7 @@ export async function proposerActionTacheProbleme(
     eventId: liste.epreuveId,
     destinataires: { roles: ["responsable"], memberships: membre ? [membre.id] : [] },
     boutons: [{ cle: "ouvrir", libelle: "Ouvrir la liste", lien: `/apps/checklist/liste/${liste.id}` }],
-    priorite: 7,
+    priorite: PRIORITE.suggestion,
     niveauRequis: "contribution",
     cleRegroupement: "problemes",
   })

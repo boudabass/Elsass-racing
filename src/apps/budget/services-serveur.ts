@@ -6,6 +6,7 @@
 // Montants en centimes. Budget n'écrit que ses propres tables : il lit les épreuves, les saisons et les
 // personnes de la team, et ne modifie jamais Saison. Aucun écran dans cette tâche (2.6).
 
+import { PRIORITE } from "@/core/actions/priorites"
 import { z } from "zod"
 
 import { jourDeParis } from "@/core/dates"
@@ -52,8 +53,8 @@ export async function initialiserSiBesoin(ctx: ContexteTeam): Promise<void> {
 
 export { ErreurBudget } from "./erreurs"
 
-// Priorité de la demande de confirmation dans la boîte d'actions (1 à 9, 5 : utile, pas urgent).
-export const PRIORITE_MOUVEMENT_A_CONFIRMER = 5
+// Rang de la demande de confirmation dans la boîte d'actions (table core/actions/priorites.ts).
+export const PRIORITE_MOUVEMENT_A_CONFIRMER = PRIORITE.mouvement_a_confirmer
 
 // --- Entrées --------------------------------------------------------------------------------
 

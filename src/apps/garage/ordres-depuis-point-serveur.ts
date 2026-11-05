@@ -1,5 +1,6 @@
 // Proposition d'ordre et décision pour un problème signalé dans Check-lists (tâche 5.7a). Garage ouvre l'ordre lui-même, à
 // l'acceptation ; il n'écrit jamais dans Check-lists. La lecture de l'organe passe par sa propre lecture partagée.
+import { PRIORITE } from "@/core/actions/priorites"
 import { rouvrirAction } from "@/core/actions/actions-serveur"
 import type { ContexteTeam } from "@/core/contexte"
 import { emettre } from "@/core/evenements/bus-serveur"
@@ -34,7 +35,7 @@ export async function proposerOrdreDepuisPointDans(ctx: ContexteTeam, probleme: 
     eventId: probleme.epreuveId,
     destinataires: { roles: ["responsable"] },
     boutons: BOUTONS_ORDRE_DEPUIS_POINT.map((bouton) => ({ ...bouton })),
-    priorite: 5,
+    priorite: PRIORITE.proposition,
     niveauRequis: "ecriture",
     cleRegroupement: "problemes_checklist",
   })

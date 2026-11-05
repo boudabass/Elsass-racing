@@ -5,6 +5,8 @@
 // Voiture n'écoute encore aucun événement (lot 3). Elle émet ses propres événements, dont les charges
 // utiles sont validées par charges.ts. Aucun écran dans cette tâche (3.3). Les gabarits sont dans le code.
 
+import { actionEcheanceProposable } from "@/core/actions/proposable-serveur"
+import { prioriteEcheance } from "@/core/actions/priorites"
 import { z } from "zod"
 
 import type { ContexteTeam } from "@/core/contexte"
@@ -933,8 +935,6 @@ export async function valeursDeDepartDans(ctx: ContexteTeam, vehicleId: string, 
 
 // --- Échéances des papiers (recalcul à l'ouverture du QG) -----------------------------------
 
-const PRIORITE_PAPIER_A_RENOUVELER = 4
-
 const LIBELLES_PAPIER: Record<(typeof TYPES_PAPIER)[number], string> = {
   passeport_technique: "passeport technique",
   fiche_homologation: "fiche d'homologation",
@@ -991,21 +991,25 @@ export async function recalculerPapiersDans(ctx: ContexteTeam): Promise<void> {
       },
       select: { id: true },
     })
-    if (dejaEmis || responsables.length === 0) continue
-
     const type = libelleTypePapier(papier.type, papier.libelle)
     const quand = papier.statut === "expire" ? `expiré depuis le ${dateCourte(echeance)}` : `expire le ${dateCourte(echeance)}`
-    await emettre(ctx, "voiture.papier_expire_bientot", chargePapierExpireBientot.parse({ vehicleId: papier.vehicleId, paperId: papier.id, type: papier.type, echeance }))
+    if (!dejaEmis) {
+      await emettre(ctx, "voiture.papier_expire_bientot", chargePapierExpireBientot.parse({ vehicleId: papier.vehicleId, paperId: papier.id, type: papier.type, echeance }))
+    }
+    // L'action suit la date à chaque recalcul : son rang passe de 9 à 2 le jour J (table core/actions/priorites.ts).
+    const cleUnicite = cleRappelPapier(papier.id, echeance)
+    if (responsables.length === 0 || !(await actionEcheanceProposable(client, ctx, cleUnicite))) continue
     await emettre(ctx, "voiture.action_requise", {
       type: "papier_a_renouveler",
-      cleUnicite: cleRappelPapier(papier.id, echeance),
+      cleUnicite,
       titre: `Renouveler ${type} : ${papier.vehicle.nomCourt}, ${quand}`,
       contexte: papier.vehicle.nomCourt,
       ficheType: "paper",
       ficheId: papier.id,
+      echeance: `${echeance}T00:00:00.000Z`,
       destinataires: { memberships: responsables.map((membre) => membre.id) },
       boutons: [{ cle: "vu", libelle: "Vu" }],
-      priorite: PRIORITE_PAPIER_A_RENOUVELER,
+      priorite: prioriteEcheance(new Date(`${echeance}T00:00:00.000Z`), maintenant),
       niveauRequis: "gestion",
       cleRegroupement: "papiers_a_renouveler",
     })

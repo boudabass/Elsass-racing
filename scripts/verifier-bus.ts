@@ -335,7 +335,7 @@ async function main() {
       where: { teamId: team.id, cleUnicite: `resultat_a_valider:${entreeRelance.id}` },
       select: { priorite: true, titre: true, statut: true },
     })
-    controle("une saisie de plus de 48 heures non validée est relancée à la priorité 6", relance?.priorite === 6 && (relance?.titre ?? "").startsWith("Relance"), JSON.stringify(relance))
+    controle("une saisie de plus de 48 heures non validée est relancée à la priorité 3", relance?.priorite === 3 && (relance?.titre ?? "").startsWith("Relance"), JSON.stringify(relance))
 
     // 13. Budget : initialisation, dépense et solde, prévisionnel franchi une seule fois, suggestion confirmée
     //     par la boîte d'actions, décision refusée remise en attente avec son motif, remboursement et niveau.

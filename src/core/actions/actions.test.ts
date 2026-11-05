@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { actionsPourMembre, lireDestinataires, type ActionBoite } from "./filtrage"
 import { grouperActions, LIBELLES_TYPES } from "./regroupement"
 import { choisirProchaineEtape, pourquoi } from "./prochaine-etape"
+import { PRIORITE, prioriteEcheance } from "./priorites"
 
 const T0 = new Date("2026-10-16T10:00:00Z")
 const JOUR = 24 * 60 * 60 * 1000
@@ -140,6 +141,30 @@ describe("prochaine étape", () => {
     const actions = [action({ id: "p2", priorite: 2 }), action({ id: "p7", priorite: 7 })]
     const etape = choisirProchaineEtape({ actions, maintenant: T0, prochaineEpreuve: epreuve, modeTerrain: false })
     expect(etape.genre === "action" && etape.action.id).toBe("p2")
+  })
+
+  it("à moins de 48 heures, la 7 passe devant la 2 et la 8 ; la 1 reste devant elle", () => {
+    const epreuve = { nom: "Rallye du Florival", dateDebut: new Date(T0.getTime() + 24 * 60 * 60 * 1000) }
+    const actions = [action({ id: "p8", priorite: 8 }), action({ id: "p2", priorite: 2 }), action({ id: "p7", priorite: 7 })]
+    const proche = choisirProchaineEtape({ actions, maintenant: T0, prochaineEpreuve: epreuve, modeTerrain: false })
+    expect(proche.genre === "action" && proche.action.id).toBe("p7")
+    const sansEpreuve = choisirProchaineEtape({ actions, maintenant: T0, modeTerrain: false })
+    expect(sansEpreuve.genre === "action" && sansEpreuve.action.id).toBe("p2")
+  })
+
+  it("une échéance qui arrive au jour J passe de 9 à 2 : elle passe alors devant un résultat (3)", () => {
+    const echeance = new Date("2026-10-16T00:00:00Z")
+    const avant = prioriteEcheance(echeance, new Date("2026-10-15T20:00:00Z"))
+    const lejour = prioriteEcheance(echeance, T0)
+    expect(avant).toBe(PRIORITE.echeance_proche)
+    expect(lejour).toBe(PRIORITE.echeance_depassee)
+    const resultat = action({ id: "resultat", priorite: PRIORITE.resultat })
+    const echeanceAvant = action({ id: "echeance", priorite: avant })
+    const echeanceDuJour = action({ id: "echeance", priorite: lejour })
+    const choixAvant = choisirProchaineEtape({ actions: [resultat, echeanceAvant], maintenant: T0, modeTerrain: false })
+    const choixDuJour = choisirProchaineEtape({ actions: [resultat, echeanceDuJour], maintenant: T0, modeTerrain: false })
+    expect(choixAvant.genre === "action" && choixAvant.action.id).toBe("resultat")
+    expect(choixDuJour.genre === "action" && choixDuJour.action.id).toBe("echeance")
   })
 
   it("en mode terrain, seules les actions terrain sont proposées", () => {

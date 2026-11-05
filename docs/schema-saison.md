@@ -186,7 +186,7 @@ Le bouton + passe en tiroir du bas sous md (point 0.7). Au PC, le menu déroulan
 - **Saisie ou nouvelle preuve** : `saison.action_requise`, type `resultat_a_valider`, clé `resultat_a_valider:<entryId>`, priorité 3 (article 960), regroupement `resultats_a_valider`, niveau écriture. Les destinataires sont listés **par membership** : responsable et équipage actifs, sans l'auteur de la saisie (sauf s'il est responsable). Le choix évite qu'un auteur voie une action qu'il ne peut pas décider.
 - **Validation ou contestation** : `saison.action_levee` avec la même clé.
 - **Décision** : gestionnaire de `core.action_decidee` dans Saison (`appliquerDecision`). Il appelle la même règle que le service. Si elle refuse, l'action est rouverte.
-- **Clôture proposée** : `saison.action_requise` de type `cloture_saison_proposee`, responsable, clé `cloture_saison:<seasonId>`, priorité 7, niveau gestion. Émise une fois, au recalcul, quand `clotureProposee` est vraie.
+- **Clôture proposée** : `saison.action_requise` de type `cloture_saison_proposee`, responsable, clé `cloture_saison:<seasonId>`, priorité 8 (proposition), niveau gestion. Émise une fois, au recalcul, quand `clotureProposee` est vraie.
 
 ### Débrief
 

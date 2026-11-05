@@ -3,6 +3,7 @@
 // Calendrier : jours civils de Paris. Un rappel dont la clé existe déjà n'est jamais recréé,
 // même décidé : sauf la relance de validation, qui met à jour la même action.
 
+import { PRIORITE, prioriteEcheance } from "@/core/actions/priorites"
 import { jourDeParis } from "@/core/dates"
 import { jourCivil, type StatutEngagement, type ValidationResultat } from "./regles"
 
@@ -20,6 +21,8 @@ export interface RappelDu {
   eventId: string
   entryId: string | null
   priorite: number
+  // Échéance du rappel (clôture des engagements) : la boîte affiche la date, et le rang suit la date au recalcul.
+  echeance?: Date
   titre: string
   destinataires: DestinatairesRappel
   terrain: boolean
@@ -87,7 +90,8 @@ export function rappelsDues(epreuves: readonly EpreuveRappel[], maintenant: Date
           ...cible,
           cle: `rappel:cloture:${epreuve.id}:${etape}`,
           type: "cloture_engagements",
-          priorite: 2,
+          priorite: prioriteEcheance(epreuve.clotureEngagements, maintenant),
+          echeance: epreuve.clotureEngagements,
           titre: `Clôture des engagements dans ${ecart} jour${ecart > 1 ? "s" : ""} : ${epreuve.nom}`,
           destinataires: { kind: "roles", roles: ["responsable", "equipage"] },
         })
@@ -102,7 +106,7 @@ export function rappelsDues(epreuves: readonly EpreuveRappel[], maintenant: Date
           ...cible,
           cle: `rappel:reco:${epreuve.id}`,
           type: "reconnaissance",
-          priorite: 7,
+          priorite: PRIORITE.suggestion,
           titre: `Reconnaissance à faire avant ${epreuve.nom}`,
           destinataires: { kind: "roles", roles: ["equipage"] },
         })
@@ -119,7 +123,7 @@ export function rappelsDues(epreuves: readonly EpreuveRappel[], maintenant: Date
             ...cible,
             cle: cleJour,
             type: "programme_du_jour",
-            priorite: 7,
+            priorite: PRIORITE.suggestion,
             titre: `Programme du jour : ${epreuve.nom}`,
             destinataires: { kind: "memberships" },
             terrain: true,
@@ -137,7 +141,7 @@ export function rappelsDues(epreuves: readonly EpreuveRappel[], maintenant: Date
           entryId: engagement.id,
           cle: `rappel:resultat_saisir:${engagement.id}`,
           type: "resultat_a_saisir",
-          priorite: 2,
+          priorite: PRIORITE.resultat,
           titre: `Résultat à saisir : ${epreuve.nom}`,
           destinataires: { kind: "roles", roles: ["equipage"] },
         })
@@ -152,7 +156,7 @@ export function rappelsDues(epreuves: readonly EpreuveRappel[], maintenant: Date
             entryId: engagement.id,
             cle: `resultat_a_valider:${engagement.id}`,
             type: "resultat_a_valider",
-            priorite: 6,
+            priorite: PRIORITE.resultat,
             titre: `Relance : valider le résultat de ${epreuve.nom}`,
             destinataires: { kind: "validation" },
             relance: true,

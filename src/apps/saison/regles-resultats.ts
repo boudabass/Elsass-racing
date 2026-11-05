@@ -1,11 +1,12 @@
 // Règles pures des résultats, du débrief et de l'historique de Saison (tâche 2.3). Aucun accès base.
 // Un résultat non validé ne compte jamais dans les statistiques.
 
+import { PRIORITE } from "@/core/actions/priorites"
 import type { StatutResultat, ValidationResultat } from "./regles"
 
-// Priorités de la boîte d'actions (article 960, cf. prochaine-etape.ts).
-export const PRIORITE_RESULTAT_A_VALIDER = 3
-export const PRIORITE_CLOTURE_PROPOSEE = 7
+// Rangs de la boîte d'actions : table unique dans src/core/actions/priorites.ts.
+export const PRIORITE_RESULTAT_A_VALIDER = PRIORITE.resultat
+export const PRIORITE_CLOTURE_PROPOSEE = PRIORITE.proposition
 
 // --- Durées : saisie « mm:ss,d », stockage en millisecondes ---------------------------------
 

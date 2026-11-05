@@ -1,6 +1,7 @@
 // Liaisons de Partenaires avec les autres apps (brief 3.8, §4 à §7). Une app propose, elle n'écrit jamais chez l'autre :
 // Partenaires lit Voiture et Budget par leurs lectures partagées, écrit ses propres tables, et lève ses actions.
 
+import { PRIORITE } from "@/core/actions/priorites"
 import { z } from "zod"
 
 import { etatRecettesParOrigine } from "@/apps/budget/liaisons-serveur"
@@ -20,8 +21,7 @@ const identifiant = z.string().min(1)
 const jourCivil = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
 const STATUTS_EN_COURS = ["signee", "en_cours"] as const
-const PRIORITE_ACTION = 5
-const PRIORITE_INFORMATION = 6
+const PRIORITE_ACTION = PRIORITE.contrepartie
 
 // --- Logo posé : ajouter la preuve (§4) ---------------------------------------------------------------
 
@@ -147,7 +147,7 @@ export async function suivreEmplacementModifieDans(ctx: ContexteTeam, entree: z.
       ficheId: contrepartie.id,
       destinataires: { memberships: await destinatairesDeSuiviDans(client, ctx, partenaire.suiviParPersonId) },
       boutons: [{ cle: "compris", libelle: "Compris" }],
-      priorite: PRIORITE_INFORMATION,
+      priorite: PRIORITE.proposition,
       niveauRequis: "ecriture",
       cleRegroupement: "emplacements_supprimes",
     })
@@ -215,7 +215,7 @@ export async function proposerPublicationsDans(ctx: ContexteTeam, entree: z.inpu
         { cle: "fait", libelle: "Fait" },
         { cle: "plus_tard", libelle: "Plus tard" },
       ],
-      priorite: PRIORITE_INFORMATION,
+      priorite: PRIORITE.contrepartie,
       niveauRequis: "ecriture",
       cleRegroupement: "publications_promises",
     })

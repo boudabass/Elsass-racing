@@ -4,6 +4,8 @@
 // gère que le sien. Une lecture n'écrit jamais : le profil se crée à la première écriture (assurerProfilDans).
 // Écritures concurrentes : avecReprisePourConflit. Les événements sont émis après l'écriture, jamais dedans.
 
+import { actionEcheanceProposable } from "@/core/actions/proposable-serveur"
+import { prioriteEcheance } from "@/core/actions/priorites"
 import { z } from "zod"
 
 import { jourDeParis } from "@/core/dates"
@@ -885,9 +887,6 @@ export async function retirerDuVivierDans(ctx: ContexteTeam, id: string): Promis
 
 // --- Échéances : licences et homologations au QG (brief §5) ---------------------------------
 
-// Priorité d'une échéance d'Équipe dans la boîte : la même que les papiers de Voiture.
-const PRIORITE_ECHEANCE_EQUIPE = 4
-
 // Recalcul de Équipe à l'ouverture du QG. Sans effet sans accès à Équipe.
 export async function recalculerPourQg(ctx: ContexteTeam, niveau: Niveau): Promise<void> {
   if (niveau === "aucun") return
@@ -919,20 +918,24 @@ export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> 
     const echeance = jourDe(licence.valableAu)
     if (!echeance || statutLicence(licence.valableAu, maintenant) === "valide") continue
     const nom = `${licence.person.prenom} ${licence.person.nom}`
-    if (await echeanceDejaEmise(client, ctx, "equipe.licence_expire_bientot", "licenceId", licence.id, echeance)) continue
-    await emettre(ctx, "equipe.licence_expire_bientot", chargeLicenceExpireBientot.parse({ personId: licence.personId, licenceId: licence.id, echeance }))
-    if (responsables.length > 0) {
+    if (!(await echeanceDejaEmise(client, ctx, "equipe.licence_expire_bientot", "licenceId", licence.id, echeance))) {
+      await emettre(ctx, "equipe.licence_expire_bientot", chargeLicenceExpireBientot.parse({ personId: licence.personId, licenceId: licence.id, echeance }))
+    }
+    // L'action suit la date à chaque recalcul : son rang passe de 9 à 2 le jour J (table core/actions/priorites.ts).
+    const cleUnicite = `licence:${licence.id}:${echeance}`
+    if (responsables.length > 0 && (await actionEcheanceProposable(client, ctx, cleUnicite))) {
       await emettre(ctx, "equipe.action_requise", {
         type: "licence_a_renouveler",
-        cleUnicite: `licence:${licence.id}:${echeance}`,
+        cleUnicite,
         titre: `Renouveler la licence de ${nom}`,
         contexte: nom,
         ficheType: "licence",
         ficheId: licence.id,
+        echeance: `${echeance}T00:00:00.000Z`,
         destinataires: { memberships: responsables.map((membre) => membre.id) },
         // Lien vers l'onglet Licences de la personne (5.6 §0) : l'action se lève au renouvellement.
         boutons: [{ cle: "renouveler", libelle: "Renouveler", lien: `/apps/equipe/personnes/${licence.personId}?onglet=licences` }],
-        priorite: PRIORITE_ECHEANCE_EQUIPE,
+        priorite: prioriteEcheance(new Date(`${echeance}T00:00:00.000Z`), maintenant),
         niveauRequis: "gestion",
         cleRegroupement: "echeances_equipe",
       })
@@ -943,24 +946,27 @@ export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> 
     const echeance = jourDe(equipement.finHomologation)
     if (!echeance || statutEquipement(equipement.finHomologation, maintenant) === "valide") continue
     const nom = `${equipement.person.prenom} ${equipement.person.nom}`
-    if (await echeanceDejaEmise(client, ctx, "equipe.homologation_expire_bientot", "equipementId", equipement.id, echeance)) continue
-    await emettre(
-      ctx,
-      "equipe.homologation_expire_bientot",
-      chargeHomologationExpireBientot.parse({ personId: equipement.personId, equipementId: equipement.id, echeance }),
-    )
-    if (responsables.length > 0) {
+    if (!(await echeanceDejaEmise(client, ctx, "equipe.homologation_expire_bientot", "equipementId", equipement.id, echeance))) {
+      await emettre(
+        ctx,
+        "equipe.homologation_expire_bientot",
+        chargeHomologationExpireBientot.parse({ personId: equipement.personId, equipementId: equipement.id, echeance }),
+      )
+    }
+    const cleUnicite = `equipement:${equipement.id}:${echeance}`
+    if (responsables.length > 0 && (await actionEcheanceProposable(client, ctx, cleUnicite))) {
       await emettre(ctx, "equipe.action_requise", {
         type: "homologation_a_renouveler",
-        cleUnicite: `equipement:${equipement.id}:${echeance}`,
+        cleUnicite,
         titre: `Renouveler l'homologation d'un équipement de ${nom}`,
         contexte: nom,
         ficheType: "gear",
         ficheId: equipement.id,
+        echeance: `${echeance}T00:00:00.000Z`,
         destinataires: { memberships: responsables.map((membre) => membre.id) },
         // Lien vers l'onglet Équipement de la personne (5.6 §0) : l'action se lève au renouvellement.
         boutons: [{ cle: "renouveler", libelle: "Renouveler", lien: `/apps/equipe/personnes/${equipement.personId}?onglet=equipement` }],
-        priorite: PRIORITE_ECHEANCE_EQUIPE,
+        priorite: prioriteEcheance(new Date(`${echeance}T00:00:00.000Z`), maintenant),
         niveauRequis: "gestion",
         cleRegroupement: "echeances_equipe",
       })

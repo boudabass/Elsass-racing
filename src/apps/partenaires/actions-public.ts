@@ -4,6 +4,7 @@
 // envoi, et le texte est enregistré tel quel. La team le lit dans l'onglet Messages de la fiche, affiché comme du
 // texte (jamais en HTML, jamais de lien cliquable).
 
+import { PRIORITE } from "@/core/actions/priorites"
 import { newId } from "@/core/ids"
 import { contexteSysteme } from "@/core/contexte-systeme-serveur"
 import { emettre } from "@/core/evenements/bus-serveur"
@@ -77,7 +78,7 @@ export async function envoyerMessagePartenaireAction(
     ficheId: lien.partnerId,
     destinataires: suivi.membershipId ? { memberships: [suivi.membershipId] } : { roles: ["responsable"] },
     boutons: [{ cle: "vu", libelle: "Vu" }],
-    priorite: 3,
+    priorite: PRIORITE.proposition,
   })
   return { ok: true }
 }

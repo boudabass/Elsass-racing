@@ -5,6 +5,7 @@
 // (c'est le but du partage, surtout pour l'assistance). Sans accès, un dossier invisible cache ses documents, et
 // l'assistance (niveau contribution) ne voit que les siens.
 
+import { type Priorite, prioriteEcheance } from "@/core/actions/priorites"
 import { jourDeParis } from "@/core/dates"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 
@@ -275,18 +276,9 @@ export function etapeAEnvoyer(etape: EtapeAlerte | null, derniereEnvoyee: EtapeA
   return etape
 }
 
-// Priorité de l'action « Renouveler » dans la Prochaine étape (socle, src/core/actions/prochaine-etape.ts). Expiré passe
-// avant J7 ; J30 et J60 partagent le rang « Échéance proche » du socle : entre eux, c'est la date qui départage.
-export function prioriteEtape(etape: EtapeAlerte): number {
-  switch (etape) {
-    case "expire":
-      return 2
-    case "J7":
-      return 4
-    case "J30":
-    case "J60":
-      return 9
-  }
+// Rang de l'action « Renouveler » (table unique src/core/actions/priorites.ts) : 2 si la date est passée ou du jour, 9 avant.
+export function prioriteEtape(valableJusquAu: Date, maintenant: Date): Priorite {
+  return prioriteEcheance(valableJusquAu, maintenant)
 }
 
 // Titre de l'action : « Renouveler Assurance de l'association : expire le 12/11/2026 » ou « … : expirée depuis le … ».
