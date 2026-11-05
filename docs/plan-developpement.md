@@ -359,7 +359,8 @@ Décisions de John (25/10) :
 ### 5.8 Vérification du lot 5
 - Brief `docs/briefs/5.8-verification-lot-5.md`. Corrections faites : lecture des fichiers par fiche (§3.1, registre de contrôles par app), tâches du socle sans écriture directe des apps (§3.2), tâches de problème et de relance visibles et fermées par la boîte (§3.3), table unique des rangs (`src/core/actions/priorites.ts`, migration `20261105100000_action_priorites`), levée immédiate des relances à la modification.
 - Liste de test de John réécrite : parcours court de dix étapes, compte assistance, création d'un modèle avant l'engagement.
-- À faire avant le compte-rendu : parcours e2e `e2e/lot-5-parcours-complet.spec.ts` (dix étapes, captures 1440 et 360 px), audit Impeccable (« Ignorer » en rouge, « Ouvrir » en double), mesure des intermittents et de la dette hors ligne. Résultats dans `docs/tests.md`, section 5.8.
+- Rangs décidés pendant la passe : `marquer_engagement_paye` au rang 8 (proposition de Saison, sans échéance) ; obligations licence, homologation, papier et document sans échéance d'action (pas d'expiration, rang suivant la date de la fiche) ; seule la clôture des engagements expire après 30 jours.
+- Reste avant le compte-rendu : parcours e2e `e2e/lot-5-parcours-complet.spec.ts` (étapes 3, 5, 7 à 9, captures 1440 et 360 px), audit Impeccable à confirmer sur captures, mesure de la dette hors ligne et du P2025. Résultats dans `docs/tests.md`, section 5.8.
 - Reportés après le lot 5 : 5.5b (modèles fournis, attend les listes de John) ; `saison.programme_publie` non écouté ; notification de liste terminée (`checklist.liste_terminee`, pas de service de notification) ; widgets au Tableau de bord (lot 6) ; recherche globale des documents ; photo des personnes ; priorité 1 « Bloquant » (aucune action ne l'émet, types candidats selon 960 : licence expirée, engagement non payé, pièce en zone rouge, papier manquant).
 
 ## 6. Méthode de travail

@@ -742,4 +742,5 @@
 - Table unique des rangs de la boîte (`src/core/actions/priorites.ts`), migration `20261105100000_action_priorites`, `db:verifier-priorites`. Les échéances se réémettent à chaque recalcul pour que le rang passe de 9 à 2 le jour J.
 - Relances partenaires levées tout de suite à la modification, à la suppression et à la sortie du suivi.
 - Liste de test de John réécrite (parcours court, compte assistance, modèle avant engagement).
-- Restent : parcours e2e du lot 5, audit Impeccable, mesure des intermittents et de la dette hors ligne. Voir `docs/plan-developpement.md`, section 5.8.
+- Run de référence (e65ce3e) : cinq échecs, tous corrigés. Le rang de la demande « marquer payé » a été fixé à 8 (proposition), sans échéance. Les obligations (licence, homologation, papier, document) n'ont plus d'échéance d'action : elles n'expirent pas, et leur rang suit la date de leur fiche. Seule la clôture des engagements expire après 30 jours.
+- Restent : parcours e2e du lot 5 (étapes 3, 5, 7 à 9, captures), audit Impeccable à confirmer sur captures, dette hors ligne et P2025 non mesurées. Voir `docs/tests.md` et `docs/plan-developpement.md`, section 5.8.

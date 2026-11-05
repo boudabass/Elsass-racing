@@ -423,6 +423,13 @@ function jourDe(date: Date | null): string | null {
   return date ? date.toISOString().slice(0, 10) : null
 }
 
+// « expire le 05/12/2026 » ou « expirée depuis le … » : le titre porte la date, la carte n'a pas d'échéance d'action (5.8).
+function libelleEcheance(echeance: string, maintenant: Date): string {
+  const [annee, mois, jour] = echeance.split("-")
+  const date = `${jour}/${mois}/${annee}`
+  return echeance < jourDeParis(maintenant) ? `expirée depuis le ${date}` : `expire le ${date}`
+}
+
 // --- Équipements ----------------------------------------------------------------------------
 
 async function equipementActifDans(client: Client, ctx: ContexteTeam, id: string) {
@@ -927,7 +934,7 @@ export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> 
       await emettre(ctx, "equipe.action_requise", {
         type: "licence_a_renouveler",
         cleUnicite,
-        titre: `Renouveler la licence de ${nom}`,
+        titre: `Renouveler la licence de ${nom} : ${libelleEcheance(echeance, maintenant)}`,
         contexte: nom,
         ficheType: "licence",
         ficheId: licence.id,
@@ -957,7 +964,7 @@ export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> 
       await emettre(ctx, "equipe.action_requise", {
         type: "homologation_a_renouveler",
         cleUnicite,
-        titre: `Renouveler l'homologation d'un équipement de ${nom}`,
+        titre: `Renouveler l'homologation d'un équipement de ${nom} : ${libelleEcheance(echeance, maintenant)}`,
         contexte: nom,
         ficheType: "gear",
         ficheId: equipement.id,
