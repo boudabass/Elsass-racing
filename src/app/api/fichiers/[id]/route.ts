@@ -1,5 +1,7 @@
+import "@/apps/controles-lecture-serveur"
 import { exigerContexte } from "@/core/droits/garde-serveur"
 import { ErreurAcces } from "@/core/droits/erreurs"
+import { rattachementOuvert } from "@/core/fichiers/controles-lecture"
 import { niveauxDe, ouvrirFlux } from "@/core/fichiers/fichiers-serveur"
 import { peutLire } from "@/core/fichiers/regles"
 import { prismaPourTeam } from "@/lib/prisma"
@@ -28,14 +30,18 @@ export async function GET(_requete: Request, { params }: { params: Promise<{ id:
     const fichier = await client.coreFile.findFirst({ where: { id, teamId: team.id, deletedAt: null } })
     if (!fichier) return introuvable()
 
-    const rattachements = await client.coreAttachment.findMany({ where: { fileId: id, teamId: team.id, deletedAt: null }, select: { app: true } })
+    // Un rattachement compte si le niveau de son app ET le contrôle de sa fiche le laissent lire (5.8, §3.1).
+    const rattachements = await client.coreAttachment.findMany({
+      where: { fileId: id, teamId: team.id, deletedAt: null },
+      select: { app: true, ficheType: true, ficheId: true },
+    })
     const applis = Array.from(new Set(rattachements.map((rattachement) => rattachement.app)))
     const niveaux = await niveauxDe(contexte, applis)
+    const ouverts = await Promise.all(rattachements.map((rattachement) => rattachementOuvert(contexte, rattachement, niveaux[rattachement.app])))
 
     const autorise = peutLire({
       estDansLaTeam: true,
-      applis,
-      niveaux,
+      rattachements: ouverts.map((ouvert) => ({ ouvert })),
       estLogoTeam: team.logoFileId === id,
       estAuteur: fichier.createdBy === session.userId,
     })

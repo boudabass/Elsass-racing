@@ -19,8 +19,9 @@ import {
   chargeProblemeSignale,
 } from "./charges"
 import { ErreurChecklist, refus } from "./erreurs"
-import { cleOrdreDePoint } from "./objets-lies"
-import { cleActionPointCritique, leverActionSiEnAttente, proposerActionPointCritique } from "./points-critiques-serveur"
+import { cleOrdreDePoint, cleTacheDeProbleme } from "./objets-lies"
+import { cleActionPointCritique, leverActionSiEnAttente, proposerActionPointCritique, proposerActionTacheProbleme } from "./points-critiques-serveur"
+import { pointTraiteParGarage } from "@/core/taches/regles"
 import {
   assistancePeut,
   calculerListe,
@@ -219,8 +220,14 @@ export async function emettreApresChangement(
     await leverActionSiEnAttente(ctx, cleActionPointCritique(changement.pointId))
   }
 
+  // Problème sans organe : l'action de tâche (5.8, §3.3) ; le point qui sort de problème la lève, et la tâche se termine avec elle.
+  if (changement && fautSignalerProbleme(changement.ancien, changement.nouveau) && !pointTraiteParGarage(changement.lienType ?? null, changement.lienId ?? null)) {
+    await proposerActionTacheProbleme(ctx, liste, { id: changement.pointId, libelle: changement.libelle, personneId: changement.personneId ?? null })
+  }
+
   if (changement && changement.ancien === "probleme" && changement.nouveau !== "probleme") {
     await leverActionSiEnAttente(ctx, cleOrdreDePoint(changement.pointId))
+    await leverActionSiEnAttente(ctx, cleTacheDeProbleme(changement.pointId))
   }
 
   if (changement && fautSignalerPointCritique({ ancien: changement.ancien, nouveau: changement.nouveau, critique: changement.critique, ajoute: changement.ajoute }, echeance, aujourdhui)) {
@@ -836,7 +843,10 @@ export async function retirerPointDans(ctx: ContexteTeam, niveau: Niveau, pointI
     }),
   )
   await emettreApresChangement(ctx, { id: liste.id, epreuveId: liste.epreuveId, echeance: liste.echeance, titre: liste.titre }, resultat, null)
-  if (point.statut === "probleme") await leverActionSiEnAttente(ctx, cleOrdreDePoint(pointId))
+  if (point.statut === "probleme") {
+    await leverActionSiEnAttente(ctx, cleOrdreDePoint(pointId))
+    await leverActionSiEnAttente(ctx, cleTacheDeProbleme(pointId))
+  }
   if (point.critique) await leverActionSiEnAttente(ctx, cleActionPointCritique(pointId))
   if (point.personneId) await levereReassignationSiPlusDePoint(ctx, point.personneId)
 }

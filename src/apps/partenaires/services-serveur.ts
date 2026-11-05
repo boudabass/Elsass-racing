@@ -22,9 +22,12 @@ import {
   chargeConventionTerminee,
   chargeRelanceDue,
   cleContrepartieEnRetard,
+  cleTacheRelance,
+  PREFIXE_TACHE_RELANCE,
 } from "./charges"
 import { CATALOGUE_DEFAUT_V1, PREFIXE_SOURCE_CATALOGUE } from "./catalogue-defaut"
 import { ErreurPartenaires, refus } from "./erreurs"
+import { terminerTachesSauf } from "@/core/taches/ecriture"
 import { empreinteJeton, genererJeton } from "./jeton-serveur"
 import { MODELE_DEFAUT_V2 } from "./modele-defaut"
 import {
@@ -75,6 +78,7 @@ const STATUTS_CLOS = ["terminee", "resiliee"] as const
 
 // Priorité d'une action de retard : plus haute que le rappel des papiers de Voiture (4).
 const PRIORITE_CONTREPARTIE_EN_RETARD = 5
+const PRIORITE_RELANCE = 6
 
 const texte = (max: number) => z.string().trim().max(max).nullable().optional()
 const identifiant = z.string().min(1)
@@ -1641,7 +1645,9 @@ export async function signalerContrepartiesEnRetardDans(ctx: ContexteTeam): Prom
   }
 }
 
-// Relance due : un événement et une tâche assignée au suivi, une seule fois par partenaire et par date.
+// Relance due (5.8, §3.3) : une action « tache_relance » dans la boîte, et l'événement partenaires.relance_due une seule fois
+// par partenaire et par date, dont le gestionnaire du socle crée la tâche assignée au suivi. Les relances caduques se lèvent
+// au passage du QG ; les tâches orphelines se ferment avec elles.
 export async function signalerRelancesDans(ctx: ContexteTeam): Promise<void> {
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   const aujourdhui = jourParis(new Date())
@@ -1655,9 +1661,13 @@ export async function signalerRelancesDans(ctx: ContexteTeam): Promise<void> {
     include: { contact: { select: { nom: true } } },
   })
 
+  const idsDus: string[] = []
   for (const partenaire of partenaires) {
     const date = jourDe(partenaire.prochaineRelance)
     if (!date || !relanceDue({ statut: partenaire.statut, prochaineRelance: date }, aujourdhui)) continue
+    idsDus.push(partenaire.id)
+    await proposerActionRelance(ctx, client, partenaire, date)
+
     const dejaEmis = await client.coreDomainEvent.findFirst({
       where: {
         teamId: ctx.teamId,
@@ -1669,24 +1679,66 @@ export async function signalerRelancesDans(ctx: ContexteTeam): Promise<void> {
     if (dejaEmis) continue
 
     const partenaireNom = partenaire.contact.nom
-    await emettre(ctx, "partenaires.relance_due", chargeRelanceDue.parse({ partnerId: partenaire.id, partenaireNom, date }))
-    await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
-      tx.coreTask.create({
-        data: {
-          id: newId(),
-          teamId: ctx.teamId,
-          app: "partenaires",
-          ficheType: "partner",
-          ficheId: partenaire.id,
-          titre: `Relancer ${partenaireNom}`,
-          assigneePersonId: partenaire.suiviParPersonId,
-          echeance: partenaire.prochaineRelance,
-          statut: "a_faire",
-          createdBy: ctx.userId,
-          updatedBy: ctx.userId,
-        },
-      }),
+    await emettre(
+      ctx,
+      "partenaires.relance_due",
+      chargeRelanceDue.parse({ partnerId: partenaire.id, partenaireNom, date, suiviParPersonId: partenaire.suiviParPersonId }),
     )
+  }
+
+  await terminerTachesSauf(client, ctx, { app: "partenaires", ficheType: "partner" }, idsDus)
+  await leverRelancesCaduques(ctx, aujourdhui)
+}
+
+// L'action d'une relance se propose une fois : une action en attente, décidée ou expirée ne revient pas. Une action annulée
+// (relance caduque) se rouvre par le socle, si la relance redevient due.
+async function proposerActionRelance(
+  ctx: ContexteTeam,
+  client: ReturnType<typeof prismaPourTeam>,
+  partenaire: { id: string; suiviParPersonId: string | null; contact: { nom: string } },
+  date: string,
+): Promise<void> {
+  const cleUnicite = cleTacheRelance(partenaire.id, date)
+  const dejaTraitee = await client.coreAction.findFirst({
+    where: { teamId: ctx.teamId, cleUnicite, statut: { in: ["en_attente", "decidee", "expiree"] } },
+    select: { id: true },
+  })
+  if (dejaTraitee) return
+
+  const destinataires = await destinatairesDeSuiviDans(client, ctx, partenaire.suiviParPersonId)
+  await emettre(ctx, "partenaires.action_requise", {
+    type: "tache_relance",
+    cleUnicite,
+    titre: `Relancer ${partenaire.contact.nom}`,
+    contexte: "Relance due",
+    ficheType: "partner",
+    ficheId: partenaire.id,
+    echeance: new Date(`${date}T00:00:00Z`).toISOString(),
+    destinataires: { memberships: destinataires },
+    boutons: [{ cle: "ouvrir", libelle: "Ouvrir la fiche", lien: `/apps/partenaires/${partenaire.id}` }],
+    priorite: PRIORITE_RELANCE,
+    niveauRequis: "ecriture",
+    cleRegroupement: "relances",
+  })
+}
+
+// Lève les actions de relance dont la relance n'est plus due à cette date : date changée, statut sorti du suivi, partenaire retiré.
+async function leverRelancesCaduques(ctx: ContexteTeam, aujourdhui: string): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const actions = await client.coreAction.findMany({
+    where: { teamId: ctx.teamId, cleUnicite: { startsWith: PREFIXE_TACHE_RELANCE }, statut: "en_attente" },
+    select: { cleUnicite: true },
+  })
+  for (const action of actions) {
+    const [, partnerId, date] = action.cleUnicite.split(":")
+    const partenaire = await client.partenairesPartner.findFirst({
+      where: { id: partnerId, teamId: ctx.teamId, deletedAt: null },
+      select: { statut: true, prochaineRelance: true },
+    })
+    const jourRelance = partenaire ? jourDe(partenaire.prochaineRelance) : null
+    const encoreDue =
+      partenaire !== null && jourRelance === date && relanceDue({ statut: partenaire.statut, prochaineRelance: jourRelance }, aujourdhui)
+    if (!encoreDue) await emettre(ctx, "partenaires.action_levee", { cleUnicite: action.cleUnicite })
   }
 }
 

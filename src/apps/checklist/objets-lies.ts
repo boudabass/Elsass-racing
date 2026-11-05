@@ -46,6 +46,12 @@ export function cleOrdreDePoint(pointId: string): string {
   return `ordre_point:${pointId}`
 }
 
+// Clé de l'action « problème sans organe » (5.8, §3.3) : une par point. Son type commence par « tache_ » : la levée termine
+// la tâche du socle qu'elle porte. Check-lists la pose à l'entrée en problème, la lève quand le point sort de problème.
+export function cleTacheDeProbleme(pointId: string): string {
+  return `tache_point:${pointId}`
+}
+
 // Clé d'un objet dans une table de résolution : le type et l'identifiant, pour distinguer deux objets de même id.
 export function cleLien(type: TypeObjetLie, id: string): string {
   return `${type}:${id}`

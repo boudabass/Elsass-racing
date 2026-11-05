@@ -55,20 +55,26 @@ describe("TAILLE_MAX", () => {
 })
 
 describe("peutLire", () => {
-  const base = { estDansLaTeam: true, applis: [], niveaux: {}, estLogoTeam: false, estAuteur: false }
+  const base = { estDansLaTeam: true, rattachements: [], estLogoTeam: false, estAuteur: false }
+  const ouvert = { ouvert: true }
+  const ferme = { ouvert: false }
 
   it("refuse hors de la team, quoi qu'il arrive", () => {
     expect(peutLire({ ...base, estDansLaTeam: false, estAuteur: true })).toBe(false)
   })
 
-  it("avec un rattachement, exige au moins « lecture » sur une de ses apps", () => {
-    expect(peutLire({ ...base, applis: ["budget"], niveaux: { budget: "lecture" } })).toBe(true)
-    expect(peutLire({ ...base, applis: ["budget"], niveaux: { budget: "aucun" } })).toBe(false)
-    expect(peutLire({ ...base, applis: ["budget"], niveaux: {}, estAuteur: true })).toBe(false)
+  it("avec un rattachement, suit sa décision : ouvert pour lire, fermé pour refuser", () => {
+    expect(peutLire({ ...base, rattachements: [ouvert] })).toBe(true)
+    expect(peutLire({ ...base, rattachements: [ferme] })).toBe(false)
   })
 
-  it("avec plusieurs rattachements, suffit d'une app lisible", () => {
-    expect(peutLire({ ...base, applis: ["budget", "saison"], niveaux: { saison: "lecture" } })).toBe(true)
+  it("avec plusieurs rattachements, suffit d'un rattachement ouvert", () => {
+    expect(peutLire({ ...base, rattachements: [ferme, ouvert] })).toBe(true)
+    expect(peutLire({ ...base, rattachements: [ferme, ferme] })).toBe(false)
+  })
+
+  it("l'auteur d'un fichier rattaché ne garde aucun accès spécial", () => {
+    expect(peutLire({ ...base, rattachements: [ferme], estAuteur: true })).toBe(false)
   })
 
   it("sans rattachement, seulement le logo de la team ou l'auteur", () => {
@@ -77,8 +83,7 @@ describe("peutLire", () => {
     expect(peutLire(base)).toBe(false)
   })
 
-  it("le logo courant se lit même rattaché à Réglages, sans aucun niveau (assistance, invité)", () => {
-    expect(peutLire({ ...base, applis: ["settings"], niveaux: { settings: "aucun" }, estLogoTeam: true })).toBe(true)
-    expect(peutLire({ ...base, applis: ["settings"], niveaux: {}, estLogoTeam: false })).toBe(false)
+  it("le logo courant se lit même rattaché à Réglages, sans ouverture (assistance, invité)", () => {
+    expect(peutLire({ ...base, rattachements: [ferme], estLogoTeam: true })).toBe(true)
   })
 })

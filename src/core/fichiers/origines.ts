@@ -11,6 +11,8 @@ import { grouperParOrigine, type RattachementFichier } from "./origines-regles"
 import { origineVersionsDocuments } from "@/apps/documents/origine-fichiers"
 import { origineDepensesBudget } from "@/apps/budget/origine-fichiers"
 import { origineAffectationPhoto, origineVehicule, originePapier } from "@/apps/voiture/origine-fichiers"
+import "@/apps/controles-lecture-serveur"
+import { controleLecturePour } from "./controles-lecture"
 
 export type { FicheOrigine, OrigineFichier } from "./types-origine"
 export { origineDeclaree, grouperParOrigine, type RattachementFichier } from "./origines-regles"
@@ -51,7 +53,12 @@ export async function resoudreOrigines(ctx: ContexteTeam, rattachements: readonl
   const resultat = new Map<string, FicheOrigine>()
   for (const [origine, ids] of Array.from(grouperParOrigine(ORIGINES, rattachements))) {
     const fiches = await origine.fichesVisibles(ctx, Array.from(new Set(ids)))
-    for (const fiche of fiches) resultat.set(`${origine.app}:${origine.ficheType}:${fiche.id}`, fiche)
+    // « Tous les fichiers » ne liste pas une fiche dont le fichier ne s'ouvrirait pas (5.8, §3.1).
+    const controle = controleLecturePour(origine.app, origine.ficheType)
+    for (const fiche of fiches) {
+      if (controle && !(await controle.peutLire(ctx, fiche.id))) continue
+      resultat.set(`${origine.app}:${origine.ficheType}:${fiche.id}`, fiche)
+    }
   }
   return resultat
 }

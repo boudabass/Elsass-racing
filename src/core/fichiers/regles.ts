@@ -1,7 +1,5 @@
 // Règles pures des fichiers (brief 3.1, section 1.1). Aucun accès base ni disque : importable partout.
 
-import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
-
 export type TypeFichier = "image/jpeg" | "image/png" | "image/webp" | "application/pdf" | "image/svg+xml"
 
 export const TAILLE_MAX = 10 * 1024 * 1024
@@ -55,23 +53,23 @@ export function nomPropre(nom: string): string {
 export interface ParametresLecture {
   // La team du fichier est celle de la personne (le RLS et la requête le garantissent aussi).
   estDansLaTeam: boolean
-  // Apps des rattachements du fichier : vide quand il n'est rattaché à rien.
-  applis: string[]
-  // Niveau effectif de la personne, par app. Une app absente vaut « aucun ».
-  niveaux: Partial<Record<string, Niveau>>
+  // Un entrée par rattachement du fichier. « ouvert » : le niveau de l'app et le contrôle de lecture de l'app
+  // (controles-lecture.ts) laissent la personne lire la fiche. Vide quand le fichier n'est rattaché à rien.
+  rattachements: Array<{ ouvert: boolean }>
   // Le fichier est le logo courant de la team.
   estLogoTeam: boolean
   // La personne a envoyé le fichier (aperçu juste après l'envoi).
   estAuteur: boolean
 }
 
-// Règle de lecture (brief 1.3). Le logo courant de la team se lit par tout membre : il est affiché dans la
-// barre haute, même quand il est rattaché à Réglages (que l'assistance et l'invité n'ont pas). Sinon, avec
-// des rattachements : au moins « lecture » sur une de leurs apps. Sans rattachement : l'auteur seulement.
-// Tout refus donne 404 côté route.
+// Règle de lecture (brief 1.3, tâche 5.8 §3.1). Le logo courant de la team se lit par tout membre : il est affiché
+// dans la barre haute, même quand il est rattaché à Réglages (que l'assistance et l'invité n'ont pas). Sinon, avec
+// des rattachements : il suffit d'un rattachement ouvert, c'est-à-dire lisible par le niveau de son app ET par le
+// contrôle de sa fiche. Sans rattachement : l'auteur seulement. Un auteur ne garde aucun accès spécial sur un
+// fichier rattaché. Tout refus donne 404 côté route.
 export function peutLire(p: ParametresLecture): boolean {
   if (!p.estDansLaTeam) return false
   if (p.estLogoTeam) return true
-  if (p.applis.length > 0) return p.applis.some((app) => aAuMoins(p.niveaux[app] ?? "aucun", "lecture"))
+  if (p.rattachements.length > 0) return p.rattachements.some((rattachement) => rattachement.ouvert)
   return p.estAuteur
 }

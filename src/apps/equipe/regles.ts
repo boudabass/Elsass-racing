@@ -265,3 +265,10 @@ export function estEquipage(roles: RoleHabituel[]): boolean {
 export function binomesDePersonne<T extends { piloteId: string; copiloteId: string }>(personId: string, binomes: T[]): T[] {
   return binomes.filter((binome) => binome.piloteId === personId || binome.copiloteId === personId)
 }
+
+// Documents d'un dossier personnel (pièce de licence, justificatif de spécialité, document d'équipement) et numéro de licence :
+// la personne elle-même, ou le niveau écriture et plus. À un autre membre, l'assistance voit le type, l'état et la date,
+// jamais le numéro ni le document (tâche 5.8, §3.1, décision de l'orchestrateur 05/11).
+export function voitDocumentsDuDossier({ estSoi, niveau }: { estSoi: boolean; niveau: Niveau }): boolean {
+  return estSoi || aAuMoins(niveau, "ecriture")
+}

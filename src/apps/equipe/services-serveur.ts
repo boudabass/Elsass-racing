@@ -9,6 +9,7 @@ import { z } from "zod"
 import { jourDeParis } from "@/core/dates"
 import type { ContexteTeam } from "@/core/contexte"
 import { rattacherFichier } from "@/core/fichiers/fichiers-serveur"
+import { creerTache, definirStatutTache, retirerTaches } from "@/core/taches/ecriture"
 import { exigerAcces } from "@/core/droits/garde-serveur"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
 import { emettre } from "@/core/evenements/bus-serveur"
@@ -733,21 +734,15 @@ export async function affecterPersonneDans(ctx: ContexteTeam, eventId: string, p
         ],
       })
       // La tâche liée (955 §4) : à faire par la personne, rattachée à la fiche de l'affectation, datée du jour de l'épreuve.
-      await tx.coreTask.create({
-        data: {
-          id: tacheId,
-          teamId: ctx.teamId,
-          app: "equipe",
-          ficheType: "affectation",
-          ficheId: id,
-          eventId,
-          titre: LIBELLES_ROLE_EPREUVE[donnees.roleEpreuve],
-          assigneePersonId: personId,
-          echeance: epreuve.dateDebut,
-          statut: "a_faire",
-          createdBy: ctx.userId,
-          updatedBy: ctx.userId,
-        },
+      await creerTache(tx, ctx, {
+        id: tacheId,
+        app: "equipe",
+        ficheType: "affectation",
+        ficheId: id,
+        eventId,
+        titre: LIBELLES_ROLE_EPREUVE[donnees.roleEpreuve],
+        assigneePersonId: personId,
+        echeance: epreuve.dateDebut,
       })
     }),
   )
@@ -768,10 +763,7 @@ export async function retirerAffectationDans(ctx: ContexteTeam, id: string): Pro
   await avecReprisePourConflit(() =>
     executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
       await tx.equipeAssignment.update({ where: { id }, data: { deletedAt: maintenant, rev: { increment: 1 }, updatedBy: ctx.userId } })
-      await tx.coreTask.updateMany({
-        where: { teamId: ctx.teamId, app: "equipe", ficheType: "affectation", ficheId: id, deletedAt: null },
-        data: { deletedAt: maintenant, rev: { increment: 1 }, updatedBy: ctx.userId },
-      })
+      await retirerTaches(tx, ctx, { app: "equipe", ficheType: "affectation", ficheId: id })
     }),
   )
 }
@@ -794,14 +786,8 @@ export async function changerStatutTacheDans(ctx: ContexteTeam, niveau: Niveau, 
   if (!peutChangerTache(niveau, await personneDuMembre(ctx), tache.assigneePersonId)) {
     refus("Tu ne peux changer que tes propres tâches.")
   }
-  const maintenant = new Date()
   await avecReprisePourConflit(() =>
-    executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
-      tx.coreTask.update({
-        where: { id },
-        data: { statut: fait ? "fait" : "a_faire", faitAt: fait ? maintenant : null, rev: { increment: 1 }, updatedBy: ctx.userId },
-      }),
-    ),
+    executerPourTeam(ctx.teamId, ctx.userId, (tx) => definirStatutTache(tx, ctx, id, fait)),
   )
 }
 

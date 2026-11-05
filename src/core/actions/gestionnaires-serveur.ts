@@ -8,6 +8,7 @@ import { NIVEAUX } from "@/core/droits/niveaux"
 import { enregistrerGestionnaireTousContextes, type EvenementRecu } from "@/core/evenements/gestionnaires"
 import type { ContexteEvenement } from "@/core/contexte"
 import { clientPourContexte } from "@/core/client-contexte-serveur"
+import { terminerTachesOuvertes } from "@/core/taches/ecriture"
 
 import type { Prisma } from "@/generated/prisma/client"
 
@@ -40,6 +41,9 @@ const schemaActionRequise = z.object({
 })
 
 const schemaActionLevee = z.object({ cleUnicite: z.string().min(1) })
+
+// Type d'action qui porte une tâche du socle (« tache_probleme », « tache_relance »).
+const PREFIXE_TACHE = "tache_"
 
 // Ce qui décide qui voit une action, et à quel niveau. Stocké dans destinataires (Json).
 function destinatairesStockes(d: z.infer<typeof schemaActionRequise>["destinataires"], niveauRequis: string, terrain: boolean) {
@@ -102,10 +106,18 @@ async function actionRequise(ctx: ContexteEvenement, evenement: EvenementRecu): 
 async function actionLevee(ctx: ContexteEvenement, evenement: EvenementRecu): Promise<void> {
   const donnees = schemaActionLevee.parse(evenement.donnees)
   const client = clientPourContexte(ctx)
+  const action = await client.coreAction.findFirst({
+    where: { teamId: ctx.teamId, cleUnicite: donnees.cleUnicite, statut: "en_attente" },
+    select: { type: true, appOrigine: true, ficheType: true, ficheId: true },
+  })
   await client.coreAction.updateMany({
     where: { teamId: ctx.teamId, cleUnicite: donnees.cleUnicite, statut: "en_attente" },
     data: { statut: "annulee" },
   })
+  // Une action « tache_… » levée termine la tâche du socle qu'elle portait (5.8, §3.3). Le socle ne connaît que ce préfixe.
+  if (action?.type.startsWith(PREFIXE_TACHE) && action.ficheType && action.ficheId) {
+    await terminerTachesOuvertes(client, ctx, { app: action.appOrigine, ficheType: action.ficheType, ficheId: action.ficheId })
+  }
 }
 
 // Acceptent un contexte système : la page partenaire lève une action sans utilisateur (brief 3.8, point 0.3).

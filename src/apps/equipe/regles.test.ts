@@ -19,6 +19,7 @@ import {
   roleAffectable,
   statistiquesBinome,
   statistiquesPersonne,
+  voitDocumentsDuDossier,
   statutEquipement,
   statutLePlusUrgent,
   statutLicence,
@@ -267,5 +268,19 @@ describe("équipage et binômes (fiche, cartes)", () => {
     expect(binomesDePersonne("a", binomes)).toEqual([binomes[0], binomes[1]])
     expect(binomesDePersonne("d", binomes)).toEqual([binomes[2]])
     expect(binomesDePersonne("z", binomes)).toEqual([])
+  })
+})
+
+describe("voitDocumentsDuDossier", () => {
+  it("donne les documents et le numéro à la personne elle-même, à tout niveau", () => {
+    expect(voitDocumentsDuDossier({ estSoi: true, niveau: "aucun" })).toBe(true)
+    expect(voitDocumentsDuDossier({ estSoi: true, niveau: "contribution" })).toBe(true)
+  })
+
+  it("les donne à un autre membre seulement au niveau écriture et plus", () => {
+    expect(voitDocumentsDuDossier({ estSoi: false, niveau: "contribution" })).toBe(false)
+    expect(voitDocumentsDuDossier({ estSoi: false, niveau: "lecture" })).toBe(false)
+    expect(voitDocumentsDuDossier({ estSoi: false, niveau: "ecriture" })).toBe(true)
+    expect(voitDocumentsDuDossier({ estSoi: false, niveau: "gestion" })).toBe(true)
   })
 })

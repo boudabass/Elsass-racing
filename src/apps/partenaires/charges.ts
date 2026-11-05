@@ -59,8 +59,16 @@ export const chargeContrepartieEnRetard = z
   .strict()
 
 export const chargeRelanceDue = z
-  .object({ partnerId: identifiant, partenaireNom: z.string().min(1), date: jourCivil })
+  .object({ partnerId: identifiant, partenaireNom: z.string().min(1), date: jourCivil, suiviParPersonId: identifiant.nullish() })
   .strict()
+
+// Action d'une relance due (5.8, §3.3) : une par partenaire et par date. Son type commence par « tache_ » : sa levée termine la
+// tâche du socle (gestionnaire de relance_due). Une relance qui n'est plus due se lève au passage du QG.
+export const PREFIXE_TACHE_RELANCE = "tache_relance:"
+
+export function cleTacheRelance(partnerId: string, date: string): string {
+  return `${PREFIXE_TACHE_RELANCE}${partnerId}:${date}`
+}
 
 // Clé d'unicité d'une contrepartie en retard : une seule émission par contrepartie et par échéance.
 export function cleContrepartieEnRetard(benefitId: string, echeance: string): string {

@@ -154,6 +154,7 @@ Précisions :
 | Événement | Écouté par | Effet | Clé d'unicité | Charge lue |
 |---|---|---|---|---|
 | `checklist.probleme_signale` | Garage | si le point est lié à un organe (`lienType` = `organe_garage`, `lienId` posé) : propose un ordre de travail (`garage.action_requise`, type `ordre_depuis_point`, boutons « Ouvrir l'ordre » et « Ignorer ») ; rien n'est créé avant l'acceptation | `ordre_point:<pointId>` | `pointId`, `lienType`, `lienId`, `listeTitre`, `epreuveId` |
+| `checklist.probleme_signale` | Check-lists (même appel, 5.8 §3.3) | si le point n'est pas lié à un organe : action `checklist.action_requise` de type `tache_probleme` (clé `tache_point:<pointId>`, priorité 7, responsables et personne affectée). Levée quand le point sort de problème ou est retiré ; la levée termine la tâche | — | — |
 | `checklist.probleme_signale` | core (socle) | sinon, ouvre une tâche `core_task` (app `checklist`, fiche `point`, titre « Problème : <libellé> (<liste>) », assignée à `personneId` s'il existe). Une seule tâche à faire par point | — | `pointId`, `epreuveId`, `libelle`, `listeTitre`, `personneId`, `lienType`, `lienId` |
 | `checklist.point_critique_ouvert` | Saison | aucun gestionnaire : Saison lit l'état des listes à l'affichage (panneau « Prêt pour l'épreuve ? », hors indice) | — | — |
 | `checklist.avancement_change` | Saison | aucun gestionnaire : même lecture à l'affichage | — | — |
@@ -203,3 +204,11 @@ Précisions :
 - Lecture partagée ajoutée dans Garage : `organeDeOrdrePourChecklist` (l'organe d'un ordre), sans écriture.
 - Variante après abandon : mêmes modèles de phase retour, pas de modèle spécial.
 - Non écouté, avec motif : `saison.programme_publie` (Saison n'émet pas l'événement, et le type « caler les échéances » n'est pas dans 956 §3), `settings.membre_rejoint` (aucun effet, absent de 956 §5), `checklist.liste_terminee` (reporté : pas de service de notification dans le socle).
+
+## Tâches du socle et actions « tache_ » (tâche 5.8, §3.2 et §3.3)
+
+- `partenaires.relance_due` (ecoutePar `core`) : le gestionnaire de `src/core/taches/taches-serveur.ts` crée la tâche « Relancer <partenaire> », assignée à `suiviParPersonId` (charge), échéance = date de la relance. Une seule tâche à faire par partenaire. L'événement est émis une fois par partenaire et par date ; l'action de relance ne dépend pas de cette garde.
+- `partenaires.action_requise` de type `tache_relance` (priorité 6, clé `tache_relance:<partnerId>:<date>`, destinataires : le suivi, sinon les responsables). Une action en attente, décidée ou expirée ne se repose pas. Levée au passage du QG quand la relance n'est plus due à cette date (date changée, statut sorti du suivi, partenaire retiré).
+- `checklist.action_requise` de type `tache_probleme` : voir le tableau de Check-lists plus haut.
+- Levée d'une action dont le type commence par `tache_` : le socle termine les tâches à faire de sa fiche (`src/core/actions/gestionnaires-serveur.ts`). Une action `point_critique` levée sur le même point ne touche pas à la tâche.
+- Équipe n'émet aucun événement pour ses tâches d'affectation : création, retrait et statut passent par les fonctions de `src/core/taches/ecriture.ts`, dans la transaction de l'affectation (règle 6, pas d'événement inventé).

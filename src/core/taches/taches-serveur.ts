@@ -8,6 +8,7 @@ import { enregistrerGestionnaire, type EvenementRecu } from "@/core/evenements/g
 import { newId } from "@/core/ids"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
 
+import { creerTache } from "./ecriture"
 import { libelleTacheProbleme, pointTraiteParGarage } from "./regles"
 
 // checklist.probleme_signale : le point, sa liste, la personne affectée et son lien. Lu sans relire Check-lists.
@@ -58,3 +59,39 @@ async function creerTacheProbleme(ctx: ContexteTeam, evenement: EvenementRecu): 
 }
 
 enregistrerGestionnaire("core", "checklist.probleme_signale", creerTacheProbleme)
+
+// partenaires.relance_due : une tâche « Relancer » assignée au suivi, à la date de la relance. Une seule tâche à faire par
+// partenaire : une relance déjà ouverte ne se double pas. Lu sans relire Partenaires (la charge porte le suivi).
+const chargeRelanceDueLue = z
+  .object({
+    partnerId: z.string().min(1),
+    partenaireNom: z.string().min(1),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    suiviParPersonId: z.string().min(1).nullish(),
+  })
+  .passthrough()
+
+async function creerTacheRelance(ctx: ContexteTeam, evenement: EvenementRecu): Promise<void> {
+  const analyse = chargeRelanceDueLue.safeParse(evenement.donnees)
+  if (!analyse.success) return
+  const { partnerId, partenaireNom, date, suiviParPersonId } = analyse.data
+
+  const existante = await prismaPourTeam(ctx.teamId, ctx.userId).coreTask.findFirst({
+    where: { teamId: ctx.teamId, app: "partenaires", ficheType: "partner", ficheId: partnerId, statut: "a_faire", deletedAt: null },
+    select: { id: true },
+  })
+  if (existante) return
+
+  await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
+    creerTache(tx, ctx, {
+      app: "partenaires",
+      ficheType: "partner",
+      ficheId: partnerId,
+      titre: `Relancer ${partenaireNom}`,
+      assigneePersonId: suiviParPersonId ?? null,
+      echeance: new Date(`${date}T00:00:00Z`),
+    }),
+  )
+}
+
+enregistrerGestionnaire("core", "partenaires.relance_due", creerTacheRelance)

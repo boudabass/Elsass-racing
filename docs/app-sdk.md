@@ -128,6 +128,12 @@ Chaque entrée peut porter ses droits, en plus du niveau d'accès à l'app :
 
 Le filtre est `entreeVisible` (`src/core/sdk/manifeste.ts`). Il ne remplace pas les contrôles de la page : la page garde sa propre garde (`accesEcran`, `exigerAcces`).
 
+## Écrire une tâche du socle, contrôler la lecture d'un fichier (tâche 5.8)
+
+- **Tâches** (`src/core/taches/ecriture.ts`) : une app n'écrit jamais `core_task` (un garde-fou de `src/core/taches/taches.test.ts` le vérifie). Elle appelle `creerTache`, `retirerTaches`, `definirStatutTache` avec la transaction de sa propre écriture, pour que la tâche naisse, change ou disparaisse avec la fiche. `terminerTachesOuvertes` et `terminerTachesSauf` servent au rattrapage du QG. Les contrôles de droits restent dans l'app.
+- **Actions « tache_… »** : une action dont le type commence par `tache_` porte une tâche du socle. Sa levée (`<app>.action_levee`) termine les tâches à faire de la fiche (`appOrigine`, `ficheType`, `ficheId`). Le socle ne connaît que ce préfixe. Utilisées par Check-lists (`tache_probleme`, clé `tache_point:<pointId>`) et Partenaires (`tache_relance`, clé `tache_relance:<partnerId>:<date>`).
+- **Contrôle de lecture d'un fichier** : `ControleLecture` (`app`, `ficheType`, `peutLire(ctx, ficheId)`), enregistré dans `src/apps/controles-lecture-serveur.ts`. Voir `docs/fichiers.md`, « Lecture ».
+
 ## Lectures partagées entre apps (tâche 3.6)
 
 Une app lit les données d'une autre seulement par une fonction exposée dans `lectures-partagees.ts` de l'app propriétaire. Jamais par ses tables, et jamais par ses fiches d'écriture.

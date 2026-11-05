@@ -7,11 +7,16 @@ import type { Niveau } from "@/core/droits/niveaux"
 import { emettre } from "@/core/evenements/bus-serveur"
 import { prismaPourTeam } from "@/lib/prisma"
 
+import { libelleTacheProbleme, pointTraiteParGarage } from "@/core/taches/regles"
+import { terminerTachesSauf } from "@/core/taches/ecriture"
+
 import { chargeActionRequise } from "./charges"
+import { cleTacheDeProbleme } from "./objets-lies"
 import { dateLongue } from "./objets-etat"
 import { actionPointCritiqueDue, jourParis, pointsActionADeLever, type StatutPoint } from "./regles"
 
 const PREFIXE_POINT_CRITIQUE = "point_critique:"
+const PREFIXE_TACHE_PROBLEME = "tache_point:"
 
 export function cleActionPointCritique(pointId: string): string {
   return `point_critique:${pointId}`
@@ -91,6 +96,78 @@ export async function recalculerPourQg(ctx: ContexteTeam, niveau: Niveau): Promi
     }
   }
   await leverActionsCaduques(ctx, aujourdhui)
+  await rattraperTachesDeProbleme(ctx)
+}
+
+// Problème sans organe (5.8, §3.3) : l'action « tache_probleme » du point, adressée à la personne affectée et aux responsables.
+// La tâche du socle est créée par le gestionnaire de checklist.probleme_signale ; l'action sert à la voir dans la boîte.
+export async function proposerActionTacheProbleme(
+  ctx: ContexteTeam,
+  liste: { id: string; epreuveId: string; titre: string },
+  point: { id: string; libelle: string; personneId: string | null },
+): Promise<void> {
+  const cleUnicite = cleTacheDeProbleme(point.id)
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const existante = await client.coreAction.findFirst({
+    where: { teamId: ctx.teamId, cleUnicite, statut: "en_attente" },
+    select: { id: true },
+  })
+  if (existante) return
+
+  const membre = point.personneId
+    ? await client.coreMembership.findFirst({
+        where: { teamId: ctx.teamId, personId: point.personneId, statut: "actif", deletedAt: null },
+        select: { id: true },
+      })
+    : null
+  const charge = chargeActionRequise.parse({
+    type: "tache_probleme",
+    cleUnicite,
+    titre: libelleTacheProbleme(point.libelle, liste.titre),
+    contexte: liste.titre,
+    ficheType: "point",
+    ficheId: point.id,
+    eventId: liste.epreuveId,
+    destinataires: { roles: ["responsable"], memberships: membre ? [membre.id] : [] },
+    boutons: [{ cle: "ouvrir", libelle: "Ouvrir la liste", lien: `/apps/checklist/liste/${liste.id}` }],
+    priorite: 7,
+    niveauRequis: "contribution",
+    cleRegroupement: "problemes",
+  })
+  await emettre(ctx, "checklist.action_requise", charge)
+}
+
+// Rattrapage du QG (5.8, §3.3) : les problèmes sans organe déjà en base reçoivent leur action, et les tâches ou actions
+// qui ne tiennent plus à un problème se ferment. Passe par le socle (levée d'action, terminerTachesSauf).
+async function rattraperTachesDeProbleme(ctx: ContexteTeam): Promise<void> {
+  const client = prismaPourTeam(ctx.teamId, ctx.userId)
+  const enProbleme = await client.checklistItem.findMany({
+    where: { teamId: ctx.teamId, deletedAt: null, statut: "probleme" },
+    select: {
+      id: true,
+      libelle: true,
+      personneId: true,
+      lienType: true,
+      lienId: true,
+      section: { select: { liste: { select: { id: true, epreuveId: true, titre: true } } } },
+    },
+  })
+  const sansOrgane = enProbleme.filter((point) => !pointTraiteParGarage(point.lienType, point.lienId))
+  const idsDus = sansOrgane.map((point) => point.id)
+
+  await terminerTachesSauf(client, ctx, { app: "checklist", ficheType: "point" }, idsDus)
+  for (const point of sansOrgane) {
+    await proposerActionTacheProbleme(ctx, point.section.liste, { id: point.id, libelle: point.libelle, personneId: point.personneId })
+  }
+
+  const actions = await client.coreAction.findMany({
+    where: { teamId: ctx.teamId, cleUnicite: { startsWith: PREFIXE_TACHE_PROBLEME }, statut: "en_attente" },
+    select: { cleUnicite: true },
+  })
+  for (const action of actions) {
+    const pointId = action.cleUnicite.slice(PREFIXE_TACHE_PROBLEME.length)
+    if (!idsDus.includes(pointId)) await leverActionSiEnAttente(ctx, action.cleUnicite)
+  }
 }
 
 // Lève les actions en attente dont le point n'est plus due (5.7a, décision de l'orchestrateur) : point fait, plus critique,

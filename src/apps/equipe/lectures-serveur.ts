@@ -26,6 +26,7 @@ import {
   statutEquipement,
   statutLicence,
   statutLePlusUrgent,
+  voitDocumentsDuDossier,
   type Palier,
   type InteretVivier,
   type ReponseDisponibilite,
@@ -420,6 +421,8 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
   const estSoi = (await personneDuMembre(ctx)) === personId
   const voitPrive = aAuMoins(niveau, "ecriture")
   const voitContact = voitPrive || estSoi
+  // Documents et numéro de licence : la personne elle-même, ou l'écriture et plus (5.8, §3.1).
+  const voitDocuments = voitDocumentsDuDossier({ estSoi, niveau })
   const maintenant = new Date()
   const [profil, licences, equipements, specialites, dispos, moods, ludique, statistiques] = await Promise.all([
     client.equipeProfile.findFirst({
@@ -457,7 +460,7 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
   ])
 
   // Fichier de chaque document de licence : la pièce rattachée (coreAttachment) porte le fichier à ouvrir.
-  const idsPieces = licences.map((licence) => licence.documentAttachmentId).filter((id): id is string => id !== null)
+  const idsPieces = voitDocuments ? licences.map((licence) => licence.documentAttachmentId).filter((id): id is string => id !== null) : []
   const piecesLicence = idsPieces.length > 0
     ? await client.coreAttachment.findMany({ where: { teamId: ctx.teamId, id: { in: idsPieces }, deletedAt: null }, select: { id: true, fileId: true } })
     : []
@@ -479,9 +482,9 @@ export async function lireFichePersonne(ctx: ContexteTeam, niveau: Niveau, perso
       id: licence.id,
       type: licence.type,
       asaContactId: licence.asaContactId,
-      documentFileId: licence.documentAttachmentId ? (fichierDeLicence.get(licence.documentAttachmentId) ?? null) : null,
+      documentFileId: voitDocuments && licence.documentAttachmentId ? (fichierDeLicence.get(licence.documentAttachmentId) ?? null) : null,
       libelle: LIBELLES_TYPE_LICENCE[licence.type],
-      numero: licence.numero,
+      numero: voitDocuments ? licence.numero : null,
       saison: licence.saison,
       valableDu: licence.valableDu,
       valableAu: licence.valableAu,
