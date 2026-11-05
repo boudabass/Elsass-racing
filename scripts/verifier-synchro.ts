@@ -126,6 +126,21 @@ async function main(): Promise<void> {
     const journal = await bd.coreActivity.findMany({ where: { teamId, action: "conflit_synchro", ficheId: idNote } })
     controle("le conflit est journalisé avec la version écrasée", journal.length === 1 && JSON.stringify(journal[0]?.resume).includes("Bâche : récupérée"))
 
+    // 2 bis (dette 5.0). Deux modifications successives du même appareil, la seconde envoyée après l'acquittement de la
+    // première : le client envoie la version acquittée (rev + 1), donc rien n'est journalisé. Le cas de la rev dépassée
+    // reste un vrai conflit (étape 2 ci-dessus).
+    const idNoteSuccessive = newId()
+    const creationSucc = await appliquerOperations(ctxA, devA, [operation({ table: "core_note", type: "creer", id: idNoteSuccessive, champs: { texte: "Ancien" } })])
+    controle("création de la note de contrôle : appliquée", creationSucc[0]?.statut === "appliquee")
+    const premiereSucc = await appliquerOperations(ctxA, devA, [operation({ table: "core_note", type: "modifier", id: idNoteSuccessive, revLue: 1, champs: { texte: "Premier" } })])
+    controle("première modification, rev lue 1 : appliquée", premiereSucc[0]?.statut === "appliquee")
+    const secondeSucc = await appliquerOperations(ctxA, devA, [operation({ table: "core_note", type: "modifier", id: idNoteSuccessive, revLue: 2, champs: { texte: "Second" } })])
+    controle("seconde modification, avec la version acquittée (2) : appliquée sans conflit", secondeSucc[0]?.statut === "appliquee")
+    const noteSucc = await bd.coreNote.findUnique({ where: { id: idNoteSuccessive }, select: { texte: true, rev: true } })
+    controle("la base porte la seconde version, rev 3", noteSucc?.texte === "Second" && noteSucc.rev === 3)
+    const journalSucc = await bd.coreActivity.count({ where: { teamId, action: "conflit_synchro", ficheId: idNoteSuccessive } })
+    controle("aucun conflit journalisé pour deux modifications successives", journalSucc === 0)
+
     // 3. Rejouer l'opération de A avec le même idOperation n'applique rien.
     const revAvant = (await bd.coreNote.findUnique({ where: { id: idNote }, select: { rev: true } }))?.rev
     const rejeu: ResultatOperation[] = await appliquerOperations(ctxA, devA, [

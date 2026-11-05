@@ -196,6 +196,44 @@ describe("moteur : modifications successives hors ligne", () => {
     expect(envoyees[0]).toEqual([expect.objectContaining({ type: "modifier", revLue: 3 })])
     expect(envoyees[1]).toEqual([expect.objectContaining({ type: "modifier", revLue: 4, champs: { texte: "Pendant l'envoi" } })])
   })
+  it("deux modifications successives, la seconde après l'acquittement de la première : elle part avec la version acquittée", async () => {
+    const { moteur } = nouveauMoteur()
+    serveur.lignes.core_note = [ligne("note-s", { texte: "Ancien" }, 3)]
+    // Le serveur applique une modification comme le vrai serveur : la ligne passe à rev + 1 et prend la valeur écrite, puis le
+    // tirage la rend. Les envois sont notés au passage (un envoi vide n'est pas compté).
+    const envoyees: Operation[][] = []
+    serveur.pousser = (operations) => {
+      if (operations.length > 0) envoyees.push(operations)
+      return operations.map((o) => {
+        const cible = serveur.lignes.core_note?.find((l) => l.id === o.id)
+        if (cible && o.type === "modifier") {
+          cible.rev += 1
+          Object.assign(cible, o.champs)
+        }
+        return { idOperation: o.idOperation, statut: "appliquee" as const }
+      })
+    }
+    await moteur.synchroniser()
+
+    await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-s", champs: { texte: "Premier" } })
+    // L'envoi de « Premier » est acquitté, puis le tirage qui suit échoue : la version acquittée doit suffire à la suite.
+    const fetchSimule = globalThis.fetch
+    let tirageCoupe = true
+    vi.stubGlobal("fetch", async (chemin: string, init: RequestInit) => {
+      if (chemin === "/api/synchro/tirer" && tirageCoupe) throw new TypeError("Failed to fetch")
+      return fetchSimule(chemin, init)
+    })
+    await moteur.synchroniser()
+    tirageCoupe = false
+    await moteur.ecrireLocal("core_note", { type: "modifier", id: "note-s", champs: { texte: "Second" } })
+    await moteur.synchroniser()
+
+    // « Premier » part avec la version 3 et est acquittée (le serveur passe à 4) ; « Second » part ensuite avec 4 : rien à journaliser.
+    expect(envoyees).toHaveLength(2)
+    expect(envoyees[0]).toEqual([expect.objectContaining({ type: "modifier", revLue: 3, champs: { texte: "Premier" } })])
+    expect(envoyees[1]).toEqual([expect.objectContaining({ type: "modifier", revLue: 4, champs: { texte: "Second" } })])
+  })
+
 })
 
 describe("moteur : qui voit les refus", () => {
