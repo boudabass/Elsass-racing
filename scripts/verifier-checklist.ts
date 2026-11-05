@@ -313,7 +313,7 @@ async function main() {
     await garage.appliquerDecisionOrdre(ctxResp, { cleUnicite: `ordre_point:${pointOrgane}`, decision: "ignorer", ficheId: organe })
     controle("Ignorer n'ouvre aucun ordre", (await ordresDeLOrgane()) === 0)
     await garage.appliquerDecisionOrdre(ctxResp, { cleUnicite: `ordre_point:${pointOrgane}`, decision: "accepter", ficheId: organe })
-    controle("Ouvrir l'ordre crée un ordre sur l'organe du lien", (await ordresDeLOrgane()) === 1)
+    controle("Créer l'ordre crée un ordre sur l'organe du lien", (await ordresDeLOrgane()) === 1)
 
     // 8. Propositions des écoutes (5.7b) : accepter une proposition n'écrit que dans Check-lists (aucune table d'une autre
     // app, ni des autres tables de la team, ne change) ; cocher ne repasse pas un point fait ; ignorer ne fait rien ; une

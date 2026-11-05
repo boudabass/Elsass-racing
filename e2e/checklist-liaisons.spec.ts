@@ -78,7 +78,7 @@ test("Point critique à l'approche de l'échéance : l'action sort dans la boît
   await expect.poll(() => statutActionTitreEnBase(equipe, "point_critique:", "Pression des pneus")).toBe("annulee")
 })
 
-test("Lien à un organe : le problème propose un ordre dans la boîte, Ouvrir l'ordre l'ouvre dans Travaux ; sans organe, une tâche", async ({ page, equipe }) => {
+test("Lien à un organe : le problème propose un ordre dans la boîte, Créer l'ordre le crée dans Travaux ; sans organe, une tâche", async ({ page, equipe }) => {
   test.setTimeout(420_000)
   const { entryId, vehicleId } = await preparerEngagementChecklist(equipe)
   // L'atelier réel de la voiture : ses organes ont des identifiants que le lien et l'ordre reprennent.
@@ -114,9 +114,9 @@ test("Lien à un organe : le problème propose un ordre dans la boîte, Ouvrir l
   await expect(boite.getByText("Problème signalé : Moteur", { exact: true })).toBeVisible()
   await expect.poll(() => ordresEnBase(equipe, "Problème signalé : Moteur")).toEqual([])
 
-  // Ouvrir l'ordre : l'ordre part sur l'organe du lien, et l'action est décidée.
+  // Créer l'ordre : l'ordre part sur l'organe du lien, et l'action est décidée.
   const reponseOrdre = page.waitForResponse(RESPONSE_ACTION)
-  await boite.getByRole("button", { name: "Ouvrir l'ordre", exact: true }).click()
+  await boite.getByRole("button", { name: "Créer l'ordre", exact: true }).click()
   await reponseOrdre
   await expect.poll(() => statutActionTitreEnBase(equipe, "ordre_point:", "Problème signalé : Moteur")).toBe("decidee")
   await expect.poll(async () => (await ordresEnBase(equipe, "Problème signalé : Moteur")).map((ordre) => ordre.vehicle_component_id)).toEqual([organes.moteur])

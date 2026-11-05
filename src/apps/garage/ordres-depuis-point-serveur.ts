@@ -20,7 +20,7 @@ export interface ProblemePourOrdre {
   lienId: string
 }
 
-// Propose l'ordre : une action « Ouvrir l'ordre » ou « Ignorer » pour les responsables. Rien n'est créé avant l'acceptation.
+// Propose l'ordre : une action « Créer l'ordre » ou « Ignorer » pour les responsables. Rien n'est créé avant l'acceptation.
 // Un organe qui n'existe plus n'a rien à proposer.
 export async function proposerOrdreDepuisPointDans(ctx: ContexteTeam, probleme: ProblemePourOrdre): Promise<void> {
   const organe = await lireObjetPourChecklist(ctx, "organe_garage", probleme.lienId)

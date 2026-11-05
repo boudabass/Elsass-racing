@@ -2,7 +2,7 @@
 // et les boutons se construisent depuis l'organe, jamais depuis le libellé du point (règle de 5.7a).
 
 export const BOUTONS_ORDRE_DEPUIS_POINT = [
-  { cle: "accepter", libelle: "Ouvrir l'ordre" },
+  { cle: "accepter", libelle: "Créer l'ordre" },
   { cle: "ignorer", libelle: "Ignorer" },
 ] as const
 

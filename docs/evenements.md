@@ -175,7 +175,7 @@ Précisions :
 
 | Événement | Écouté par | Effet | Clé d'unicité | Charge lue |
 |---|---|---|---|---|
-| `checklist.probleme_signale` | Garage | si le point est lié à un organe (`lienType` = `organe_garage`, `lienId` posé) : propose un ordre de travail (`garage.action_requise`, type `ordre_depuis_point`, boutons « Ouvrir l'ordre » et « Ignorer ») ; rien n'est créé avant l'acceptation | `ordre_point:<pointId>` | `pointId`, `lienType`, `lienId`, `listeTitre`, `epreuveId` |
+| `checklist.probleme_signale` | Garage | si le point est lié à un organe (`lienType` = `organe_garage`, `lienId` posé) : propose un ordre de travail (`garage.action_requise`, type `ordre_depuis_point`, boutons « Créer l'ordre » et « Ignorer ») ; rien n'est créé avant l'acceptation | `ordre_point:<pointId>` | `pointId`, `lienType`, `lienId`, `listeTitre`, `epreuveId` |
 | `checklist.probleme_signale` | Check-lists (même appel, 5.8 §3.3) | si le point n'est pas lié à un organe : action `checklist.action_requise` de type `tache_probleme` (clé `tache_point:<pointId>`, priorité 7, responsables et personne affectée). Levée quand le point sort de problème ou est retiré ; la levée termine la tâche | — | — |
 | `checklist.probleme_signale` | core (socle) | sinon, ouvre une tâche `core_task` (app `checklist`, fiche `point`, titre « Problème : <libellé> (<liste>) », assignée à `personneId` s'il existe). Une seule tâche à faire par point | — | `pointId`, `epreuveId`, `libelle`, `listeTitre`, `personneId`, `lienType`, `lienId` |
 | `checklist.point_critique_ouvert` | Saison | aucun gestionnaire : Saison lit l'état des listes à l'affichage (panneau « Prêt pour l'épreuve ? », hors indice) | — | — |
