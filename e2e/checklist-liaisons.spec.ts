@@ -61,6 +61,14 @@ test("Point critique à l'approche de l'échéance : l'action sort dans la boît
   await envoyer(page, ajout.getByRole("button", { name: "Ajouter le point", exact: true }))
   await expect.poll(() => statutActionTitreEnBase(equipe, "point_critique:", "Pression des pneus")).toBe("en_attente")
 
+  // Dans la boîte, la carte du point critique n'a qu'un « Ouvrir la liste » (lien) : pas de « Ouvrir » générique en double.
+  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
+  const boiteCritique = page.getByRole("dialog")
+  await expect(boiteCritique.getByRole("link", { name: "Ouvrir la liste", exact: true })).toHaveCount(1)
+  await expect(boiteCritique.getByRole("link", { name: "Ouvrir", exact: true })).toHaveCount(0)
+  await page.keyboard.press("Escape")
+  await expect(boiteCritique).toHaveCount(0)
+
   // Coche : le point est fait, l'action est levée (annulée) sans que personne ne l'ait décidée.
   const reponse = page.waitForResponse(RESPONSE_ACTION)
   await page.locator("li").filter({ hasText: "Pression des pneus" }).getByRole("button", { name: "Faire", exact: true }).click()

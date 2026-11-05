@@ -46,7 +46,8 @@ export function BoiteActions({ groupes }: { groupes: GroupeAction[] }) {
 // Tous ont la même hauteur (même padding, même police).
 const BOUTON_BASE = "cible-tactile inline-flex items-center rounded-md px-4 py-2 font-medium"
 const BOUTON_PRINCIPAL = `${BOUTON_BASE} bg-marque text-marque-texte hover:opacity-90`
-const BOUTON_SECONDAIRE = `${BOUTON_BASE} border border-marque text-marque hover:bg-surface-2`
+// Secondaires en contour neutre (contour de composant ≥ 3:1, texte du thème), comme « Plus tard » : la couleur de marque reste au bouton principal.
+const BOUTON_SECONDAIRE = `${BOUTON_BASE} border border-bordure-champ text-texte hover:bg-surface-2`
 
 function CarteAction({ action }: { action: ActionBoite }) {
   const boutons = action.boutons as Array<{ cle: string; libelle: string; lien?: string }>
@@ -87,7 +88,8 @@ function CarteAction({ action }: { action: ActionBoite }) {
 
         <ReporterAction actionId={action.id} titre={action.titre} />
 
-        {action.ficheType && (
+        {/* « Ouvrir » générique seulement sans bouton-lien : sinon la carte porte deux liens vers le même écran. */}
+        {action.ficheType && !boutons.some((bouton) => bouton.lien) && (
           <Link href={`/apps/${action.appOrigine}`} className={`${LIEN} px-2 py-2`}>
             Ouvrir
           </Link>
