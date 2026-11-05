@@ -108,7 +108,8 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, membre retir�
 
     await page.goto("/apps/equipe")
     await expect(page.getByRole("heading", { name: "L'équipe", exact: true })).toBeVisible()
-    await page.getByRole("button", { name: "Anciens membres", exact: true }).click()
+    // Le bouton porte le compteur : « Anciens membres (1) ».
+    await page.getByRole("button", { name: /^Anciens membres/ }).click()
     await expect(page.getByRole("dialog").getByText("Lou Retiree", { exact: false })).toBeVisible()
   })
 })

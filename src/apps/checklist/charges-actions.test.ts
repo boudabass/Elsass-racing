@@ -27,6 +27,12 @@ describe("charge de checklist.action_requise (5.8, §3.3)", () => {
     expect(chargeActionRequise.safeParse({ ...BASE, type }).success).toBe(true)
   })
 
+  // La personne affectée d'un problème : son adhésion s'ajoute aux responsables (points-critiques-serveur.ts).
+  it("accepte les destinataires avec des adhésions en plus des responsables", () => {
+    const charge = { ...BASE, type: "tache_probleme", destinataires: { roles: ["responsable"], memberships: ["55555555-5555-4555-8555-555555555555"] } }
+    expect(chargeActionRequise.safeParse(charge).success).toBe(true)
+  })
+
   it("refuse un type qui n'est pas dans le catalogue", () => {
     expect(chargeActionRequise.safeParse({ ...BASE, type: "type_inconnu" }).success).toBe(false)
   })

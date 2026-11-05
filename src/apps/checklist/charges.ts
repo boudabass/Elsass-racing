@@ -47,7 +47,7 @@ export const chargeActionRequise = z
     ficheType: z.string().optional(),
     ficheId: identifiant.optional(),
     eventId: identifiant.optional(),
-    destinataires: z.object({ roles: z.array(z.enum(["responsable"])).min(1) }).strict(),
+    destinataires: z.object({ roles: z.array(z.enum(["responsable"])).min(1), memberships: z.array(identifiant).optional() }).strict(),
     boutons: z.array(z.object({ cle: z.string().min(1), libelle: z.string().min(1), lien: z.string().min(1).optional() }).strict()).min(1).max(4),
     priorite: z.number().int().min(1).max(9),
     niveauRequis: z.enum(["lecture", "contribution", "ecriture", "gestion"]),
