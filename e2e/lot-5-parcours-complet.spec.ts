@@ -102,7 +102,7 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, membre retir�
 
   await test.step("10. Membre retiré : « Anciens membres » garde son nom, sa fiche reste", async () => {
     const membre = await ajouterEquipier(equipe)
-    await creerPersonne(page, "Lou", "Retiree", "Équipage")
+    await creerPersonne(page, "Lou", "Retiree", "Bénévole")
     await rattacherPersonneAuCompte(equipe, membre, "Lou", "Retiree")
     await retirerAdhesion(membre)
 

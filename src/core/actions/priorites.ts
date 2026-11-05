@@ -48,6 +48,7 @@ export const RANG_PAR_TYPE: Record<string, Priorite> = {
   preuve_pose: PRIORITE.contrepartie,
   publications_promises: PRIORITE.contrepartie,
   contrepartie_en_retard: PRIORITE.contrepartie,
+  marquer_engagement_paye: PRIORITE.contrepartie,
   tache_relance: PRIORITE.relance,
   resultat_a_saisir: PRIORITE.resultat,
   resultat_a_valider: PRIORITE.resultat,
@@ -60,7 +61,6 @@ export const TYPES_A_ECHEANCE = [
   "homologation_a_renouveler",
   "papier_a_renouveler",
   "renouveler_document",
-  "marquer_engagement_paye",
 ] as const
 
 // Jour civil « AAAA-MM-JJ » de Paris pour un instant.

@@ -81,10 +81,10 @@ Une app passe un rang nommé de `src/core/actions/priorites.ts`, jamais un chiff
 | Rang | Nom | Types (émis par) |
 |---|---|---|
 | 1 | `bloquant` | aucun émis (reporté après le lot 5, plan §5.8) |
-| 2 | `echeance_depassee` | échéance passée ou du jour : `cloture_engagements`, `licence_a_renouveler`, `homologation_a_renouveler`, `papier_a_renouveler`, `renouveler_document`, `marquer_engagement_paye` |
+| 2 | `echeance_depassee` | échéance passée ou du jour : `cloture_engagements`, `licence_a_renouveler`, `homologation_a_renouveler`, `papier_a_renouveler`, `renouveler_document` |
 | 3 | `resultat` | `resultat_a_saisir`, `resultat_a_valider` (relance comprise) |
 | 4 | `mouvement_a_confirmer` | Budget |
-| 5 | `contrepartie` | `preuve_pose`, `publications_promises`, `contrepartie_en_retard` |
+| 5 | `contrepartie` | `preuve_pose`, `publications_promises`, `contrepartie_en_retard` (Partenaires), `marquer_engagement_paye` (Saison, à la dépense d'engagement de Budget) |
 | 6 | `relance` | `tache_relance` (Partenaires) |
 | 7 | `suggestion` | `point_critique`, `tache_probleme` (Check-lists), `reconnaissance`, `programme_du_jour` (Saison), `disponibilite_a_repondre` (Équipe) |
 | 8 | `proposition` | propositions Check-lists (`ajouter_point`, `cocher_point`, `creer_liste_retour`, `relire_liste`, `creer_listes`, `reassigner_points`), `ordre_depuis_point` (Garage), `message_partenaire`, `emplacement_pris`, `emplacement_supprime`, `reserver_emplacement`, `liberer_emplacement` (Voiture et Partenaires), `cloture_saison_proposee` (Saison) |

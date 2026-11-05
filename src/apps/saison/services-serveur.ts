@@ -6,7 +6,7 @@
 // Écritures : rev incrémenté, updatedBy posé. Montants : cf. masquerMontants (règles pures).
 // Aucun nom d'événement hors du catalogue (src/core/evenements/catalogue.ts).
 
-import { prioriteEcheance } from "@/core/actions/priorites"
+import { PRIORITE } from "@/core/actions/priorites"
 import { z } from "zod"
 
 import type { Prisma } from "@/generated/prisma/client"
@@ -1346,8 +1346,7 @@ async function proposerMarquagePaye(ctx: ContexteTeam, evenement: EvenementRecu)
       { cle: "marquer_paye", libelle: "Marquer payé" },
       { cle: "ignorer", libelle: "Ignorer" },
     ],
-    priorite: prioriteEcheance(engagement.event.dateDebut, new Date()),
-    echeance: engagement.event.dateDebut.toISOString(),
+    priorite: PRIORITE.contrepartie,
     niveauRequis: "ecriture",
     cleRegroupement: "engagements_a_marquer",
   })

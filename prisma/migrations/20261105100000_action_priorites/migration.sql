@@ -30,7 +30,7 @@ WHERE statut = 'en_attente'
 -- Contrepartie ou preuve de partenaire (5).
 UPDATE core_action SET priorite = 5
 WHERE statut = 'en_attente'
-  AND type IN ('preuve_pose', 'publications_promises', 'contrepartie_en_retard');
+  AND type IN ('preuve_pose', 'publications_promises', 'contrepartie_en_retard', 'marquer_engagement_paye');
 
 -- Relance partenaire (6).
 UPDATE core_action SET priorite = 6
@@ -50,5 +50,5 @@ UPDATE core_action SET priorite = CASE
 WHERE statut = 'en_attente'
   AND type IN (
     'cloture_engagements', 'licence_a_renouveler', 'homologation_a_renouveler', 'papier_a_renouveler',
-    'renouveler_document', 'marquer_engagement_paye'
+    'renouveler_document'
   );

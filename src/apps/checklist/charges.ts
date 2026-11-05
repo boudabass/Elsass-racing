@@ -40,7 +40,7 @@ export const chargeProblemeSignale = z
 // Propositions : le socle reçoit <app>.action_requise (forme de docs/evenements.md).
 export const chargeActionRequise = z
   .object({
-    type: z.enum(["creer_listes", "reassigner_points", "point_critique", "ajouter_point", "cocher_point", "creer_liste_retour", "relire_liste"]),
+    type: z.enum(["creer_listes", "reassigner_points", "point_critique", "tache_probleme", "ajouter_point", "cocher_point", "creer_liste_retour", "relire_liste"]),
     cleUnicite: z.string().min(1),
     titre: z.string().min(1),
     contexte: z.string().optional(),
