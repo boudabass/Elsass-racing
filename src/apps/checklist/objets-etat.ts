@@ -15,3 +15,13 @@ export function etatEcheance(statut: StatutEcheanceLie, fin: Date | null): { eta
   if (statut === "a_renouveler") return { etat: `À renouveler, valable jusqu'au ${dateLongue(fin)}`, alerte: true }
   return { etat: `Valable jusqu'au ${dateLongue(fin)}`, alerte: false }
 }
+
+// Échéance d'une liste dans le contexte de son action de point critique (5.8, décision 2). Dite au jour de l'écriture :
+// « le 29 octobre 2026 », « aujourd'hui », ou « dépassée depuis le 29 octobre 2026 ». Sans échéance : « non fixée ».
+// Les deux dates sont « AAAA-MM-JJ », donc la comparaison de chaînes suit l'ordre des jours.
+export function echeanceEnClair(echeance: string | null, aujourdhui: string): string {
+  if (echeance === null) return "échéance non fixée"
+  if (echeance === aujourdhui) return "échéance aujourd'hui"
+  const date = dateLongue(new Date(`${echeance}T00:00:00Z`))
+  return echeance > aujourdhui ? `échéance le ${date}` : `échéance dépassée depuis le ${date}`
+}

@@ -13,7 +13,7 @@ import { terminerTachesSauf } from "@/core/taches/ecriture"
 
 import { chargeActionRequise } from "./charges"
 import { cleTacheDeProbleme } from "./objets-lies"
-import { dateLongue } from "./objets-etat"
+import { echeanceEnClair } from "./objets-etat"
 import { actionPointCritiqueDue, jourParis, pointsActionADeLever, type StatutPoint } from "./regles"
 
 const PREFIXE_POINT_CRITIQUE = "point_critique:"
@@ -39,21 +39,24 @@ interface ListePourAction {
   echeance: Date | null
 }
 
-// Propose l'action d'un point critique. Une action déjà en attente n'est pas réémise : la visite du QG ne doit pas
+// Propose l'action d'un point critique. Une action en attente n'est réémise que si son contexte a changé : la visite du QG ne doit pas
 // écrire à chaque ouverture.
 export async function proposerActionPointCritique(ctx: ContexteTeam, liste: ListePourAction, point: { id: string; libelle: string }): Promise<void> {
   const cleUnicite = cleActionPointCritique(point.id)
+  // Le contexte dit l'échéance au jour de l'écriture. Au rattrapage du QG, il n'est réémis que s'il a changé.
+  const contexte = `${liste.titre} · ${echeanceEnClair(liste.echeance ? liste.echeance.toISOString().slice(0, 10) : null, jourParis(new Date()))}`
   const existante = await prismaPourTeam(ctx.teamId, ctx.userId).coreAction.findFirst({
     where: { teamId: ctx.teamId, cleUnicite, statut: "en_attente" },
-    select: { id: true },
+    select: { contexte: true },
   })
-  if (existante) return
+  // Une action décidée, annulée ou expirée n'est jamais réémise ici : actionRequise la rouvrirait et effacerait sa décision.
+  if (existante?.contexte === contexte) return
 
   const charge = chargeActionRequise.parse({
     type: "point_critique",
     cleUnicite,
     titre: point.libelle,
-    contexte: `${liste.titre} · échéance ${liste.echeance ? dateLongue(liste.echeance) : "non fixée"}`,
+    contexte,
     ficheType: "point",
     ficheId: point.id,
     eventId: liste.epreuveId,

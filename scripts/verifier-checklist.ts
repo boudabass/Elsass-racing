@@ -315,6 +315,33 @@ async function main() {
     await garage.appliquerDecisionOrdre(ctxResp, { cleUnicite: `ordre_point:${pointOrgane}`, decision: "accepter", ficheId: organe })
     controle("Créer l'ordre crée un ordre sur l'organe du lien", (await ordresDeLOrgane()) === 1)
 
+    // 9. Contexte d'un point critique (5.8, décision 2) : réémis quand il diffère, sans écriture sinon. Une action reportée
+    // garde son report (la réémission ne touche pas reporteeJusquAu) et son rang (7).
+    const pointsCritiques = await import("../src/apps/checklist/points-critiques-serveur")
+    const { reporter } = await import("../src/core/actions/actions-serveur")
+    const listeCritique = await proprietaire.checklistList.findUniqueOrThrow({ where: { id: liste }, select: { id: true, epreuveId: true, titre: true, echeance: true } })
+    const cleCritique = `point_critique:${pointCritique}`
+    const lireCritique = () =>
+      proprietaire.coreAction.findFirst({
+        where: { teamId: team.id, cleUnicite: cleCritique },
+        select: { id: true, statut: true, contexte: true, priorite: true, reporteeJusquAu: true, updatedAt: true },
+      })
+    const proposer = (titre: string) =>
+      pointsCritiques.proposerActionPointCritique(ctxResp, { ...listeCritique, titre }, { id: pointCritique, libelle: `Critique ${suffixe}` })
+
+    await proposer(listeCritique.titre)
+    const premiere = await lireCritique()
+    controle("une action de point critique est proposée en attente, rang 7", premiere?.statut === "en_attente" && premiere.priorite === 7, JSON.stringify(premiere))
+    const report = new Date(Date.now() + 3 * 86_400_000)
+    await reporter(ctxResp, premiere!.id, report)
+    await proposer(`${listeCritique.titre} (renommée)`)
+    const reemise = await lireCritique()
+    controle("un contexte qui diffère est réémis sur l'action en attente", reemise?.contexte?.startsWith(`${listeCritique.titre} (renommée)`) === true)
+    controle("le report survit à la réémission, le rang reste 7", reemise?.reporteeJusquAu?.getTime() === report.getTime() && reemise.priorite === 7 && reemise.statut === "en_attente")
+    const avantIdentique = (await lireCritique())?.updatedAt
+    await proposer(`${listeCritique.titre} (renommée)`)
+    controle("un contexte identique n'écrit rien à l'ouverture du QG", (await lireCritique())?.updatedAt?.getTime() === avantIdentique?.getTime())
+
     // 8. Propositions des écoutes (5.7b) : accepter une proposition n'écrit que dans Check-lists (aucune table d'une autre
     // app, ni des autres tables de la team, ne change) ; cocher ne repasse pas un point fait ; ignorer ne fait rien ; une
     // proposition déjà décidée n'est pas rejouée. La décision passe par le même chemin que la boîte (core.action_decidee).
