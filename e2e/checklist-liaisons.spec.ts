@@ -61,10 +61,11 @@ test("Point critique à l'approche de l'échéance : l'action sort dans la boît
   await envoyer(page, ajout.getByRole("button", { name: "Ajouter le point", exact: true }))
   await expect.poll(() => statutActionTitreEnBase(equipe, "point_critique:", "Pression des pneus")).toBe("en_attente")
 
-  // Dans la boîte, la carte du point critique n'a qu'un « Ouvrir la liste » (lien) : pas de « Ouvrir » générique en double.
+  // Dans la boîte, la carte « Pression des pneus » n'a qu'un « Ouvrir la liste » (lien) : pas de « Ouvrir » générique en double.
+  // Le modèle ajoute son propre point critique (« Triangle de présentation ») : sa carte n'est pas comptée ici.
   await page.getByRole("button", { name: /Boîte d'actions/ }).click()
   const boiteCritique = page.getByRole("dialog")
-  await expect(boiteCritique.getByRole("link", { name: "Ouvrir la liste", exact: true })).toHaveCount(1)
+  await expect(boiteCritique.getByRole("article").filter({ hasText: "Pression des pneus" }).getByRole("link", { name: "Ouvrir la liste", exact: true })).toHaveCount(1)
   await expect(boiteCritique.getByRole("link", { name: "Ouvrir", exact: true })).toHaveCount(0)
   await page.keyboard.press("Escape")
   await expect(boiteCritique).toHaveCount(0)

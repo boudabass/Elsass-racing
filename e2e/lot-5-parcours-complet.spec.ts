@@ -120,6 +120,8 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, membre retir�
 
     const plan = await documentEnBase(equipe, TITRE_PLAN)
     expect(plan).not.toBeNull()
+    // Le plan est rangé dans le dossier « gestion » : le coffre n'affiche que le dossier, on l'ouvre avant le document.
+    await page.getByRole("link", { name: new RegExp(NOM_DOSSIER_GESTION) }).click()
     await page.getByRole("link", { name: TITRE_PLAN }).click()
     const urlFichier = await page.locator('a[href^="/api/fichiers/"]').first().getAttribute("href")
     expect(urlFichier).toMatch(/^\/api\/fichiers\/[^/?#]+$/)
