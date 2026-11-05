@@ -931,7 +931,6 @@ export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> 
         contexte: nom,
         ficheType: "licence",
         ficheId: licence.id,
-        echeance: `${echeance}T00:00:00.000Z`,
         destinataires: { memberships: responsables.map((membre) => membre.id) },
         // Lien vers l'onglet Licences de la personne (5.6 §0) : l'action se lève au renouvellement.
         boutons: [{ cle: "renouveler", libelle: "Renouveler", lien: `/apps/equipe/personnes/${licence.personId}?onglet=licences` }],
@@ -962,7 +961,6 @@ export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> 
         contexte: nom,
         ficheType: "gear",
         ficheId: equipement.id,
-        echeance: `${echeance}T00:00:00.000Z`,
         destinataires: { memberships: responsables.map((membre) => membre.id) },
         // Lien vers l'onglet Équipement de la personne (5.6 §0) : l'action se lève au renouvellement.
         boutons: [{ cle: "renouveler", libelle: "Renouveler", lien: `/apps/equipe/personnes/${equipement.personId}?onglet=equipement` }],

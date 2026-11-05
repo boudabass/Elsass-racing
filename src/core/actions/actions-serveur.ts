@@ -6,9 +6,8 @@ import type { ContexteTeam } from "@/core/contexte"
 import { actionsPourMembre, lireDestinataires, type ActionBoite, type Bouton } from "./filtrage"
 import { effetDuBouton } from "./liens"
 import { grouperActions, type GroupeAction } from "./regroupement"
+import { limiteExpiration } from "./expiration"
 
-// Une action en attente depuis plus de ce délai après son échéance passe à expirée.
-const DELAI_EXPIRATION_MS = 30 * 24 * 60 * 60 * 1000
 
 // Niveau effectif du membre sur une app : core_app_access, sinon le défaut du rôle.
 export async function niveauDe(ctx: ContexteTeam, appCle: string): Promise<Niveau> {
@@ -110,7 +109,7 @@ export async function listerActionsVisibles(ctx: ContexteTeam): Promise<ActionBo
     where: {
       teamId: ctx.teamId,
       statut: "en_attente",
-      echeance: { lt: new Date(maintenant.getTime() - DELAI_EXPIRATION_MS) },
+      echeance: { lt: limiteExpiration(maintenant) },
     },
     data: { statut: "expiree" },
   })

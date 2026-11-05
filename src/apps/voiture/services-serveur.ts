@@ -1006,7 +1006,6 @@ export async function recalculerPapiersDans(ctx: ContexteTeam): Promise<void> {
       contexte: papier.vehicle.nomCourt,
       ficheType: "paper",
       ficheId: papier.id,
-      echeance: `${echeance}T00:00:00.000Z`,
       destinataires: { memberships: responsables.map((membre) => membre.id) },
       boutons: [{ cle: "vu", libelle: "Vu" }],
       priorite: prioriteEcheance(new Date(`${echeance}T00:00:00.000Z`), maintenant),

@@ -16,7 +16,7 @@ import { resolve } from "node:path"
 import { config as chargerEnv } from "dotenv"
 import { PrismaPg } from "@prisma/adapter-pg"
 
-import { PRIORITE, prioriteEcheance, RANG_PAR_TYPE, TYPES_A_ECHEANCE } from "../src/core/actions/priorites"
+import { PRIORITE, prioriteEcheance, RANG_PAR_TYPE, TYPES_A_ECHEANCE, TYPES_OBLIGATION } from "../src/core/actions/priorites"
 import { Prisma, PrismaClient } from "../src/generated/prisma/client"
 
 chargerEnv({ path: ".env.local" })
@@ -82,6 +82,8 @@ async function main() {
             priorite: PRIORITE.echeance_proche,
             statut: "en_attente" as const,
           })),
+          // Obligations sans échéance d'action : la migration ne les touche pas (leur rang vient de leur fiche).
+          ...TYPES_OBLIGATION.map((type) => ({ ...base, id: randomUUID(), appOrigine: "checklist", type, cleUnicite: cle(type, "obligation"), priorite: PRIORITE.echeance_proche, statut: "en_attente" as const, echeance: null })),
           ...TYPES_A_ECHEANCE.flatMap((type) => [
             { ...base, id: randomUUID(), appOrigine: "saison", type, cleUnicite: cle(type, "jour"), priorite: PRIORITE.echeance_proche, statut: "en_attente" as const, echeance: jourParisDecale(0, maintenant) },
             { ...base, id: randomUUID(), appOrigine: "saison", type, cleUnicite: cle(type, "avenir"), priorite: PRIORITE.echeance_proche, statut: "en_attente" as const, echeance: jourParisDecale(3, maintenant) },
@@ -110,6 +112,9 @@ async function main() {
           controle(`${type} : échéance du jour, rang 2`, apres[cle(type, "jour")] === PRIORITE.echeance_depassee, String(apres[cle(type, "jour")]))
           controle(`${type} : échéance à venir, rang 9`, apres[cle(type, "avenir")] === PRIORITE.echeance_proche, String(apres[cle(type, "avenir")]))
           controle(`${type} : sans date, rang 9`, apres[cle(type, "sansdate")] === PRIORITE.echeance_proche, String(apres[cle(type, "sansdate")]))
+        }
+        for (const type of TYPES_OBLIGATION) {
+          controle(`${type} sans échéance : la migration ne touche pas son rang`, apres[cle(type, "obligation")] === PRIORITE.echeance_proche, String(apres[cle(type, "obligation")]))
         }
         controle(
           "le rang à échéance de la base suit prioriteEcheance (2 le jour J)",

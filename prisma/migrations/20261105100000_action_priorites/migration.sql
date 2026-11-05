@@ -1,7 +1,7 @@
 -- Rangs de la boîte d'actions (tâche 5.8, §3.4) : table unique src/core/actions/priorites.ts.
 -- Les actions en attente émises avant cette table gardent l'ancien rang (5, 6, 2 ou 4 selon le cas). Ce fichier les remet
--- au rang d'aujourd'hui, par type. Les rangs à échéance viennent de la date : 2 si elle est passée ou du jour, 9 avant,
--- 9 sans date (le recalcul de l'app mettra la date et le rang juste au passage suivant).
+-- au rang d'aujourd'hui, par type. Les rangs à échéance viennent de la date (voir ci-dessous) ; les obligations suivent la date
+-- de leur fiche au recalcul suivant de leur app.
 --
 -- Garanties, vérifiées par db:verifier-priorites (dans une transaction annulée) :
 -- - seules les actions en_attente changent : une action décidée, expirée ou annulée ne bouge pas ;
@@ -42,13 +42,12 @@ UPDATE core_action SET priorite = 3
 WHERE statut = 'en_attente'
   AND type IN ('resultat_a_saisir', 'resultat_a_valider');
 
--- Rangs à échéance : 2 si la date (jour civil de Paris) est passée ou du jour, 9 sinon ou sans date.
+-- Clôture des engagements, seul type qui porte une échéance d'action (2 si la date, jour civil de Paris, est passée ou du jour ; 9 sinon).
+-- Les obligations (licence, homologation, papier, document) ne portent pas d'échéance : leur rang vient de la date de leur fiche,
+-- à chaque émission de leur app. Cette migration ne les touche pas : elles gardent leur rang jusqu'au prochain recalcul.
 UPDATE core_action SET priorite = CASE
     WHEN echeance IS NOT NULL AND (echeance AT TIME ZONE 'UTC')::date <= (now() AT TIME ZONE 'Europe/Paris')::date THEN 2
     ELSE 9
   END
 WHERE statut = 'en_attente'
-  AND type IN (
-    'cloture_engagements', 'licence_a_renouveler', 'homologation_a_renouveler', 'papier_a_renouveler',
-    'renouveler_document'
-  );
+  AND type = 'cloture_engagements';

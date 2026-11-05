@@ -54,14 +54,14 @@ export const RANG_PAR_TYPE: Record<string, Priorite> = {
   resultat_a_valider: PRIORITE.resultat,
 }
 
-// Types dont le rang dépend de la date d'échéance (prioriteEcheance).
-export const TYPES_A_ECHEANCE = [
-  "cloture_engagements",
-  "licence_a_renouveler",
-  "homologation_a_renouveler",
-  "papier_a_renouveler",
-  "renouveler_document",
-] as const
+// Types dont l'action porte une échéance (core_action.echeance) : son rang vient de prioriteEcheance, et elle expire
+// 30 jours après la date (règle de lecture de la boîte, actions-serveur.ts). Une clôture passée n'a plus rien à faire.
+export const TYPES_A_ECHEANCE = ["cloture_engagements"] as const
+
+// Obligations de la team (licence, homologation, papier, document) : pas d'échéance sur l'action, donc pas d'expiration.
+// Leur rang suit quand même la date de la fiche : l'app appelle prioriteEcheance à chaque émission, et réémet tant que
+// l'action est en attente. À rang égal, pas de départage par date (comme avant la 5.8).
+export const TYPES_OBLIGATION = ["licence_a_renouveler", "homologation_a_renouveler", "papier_a_renouveler", "renouveler_document"] as const
 
 // Jour civil « AAAA-MM-JJ » de Paris pour un instant.
 function jourParis(instant: Date): string {

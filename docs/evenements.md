@@ -81,7 +81,7 @@ Une app passe un rang nommé de `src/core/actions/priorites.ts`, jamais un chiff
 | Rang | Nom | Types (émis par) |
 |---|---|---|
 | 1 | `bloquant` | aucun émis (reporté après le lot 5, plan §5.8) |
-| 2 | `echeance_depassee` | échéance passée ou du jour : `cloture_engagements`, `licence_a_renouveler`, `homologation_a_renouveler`, `papier_a_renouveler`, `renouveler_document` |
+| 2 | `echeance_depassee` | échéance passée ou du jour : `cloture_engagements` (action à échéance), et les obligations `licence_a_renouveler`, `homologation_a_renouveler`, `papier_a_renouveler`, `renouveler_document` (rang de la date de leur fiche, sans échéance d'action) |
 | 3 | `resultat` | `resultat_a_saisir`, `resultat_a_valider` (relance comprise) |
 | 4 | `mouvement_a_confirmer` | Budget |
 | 5 | `contrepartie` | `preuve_pose`, `publications_promises`, `contrepartie_en_retard` (Partenaires) |
@@ -91,6 +91,10 @@ Une app passe un rang nommé de `src/core/actions/priorites.ts`, jamais un chiff
 | 9 | `echeance_proche` | échéance à venir, ou sans date |
 
 Une échéance est réémise à chaque recalcul de son app (même `cleUnicite`) tant que l'action est en attente : son rang passe de 9 à 2 le jour J. Une action décidée, expirée ou levée ne revient pas toute seule (`actionEcheanceProposable`).
+
+Deux manières de porter une date (5.8, option c) :
+- **Action à échéance** (`core_action.echeance`) : `cloture_engagements`. Elle expire 30 jours après sa date (`src/core/actions/expiration.ts`). Une clôture passée n'a plus rien à faire.
+- **Obligation** (`licence_a_renouveler`, `homologation_a_renouveler`, `papier_a_renouveler`, `renouveler_document`) : pas d'échéance sur l'action, donc pas d'expiration. Son app calcule le rang à partir de la date de la fiche (`prioriteEcheance`) à chaque émission. À rang égal, pas de départage par date.
 
 ## Charges utiles
 

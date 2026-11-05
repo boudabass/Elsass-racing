@@ -186,7 +186,6 @@ async function emettreActionRenouvellement(
       { cle: "ignorer", libelle: "Ignorer" },
     ],
     priorite: prioriteEtape(doc.validUntil, maintenant),
-    echeance: doc.validUntil.toISOString(),
     niveauRequis: "contribution",
     cleRegroupement: "documents_a_renouveler",
   })
