@@ -1,15 +1,31 @@
-# Test de John : lot 5 (Équipe)
+# Test de John : lot 5 (Équipe, Documents, Check-lists)
 
 Pour John. Où : l'app dev, team **« Team d'essai dev »** (https://elsass-racing-dev.theelsassisch.com). Ne pas tester sur la production.
 
-Ce test ne vaut que lorsque la 5.2 est sur dev, après le feu vert de l'orchestrateur (voir `documentation/JOURNAL.md`). Il couvre tout Équipe : l'équipe en cartes, la fiche personne, les licences et équipements, les disponibilités, le vivier, la prochaine épreuve, les binômes, et la lecture des licences dans « Prêt pour l'épreuve ? ».
+Ce test couvre le lot 5 complet : Équipe (l'équipe en cartes, la fiche personne, licences et équipements, disponibilités, vivier, prochaine épreuve, binômes, et la lecture des licences et papiers dans « Prêt pour l'épreuve ? »), Documents (le coffre, les échéances, les partages), et Check-lists (préparation, liste, modèles, hors ligne, liaisons, propositions). Il ne vaut qu'après le feu vert de l'orchestrateur (voir `documentation/JOURNAL.md`).
 
 Chaque étape dit ce que tu fais, puis ce que tu dois voir. Si ce n'est pas ce qui est écrit, note l'écran et ce que tu vois, et envoie-le-moi.
+
+## Parcours court (environ une heure)
+
+Si tu n'as qu'une heure, fais ces dix étapes. Chacune renvoie à la section détaillée.
+
+1. Crée Léa, personne d'assistance (étape 2).
+2. Ajoute à Léa une licence avec un document, et un casque (étape 3).
+3. Crée une épreuve et un engagement dans Saison : « Prêt pour l'épreuve ? » suit la licence (étape 9).
+4. Passe la licence en expirée : le point Licences repasse ouvert ; corrige-la : il est réglé (étape 9, points 3 et 4).
+5. Affecte Léa sur Prochaine épreuve, puis marque sa tâche faite (étape 6).
+6. Documents : crée une assurance à cinq jours ; l'action est dans la boîte, et Renouveler l'ouvre (étapes 11.3 et 12.1).
+7. Check-lists : crée un modèle, puis l'engagement : accepte « Créer les listes » dans la boîte (étape 13, prérequis).
+8. Coche un point, passe-le en point critique à J-7 : l'action sort de la boîte à la coche (étape 15.4).
+9. Mets un point en problème : la tâche « Problème : … » apparaît dans la boîte, et la tuile Check-lists dit « 1 tâche à faire » (étape 15.3).
+10. Compte assistance, en fenêtre privée : il ne voit pas le dossier caché d'Association (étape 11.6).
 
 ## Avant de commencer
 
 - Connecte-toi en responsable.
 - Ouvre **Équipe** depuis le QG. Le menu de l'app (sous le titre) mène à **L'équipe**, **Prochaine épreuve**, **Binômes** et **Vivier**.
+- **Compte assistance (pour les étapes qui en demandent un)** : dans **Réglages**, rubrique **Membres**, clique **Inviter un membre**, donne une adresse de test, rôle **Assistance**. Le lien d'invitation est valable **7 jours**. Ouvre-le dans une fenêtre privée, crée le compte, puis connecte-toi avec ce compte dans cette fenêtre.
 
 ## Étape 1 : l'équipe en cartes
 
@@ -101,7 +117,13 @@ Chaque étape dit ce que tu fais, puis ce que tu dois voir. Si ce n'est pas ce q
 
 ## Étape 13 : Check-lists, écrans (5.6)
 
-Prérequis : une épreuve à venir avec un engagement dans Saison, et la liste créée par **Créer les listes** (5.5a).
+Prérequis : la team n'a encore aucun modèle de liste. Il faut donc en créer un d'abord, puis l'engagement :
+
+1. **Crée le modèle.** Menu **Check-lists**, **Modèles**, **+ Nouveau modèle**, nom « Modèle test », portée **Engagement** (c'est le défaut). Dans le modèle, **+ Nouvelle section**, puis **+ Ajouter un point** deux fois : « Pression des pneus » en point critique, « Niveau d'huile » en point simple.
+2. **Crée l'engagement.** Dans **Saison**, crée une épreuve à venir et un engagement pour la Saxo.
+3. **Accepte la proposition.** La boîte d'actions propose « Créer les listes de l'engagement » : **Accepter**. Une liste apparaît dans **Préparation**, faite du modèle.
+
+Les points 13.2 à 13.5 créent leurs propres listes. La liste de l'engagement, créée ici, sert à 13.6, 15 et 16.
 
 1. Menu **Check-lists** : **Préparation**, **Modèles**, **Débrief**. La prochaine épreuve s'affiche avec la barre haute (avancement, phase en cours, points critiques ouverts) et la section **Prochaine étape**.
 2. Dans **Préparation**, **+ Nouvelle liste vierge** : crée **Test 5.6**, phase **Vérifications**. La liste s'ouvre avec une section **Points**. **+ Ajouter un point** deux fois : **Pression des pneus** (en point critique), puis **Niveau d'huile**. La carte affiche **1 point critique ouvert**.
@@ -128,10 +150,10 @@ Prérequis : une liste d'engagement (5.5a) acceptée, et ton téléphone connect
 
 1. Ouvrir un point de liste (« Détail ») : une section « Lié à » apparaît. Sans objet posé, elle dit « Aucun objet lié à ce point. ». Le choix d'objet ne se propose qu'en écriture ; les objets sont ceux de la voiture de la liste (organes, papiers, logos), de l'équipage (licences, homologations), de la team (contreparties, documents).
 2. Lier un point à un objet (s'il y en a un de disponible), puis revenir sur la liste : l'état de l'objet s'écrit sous le point, en texte (« À surveiller » quand il alerte). Le point n'est pas coché pour autant.
-3. Mettre un point sans objet lié en « Problème » : une tâche « Problème : <point> (<liste>) » est créée côté socle. Son affichage n'est pas encore branché : à confirmer avec moi.
+3. Mettre un point sans objet lié en « Problème » : une tâche « Problème : <point> (<liste>) » est créée côté socle. Elle apparaît dans la boîte d'actions, et la tuile Check-lists du QG affiche « 1 tâche à faire ». Quand le point sort de problème (coche, ou retour à un autre état), l'action sort de la boîte et la tâche passe à faite.
 4. Ajouter un point critique à une liste dont l'échéance est à 7 jours ou moins : la boîte propose « point critique à traiter » (bouton « Ouvrir la liste »). Cocher le point : l'action sort de la boîte.
 5. Saison, « Prêt pour l'épreuve ? » : sous « À côté, sans effet sur l'indice », une ligne « Check-lists » donne l'avancement et les points critiques ouverts. L'indice ne bouge pas.
-6. Garage : un problème sur un point lié à un organe propose « Ouvrir l'ordre » dans la boîte ; l'ordre ne se crée qu'à l'acceptation. (Pas encore testé de bout en bout : à faire quand un point est lié à un organe.)
+6. Garage : un problème sur un point lié à un organe propose « Ouvrir l'ordre » dans la boîte ; l'ordre ne se crée qu'à l'acceptation. (Pas encore vérifié de bout en bout : à faire quand un point est lié à un organe de l'atelier.)
 
 ## Étape 16 : Check-lists, propositions des écoutes (5.7b)
 
@@ -144,11 +166,11 @@ Prérequis : une liste d'engagement (5.5a) acceptée, et ton téléphone connect
 ## Ce qui n'est pas encore là
 
 - Check-lists hors ligne : pas d'ajout ni de retrait de point, pas de création de liste, pas de modèle, pas de débrief, pas de photo hors ligne.
-- « Lié à » dans la fiche d'un point : la section n'apparaît que si un objet est posé (`lienId`). Une liste copie le type de lien de son point de modèle, mais jamais l'objet : le choix de l'objet se fera en 5.7 (Liaisons). Donc rien ne s'affiche par clics pour l'instant.
 - Widgets de Check-lists sur le Tableau de bord : les lectures existent, l'affichage vient au lot 6.
 - Photo des personnes (les initiales tiennent lieu de photo pour l'instant).
 - Statistiques après un résultat validé : à vérifier quand la prochaine épreuve sera jouée.
 - Trophées affichés pour les personnes déjà présentes avant ce lot : leur choix n'a pas changé (seul le défaut des nouvelles personnes est coché).
 - Recherche globale dans les documents : pas encore branchée à l'index.
-- Alertes d'échéance vers le QG : les actions viennent avec les check-lists (5.7).
-- Nom de la personne qui a déposé une version quand son compte n'a pas de fiche : affiché « Un membre ».
+- Saison ne prévient pas Check-lists quand le programme est publié (`saison.programme_publie`, non écouté) : préparer les listes d'une épreuve reste à faire à la main.
+- Pas de notification quand une liste est terminée (reportée : il n'y a pas encore de service de notification).
+- Priorité 1 de la boîte (« Bloquant ») : aucune action ne l'utilise pour l'instant ; elle est reportée au plan.

@@ -734,3 +734,12 @@
 - e2e par clics (`checklist-propositions.spec.ts`) : pièce en zone rouge par un roulage, puis réparation terminée sur le moteur ; captures `checklist-propositions-*` dans un spec à part.
 - `db:verifier-checklist` section 8 : acceptation sans écriture hors Check-lists, pas de double ajout, ignorer ne coche pas, un point fait ne se recoche pas.
 - Reporté : `saison.programme_publie` (Saison n'émet pas l'événement, « caler les échéances » n'est pas dans 956) ; `checklist.liste_terminee` (pas de service de notification).
+
+## 05/11/2026 : vérification du lot 5 (tâche 5.8, en cours)
+
+- Lecture des fichiers par fiche : chaque app déclare un contrôle de lecture au socle (`src/core/fichiers/controles-lecture.ts`). La route `/api/fichiers/[id]` ouvre un fichier si un de ses rattachements est lisible par le niveau de l'app et par le contrôle de sa fiche. Documents, Budget, Check-lists, Garage et Équipe (licence, équipement, compétence) déclarent le leur.
+- Tâches du socle : Équipe et Partenaires n'écrivent plus `core_task`. Les tâches de problème et de relance apparaissent dans la boîte d'actions et se ferment à la levée de l'action.
+- Table unique des rangs de la boîte (`src/core/actions/priorites.ts`), migration `20261105100000_action_priorites`, `db:verifier-priorites`. Les échéances se réémettent à chaque recalcul pour que le rang passe de 9 à 2 le jour J.
+- Relances partenaires levées tout de suite à la modification, à la suppression et à la sortie du suivi.
+- Liste de test de John réécrite (parcours court, compte assistance, modèle avant engagement).
+- Restent : parcours e2e du lot 5, audit Impeccable, mesure des intermittents et de la dette hors ligne. Voir `docs/plan-developpement.md`, section 5.8.

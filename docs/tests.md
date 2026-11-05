@@ -394,3 +394,10 @@ Relecture du code et des journaux des passes 2 à 6 (20/10/2026), sans nouvelle 
 - **Effet sur les données : aucun.** Côté client, le curseur n'avance qu'après lecture complète de la réponse (`tirer()`), donc un tirage coupé est refait. Côté serveur, `tirerPaquets` ne fait que lire ; `memoriserSynchro` écrit `derniereSyncAt` et le curseur, qui n'est relu nulle part côté serveur. Pour la poussée, `coreSyncOperation` dédoublonne par `idOperation` (`src/core/synchro/pousser.ts`) : une opération repartie après une coupure n'est pas doublée.
 - **Décision.** Rien n'est masqué dans le journal et le code de synchro n'est pas modifié. Les lignes restent comptées à part.
 - **Point ouvert.** Les 10 server actions coupées au 3.9 : on ne sait toujours pas si elles ont été exécutées avant la coupure. Non traité ici.
+
+## Lot 5 : vérification (tâche 5.8)
+
+- Spec : `docs/briefs/5.8-verification-lot-5.md`.
+- Unitaires : `pnpm test` vert au commit 642e9cd, 1227 tests. Gardes-fous ajoutés : aucune priorité en dur dans `src/apps` (`src/core/actions/priorites.test.ts`), aucune écriture de `coreTask` dans les apps (`src/core/taches/taches.test.ts`).
+- Base : `pnpm db:verifier-priorites` (migration jouée deux fois dans une transaction annulée), dans la CI.
+- À faire : parcours e2e `e2e/lot-5-parcours-complet.spec.ts` (dix étapes, captures 1440 et 360 px clair et sombre), audit Impeccable, compteurs des intermittents (« 418 toléré : N », `voiture-deco.spec.ts:337`, clics relancés) et mesures de dette (hors ligne, P2025). Ces résultats seront ajoutés ici après le run.

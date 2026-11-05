@@ -354,10 +354,13 @@ Décisions de John (25/10) :
 - 5.7b (livrée sur verif, 02/11) : écoutes de 956 §5 en propositions (liste cible, libellé et effet dans `docs/evenements.md`). Une acceptation n'écrit que dans Check-lists.
 - reporté : Saison n'émet pas l'événement `saison.programme_publie`, et le type « caler les échéances » n'est pas dans 956.
 - reporté : notification aux responsables sur `checklist.liste_terminee` (aucun service de notification ni de lecture QG à ce jour, décision de l'orchestrateur du 01/11).
-- Dette ouverte (lot 5) : Équipe écrit `core_task` directement (`src/apps/equipe/services-serveur.ts`, création de la tâche d'affectation). À passer par un événement du socle, comme les autres apps (règle 2).
+- Dette soldée en 5.8 (§3.2) : Équipe et Partenaires n'écrivent plus `core_task`. Les tâches passent par les fonctions de `src/core/taches/` (`creerTache`, `retirerTaches`, `definirStatutTache`) appelées dans la transaction de l'app. Pas d'événement inventé (règle 6) : la phrase « par un événement du socle » du plan est remplacée par cette décision du 05/11.
 
 ### 5.8 Vérification du lot 5
-- Parcours e2e complet par clics, audit Impeccable des écrans du lot, liste de test de John (`docs/test-john-lot-5.md`).
+- Brief `docs/briefs/5.8-verification-lot-5.md`. Corrections faites : lecture des fichiers par fiche (§3.1, registre de contrôles par app), tâches du socle sans écriture directe des apps (§3.2), tâches de problème et de relance visibles et fermées par la boîte (§3.3), table unique des rangs (`src/core/actions/priorites.ts`, migration `20261105100000_action_priorites`), levée immédiate des relances à la modification.
+- Liste de test de John réécrite : parcours court de dix étapes, compte assistance, création d'un modèle avant l'engagement.
+- À faire avant le compte-rendu : parcours e2e `e2e/lot-5-parcours-complet.spec.ts` (dix étapes, captures 1440 et 360 px), audit Impeccable (« Ignorer » en rouge, « Ouvrir » en double), mesure des intermittents et de la dette hors ligne. Résultats dans `docs/tests.md`, section 5.8.
+- Reportés après le lot 5 : 5.5b (modèles fournis, attend les listes de John) ; `saison.programme_publie` non écouté ; notification de liste terminée (`checklist.liste_terminee`, pas de service de notification) ; widgets au Tableau de bord (lot 6) ; recherche globale des documents ; photo des personnes ; priorité 1 « Bloquant » (aucune action ne l'émet, types candidats selon 960 : licence expirée, engagement non payé, pièce en zone rouge, papier manquant).
 
 ## 6. Méthode de travail
 
