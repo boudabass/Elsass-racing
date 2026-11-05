@@ -14,7 +14,7 @@ WHERE statut = 'en_attente'
   AND type IN (
     'ajouter_point', 'cocher_point', 'creer_liste_retour', 'relire_liste', 'creer_listes', 'reassigner_points',
     'ordre_depuis_point', 'message_partenaire', 'emplacement_pris', 'emplacement_supprime',
-    'reserver_emplacement', 'liberer_emplacement', 'cloture_saison_proposee'
+    'reserver_emplacement', 'liberer_emplacement', 'cloture_saison_proposee', 'marquer_engagement_paye'
   );
 
 -- Suggestions de préparation (7) : tâche de problème, point critique, reconnaissance, programme du jour, disponibilité.
@@ -30,7 +30,7 @@ WHERE statut = 'en_attente'
 -- Contrepartie ou preuve de partenaire (5).
 UPDATE core_action SET priorite = 5
 WHERE statut = 'en_attente'
-  AND type IN ('preuve_pose', 'publications_promises', 'contrepartie_en_retard', 'marquer_engagement_paye');
+  AND type IN ('preuve_pose', 'publications_promises', 'contrepartie_en_retard');
 
 -- Relance partenaire (6).
 UPDATE core_action SET priorite = 6

@@ -29,6 +29,8 @@ describe("table des priorités", () => {
     expect(RANG_PAR_TYPE.point_critique).toBe(PRIORITE.suggestion)
     expect(RANG_PAR_TYPE.ajouter_point).toBe(PRIORITE.proposition)
     expect(RANG_PAR_TYPE.cloture_saison_proposee).toBe(PRIORITE.proposition)
+    // Une dépense d'engagement de Budget : Saison propose de marquer l'engagement payé (pas une échéance de paiement).
+    expect(RANG_PAR_TYPE.marquer_engagement_paye).toBe(PRIORITE.proposition)
     expect(RANG_PAR_TYPE.resultat_a_valider).toBe(PRIORITE.resultat)
     expect(RANG_PAR_TYPE.tache_relance).toBe(PRIORITE.relance)
   })

@@ -1346,7 +1346,7 @@ async function proposerMarquagePaye(ctx: ContexteTeam, evenement: EvenementRecu)
       { cle: "marquer_paye", libelle: "Marquer payé" },
       { cle: "ignorer", libelle: "Ignorer" },
     ],
-    priorite: PRIORITE.contrepartie,
+    priorite: PRIORITE.proposition,
     niveauRequis: "ecriture",
     cleRegroupement: "engagements_a_marquer",
   })
