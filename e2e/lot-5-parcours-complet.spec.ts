@@ -46,6 +46,7 @@ const REPONSE_ACTION = (r: Response) => r.request().method() === "POST" && r.req
 
 // Ouvre une épreuve de Saison par clics : tuile, liste, puis l'épreuve. Son panneau « Prêt pour l'épreuve ? » est l'onglet par défaut.
 async function ouvrirEpreuveDansSaison(page: Page, nom: string): Promise<void> {
+  await page.goto("/qg")
   await tuilesDuQg(page)
     .filter({ has: page.getByRole("heading", { name: "Saison", exact: true }) })
     .click()
