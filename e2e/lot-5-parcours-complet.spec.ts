@@ -20,6 +20,7 @@ import {
   depensesDeLicenceEnBase,
   engagementsEnBase,
   lienPointChecklistEnBase,
+  passerEpreuveDansLePasseEnBase,
   statutAction,
   statutActionTitreEnBase,
   statutPointChecklistEnBase,
@@ -432,6 +433,9 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await envoyer(page, tiroirPaiement.getByRole("button", { name: "Enregistrer le paiement", exact: true }))
     await expect(page.getByRole("dialog")).toHaveCount(0)
 
+    // L'épreuve a eu lieu : Saison n'affiche le résultat qu'à un engagement « parti » (docs/schema-saison.md, « Un bloc par
+    // engagement parti ou terminé »). Le test déplace donc l'épreuve à des dates passées, comme le temps le ferait.
+    await passerEpreuveDansLePasseEnBase(equipe, eventId, jourParis(-2), jourParis(-1))
     await ouvrirEpreuveDansSaison(page, nomEpreuve)
     await page.getByRole("link", { name: "Résultats", exact: true }).click()
     await page.getByRole("button", { name: "Saisir le résultat", exact: true }).click()
