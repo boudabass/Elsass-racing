@@ -3,7 +3,7 @@
 // ici sont listées en tête de section, avec leur raison : ne pas les présumer vérifiées.
 import path from "node:path"
 
-import type { Page, Response } from "@playwright/test"
+import type { BrowserContext, Page, Response } from "@playwright/test"
 
 import { preparerEpreuveChecklist } from "./aide/checklist"
 import { DOSSIER_CAPTURES } from "./aide/equipe"
@@ -20,7 +20,6 @@ import {
   ajouterResultatValideEnBase,
   engagementsEnBase,
   lienPointChecklistEnBase,
-  retirerAdhesion,
   statutAction,
   statutActionTitreEnBase,
   statutPointChecklistEnBase,
@@ -40,6 +39,7 @@ import {
 
 const ANNEE = new Date().getFullYear() + 1
 const PDF = path.resolve("e2e/fichiers/preuve.pdf")
+const PHOTO = path.resolve("e2e/fichiers/photo.jpg")
 const NOM_DOSSIER_GESTION = "Gestion du lot 5"
 const TITRE_PLAN = "Plan de sécurité du lot 5"
 const REPONSE_ACTION = (r: Response) => r.request().method() === "POST" && r.request().headers()["next-action"] !== undefined
@@ -117,9 +117,15 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
 
   let piloteId = ""
   let copiloteId = ""
+  // Lue à l'étape 1 (pièce de la licence de Théo), relue par l'assistance à l'étape 5.
+  let urlLicence: string | null = null
+  // Ouvert à l'étape 5, fermé en fin de test : ses requêtes gardent sa session d'assistance.
+  let contexteAssistance: BrowserContext | undefined
   await test.step("1. Équipe : pilote et copilote, licence avec document joint, casque", async () => {
     piloteId = await creerPersonne(page, "Théo", "Pilote", "Pilote")
-    await ajouterLicence(page, "Licence FFSA régionale", "L-PIL-5", `${ANNEE}-12-31`)
+    await ajouterLicence(page, "Licence FFSA régionale", "L-PIL-5", `${ANNEE}-12-31`, PDF)
+    urlLicence = await page.locator('a[href^="/api/fichiers/"]').first().getAttribute("href")
+    expect(urlLicence).toMatch(/^\/api\/fichiers\/[^/?#]+$/)
     await ajouterEquipement(page, "Casque", "Arai")
 
     copiloteId = await creerPersonne(page, "Nina", "Copilote", "Copilote")
@@ -252,40 +258,40 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     const urlFichier = await page.locator('a[href^="/api/fichiers/"]').first().getAttribute("href")
     expect(urlFichier).toMatch(/^\/api\/fichiers\/[^/?#]+$/)
 
-    const contexteAssistance = await browser.newContext()
-    try {
-      const assist = await contexteAssistance.newPage()
-      await assist.goto(`/connexion/lien?t=${assistance.secretLien}`)
-      await assist.waitForURL(/\/qg$/)
-      await tuilesDuQg(assist)
-        .filter({ has: assist.getByRole("heading", { name: "Documents", exact: true }) })
-        .click()
-      await expect(assist.getByRole("heading", { name: "Coffre-fort", exact: true })).toBeVisible()
-      await expect(assist.getByRole("link", { name: new RegExp(NOM_DOSSIER_GESTION) })).toHaveCount(0)
-      expect((await contexteAssistance.request.get(urlFichier!)).status()).toBe(404)
+    contexteAssistance = await browser.newContext()
+    const assist = await contexteAssistance.newPage()
+    await assist.goto(`/connexion/lien?t=${assistance.secretLien}`)
+    await assist.waitForURL(/\/qg$/)
+    await tuilesDuQg(assist)
+      .filter({ has: assist.getByRole("heading", { name: "Documents", exact: true }) })
+      .click()
+    await expect(assist.getByRole("heading", { name: "Coffre-fort", exact: true })).toBeVisible()
+    await expect(assist.getByRole("link", { name: new RegExp(NOM_DOSSIER_GESTION) })).toHaveCount(0)
+    expect((await contexteAssistance.request.get(urlFichier!)).status()).toBe(404)
 
-      // La responsable partage le plan : le fichier s'ouvre, le dossier apparaît avec ce seul document.
-      await page.getByRole("button", { name: "Partager avec un membre", exact: true }).click()
-      const tiroirPartage = page.getByRole("dialog")
-      await tiroirPartage.getByLabel("Membre", { exact: true }).selectOption({ label: "Anne Assistance" })
-      await envoyer(page, tiroirPartage.getByRole("button", { name: "Partager", exact: true }))
-      expect(await accesDocumentEnBase(equipe, plan!.id, personneAssistance)).toBe("lecture")
+    // La licence de Théo : la responsable la lit (contrôle : 200), Anne, qui n'est pas Théo, la reçoit en 404.
+    expect((await page.request.get(urlLicence!)).status()).toBe(200)
+    expect((await contexteAssistance.request.get(urlLicence!)).status()).toBe(404)
 
-      await assist.reload()
-      await expect(assist.getByRole("link", { name: new RegExp(NOM_DOSSIER_GESTION) })).toContainText("1 document")
-      expect((await contexteAssistance.request.get(urlFichier!)).status()).toBe(200)
+    // La responsable partage le plan : le fichier s'ouvre, le dossier apparaît avec ce seul document.
+    await page.getByRole("button", { name: "Partager avec un membre", exact: true }).click()
+    const tiroirPartage = page.getByRole("dialog")
+    await tiroirPartage.getByLabel("Membre", { exact: true }).selectOption({ label: "Anne Assistance" })
+    await envoyer(page, tiroirPartage.getByRole("button", { name: "Partager", exact: true }))
+    expect(await accesDocumentEnBase(equipe, plan!.id, personneAssistance)).toBe("lecture")
 
-      // Retrait du partage : l'accès est retiré en base et le fichier répond de nouveau 404.
-      await page.getByRole("button", { name: "Retirer", exact: true }).click()
-      const tiroirRetrait = page.getByRole("dialog")
-      await envoyer(page, tiroirRetrait.getByRole("button", { name: "Retirer le partage", exact: true }))
-      expect(await accesDocumentEnBase(equipe, plan!.id, personneAssistance)).toBeNull()
+    await assist.reload()
+    await expect(assist.getByRole("link", { name: new RegExp(NOM_DOSSIER_GESTION) })).toContainText("1 document")
+    expect((await contexteAssistance.request.get(urlFichier!)).status()).toBe(200)
 
-      await assist.reload()
-      expect((await contexteAssistance.request.get(urlFichier!)).status()).toBe(404)
-    } finally {
-      await contexteAssistance.close()
-    }
+    // Retrait du partage : l'accès est retiré en base et le fichier répond de nouveau 404.
+    await page.getByRole("button", { name: "Retirer", exact: true }).click()
+    const tiroirRetrait = page.getByRole("dialog")
+    await envoyer(page, tiroirRetrait.getByRole("button", { name: "Retirer le partage", exact: true }))
+    expect(await accesDocumentEnBase(equipe, plan!.id, personneAssistance)).toBeNull()
+
+    await assist.reload()
+    expect((await contexteAssistance.request.get(urlFichier!)).status()).toBe(404)
   })
 
   await test.step("6. Check-lists : « Créer les listes » acceptée ; le point critique à J-7 est dans la boîte, levé à la coche", async () => {
@@ -320,6 +326,20 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await fiche.getByRole("button", { name: "Enregistrer le lien", exact: true }).click()
     await reponseLien
     await expect.poll(() => lienPointChecklistEnBase(equipe, "Niveau d'huile moteur")).toEqual({ lienType: "organe_garage", lienId: organes.moteur })
+
+    // Photo sur ce point : la liste est fermée à l'assistance (par défaut). La responsable la lit (200, contrôle) ;
+    // Anne, membre de l'assistance, la reçoit en 404 (§3.1).
+    await fiche.getByRole("button", { name: "Ajouter une photo", exact: true }).click()
+    const tiroirPhoto = page.getByRole("dialog").last()
+    await tiroirPhoto.locator('input[type="file"]').setInputFiles(PHOTO)
+    const reponsePhoto = page.waitForResponse(REPONSE_ACTION)
+    await tiroirPhoto.getByRole("button", { name: "Envoyer la photo", exact: true }).click()
+    await reponsePhoto
+    await expect(page.getByRole("dialog")).toHaveCount(1)
+    const urlPhoto = await fiche.locator('img[src^="/api/fichiers/"]').first().getAttribute("src")
+    expect(urlPhoto).toMatch(/^\/api\/fichiers\/[^/?#]+$/)
+    expect((await page.request.get(urlPhoto!)).status()).toBe(200)
+    expect((await contexteAssistance!.request.get(urlPhoto!)).status()).toBe(404)
 
     const reponseProbleme = page.waitForResponse(REPONSE_ACTION)
     await fiche.getByRole("button", { name: "Problème", exact: true }).click()
@@ -403,16 +423,55 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     })
   })
 
-  await test.step("10. Membre retiré : « Anciens membres » garde son nom, sa fiche reste", async () => {
+  await test.step("10. Membre retiré : un point qui lui est affecté, « Réassigner les points » dans la boîte, réassigné ; « Anciens membres » garde son nom", async () => {
     const membre = await ajouterEquipier(equipe)
     await creerPersonne(page, "Lou", "Retiree", "Bénévole")
     await rattacherPersonneAuCompte(equipe, membre, "Lou", "Retiree")
-    await retirerAdhesion(membre)
 
-    await page.goto("/apps/equipe")
+    // Un point de la liste est affecté à Lou (le point est en problème : il reste à traiter).
+    await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Check-lists", exact: true }).click()
+    await page.getByRole("region", { name: "Par engagement" }).getByRole("link").first().click()
+    await expect(page).toHaveURL(/\/apps\/checklist\/liste\/[^?]+$/)
+    await page.locator("li").filter({ hasText: "Trousse de secours" }).getByRole("link", { name: "Détail", exact: true }).click()
+    const ficheAffectee = page.getByRole("dialog").first()
+    const affectation = ficheAffectee.getByRole("region", { name: "Affectation" })
+    await affectation.getByRole("combobox").selectOption({ label: "Lou Retiree" })
+    const reponseAffectation = page.waitForResponse(REPONSE_ACTION)
+    await affectation.getByRole("button", { name: "Enregistrer l'affectation", exact: true }).click()
+    await reponseAffectation
+    await page.keyboard.press("Escape")
+
+    // Réglages, rubrique Membres : Lou quitte la team par « Retirer » de sa carte (le seul chemin qui émet l'événement).
+    await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Réglages", exact: true }).click()
+    await page.getByRole("link", { name: "Membres", exact: true }).click()
+    await page.getByRole("listitem").filter({ hasText: membre.email }).getByRole("button", { name: "Retirer", exact: true }).click()
+    await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Retirer", exact: true }))
+
+    // La boîte porte « Réassigner les points » pour Lou (lien vers les listes, pas de décision au clic).
+    await page.getByRole("button", { name: /Boîte d'actions/ }).click()
+    await expect(page.getByRole("dialog").getByText("Réassigner les points de Lou Retiree", { exact: true })).toBeVisible({ timeout: 15_000 })
+    await page.keyboard.press("Escape")
+
+    // Réassignation : le point passe à Théo, l'action sort (levée, pas décidée).
+    await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Check-lists", exact: true }).click()
+    await page.getByRole("region", { name: "Par engagement" }).getByRole("link").first().click()
+    await page.locator("li").filter({ hasText: "Trousse de secours" }).getByRole("link", { name: "Détail", exact: true }).click()
+    const ficheReassignee = page.getByRole("dialog").first()
+    const reponseReassignation = page.waitForResponse(REPONSE_ACTION)
+    await ficheReassignee.getByRole("region", { name: "Affectation" }).getByRole("combobox").selectOption({ label: "Théo Pilote" })
+    await ficheReassignee.getByRole("region", { name: "Affectation" }).getByRole("button", { name: "Enregistrer l'affectation", exact: true }).click()
+    await reponseReassignation
+    await page.keyboard.press("Escape")
+    await expect.poll(() => statutActionTitreEnBase(equipe, "reassigner_points:", "Réassigner les points de Lou Retiree")).toBe("annulee")
+
+    // « Anciens membres » garde son nom : Lou n'est plus membre, sa fiche et son historique restent.
+    await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Équipe", exact: true }).click()
     await expect(page.getByRole("heading", { name: "L'équipe", exact: true })).toBeVisible()
     // Le bouton porte le compteur : « Anciens membres (1) ».
     await page.getByRole("button", { name: /^Anciens membres/ }).click()
     await expect(page.getByRole("dialog").getByText("Lou Retiree", { exact: false })).toBeVisible()
   })
+
+  // Fin du parcours : la session d'assistance ouverte à l'étape 5 se ferme ici.
+  await contexteAssistance?.close()
 })
