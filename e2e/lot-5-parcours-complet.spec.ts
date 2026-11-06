@@ -17,6 +17,7 @@ import { connecterParLien, tuilesDuQg } from "./aide/navigation"
 import {
   ajouterEquipier,
   ajouterMembreConnectable,
+  depensesDeLicenceEnBase,
   engagementsEnBase,
   lienPointChecklistEnBase,
   statutAction,
@@ -43,9 +44,15 @@ const NOM_DOSSIER_GESTION = "Gestion du lot 5"
 const TITRE_PLAN = "Plan de sécurité du lot 5"
 const REPONSE_ACTION = (r: Response) => r.request().method() === "POST" && r.request().headers()["next-action"] !== undefined
 
+// Retour au QG par le lien de la barre haute (une étape commence là où la précédente s'est arrêtée : pas d'URL en milieu de parcours).
+async function retourAuQg(page: Page): Promise<void> {
+  await page.getByRole("link", { name: /retour au QG/ }).click()
+  await expect(page).toHaveURL(/\/qg$/)
+}
+
 // Ouvre une épreuve de Saison par clics : tuile, liste, puis l'épreuve. Son panneau « Prêt pour l'épreuve ? » est l'onglet par défaut.
 async function ouvrirEpreuveDansSaison(page: Page, nom: string): Promise<void> {
-  await page.goto("/qg")
+  await retourAuQg(page)
   await tuilesDuQg(page)
     .filter({ has: page.getByRole("heading", { name: "Saison", exact: true }) })
     .click()
@@ -81,17 +88,18 @@ async function capturerEtape(page: Page, nom: string, revenir: () => Promise<voi
 
 // Accepte la proposition « Créer les listes » : les listes de l'engagement existent ensuite.
 async function accepterListes(page: Page, equipe: Equipe, entryId: string): Promise<void> {
-  await page.goto("/qg")
+  await retourAuQg(page)
   await page.getByRole("button", { name: /Boîte d'actions/ }).click()
   const boite = page.getByRole("dialog")
   await expect(boite.getByRole("heading", { name: "Créer les listes de l'engagement" })).toBeVisible()
   await boite.getByRole("button", { name: "Accepter", exact: true }).click()
   await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
+  await page.keyboard.press("Escape")
 }
 
 // Roulage par le menu « + » du Garage (la boîte de la voiture passe en zone rouge au-delà du seuil).
 async function rouler(page: Page, kilometres: string): Promise<void> {
-  await page.goto("/qg")
+  await retourAuQg(page)
   await page.locator('a[href="/apps/garage"]').filter({ has: page.locator("h2") }).click()
   await expect(page.getByRole("heading", { name: "Atelier", exact: true })).toBeVisible()
   await page.getByRole("button", { name: "Ajouter", exact: true }).click()
@@ -122,9 +130,16 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
   let contexteAssistance: BrowserContext | undefined
   await test.step("1. Équipe : pilote et copilote, licence avec document joint, casque", async () => {
     piloteId = await creerPersonne(page, "Théo", "Pilote", "Pilote")
-    await ajouterLicence(page, "Licence FFSA régionale", "L-PIL-5", `${ANNEE}-12-31`, PDF)
+    // Licence payée (150 €) : Budget reçoit une dépense « Licence et ASA ». Le test compte en base, sans se fier à l'écran.
+    await ajouterLicence(page, "Licence FFSA régionale", "L-PIL-5", `${ANNEE}-12-31`, PDF, "150")
     urlLicence = await page.locator('a[href^="/api/fichiers/"]').first().getAttribute("href")
     expect(urlLicence).toMatch(/^\/api\/fichiers\/[^/?#]+$/)
+    await expect.poll(() => depensesDeLicenceEnBase(equipe, "L-PIL-5")).toMatchObject({ total: 1 })
+    // Une nouvelle saisie de la même licence (sans changement) ne propose pas une seconde dépense.
+    await ouvrirOnglet(page, "Licences")
+    await page.getByRole("button", { name: "Modifier", exact: true }).first().click()
+    await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }))
+    await expect.poll(() => depensesDeLicenceEnBase(equipe, "L-PIL-5")).toMatchObject({ total: 1 })
     await ajouterEquipement(page, "Casque", "Arai")
 
     copiloteId = await creerPersonne(page, "Nina", "Copilote", "Copilote")
@@ -183,7 +198,8 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer ma réponse", exact: true }))
     await expect(page.getByText("Réponse : Vient", { exact: true })).toBeVisible()
 
-    await page.goto("/apps/equipe/epreuve")
+    await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Équipe", exact: true }).click()
+    await page.getByRole("navigation", { name: "Menu de Équipe" }).getByRole("link", { name: "Prochaine épreuve", exact: true }).click()
     await expect(page.getByRole("heading", { name: nomEpreuve, exact: true })).toBeVisible()
     await page.getByRole("button", { name: "Affecter une personne", exact: true }).click()
     const tiroir = page.getByRole("dialog")
@@ -198,7 +214,7 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
   })
 
   await test.step("4. Documents : une assurance à vingt jours, l'action de renouvellement sort par « Reporter »", async () => {
-    await page.goto("/qg")
+    await retourAuQg(page)
     await tuilesDuQg(page)
       .filter({ has: page.getByRole("heading", { name: "Documents", exact: true }) })
       .click()
@@ -213,7 +229,7 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await envoyer(page, tiroir.getByRole("button", { name: "Ajouter le document", exact: true }))
     expect(await documentEnBase(equipe, "Assurance de l'association")).not.toBeNull()
 
-    await page.goto("/qg")
+    await retourAuQg(page)
     await page.getByRole("button", { name: /Boîte d'actions/ }).click()
     const boite = page.getByRole("dialog")
     await expect(boite.getByText(/Renouveler Assurance de l'association : expire le/)).toBeVisible()
@@ -296,14 +312,15 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
   await test.step("6. Check-lists : « Créer les listes » acceptée ; le point critique à J-7 est dans la boîte, levé à la coche", async () => {
     await accepterListes(page, equipe, entryId)
     // Le point critique du modèle est dans la boîte (la liste est à échéance proche) : la carte porte le libellé du point.
-    await page.goto("/qg")
     await page.getByRole("button", { name: /Boîte d'actions/ }).click()
     const boite = page.getByRole("dialog")
     await expect(boite.getByText("Triangle de présentation", { exact: true })).toBeVisible()
     await page.keyboard.press("Escape")
 
-    // Coche : le point est fait, l'action sort de la boîte (levée, pas décidée).
-    await page.goto("/apps/checklist")
+    // Coche : le point est fait, l'action sort de la boîte (levée, pas décidée). Check-lists par sa tuile du QG.
+    await tuilesDuQg(page)
+      .filter({ has: page.getByRole("heading", { name: "Check-lists", exact: true }) })
+      .click()
     await page.getByRole("region", { name: "Par engagement" }).getByRole("link").first().click()
     await expect(page).toHaveURL(/\/apps\/checklist\/liste\/[^?]+$/)
     const reponse = page.waitForResponse(REPONSE_ACTION)
@@ -376,7 +393,7 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await expect.poll(() => statutPointChecklistEnBase(equipe, "Trousse de secours")).toBe("probleme")
     await expect.poll(() => tachesPointChecklistEnBase(equipe, "Trousse de secours")).toBe(1)
     await page.keyboard.press("Escape")
-    await page.goto("/qg")
+    await retourAuQg(page)
     await page.getByRole("button", { name: /Boîte d'actions/ }).click()
     await expect(page.getByRole("dialog").getByText(/Problème : Trousse de secours/)).toBeVisible()
     // Retour au QG après le réglage du thème, la boîte se rouvre à la main (elle ne survit pas à la sortie de l'écran).
@@ -391,7 +408,7 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
   await test.step("8. Propositions : pièce en zone rouge, proposition dans la boîte, acceptée, point ajouté avec son lien", async () => {
     await rouler(page, "16000")
     const titre = "Remplacer la pièce : Boîte de vitesses"
-    await page.goto("/apps/checklist")
+    await retourAuQg(page)
     await page.getByRole("button", { name: /Boîte d'actions/ }).click()
     await expect(page.getByRole("dialog").getByText(titre, { exact: true })).toBeVisible()
     expect(await lienPointChecklistEnBase(equipe, titre), "point ajouté avant acceptation").toBeNull()
@@ -441,7 +458,12 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await contexteValidateur.close()
 
     // Les statistiques de Théo se lisent sur sa fiche (entrée directe : la navigation vers la liste des personnes n'apporte rien ici).
-    await page.goto(`/apps/equipe/personnes/${piloteId}?onglet=statistiques`)
+    await retourAuQg(page)
+    await tuilesDuQg(page)
+      .filter({ has: page.getByRole("heading", { name: "Équipe", exact: true }) })
+      .click()
+    await page.getByRole("link", { name: /Théo Pilote/ }).first().click()
+    await ouvrirOnglet(page, "Statistiques")
     await expect(page.getByRole("heading", { name: "Statistiques", exact: true })).toBeVisible()
     const valeur = (libelle: string) => page.locator(`xpath=//dt[normalize-space(.)="${libelle}"]/following-sibling::dd`)
     await expect(valeur("Épreuves")).toHaveText("1")
@@ -456,9 +478,14 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
       await expect(page.getByRole("heading", { name: "Statistiques", exact: true })).toBeVisible()
     })
 
-    await page.goto("/apps/equipe/binomes")
+    await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Équipe", exact: true }).click()
+    await page.getByRole("navigation", { name: "Menu de Équipe" }).getByRole("link", { name: "Binômes", exact: true }).click()
     await expect(page.getByRole("heading", { name: "Binômes", exact: true })).toBeVisible()
     await expect(page.getByText("Théo Pilote", { exact: false }).first()).toBeVisible()
+    // Le chiffre de la carte, pas seulement le nom : une épreuve commune, une arrivée (dd dans l'ordre Épreuves, Arrivées).
+    const carteBinome = page.locator("li").filter({ hasText: "Pilote : Théo Pilote" })
+    await expect(carteBinome.locator("dd").nth(0)).toHaveText("1")
+    await expect(carteBinome.locator("dd").nth(1)).toHaveText("1")
     await capturerEtape(page, "etape-9-fiche-binomes", async () => {
       await page.goto("/apps/equipe/binomes")
       await expect(page.getByRole("heading", { name: "Binômes", exact: true })).toBeVisible()

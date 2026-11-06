@@ -196,6 +196,19 @@ export function emettreEvenement(equipe: Equipe, nom: string, donnees: Record<st
 
 // Montant réglé d'un engagement, en centimes (null tant qu'il n'est pas payé). Le statut affiché dépend
 // aussi de la date de l'épreuve (« Parti » une fois commencée), donc le paiement se lit ici.
+// Dépenses de Budget issues d'une licence (origine_ref equipe_licence:<id>), non supprimées : combien, et combien confirmées.
+// Une seule dépense par licence payée, même après une nouvelle saisie de la licence (5.7 : proposition idempotente).
+export async function depensesDeLicenceEnBase(equipe: Equipe, numero: string): Promise<{ total: number; confirmees: number }> {
+  const { rows } = await bd().query<{ total: number; confirmees: number }>(
+    `SELECT count(*)::int AS total, count(*) FILTER (WHERE e.confirmee)::int AS confirmees
+     FROM budget_expense e
+     WHERE e.team_id = $1 AND e.deleted_at IS NULL
+       AND e.origine_ref = 'equipe_licence:' || (SELECT l.id::text FROM equipe_licence l WHERE l.team_id = $1 AND l.numero = $2 AND l.deleted_at IS NULL LIMIT 1)`,
+    [equipe.teamId, numero],
+  )
+  return rows[0]
+}
+
 export async function montantPayeEnBase(equipe: Equipe, entryId: string): Promise<number | null> {
   const { rows } = await bd().query<{ montant: number | null }>(
     "SELECT montant_paye AS montant FROM saison_registration WHERE team_id = $1 AND entry_id = $2",

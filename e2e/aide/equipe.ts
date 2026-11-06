@@ -33,12 +33,14 @@ export async function ouvrirOnglet(page: Page, libelle: string): Promise<void> {
 }
 
 // Ajoute une licence à la fiche courante (onglet Licences). `document` : pièce jointe facultative (chemin d'un fichier).
-export async function ajouterLicence(page: Page, libelleType: string, numero: string, valableAu: string, document?: string): Promise<void> {
+// `montantPaye` (euros, facultatif) : une licence payée propose une dépense à Budget.
+export async function ajouterLicence(page: Page, libelleType: string, numero: string, valableAu: string, document?: string, montantPaye?: string): Promise<void> {
   await ouvrirOnglet(page, "Licences")
   await page.getByRole("button", { name: "Ajouter une licence", exact: true }).click()
   await tiroir(page).getByLabel("Type de licence", { exact: true }).selectOption({ label: libelleType })
   await tiroir(page).getByLabel("Numéro", { exact: true }).fill(numero)
   await tiroir(page).getByLabel("Valable jusqu'au").fill(valableAu)
+  if (montantPaye) await tiroir(page).getByLabel("Montant payé (€)", { exact: true }).fill(montantPaye)
   if (document) {
     await tiroir(page).locator('input[type="file"]').setInputFiles(document)
     await expect(tiroir(page).getByRole("button", { name: "Remplacer", exact: true })).toBeVisible()
