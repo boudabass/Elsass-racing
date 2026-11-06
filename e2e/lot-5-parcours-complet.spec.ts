@@ -403,13 +403,16 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
   })
 
   await test.step("9. Après l'épreuve : résultat saisi par l'équipage et validé par un autre membre dans Saison ; statistiques et Binômes à jour, une seule fois", async () => {
-    // Le responsable saisit le résultat (3e au général) : il ne peut pas le valider lui-même.
-    // Un résultat ne se saisit que sur un engagement payé : le paiement se pose d'abord, depuis l'engagement.
+    // Le paiement de l'engagement se pose avant le résultat, comme dans une vraie saison. Le code ne l'impose pas :
+    // `saisirResultatDans` ne lit pas `payeLe`. Le montant dû n'a pas été saisi à l'étape 2 : le champ « Montant payé »
+    // est vide et obligatoire, le navigateur bloque alors l'envoi (aucune requête). On le saisit donc ici.
     await ouvrirEpreuveDansSaison(page, nomEpreuve)
     await page.getByRole("link", { name: "Engagements", exact: true }).click()
     await page.getByRole("link", { name: new RegExp(nomVoiture) }).first().click()
     await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
-    await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }))
+    const tiroirPaiement = page.getByRole("dialog")
+    await tiroirPaiement.getByLabel("Montant payé (€)", { exact: true }).fill("350")
+    await envoyer(page, tiroirPaiement.getByRole("button", { name: "Enregistrer le paiement", exact: true }))
     await expect(page.getByRole("dialog")).toHaveCount(0)
 
     await ouvrirEpreuveDansSaison(page, nomEpreuve)
