@@ -58,6 +58,9 @@ async function ouvrirListeTrousse(page: Page): Promise<void> {
   await page.getByRole("button", { name: /Boîte d'actions/ }).click()
   await page.getByRole("dialog").locator("li").filter({ hasText: "Problème : Trousse de secours" }).getByRole("link", { name: "Ouvrir la liste", exact: true }).click()
   await expect(page).toHaveURL(/\/apps\/checklist\/liste\/[^?]+$/)
+  // La boîte (Sheet modal) reste ouverte après le lien : elle masquerait la liste aux sélecteurs. On la ferme.
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("dialog")).toHaveCount(0)
 }
 
 // Ouvre une épreuve de Saison par clics : tuile, liste, puis l'épreuve. Son panneau « Prêt pour l'épreuve ? » est l'onglet par défaut.
