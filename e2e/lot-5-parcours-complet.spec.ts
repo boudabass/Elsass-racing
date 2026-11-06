@@ -17,7 +17,6 @@ import { connecterParLien, tuilesDuQg } from "./aide/navigation"
 import {
   ajouterEquipier,
   ajouterMembreConnectable,
-  ajouterResultatValideEnBase,
   engagementsEnBase,
   lienPointChecklistEnBase,
   statutAction,
@@ -403,8 +402,34 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await expect.poll(() => lienPointChecklistEnBase(equipe, titre)).toEqual({ lienType: "organe_garage", lienId: organes.boite })
   })
 
-  await test.step("9. Après l'épreuve : résultat validé, statistiques et Binômes à jour, une seule fois", async () => {
-    await ajouterResultatValideEnBase(equipe, entryId, 3)
+  await test.step("9. Après l'épreuve : résultat saisi par l'équipage et validé par un autre membre dans Saison ; statistiques et Binômes à jour, une seule fois", async () => {
+    // Le responsable saisit le résultat (3e au général) : il ne peut pas le valider lui-même.
+    await ouvrirEpreuveDansSaison(page, nomEpreuve)
+    await page.getByRole("link", { name: "Résultats", exact: true }).click()
+    await page.getByRole("button", { name: "Saisir le résultat", exact: true }).click()
+    const tiroirResultat = page.getByRole("dialog")
+    await tiroirResultat.getByLabel("Classement général", { exact: true }).fill("3")
+    await envoyer(page, tiroirResultat.getByRole("button", { name: "Enregistrer le résultat", exact: true }))
+    await expect(page.getByRole("button", { name: "Valider", exact: true })).toHaveCount(0)
+    await expect(page.getByText("Un autre membre doit valider ce résultat.")).toBeVisible()
+
+    // Un autre équipier le valide depuis « Résultats à valider », par clics depuis le QG.
+    const validateur = await ajouterMembreConnectable(equipe, "equipage", "-b9")
+    const contexteValidateur = await browser.newContext()
+    const valideur = await contexteValidateur.newPage()
+    await valideur.goto(`/connexion/lien?t=${validateur.secretLien}`)
+    await valideur.waitForURL(/\/qg$/)
+    await tuilesDuQg(valideur)
+      .filter({ has: valideur.getByRole("heading", { name: "Saison", exact: true }) })
+      .click()
+    await valideur.getByRole("link", { name: "Résultats à valider", exact: true }).click()
+    const reponseValidation = valideur.waitForResponse(REPONSE_ACTION)
+    await valideur.getByRole("button", { name: "Valider", exact: true }).click()
+    await reponseValidation
+    await expect(valideur.locator("main").getByRole("link", { name: new RegExp(nomEpreuve) })).toHaveCount(0)
+    await contexteValidateur.close()
+
+    // Les statistiques de Théo se lisent sur sa fiche (entrée directe : la navigation vers la liste des personnes n'apporte rien ici).
     await page.goto(`/apps/equipe/personnes/${piloteId}?onglet=statistiques`)
     await expect(page.getByRole("heading", { name: "Statistiques", exact: true })).toBeVisible()
     const valeur = (libelle: string) => page.locator(`xpath=//dt[normalize-space(.)="${libelle}"]/following-sibling::dd`)
@@ -413,6 +438,12 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     // Une seule fois : recharger ne compte pas l'épreuve une seconde fois.
     await page.reload()
     await expect(valeur("Épreuves")).toHaveText("1")
+
+    // La fiche de Théo après validation, capturée avec les statistiques (le chiffre, pas seulement la liste des binômes).
+    await capturerEtape(page, "etape-9-fiche-personne", async () => {
+      await page.goto(`/apps/equipe/personnes/${piloteId}?onglet=statistiques`)
+      await expect(page.getByRole("heading", { name: "Statistiques", exact: true })).toBeVisible()
+    })
 
     await page.goto("/apps/equipe/binomes")
     await expect(page.getByRole("heading", { name: "Binômes", exact: true })).toBeVisible()
