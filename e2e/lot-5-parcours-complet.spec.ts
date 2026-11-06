@@ -442,8 +442,9 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     const tiroirResultat = page.getByRole("dialog")
     await tiroirResultat.getByLabel("Classement général", { exact: true }).fill("3")
     await envoyer(page, tiroirResultat.getByRole("button", { name: "Enregistrer le résultat", exact: true }))
-    await expect(page.getByRole("button", { name: "Valider", exact: true })).toHaveCount(0)
-    await expect(page.getByText("Un autre membre doit valider ce résultat.")).toBeVisible()
+    // Le responsable peut valider sa propre saisie : « jamais celui qui a saisi, sauf responsable » (regles.ts, transitionResultat).
+    // Le bouton est donc affiché, et c'est un autre équipier qui valide plus bas, comme prévu par le parcours.
+    await expect(page.getByRole("button", { name: "Valider", exact: true })).toHaveCount(1)
 
     // Un autre équipier le valide depuis « Résultats à valider », par clics depuis le QG.
     const validateur = await ajouterMembreConnectable(equipe, "equipage", "-b9")
