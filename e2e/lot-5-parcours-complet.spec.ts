@@ -404,6 +404,14 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
 
   await test.step("9. Après l'épreuve : résultat saisi par l'équipage et validé par un autre membre dans Saison ; statistiques et Binômes à jour, une seule fois", async () => {
     // Le responsable saisit le résultat (3e au général) : il ne peut pas le valider lui-même.
+    // Un résultat ne se saisit que sur un engagement payé : le paiement se pose d'abord, depuis l'engagement.
+    await ouvrirEpreuveDansSaison(page, nomEpreuve)
+    await page.getByRole("link", { name: "Engagements", exact: true }).click()
+    await page.getByRole("link", { name: new RegExp(nomVoiture) }).first().click()
+    await page.getByRole("button", { name: "Enregistrer un paiement", exact: true }).click()
+    await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer le paiement", exact: true }))
+    await expect(page.getByRole("dialog")).toHaveCount(0)
+
     await ouvrirEpreuveDansSaison(page, nomEpreuve)
     await page.getByRole("link", { name: "Résultats", exact: true }).click()
     await page.getByRole("button", { name: "Saisir le résultat", exact: true }).click()
