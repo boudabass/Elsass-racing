@@ -51,6 +51,15 @@ async function retourAuQg(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/qg$/)
 }
 
+// La liste d'une épreuve passée n'est plus dans Check-lists (l'accueil ne montre que les épreuves à venir) : on la rouvre
+// par la boîte, par le bouton « Ouvrir la liste » de l'action « Problème : Trousse de secours » (tache_probleme).
+async function ouvrirListeTrousse(page: Page): Promise<void> {
+  await retourAuQg(page)
+  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
+  await page.getByRole("dialog").locator("li").filter({ hasText: "Problème : Trousse de secours" }).getByRole("link", { name: "Ouvrir la liste", exact: true }).click()
+  await expect(page).toHaveURL(/\/apps\/checklist\/liste\/[^?]+$/)
+}
+
 // Ouvre une épreuve de Saison par clics : tuile, liste, puis l'épreuve. Son panneau « Prêt pour l'épreuve ? » est l'onglet par défaut.
 async function ouvrirEpreuveDansSaison(page: Page, nom: string): Promise<void> {
   await retourAuQg(page)
@@ -504,11 +513,7 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await rattacherPersonneAuCompte(equipe, membre, "Lou", "Retiree")
 
     // Un point de la liste est affecté à Lou (le point est en problème : il reste à traiter).
-    // L'accueil de Check-lists montre la prochaine épreuve : l'épreuve passée se choisit dans la barre « Épreuves ».
-    await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Check-lists", exact: true }).click()
-    await page.getByRole("navigation", { name: "Épreuves" }).getByRole("link", { name: nomEpreuve, exact: true }).click()
-    await page.getByRole("region", { name: "Par engagement" }).getByRole("link").first().click()
-    await expect(page).toHaveURL(/\/apps\/checklist\/liste\/[^?]+$/)
+    await ouvrirListeTrousse(page)
     await page.locator("li").filter({ hasText: "Trousse de secours" }).getByRole("link", { name: "Détail", exact: true }).click()
     const ficheAffectee = page.getByRole("dialog").first()
     const affectation = ficheAffectee.getByRole("region", { name: "Affectation" })
@@ -530,8 +535,7 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await page.keyboard.press("Escape")
 
     // Réassignation : le point passe à Théo, l'action sort (levée, pas décidée).
-    await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Check-lists", exact: true }).click()
-    await page.getByRole("region", { name: "Par engagement" }).getByRole("link").first().click()
+    await ouvrirListeTrousse(page)
     await page.locator("li").filter({ hasText: "Trousse de secours" }).getByRole("link", { name: "Détail", exact: true }).click()
     const ficheReassignee = page.getByRole("dialog").first()
     const reponseReassignation = page.waitForResponse(REPONSE_ACTION)
