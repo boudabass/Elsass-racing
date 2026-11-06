@@ -259,10 +259,11 @@ export async function ouvrirListesAssistanceEnBase(equipe: Equipe): Promise<void
   await bd().query("UPDATE checklist_list SET ouverte_assistance = true WHERE team_id = $1 AND deleted_at IS NULL", [equipe.teamId])
 }
 
-// Engagements de la team en base, non supprimés : une ligne par voiture engagée.
+// Engagements de la team en base, non supprimés : une ligne par voiture engagée. `id` est l'entrée de l'engagement
+// (entry_id, celle des événements et des actions), pas l'identifiant de la ligne saison_registration.
 export async function engagementsEnBase(equipe: Equipe): Promise<Array<{ id: string }>> {
   const { rows } = await bd().query<{ id: string }>(
-    "SELECT id::text AS id FROM saison_registration WHERE team_id = $1 AND deleted_at IS NULL",
+    "SELECT entry_id::text AS id FROM saison_registration WHERE team_id = $1 AND deleted_at IS NULL",
     [equipe.teamId],
   )
   return rows
