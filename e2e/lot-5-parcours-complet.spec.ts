@@ -73,7 +73,8 @@ async function capturerEtape(page: Page, nom: string, revenir: () => Promise<voi
       [360, 740, "360x740"],
     ] as const) {
       await page.setViewportSize({ width: largeur, height: hauteur })
-      await page.screenshot({ path: path.join(DOSSIER_CAPTURES, `lot5-${nom}-${suffixe}-${theme}.png`), fullPage: true })
+      // Animations finies avant la capture : une boîte encore en glissement ne se lit pas (étape 7 à 360 px).
+      await page.screenshot({ path: path.join(DOSSIER_CAPTURES, `lot5-${nom}-${suffixe}-${theme}.png`), fullPage: true, animations: "disabled" })
     }
   }
   await page.setViewportSize({ width: 1440, height: 900 })
