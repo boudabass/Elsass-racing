@@ -9,7 +9,7 @@ import { preparerEpreuveChecklist } from "./aide/checklist"
 import { DOSSIER_CAPTURES } from "./aide/equipe"
 import { jourParis } from "./aide/dates"
 import { accesDocumentEnBase, documentEnBase, rattacherPersonneAuCompte } from "./aide/documents"
-import { ajouterEquipement, ajouterLicence, creerPersonne, ouvrirOnglet } from "./aide/equipe"
+import { ajouterEquipement, ajouterLicence, choisirTheme, creerPersonne, ouvrirOnglet } from "./aide/equipe"
 import { envoyer, envoyerSansFermeture } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { preparerAtelierSaxo, ordresEnBase } from "./aide/garage"
@@ -61,19 +61,21 @@ async function indicePreparation(page: Page): Promise<number> {
   return Number(libelle?.match(/(\d+) pour cent/)?.[1] ?? "-1")
 }
 
-// Capture d'une étape : 1440 et 360 px, clair et sombre (le thème suit la préférence système du navigateur de test).
-async function capturerEtape(page: Page, nom: string): Promise<void> {
-  for (const [largeur, hauteur, suffixe] of [
-    [1440, 900, "1440x900"],
-    [360, 740, "360x740"],
-  ] as const) {
-    await page.setViewportSize({ width: largeur, height: hauteur })
-    for (const theme of ["clair", "sombre"] as const) {
-      await page.emulateMedia({ colorScheme: theme === "clair" ? "light" : "dark" })
+// Capture d'une étape : 1440 et 360 px, clair et sombre. Le thème de l'app est une préférence du membre (Réglages), pas le
+// thème du système : on le règle par Réglages, puis on revient à l'écran (`revenir`) pour capturer. La préférence est
+// remise sur sombre (valeur par défaut) à la fin.
+async function capturerEtape(page: Page, nom: string, revenir: () => Promise<void>): Promise<void> {
+  for (const theme of ["clair", "sombre"] as const) {
+    await choisirTheme(page, theme)
+    await revenir()
+    for (const [largeur, hauteur, suffixe] of [
+      [1440, 900, "1440x900"],
+      [360, 740, "360x740"],
+    ] as const) {
+      await page.setViewportSize({ width: largeur, height: hauteur })
       await page.screenshot({ path: path.join(DOSSIER_CAPTURES, `lot5-${nom}-${suffixe}-${theme}.png`), fullPage: true })
     }
   }
-  await page.emulateMedia({ colorScheme: "light" })
   await page.setViewportSize({ width: 1440, height: 900 })
 }
 
@@ -160,7 +162,11 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await page.getByRole("link", { name: "Prêt pour l'épreuve ?", exact: true }).click()
     await expect(page.getByText(/Licence de Nina expire le/)).toHaveCount(0)
     await expect.poll(() => indicePreparation(page)).toBeGreaterThan(indiceAvant)
-    await capturerEtape(page, "etape-2-pret")
+    // Retour à l'écran après le réglage du thème (Réglages quitte la page) : l'épreuve, onglet « Prêt pour l'épreuve ? ».
+    await capturerEtape(page, "etape-2-pret", async () => {
+      await page.goto(`/apps/saison/epreuves/${eventId}?onglet=pret`)
+      await expect(page.getByRole("link", { name: "Prêt pour l'épreuve ?", exact: true })).toBeVisible()
+    })
   })
 
   await test.step("3. Équipe : une personne d'assistance répond « vient », puis est affectée sur Prochaine épreuve ; sa tâche se marque faite", async () => {
@@ -353,7 +359,12 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await page.goto("/qg")
     await page.getByRole("button", { name: /Boîte d'actions/ }).click()
     await expect(page.getByRole("dialog").getByText(/Problème : Trousse de secours/)).toBeVisible()
-    await capturerEtape(page, "etape-7-boite-liaisons")
+    // Retour au QG après le réglage du thème, la boîte se rouvre à la main (elle ne survit pas à la sortie de l'écran).
+    await capturerEtape(page, "etape-7-boite-liaisons", async () => {
+      await page.goto("/qg")
+      await page.getByRole("button", { name: /Boîte d'actions/ }).click()
+      await expect(page.getByRole("dialog").getByText(/Problème : Trousse de secours/)).toBeVisible()
+    })
     await page.keyboard.press("Escape")
   })
 
@@ -385,7 +396,10 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await page.goto("/apps/equipe/binomes")
     await expect(page.getByRole("heading", { name: "Binômes", exact: true })).toBeVisible()
     await expect(page.getByText("Théo Pilote", { exact: false }).first()).toBeVisible()
-    await capturerEtape(page, "etape-9-fiche-binomes")
+    await capturerEtape(page, "etape-9-fiche-binomes", async () => {
+      await page.goto("/apps/equipe/binomes")
+      await expect(page.getByRole("heading", { name: "Binômes", exact: true })).toBeVisible()
+    })
   })
 
   await test.step("10. Membre retiré : « Anciens membres » garde son nom, sa fiche reste", async () => {
