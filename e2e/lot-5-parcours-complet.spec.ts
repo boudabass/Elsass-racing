@@ -504,7 +504,9 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await rattacherPersonneAuCompte(equipe, membre, "Lou", "Retiree")
 
     // Un point de la liste est affecté à Lou (le point est en problème : il reste à traiter).
+    // L'accueil de Check-lists montre la prochaine épreuve : l'épreuve passée se choisit dans la barre « Épreuves ».
     await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Check-lists", exact: true }).click()
+    await page.getByRole("navigation", { name: "Épreuves" }).getByRole("link", { name: nomEpreuve, exact: true }).click()
     await page.getByRole("region", { name: "Par engagement" }).getByRole("link").first().click()
     await expect(page).toHaveURL(/\/apps\/checklist\/liste\/[^?]+$/)
     await page.locator("li").filter({ hasText: "Trousse de secours" }).getByRole("link", { name: "Détail", exact: true }).click()
