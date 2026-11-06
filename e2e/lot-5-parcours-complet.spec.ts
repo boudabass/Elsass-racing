@@ -424,8 +424,9 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
   })
 
   await test.step("10. Membre retiré : un point qui lui est affecté, « Réassigner les points » dans la boîte, réassigné ; « Anciens membres » garde son nom", async () => {
+    // La personne de Lou est celle du compte (rattachement) : une seconde fiche « Lou Retiree » non liée au compte ferait
+    // passer la réassignation à côté de la bonne personne.
     const membre = await ajouterEquipier(equipe)
-    await creerPersonne(page, "Lou", "Retiree", "Bénévole")
     await rattacherPersonneAuCompte(equipe, membre, "Lou", "Retiree")
 
     // Un point de la liste est affecté à Lou (le point est en problème : il reste à traiter).
