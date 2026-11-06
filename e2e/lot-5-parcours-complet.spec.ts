@@ -17,7 +17,7 @@ import { connecterParLien, tuilesDuQg } from "./aide/navigation"
 import {
   ajouterEquipier,
   ajouterMembreConnectable,
-  depensesDeLicenceEnBase,
+  propositionsDeLicenceEnBase,
   engagementsEnBase,
   lienPointChecklistEnBase,
   passerEpreuveDansLePasseEnBase,
@@ -131,16 +131,16 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
   let contexteAssistance: BrowserContext | undefined
   await test.step("1. Équipe : pilote et copilote, licence avec document joint, casque", async () => {
     piloteId = await creerPersonne(page, "Théo", "Pilote", "Pilote")
-    // Licence payée (150 €) : Budget reçoit une dépense « Licence et ASA ». Le test compte en base, sans se fier à l'écran.
+    // Licence payée (150 €) : Budget reçoit une proposition de dépense « Licence et ASA ». Le test compte en base, pas à l'écran.
     await ajouterLicence(page, "Licence FFSA régionale", "L-PIL-5", `${ANNEE}-12-31`, PDF, "150")
     urlLicence = await page.locator('a[href^="/api/fichiers/"]').first().getAttribute("href")
     expect(urlLicence).toMatch(/^\/api\/fichiers\/[^/?#]+$/)
-    await expect.poll(() => depensesDeLicenceEnBase(equipe, "L-PIL-5")).toMatchObject({ total: 1 })
+    await expect.poll(() => propositionsDeLicenceEnBase(equipe, "L-PIL-5")).toBe(1)
     // Une nouvelle saisie de la même licence (sans changement) ne propose pas une seconde dépense.
     await ouvrirOnglet(page, "Licences")
     await page.getByRole("button", { name: "Modifier", exact: true }).first().click()
     await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }))
-    await expect.poll(() => depensesDeLicenceEnBase(equipe, "L-PIL-5")).toMatchObject({ total: 1 })
+    await expect.poll(() => propositionsDeLicenceEnBase(equipe, "L-PIL-5")).toBe(1)
     await ajouterEquipement(page, "Casque", "Arai")
 
     copiloteId = await creerPersonne(page, "Nina", "Copilote", "Copilote")
