@@ -40,7 +40,8 @@ export async function ajouterLicence(page: Page, libelleType: string, numero: st
   await tiroir(page).getByLabel("Type de licence", { exact: true }).selectOption({ label: libelleType })
   await tiroir(page).getByLabel("Numéro", { exact: true }).fill(numero)
   await tiroir(page).getByLabel("Valable jusqu'au").fill(valableAu)
-  if (montantPaye) await tiroir(page).getByLabel("Montant payé (€)", { exact: true }).fill(montantPaye)
+  // Non exact : le libellé du champ enveloppé contient son aide (« Si tu le saisis, Budget propose la dépense… »).
+  if (montantPaye) await tiroir(page).getByLabel("Montant payé (€)").fill(montantPaye)
   if (document) {
     await tiroir(page).locator('input[type="file"]').setInputFiles(document)
     await expect(tiroir(page).getByRole("button", { name: "Remplacer", exact: true })).toBeVisible()
