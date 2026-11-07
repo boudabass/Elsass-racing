@@ -174,7 +174,7 @@ Prérequis : une liste d'engagement (5.5a) acceptée, et ton téléphone connect
 Prérequis : une épreuve dans cinq jours, un engagement dont le **pilote** a une licence saisie dans Équipe, qui expire avant le jour de l'épreuve (par exemple dans trois jours), et un engagement non payé.
 
 1. Ouvre le QG, puis la **Boîte d'actions** : l'action **Renouveler la licence de … : expire le …** est en tête, avec la ligne **Bloquant pour <épreuve>** sous son titre. L'engagement non payé donne **Engagement à payer : <épreuve>**, avec la même ligne.
-2. Sur **Engagement à payer**, **Voir l'engagement** mène à l'engagement dans Saison, sans décider l'action. **Plus tard** (sur la carte) la reporte.
+2. Sur **Engagement à payer**, **Voir l'engagement** mène à l'engagement dans Saison, sans décider l'action. **Plus tard** (sur la carte) la reporte. La carte donne la voiture et l'équipage en contexte. Si Budget a une dépense d'engagement en attente de « Marquer payé », l'action **Engagement à payer** n'apparaît pas : le paiement existe déjà.
 3. Dans Saison, **Enregistrer un paiement** sur l'engagement. Reviens au QG : **Engagement à payer** n'est plus dans la boîte. La licence, elle, y est toujours.
 4. Ouvre le QG après un changement : les actions ne se recalculent qu'à l'**ouverture du QG**, pas à chaque clic. Une licence renouvelée ou une épreuve passée ne sortent donc de la boîte qu'au prochain QG.
 5. Équipe, fiche du pilote, onglet **Licences**, **Modifier** : mets une date de validité dans un an. Reviens au QG : **Renouveler la licence** n'est plus dans la boîte.

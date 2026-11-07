@@ -29,6 +29,8 @@ export interface RappelDu {
   eventId: string
   entryId: string | null
   priorite: number
+  // Contexte de la carte, quand le rappel le précise (voiture et équipage pour un engagement à payer).
+  contexte?: string
   // Échéance du rappel (clôture des engagements) : la boîte affiche la date, et le rang suit la date au recalcul.
   echeance?: Date
   titre: string
@@ -48,6 +50,10 @@ export interface EngagementRappel {
   statut: StatutEngagement
   membershipsEquipage: string[]
   resultat: { validation: ValidationResultat; createdAt: Date } | null
+  // Une proposition « Marquer payé » (Budget a une dépense) est en attente : le paiement existe déjà, pas de rappel à payer.
+  marquageEnAttente?: boolean
+  // Voiture et équipage, pour le contexte de l'engagement à payer.
+  libelleContexte?: string | null
 }
 
 export interface EpreuveRappel {
@@ -147,7 +153,9 @@ export function rappelsDues(epreuves: readonly EpreuveRappel[], maintenant: Date
     for (const engagement of epreuve.engagements) {
       // Engagement à payer : envisagé ou inscrit, épreuve dans la fenêtre bloquante (7 jours, en cours compris).
       // Rang 1 (960 §5). Levé au paiement, au forfait ou à l'annulation, par l'émetteur (services-serveur.ts).
-      if (aVenir && (engagement.statut === "envisage" || engagement.statut === "inscrit")) {
+      // Une proposition « Marquer payé » en attente veut dire que le paiement existe déjà dans Budget : on ne demande pas de payer
+      // une seconde fois. Si la proposition est ignorée, le rappel revient tant que l'engagement n'est pas payé.
+      if (aVenir && !engagement.marquageEnAttente && (engagement.statut === "envisage" || engagement.statut === "inscrit")) {
         const dansFenetre = engagementDansFenetre(
           { eventId: epreuve.id, dateDebut: epreuve.dateDebut, dateFin: epreuve.dateFin, annulee: false, statut: engagement.statut },
           maintenant,
@@ -160,6 +168,7 @@ export function rappelsDues(epreuves: readonly EpreuveRappel[], maintenant: Date
             type: "payer_engagement",
             priorite: PRIORITE.bloquant,
             titre: `Engagement à payer : ${epreuve.nom}`,
+            ...(engagement.libelleContexte ? { contexte: engagement.libelleContexte } : {}),
             destinataires: { kind: "roles", roles: ["responsable"] },
             // Un seul bouton-lien : il ne décide rien. « Plus tard » est celui de la carte (ReporterAction).
             boutons: [{ cle: "voir", libelle: "Voir l'engagement", lien: `/apps/saison/engagements/${engagement.id}` }],

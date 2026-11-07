@@ -89,6 +89,8 @@ test("bloquant pour une épreuve proche : boîte, paiement de l'engagement, reno
     const payer = boite.locator("article").filter({ hasText: "Engagement à payer" })
     await expect(payer).toHaveCount(1)
     await expect(payer).toContainText(`Bloquant pour ${nomEpreuve}`)
+    // Le contexte de la carte donne la voiture et l'équipage, pas un second nom d'épreuve.
+    await expect(payer).toContainText("Théo Pilote / Nina Copilote")
 
     // La première carte de la boîte est une action de rang 1.
     await expect(boite.locator("article").first()).toContainText("Bloquant pour")

@@ -1226,6 +1226,7 @@ async function recalculerRappels(ctx: ContexteTeam, saisonId: string, maintenant
           statut: true,
           piloteId: true,
           copiloteId: true,
+          vehicleId: true,
           saisonResult: { select: { validation: true, createdAt: true, saisiParMembershipId: true } },
         },
       },
@@ -1244,6 +1245,36 @@ async function recalculerRappels(ctx: ContexteTeam, saisonId: string, maintenant
     : []
   const membershipDePersonne = new Map(memberships.map((membre) => [membre.personId, membre.id]))
   const auteurDeResultat = new Map<string, string | null>()
+
+  // Noms de l'équipage et de la voiture de chaque engagement : le contexte de « Engagement à payer ».
+  const personnesNommees = personnes.length
+    ? await client.corePerson.findMany({ where: { teamId: ctx.teamId, id: { in: personnes } }, select: { id: true, prenom: true, nom: true } })
+    : []
+  const nomDePersonne = new Map(personnesNommees.map((personne) => [personne.id, `${personne.prenom} ${personne.nom}`]))
+  const vehicules = Array.from(new Set(epreuves.flatMap((epreuve) => epreuve.entries.map((entree) => entree.vehicleId).filter((id): id is string => id !== null))))
+  const vehiculesNommes = vehicules.length
+    ? await client.coreVehicle.findMany({ where: { teamId: ctx.teamId, id: { in: vehicules } }, select: { id: true, nomCourt: true } })
+    : []
+  const nomDeVehicule = new Map(vehiculesNommes.map((vehicule) => [vehicule.id, vehicule.nomCourt]))
+  const libelleContexteDe = (entree: { vehicleId: string | null; piloteId: string | null; copiloteId: string | null }): string | null => {
+    const equipage = [entree.piloteId, entree.copiloteId]
+      .map((personne) => (personne ? nomDePersonne.get(personne) : undefined))
+      .filter((nom): nom is string => nom !== undefined)
+      .join(" / ")
+    const voiture = entree.vehicleId ? nomDeVehicule.get(entree.vehicleId) : undefined
+    const libelle = [voiture, equipage].filter(Boolean).join(" · ")
+    return libelle.length > 0 ? libelle : null
+  }
+
+  // Engagements dont une proposition « Marquer payé » est en attente (clé marquer_paye:<engagementId>).
+  const marquagesEnAttente = new Set(
+    (
+      await client.coreAction.findMany({
+        where: { teamId: ctx.teamId, appOrigine: "saison", statut: "en_attente", cleUnicite: { startsWith: "marquer_paye:" } },
+        select: { cleUnicite: true },
+      })
+    ).map((action) => action.cleUnicite.slice("marquer_paye:".length)),
+  )
 
   const pourRappels: EpreuveRappel[] = epreuves.map((epreuve) => ({
     id: epreuve.id,
@@ -1264,6 +1295,8 @@ async function recalculerRappels(ctx: ContexteTeam, saisonId: string, maintenant
         resultat: entree.saisonResult
           ? { validation: entree.saisonResult.validation as ValidationResultat, createdAt: entree.saisonResult.createdAt }
           : null,
+        marquageEnAttente: marquagesEnAttente.has(entree.id),
+        libelleContexte: libelleContexteDe(entree),
       }
     }),
   }))
@@ -1292,7 +1325,7 @@ async function recalculerRappels(ctx: ContexteTeam, saisonId: string, maintenant
       type: rappel.type,
       cleUnicite: rappel.cle,
       titre: rappel.titre,
-      contexte: pourRappels.find((epreuve) => epreuve.id === rappel.eventId)?.nom ?? "Saison",
+      contexte: rappel.contexte ?? pourRappels.find((epreuve) => epreuve.id === rappel.eventId)?.nom ?? "Saison",
       ficheType: rappel.type === "payer_engagement" ? "engagement" : rappel.entryId ? "resultat" : "epreuve",
       ficheId: rappel.entryId ?? rappel.eventId,
       eventId: rappel.eventId,

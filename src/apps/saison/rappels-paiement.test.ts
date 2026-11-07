@@ -59,6 +59,23 @@ describe("rappels : engagement à payer (rang 1, fenêtre des 7 jours)", () => {
     }
   })
 
+  it("proposition « Marquer payé » en attente : pas de rappel à payer, le paiement existe déjà dans Budget", () => {
+    const liste = payer(rappelsDues([epreuve({ engagements: [engagement({ marquageEnAttente: true })] })], maintenant, new Set()))
+    expect(liste).toHaveLength(0)
+  })
+
+  it("la proposition ignorée (plus en attente) ramène le rappel tant que l'engagement n'est pas payé", () => {
+    const liste = payer(rappelsDues([epreuve({ engagements: [engagement({ marquageEnAttente: false })] })], maintenant, new Set()))
+    expect(liste).toHaveLength(1)
+  })
+
+  it("le contexte de la carte donne la voiture et l'équipage, quand ils sont connus", () => {
+    const [rappel] = payer(
+      rappelsDues([epreuve({ engagements: [engagement({ libelleContexte: "Saxo · Théo Pilote / Nina Copilote" })] })], maintenant, new Set()),
+    )
+    expect(rappel.contexte).toBe("Saxo · Théo Pilote / Nina Copilote")
+  })
+
   it("épreuve annulée ou terminée : rien à payer", () => {
     expect(payer(rappelsDues([epreuve({ statut: "annulee", engagements: [engagement({})] })], maintenant, new Set()))).toHaveLength(0)
     expect(payer(rappelsDues([epreuve({ statut: "terminee", engagements: [engagement({})] })], maintenant, new Set()))).toHaveLength(0)
