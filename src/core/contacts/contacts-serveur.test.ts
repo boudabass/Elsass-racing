@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest"
 import type { ContexteTeam } from "@/core/contexte"
 import { ErreurMetier } from "@/core/sdk/actions-serveur"
 
-import { chercherContact, trouverOuCreerContact, type ClientContact } from "./contacts-serveur"
+import { chercherContact, contactDuChoix, trouverOuCreerContact, type ClientContact } from "./contacts-serveur"
 
 // La lecture (chercherContact) passe par une transaction de la team : on lui donne la fausse table.
 const bascule = vi.hoisted(() => ({ client: null as unknown }))
@@ -111,7 +111,7 @@ describe("trouverOuCreerContact", () => {
   it("refuse un nom vide, avec la raison", async () => {
     const { client } = fauxClient([])
     await expect(trouverOuCreerContact(client, ctx("team-a"), { nom: "   ", categorie: "asa" })).rejects.toThrow(ErreurMetier)
-    await expect(trouverOuCreerContact(client, ctx("team-a"), { nom: "   ", categorie: "asa" })).rejects.toThrow("Donnez un nom.")
+    await expect(trouverOuCreerContact(client, ctx("team-a"), { nom: "   ", categorie: "asa" })).rejects.toThrow("Donne un nom.")
   })
 
   it("refuse un nom de plus de 120 caractères", async () => {
@@ -140,5 +140,37 @@ describe("chercherContact", () => {
     expect(await chercherContact(ctx("team-a"), " muller ")).toEqual({ id: "c-1", categories: ["partenaire", "fournisseur"] })
     expect(await chercherContact(ctx("team-a"), "Inconnu")).toBeNull()
     expect(ecritures).toEqual({ create: 0, update: 0 })
+  })
+})
+
+describe("contactDuChoix", () => {
+  it("renvoie le contact choisi, ou null quand l'écran n'en donne aucun", async () => {
+    const lignes: LigneContact[] = []
+    bascule.client = fauxClient(lignes).client
+
+    expect(await contactDuChoix(ctx("team-a"), { contactId: "c-existant" }, "fournisseur")).toBe("c-existant")
+    expect(await contactDuChoix(ctx("team-a"), { contactId: "" }, "fournisseur")).toBeNull()
+    expect(await contactDuChoix(ctx("team-a"), { contactId: null, nouveauNom: "   " }, "fournisseur")).toBeNull()
+    expect(lignes).toHaveLength(0)
+  })
+
+  it("refuse le contact choisi et un nouveau nom à la fois, sans rien créer", async () => {
+    const lignes: LigneContact[] = []
+    bascule.client = fauxClient(lignes).client
+
+    await expect(contactDuChoix(ctx("team-a"), { contactId: "c-1", nouveauNom: "Pneus Ouest" }, "fournisseur")).rejects.toThrow(
+      "Choisis un contact existant ou donne son nouveau nom, pas les deux.",
+    )
+    expect(lignes).toHaveLength(0)
+  })
+
+  it("crée le contact du nouveau nom dans la catégorie de l'écran", async () => {
+    const lignes: LigneContact[] = []
+    bascule.client = fauxClient(lignes).client
+
+    const id = await contactDuChoix(ctx("team-a"), { contactId: null, nouveauNom: " Pneus  Ouest " }, "fournisseur")
+
+    expect(id).toBeTruthy()
+    expect(lignes).toEqual([expect.objectContaining({ id, teamId: "team-a", nom: "Pneus Ouest", categories: ["fournisseur"] })])
   })
 })

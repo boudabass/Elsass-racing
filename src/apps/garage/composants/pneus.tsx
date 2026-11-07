@@ -7,6 +7,7 @@ import Link from "next/link"
 import { useActionState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
+import { ChoixContact } from "@/components/formulaire/choix-contact"
 import { FormulairePage } from "@/components/formulaire/formulaire-page"
 import { Message } from "@/components/formulaire/message"
 import type { Resultat } from "@/core/sdk/actions-serveur"
@@ -143,17 +144,16 @@ export function FormulaireTrain({ vehicleId, fournisseurs }: FormulaireTrainProp
             <span className="font-medium">Prix, en euros (facultatif)</span>
             <input name="prixCents" inputMode="decimal" className={CHAMP} placeholder="120,00" />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Fournisseur (avec un prix)</span>
-            <select name="fournisseurContactId" defaultValue="" className={CHAMP}>
-              <option value="">Aucun fournisseur</option>
-              {fournisseurs.map((fournisseur) => (
-                <option key={fournisseur.id} value={fournisseur.id}>
-                  {fournisseur.nom}
-                </option>
-              ))}
-            </select>
-          </label>
+          <ChoixContact
+            libelle="Fournisseur (avec un prix)"
+            nomListe="fournisseurContactId"
+            nomNouveau="nouveauFournisseurNom"
+            libelleNouveau="Nouveau fournisseur"
+            libelleNom="Nom du nouveau fournisseur"
+            libelleRetour="Choisir un fournisseur existant"
+            options={fournisseurs}
+            aucun="Aucun fournisseur"
+          />
         </div>
       </form>
       <Message resultat={resultat} />

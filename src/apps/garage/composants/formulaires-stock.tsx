@@ -5,6 +5,7 @@
 
 import { useRouter } from "next/navigation"
 
+import { ChoixContact } from "@/components/formulaire/choix-contact"
 import { TiroirAction } from "@/components/formulaire/tiroir"
 import { CHAMP } from "@/lib/classes-formulaire"
 
@@ -84,17 +85,16 @@ export function ChampsPiece({ vehicleId, organes, fournisseurs, organeDefaut }: 
             <span className="font-medium">Prix (€)</span>
             <input name="prixCents" inputMode="decimal" placeholder="12,50" className={CHAMP} />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Fournisseur</span>
-            <select name="fournisseurContactId" defaultValue="" className={CHAMP}>
-              <option value="">Aucun</option>
-              {fournisseurs.map((contact) => (
-                <option key={contact.id} value={contact.id}>
-                  {contact.nom}
-                </option>
-              ))}
-            </select>
-          </label>
+          <ChoixContact
+            libelle="Fournisseur"
+            nomListe="fournisseurContactId"
+            nomNouveau="nouveauFournisseurNom"
+            libelleNouveau="Nouveau fournisseur"
+            libelleNom="Nom du nouveau fournisseur"
+            libelleRetour="Choisir un fournisseur existant"
+            options={fournisseurs}
+            aucun="Aucun"
+          />
         </>
       )}
       <label className="flex flex-col gap-1 text-sm">

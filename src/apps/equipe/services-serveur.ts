@@ -124,7 +124,7 @@ const baseLicence = {
   nouvelAsaNom: z
     .string()
     .trim()
-    .min(1, "Donnez le nom de la nouvelle ASA.")
+    .min(1, "Donne le nom de la nouvelle ASA.")
     .max(NOM_CONTACT_MAX, `Le nom de l'ASA ne doit pas dépasser ${NOM_CONTACT_MAX} caractères.`)
     .optional(),
   saison: texte(20),

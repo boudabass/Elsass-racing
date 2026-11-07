@@ -6,6 +6,7 @@
 
 import { useRouter } from "next/navigation"
 
+import { ChoixContact } from "@/components/formulaire/choix-contact"
 import { TiroirAction } from "@/components/formulaire/tiroir"
 import { useEtatSynchro } from "@/core/synchro/client/react"
 import { BOUTON_SECONDAIRE, CHAMP } from "@/lib/classes-formulaire"
@@ -310,17 +311,16 @@ export function FicheOrdreEcran({ fiche, choix, stock, peutAvancer }: FicheOrdre
                 <span className="font-medium">Main-d&apos;œuvre, en euros (facultatif)</span>
                 <input name="coutMainOeuvre" inputMode="decimal" placeholder="0,00" defaultValue={montantSaisi(ordre.cout?.cents ?? null)} className={CHAMP} />
               </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium">Prestataire (facultatif)</span>
-                <select name="prestataireContactId" defaultValue="" className={CHAMP}>
-                  <option value="">Aucun prestataire</option>
-                  {choix.prestataires.map((contact) => (
-                    <option key={contact.id} value={contact.id}>
-                      {contact.nom}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <ChoixContact
+                libelle="Prestataire (facultatif)"
+                nomListe="prestataireContactId"
+                nomNouveau="nouveauPrestataireNom"
+                libelleNouveau="Nouveau prestataire"
+                libelleNom="Nom du nouveau prestataire"
+                libelleRetour="Choisir un prestataire existant"
+                options={choix.prestataires}
+                aucun="Aucun prestataire"
+              />
             </TiroirAction>
           )}
 

@@ -93,6 +93,7 @@ export async function remplacerPieceAction(_etat: Resultat | null, donnees: Form
         dureeVieEpreuves: entierOuNull(donnees, "dureeVieEpreuves", "La durée en épreuves"),
         prixCents: centimesOuNull(donnees, "prixCents"),
         fournisseurContactId: texteOuNull(donnees, "fournisseurContactId"),
+        nouveauFournisseurNom: texteOuNull(donnees, "nouveauFournisseurNom"),
       }
       await poserNouvellePiece(organeId, entree, options)
       return
@@ -154,6 +155,7 @@ export async function creerPieceAction(_etat: Resultat | null, donnees: FormData
     }
     if (donnees.has("prixCents")) entree.prixCents = centimesOuNull(donnees, "prixCents")
     if (donnees.has("fournisseurContactId")) entree.fournisseurContactId = texteOuNull(donnees, "fournisseurContactId")
+    if (donnees.has("nouveauFournisseurNom")) entree.nouveauFournisseurNom = texteOuNull(donnees, "nouveauFournisseurNom")
     return creerPiece(texte(donnees, "vehicleId"), entree)
   })
 }
@@ -238,6 +240,7 @@ export async function modifierCoutOrdreAction(_etat: Resultat | null, donnees: F
     modifierCoutOrdre(texte(donnees, "ordreId"), {
       coutMainOeuvreCents: centimesOuNull(donnees, "coutMainOeuvre"),
       prestataireContactId: texteOuNull(donnees, "prestataireContactId"),
+      nouveauPrestataireNom: texteOuNull(donnees, "nouveauPrestataireNom"),
     }),
   )
 }
@@ -315,7 +318,8 @@ export async function creerCommandeAction(_etat: Resultat | null, donnees: FormD
       })
     }
     return creerCommande(texte(donnees, "vehicleId"), {
-      supplierContactId: texte(donnees, "supplierContactId"),
+      supplierContactId: texteOuNull(donnees, "supplierContactId"),
+      nouveauFournisseurNom: texteOuNull(donnees, "nouveauFournisseurNom"),
       commandeeLe: texte(donnees, "commandeeLe"),
       livraisonPrevueLe: texteOuNull(donnees, "livraisonPrevueLe"),
       lignes,
@@ -353,6 +357,7 @@ export async function creerTrainAction(_etat: Resultat | null, donnees: FormData
     return ajouterTrainAchete(vehicleId, {
       train,
       fournisseurContactId: texteOuNull(donnees, "fournisseurContactId"),
+      nouveauFournisseurNom: texteOuNull(donnees, "nouveauFournisseurNom"),
       prixCents,
     })
   })

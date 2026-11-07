@@ -30,7 +30,7 @@ const schemaContact = z.object({
   nom: z
     .string()
     .trim()
-    .min(1, "Donnez un nom.")
+    .min(1, "Donne un nom.")
     .max(NOM_CONTACT_MAX, `Le nom ne doit pas dépasser ${NOM_CONTACT_MAX} caractères.`),
   categorie: z.enum(CATEGORIES_CONTACT),
 })
@@ -56,6 +56,19 @@ async function chercherDans(client: ClientContact, ctx: ContexteTeam, nom: strin
 // Lecture seule, pour une vérification avant écriture : une transaction de lecture, comme les autres écritures du socle.
 export async function chercherContact(ctx: ContexteTeam, nom: string): Promise<Contact | null> {
   return executerPourTeam(ctx.teamId, ctx.userId, (tx) => chercherDans(tx, ctx, nom))
+}
+
+// Le contact d'un écran (5.8b) : un contact existant (contactId), ou un nom saisi sur place (nouveauNom), créé ou réutilisé
+// avant l'écriture de l'app. Jamais les deux. Un nom vide compte comme absent. Renvoie l'id, ou null si l'écran n'en donne aucun.
+export async function contactDuChoix(
+  ctx: ContexteTeam,
+  choix: { contactId?: string | null; nouveauNom?: string | null },
+  categorie: CategorieContact,
+): Promise<string | null> {
+  const nouveauNom = choix.nouveauNom?.trim() ? choix.nouveauNom : null
+  if (choix.contactId && nouveauNom) throw new ErreurMetier("Choisis un contact existant ou donne son nouveau nom, pas les deux.")
+  if (!nouveauNom) return choix.contactId || null
+  return executerPourTeam(ctx.teamId, ctx.userId, (tx) => trouverOuCreerContact(tx, ctx, { nom: nouveauNom, categorie }))
 }
 
 // Renvoie l'id du contact : celui de même nom, enrichi de la catégorie s'il ne l'avait pas, ou un nouveau contact.

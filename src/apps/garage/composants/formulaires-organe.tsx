@@ -6,6 +6,7 @@
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
+import { ChoixContact } from "@/components/formulaire/choix-contact"
 import { TiroirAction } from "@/components/formulaire/tiroir"
 import { useEtatSynchro } from "@/core/synchro/client/react"
 import { BOUTON_SECONDAIRE, CHAMP } from "@/lib/classes-formulaire"
@@ -159,17 +160,17 @@ export function FormulaireRemplacer({ organeId, nom, pieceEnPlace, rechanges, fo
             />
             <span className="text-texte-discret">Un prix passe par une commande reçue tout de suite, et ouvre une dépense côté Budget.</span>
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Fournisseur{fournisseurRequis ? "" : " (facultatif)"}</span>
-            <select name="fournisseurContactId" required={fournisseurRequis} defaultValue="" className={CHAMP}>
-              <option value="">Aucun</option>
-              {fournisseurs.map((fournisseur) => (
-                <option key={fournisseur.id} value={fournisseur.id}>
-                  {fournisseur.nom}
-                </option>
-              ))}
-            </select>
-          </label>
+          <ChoixContact
+            libelle={`Fournisseur${fournisseurRequis ? "" : " (facultatif)"}`}
+            nomListe="fournisseurContactId"
+            nomNouveau="nouveauFournisseurNom"
+            libelleNouveau="Nouveau fournisseur"
+            libelleNom="Nom du nouveau fournisseur"
+            libelleRetour="Choisir un fournisseur existant"
+            options={fournisseurs}
+            requis={fournisseurRequis}
+            aucun={fournisseurRequis ? "Choisir le fournisseur" : "Aucun"}
+          />
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">Durée en kilomètres (facultatif)</span>

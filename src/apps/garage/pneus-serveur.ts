@@ -10,6 +10,7 @@ import { avecReprisePourConflit } from "@/lib/reprise-conflit"
 
 import { ErreurGarage, refus } from "./erreurs"
 import { LIBELLES_TYPE_PNEUS, separerDateAchat, statutPneusValide, trainDeLaVoiture, usureValide, validerSaisieTrain, type EntreeTrain, type StatutPneus } from "./pneus"
+import { contactDuChoix } from "@/core/contacts/contacts-serveur"
 import { prixImposeFournisseur } from "./regles"
 import { accesGarage, creerCommandeDans, expedierCommandeDans, recevoirCommandeDans, type TrainAchete } from "./services-serveur"
 
@@ -71,6 +72,8 @@ export async function ajouterTrainDans(ctx: ContexteTeam, vehicleId: string, ent
 export interface EntreeTrainAchete {
   train: EntreeTrain
   fournisseurContactId: string | null
+  // Fournisseur saisi sur place (5.8b).
+  nouveauFournisseurNom?: string | null
   prixCents: number | null
   quantite?: number
 }
@@ -86,20 +89,21 @@ export async function ajouterTrainAcheteDans(ctx: ContexteTeam, vehicleId: strin
   const train = trainSaisi(entree.train)
   if (entree.prixCents === null) return ajouterTrainDans(ctx, vehicleId, { ...entree.train, acheteLe: null })
 
-  const refusPrix = prixImposeFournisseur(entree.prixCents, entree.fournisseurContactId)
+  const refusPrix = prixImposeFournisseur(entree.prixCents, entree.fournisseurContactId ?? entree.nouveauFournisseurNom ?? null)
   if (refusPrix) refus(refusPrix)
-  if (!entree.fournisseurContactId) refus("Choisis le fournisseur du train.")
 
   const typePneus = await executerPourTeam(ctx.teamId, ctx.userId, (tx) =>
     tx.garageComponentType.findFirst({ where: { teamId: ctx.teamId, cle: "pneus", deletedAt: null }, select: { id: true } }),
   )
   if (!typePneus) refus("L'organe Pneus n'existe pas dans la team.")
+  const fournisseurId = await contactDuChoix(ctx, { contactId: entree.fournisseurContactId, nouveauNom: entree.nouveauFournisseurNom }, "fournisseur")
+  if (!fournisseurId) refus("Choisis le fournisseur du train.")
 
   const commandeId = await creerCommandeDans(
     ctx,
     vehicleId,
     {
-      supplierContactId: entree.fournisseurContactId,
+      supplierContactId: fournisseurId,
       commandeeLe: jourParis(),
       lignes: [
         {

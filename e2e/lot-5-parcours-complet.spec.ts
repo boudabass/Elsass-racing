@@ -43,9 +43,10 @@ import {
 // - étape 2 : l'équipage est choisi dans Saison, mais le test ne vérifie pas le panneau au-delà de la licence ;
 // - étape 5 : la licence d'une autre personne (404) et la photo d'une liste fermée (404) ne sont pas encore vérifiées ici ;
 //   le logo de Voiture (200) non plus ;
-// - étape 8 : l'ignorance d'une proposition (qui ne revient pas) n'est pas testée ;
-// - étape 9 : le palier et le « Ajouter au modèle » du débrief ne sont pas encore vérifiés ici ;
-// - étape 10 : pas de point assigné au membre retiré, donc pas de « Réassigner les points » à l'écran.
+// - étape 8 : l'ignorance d'une proposition (qui ne revient pas) n'est pas testée : la proposition « zone rouge » suppose une
+//   liste avant départ déjà créée (étape 6), qu'un test dédié devrait reproduire ;
+// - étape 9 : « Ajouter au modèle » du débrief est couvert par e2e/checklist-debrief.spec.ts ;
+// - étape 10 : la fiche et l'historique de la personne retirée, au-delà de son nom, ne sont pas vérifiés ici.
 
 const ANNEE = new Date().getFullYear() + 1
 const PDF = path.resolve("e2e/fichiers/preuve.pdf")
@@ -166,7 +167,7 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
   let contexteAssistance: BrowserContext | undefined
   await test.step("1. Équipe : pilote et copilote, licence avec document joint et ASA, casque ; la dépense se décide dans Budget", async () => {
     piloteId = await creerPersonne(page, "Théo", "Pilote", "Pilote")
-    // Licence payée (150 €) avec une ASA créée depuis le champ « Nouvel ASA » (5.8b) : Budget reçoit une proposition de
+    // Licence payée (150 €) avec une ASA créée depuis le champ « Nouvelle ASA » (5.8b) : Budget reçoit une proposition de
     // dépense « Licence et ASA ». Le test compte en base, pas à l'écran.
     await ajouterLicence(page, "Licence FFSA régionale", "L-PIL-5", `${ANNEE}-12-31`, PDF, "150", undefined, "ASA test e2e")
     await expect(page.getByText("ASA : ASA test e2e")).toBeVisible()

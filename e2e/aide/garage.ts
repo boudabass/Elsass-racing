@@ -109,6 +109,15 @@ export async function fournisseurDeTest(equipe: Equipe, nom: string): Promise<st
   return id
 }
 
+// Contact de la team par son nom, hors supprimés : ses catégories. Null s'il n'existe pas (5.8b : créé depuis un champ).
+export async function contactEnBase(equipe: Equipe, nom: string): Promise<{ categories: string[] } | null> {
+  const { rows } = await bd().query<{ categories: string[] }>(
+    `SELECT categories::text[] AS categories FROM core_contact WHERE team_id = $1 AND nom = $2 AND deleted_at IS NULL`,
+    [equipe.teamId, nom],
+  )
+  return rows[0] ?? null
+}
+
 // Pièces créées par la réception d'une commande, par désignation : une ligne par unité, avec son prix et son fournisseur.
 export async function piecesDeCommandeEnBase(
   equipe: Equipe,

@@ -8,6 +8,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import type { ContexteTeam } from "@/core/contexte"
 import { exigerAcces } from "@/core/droits/garde-serveur"
 import { aAuMoins, type Niveau } from "@/core/droits/niveaux"
+import { contactDuChoix } from "@/core/contacts/contacts-serveur"
 import { emettre } from "@/core/evenements/bus-serveur"
 import { newId } from "@/core/ids"
 import { executerPourTeam } from "@/lib/prisma"
@@ -91,6 +92,8 @@ const schemaPiece = z
     acheteeLe: z.string().nullable().optional(),
     prixCents: entier(0).nullable().optional(),
     fournisseurContactId: z.string().min(1).nullable().optional(),
+    // Fournisseur saisi sur place (5.8b) : créé avant la pièce, ou réutilisé s'il porte ce nom.
+    nouveauFournisseurNom: z.string().nullable().optional(),
     emplacement: texte(120),
   })
   .strict()
@@ -516,6 +519,11 @@ export async function creerPiece(vehicleId: string, entree: EntreePiece): Promis
 // Une pièce entre en stock de la voiture : statut « en stock », km et épreuves à zéro.
 export async function creerPieceDans(ctx: ContexteTeam, vehicleId: string, entree: EntreePiece): Promise<string> {
   const donnees = schemaPiece.parse(entree)
+  const fournisseurContactId = await contactDuChoix(
+    ctx,
+    { contactId: donnees.fournisseurContactId, nouveauNom: donnees.nouveauFournisseurNom },
+    "fournisseur",
+  )
   const id = newId()
   await avecReprisePourConflit(() =>
     executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
@@ -536,7 +544,7 @@ export async function creerPieceDans(ctx: ContexteTeam, vehicleId: string, entre
           dureeVieEpreuves: donnees.dureeVieEpreuves ?? null,
           acheteeLe: donnees.acheteeLe ? new Date(donnees.acheteeLe) : null,
           prixCents: donnees.prixCents ?? null,
-          fournisseurContactId: donnees.fournisseurContactId ?? null,
+          fournisseurContactId,
           emplacement: donnees.emplacement ?? null,
           createdBy: ctx.userId,
           updatedBy: ctx.userId,
@@ -557,6 +565,10 @@ export async function modifierPieceDans(ctx: ContexteTeam, id: string, entree: P
   const donnees = schemaModificationPiece.parse(entree)
   const piece = await executerPourTeam(ctx.teamId, ctx.userId, (tx) => pieceDans(tx, ctx.teamId, id))
   const vehicleId = piece.vehicleId
+  const fournisseurContactId =
+    donnees.fournisseurContactId === undefined && donnees.nouveauFournisseurNom === undefined
+      ? undefined
+      : await contactDuChoix(ctx, { contactId: donnees.fournisseurContactId, nouveauNom: donnees.nouveauFournisseurNom }, "fournisseur")
 
   await ecrireEtEmettre(ctx, vehicleId, async (tx) => {
     await pieceDans(tx, ctx.teamId, id)
@@ -572,7 +584,7 @@ export async function modifierPieceDans(ctx: ContexteTeam, id: string, entree: P
         dureeVieEpreuves: donnees.dureeVieEpreuves === undefined ? undefined : donnees.dureeVieEpreuves,
         acheteeLe: donnees.acheteeLe === undefined ? undefined : donnees.acheteeLe ? new Date(donnees.acheteeLe) : null,
         prixCents: donnees.prixCents === undefined ? undefined : donnees.prixCents,
-        fournisseurContactId: donnees.fournisseurContactId === undefined ? undefined : donnees.fournisseurContactId,
+        fournisseurContactId,
         emplacement: donnees.emplacement === undefined ? undefined : donnees.emplacement,
         rev: { increment: 1 },
         updatedBy: ctx.userId,
@@ -642,6 +654,7 @@ export interface EntreeNouvellePiece {
   dureeVieEpreuves?: number | null
   prixCents?: number | null
   fournisseurContactId?: string | null
+  nouveauFournisseurNom?: string | null
 }
 
 // Date civile du jour à Paris, « AAAA-MM-JJ ».
@@ -659,8 +672,7 @@ export async function poserNouvellePieceDans(
   options: OptionsPose = {},
 ): Promise<string> {
   const prix = entree.prixCents ?? null
-  const fournisseur = entree.fournisseurContactId ?? null
-  const refusPrix = prixImposeFournisseur(prix, fournisseur)
+  const refusPrix = prixImposeFournisseur(prix, entree.fournisseurContactId ?? entree.nouveauFournisseurNom ?? null)
   if (refusPrix) refus(refusPrix)
 
   // Tout ce qui peut refuser se vérifie avant la première écriture : une pièce achetée puis refusée à la pose laisserait
@@ -672,6 +684,8 @@ export async function poserNouvellePieceDans(
   if (enPlace && (!options.motifDepose || !options.destinationAncienne)) {
     refus("Indique le motif de dépose et ce que devient l'ancienne pièce.")
   }
+  // Le fournisseur saisi sur place se crée (ou se réutilise) après les refus de la pose, avant la commande (5.8b).
+  const fournisseur = prix === null ? null : await contactDuChoix(ctx, { contactId: entree.fournisseurContactId, nouveauNom: entree.nouveauFournisseurNom }, "fournisseur")
 
   let partId: string
   if (prix !== null && fournisseur !== null) {
@@ -954,6 +968,8 @@ const schemaCout = z
   .object({
     coutMainOeuvreCents: entier(0).nullable(),
     prestataireContactId: z.string().min(1).nullable(),
+    // Prestataire saisi sur place (5.8b).
+    nouveauPrestataireNom: z.string().nullable().optional(),
   })
   .strict()
 
@@ -1185,16 +1201,17 @@ export async function modifierCoutOrdre(id: string, entree: EntreeCout): Promise
 export async function modifierCoutOrdreDans(ctx: ContexteTeam, id: string, entree: EntreeCout): Promise<void> {
   const donnees = schemaCout.parse(entree)
   if (!coutValide(donnees.coutMainOeuvreCents)) refus("Le coût doit être un montant positif, en centimes.")
+  const prestataireId = await contactDuChoix(ctx, { contactId: donnees.prestataireContactId, nouveauNom: donnees.nouveauPrestataireNom }, "prestataire")
   await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
     const ordre = await ordreDans(tx, ctx.teamId, id)
     if (!statutModifiable(ordre.statut)) refus("Cet ordre est terminé : son coût ne se modifie plus.")
-    if (donnees.prestataireContactId) {
-      const prestataire = await tx.coreContact.findFirst({ where: { id: donnees.prestataireContactId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
+    if (prestataireId) {
+      const prestataire = await tx.coreContact.findFirst({ where: { id: prestataireId, teamId: ctx.teamId, deletedAt: null }, select: { id: true } })
       if (!prestataire) refus("Ce prestataire n'existe pas dans la team.")
     }
     await tx.garageWorkOrder.updateMany({
       where: { id, teamId: ctx.teamId, deletedAt: null },
-      data: { coutMainOeuvreCents: donnees.coutMainOeuvreCents, prestataireContactId: donnees.prestataireContactId, rev: { increment: 1 }, updatedBy: ctx.userId },
+      data: { coutMainOeuvreCents: donnees.coutMainOeuvreCents, prestataireContactId: prestataireId, rev: { increment: 1 }, updatedBy: ctx.userId },
     })
   })
 }
@@ -1450,7 +1467,9 @@ const schemaLigneCommande = z
 
 const schemaCommande = z
   .object({
-    supplierContactId: z.string().min(1, "Choisis le fournisseur."),
+    supplierContactId: z.string().min(1).nullable().optional(),
+    // Fournisseur saisi sur place (5.8b). Sans l'un ni l'autre, la commande refuse : « Choisis le fournisseur. »
+    nouveauFournisseurNom: z.string().nullable().optional(),
     commandeeLe: dateCivile,
     livraisonPrevueLe: dateCivile.nullable().optional(),
     lignes: z.array(schemaLigneCommande).min(1, "Ajoute au moins une ligne.").max(10),
@@ -1477,11 +1496,13 @@ export interface OptionsCommande {
 
 export async function creerCommandeDans(ctx: ContexteTeam, vehicleId: string, entree: EntreeCommande, options: OptionsCommande = {}): Promise<string> {
   const donnees = schemaCommande.parse(entree)
+  const fournisseurId = await contactDuChoix(ctx, { contactId: donnees.supplierContactId, nouveauNom: donnees.nouveauFournisseurNom }, "fournisseur")
+  if (!fournisseurId) refus("Choisis le fournisseur.")
   const id = newId()
   await avecReprisePourConflit(() =>
     executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
       await vehiculeDans(tx, ctx.teamId, vehicleId)
-      await fournisseurDans(tx, ctx.teamId, donnees.supplierContactId)
+      await fournisseurDans(tx, ctx.teamId, fournisseurId)
       for (const ligne of donnees.lignes) await typeDansTeam(tx, ctx.teamId, ligne.componentTypeId)
       if (!options.achatTrain && (await estLigneDePneus(tx, ctx.teamId, donnees.lignes))) refus(MESSAGE_TRAIN_A_ACHETER)
       await tx.garagePurchase.create({
@@ -1489,7 +1510,7 @@ export async function creerCommandeDans(ctx: ContexteTeam, vehicleId: string, en
           id,
           teamId: ctx.teamId,
           vehicleId,
-          supplierContactId: donnees.supplierContactId,
+          supplierContactId: fournisseurId,
           statut: "commandee",
           commandeeLe: new Date(donnees.commandeeLe),
           livraisonPrevueLe: donnees.livraisonPrevueLe ? new Date(donnees.livraisonPrevueLe) : null,

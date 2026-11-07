@@ -52,7 +52,7 @@ export async function ajouterLicence(
   if (asa) await tiroir(page).locator('select[name="asaContactId"]').selectOption({ label: asa })
   // Nouvelle ASA (5.8b) : le champ nom s'ouvre dans le même tiroir, et l'ASA naît avec la licence.
   if (nouvelleAsa) {
-    await tiroir(page).getByRole("button", { name: "Nouvel ASA", exact: true }).click()
+    await tiroir(page).getByRole("button", { name: "Nouvelle ASA", exact: true }).click()
     await tiroir(page).getByLabel("Nom de la nouvelle ASA", { exact: true }).fill(nouvelleAsa)
   }
   // Non exact : le libellé du champ enveloppé contient son aide (« Si tu le saisis, Budget propose la dépense… »).

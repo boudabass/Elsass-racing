@@ -6,6 +6,7 @@
 import { useActionState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
+import { ChoixContact } from "@/components/formulaire/choix-contact"
 import { FormulairePage } from "@/components/formulaire/formulaire-page"
 import { Message } from "@/components/formulaire/message"
 import type { Resultat } from "@/core/sdk/actions-serveur"
@@ -38,20 +39,18 @@ export function FormulaireCommande({ vehicleId, fournisseurs, types, aujourdhui 
       <form id="commande-formulaire" action={action} className="flex flex-col gap-5">
         <input type="hidden" name="vehicleId" value={vehicleId} />
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Fournisseur</span>
-          <select name="supplierContactId" required defaultValue="" className={CHAMP}>
-            <option value="" disabled>
-              Choisir le fournisseur
-            </option>
-            {fournisseurs.map((fournisseur) => (
-              <option key={fournisseur.id} value={fournisseur.id}>
-                {fournisseur.nom}
-              </option>
-            ))}
-          </select>
-          {fournisseurs.length === 0 && <span className="text-texte-discret">Ajoute d&apos;abord un fournisseur dans l&apos;app Partenaires.</span>}
-        </label>
+        <ChoixContact
+          libelle="Fournisseur"
+          nomListe="supplierContactId"
+          nomNouveau="nouveauFournisseurNom"
+          libelleNouveau="Nouveau fournisseur"
+          libelleNom="Nom du nouveau fournisseur"
+          libelleRetour="Choisir un fournisseur existant"
+          options={fournisseurs}
+          requis
+          aucun="Choisir le fournisseur"
+          aide={fournisseurs.length === 0 ? "Aucun fournisseur encore : crée-le avec « Nouveau fournisseur »." : undefined}
+        />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm">

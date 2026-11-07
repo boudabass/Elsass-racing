@@ -45,7 +45,7 @@ Si tu n'as qu'une heure, fais ces dix étapes. Chacune renvoie à la section dé
 ## Étape 3 : licence, ASA, document, casque
 
 1. Sur la fiche de Léa, onglet **Licences**, clique sur **Ajouter une licence** : type « Licence FFSA régionale », numéro, et une date **Valable jusqu'au** dans le passé ou dans le futur.
-2. Champ **ASA** : la liste ne contient que les contacts de la team de catégorie ASA. Sans contact ASA, l'aide dit « Aucune ASA parmi les contacts de la team. ». Choisis-en un si tu en as un, sinon clique sur **Nouvel ASA**, tape son nom : le champ s'ouvre dans le même tiroir, l'ASA rejoint les contacts de la team et devient celle de la licence. Pour revenir à la liste, « Choisir une ASA existante ».
+2. Champ **ASA** : la liste ne contient que les contacts de la team de catégorie ASA. Sans contact ASA, l'aide dit « Aucune ASA parmi les contacts de la team. ». Choisis-en un si tu en as un, sinon clique sur **Nouvelle ASA**, tape son nom : le champ s'ouvre dans le même tiroir, l'ASA rejoint les contacts de la team et devient celle de la licence. Pour revenir à la liste, « Choisir une ASA existante ».
 3. Champ **Document de la licence** : envoie une photo ou un PDF. Sur la licence, « Voir le document de la licence » ouvre le fichier dans un nouvel onglet.
 4. La licence apparaît avec son état (valide, à renouveler ou expiré), sa date et son ASA. Une date passée donne « expiré » sur la carte (« Licence : expiré »), et le mot se lit même sans la couleur.
 5. Onglet **Équipement** : **Ajouter un équipement**, type « Casque », marque, et une fin d'homologation. Le casque apparaît.
@@ -162,6 +162,12 @@ Prérequis : une liste d'engagement (5.5a) acceptée, et ton téléphone connect
 3. Un papier, une licence ou un document qui expire : la proposition, point critique, apparaît dans la boîte. Une licence ne se propose que si la personne est pilote ou copilote d'une épreuve à venir.
 4. Sans liste ouverte pour l'épreuve visée, aucune proposition n'apparaît : c'est voulu, rien ne crée de liste en douce.
 5. À relire par John : le titre « Points ajoutés » de la section créée quand une liste n'en a pas, et le libellé « Relire le règlement : <titre> ».
+
+## Étape 17 : fournisseur et prestataire créés depuis le champ (5.8b)
+
+1. Garage, Organes, Freins : Remplacer, désignation, prix « 45,00 ». Le fournisseur est obligatoire : clique sur **Nouveau fournisseur**, tape un nom, puis **Choisir un fournisseur existant** revient à la liste. Remplace la pièce : le fournisseur est créé, il apparaît ensuite dans la liste de Commandes.
+2. Menu Commandes, **Nouvelle commande** : **Nouveau fournisseur** saisit un second fournisseur, une ligne, enregistre. La commande part chez lui.
+3. Un nom déjà utilisé (sans tenir compte des majuscules ni des espaces) réutilise le contact existant : il n'en apparaît pas un second.
 
 ## Ce qui n'est pas encore là
 
