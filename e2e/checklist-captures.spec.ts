@@ -35,7 +35,6 @@ test("captures · préparation, liste, fiche, mode terrain, avertissement, débr
   await connecterParLien(page, equipe)
 
   // Données réelles, créées par l'interface : la proposition acceptée, deux listes, des points.
-  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
   await accepterListes(page, equipe, entryId)
 
   // « Contrôles » (avant départ) porte les coches et le problème. « Test retour » (retour) reste vierge : c'est elle
