@@ -82,7 +82,10 @@ test("captures · champ « Nouveau fournisseur » du tiroir Remplacer et de la c
       await tiroir.getByRole("button", { name: "Nouveau fournisseur", exact: true }).click()
       await expect(tiroir.getByLabel("Nom du nouveau fournisseur", { exact: true })).toBeVisible()
       await capturer(page, `garage-contacts-remplacer-${largeur}-${theme}.png`)
+      // Le tiroir est modifié (prix saisi) : Escape demande « Abandonner les modifications ? », qu'on confirme.
       await page.keyboard.press("Escape")
+      await expect(tiroir.getByText("Abandonner les modifications ?")).toBeVisible()
+      await tiroir.getByRole("button", { name: "Abandonner", exact: true }).click()
       await expect(page.getByRole("dialog")).toHaveCount(0)
 
       await page.goto(`/apps/garage/commandes?vehicule=${vehicleId}`)

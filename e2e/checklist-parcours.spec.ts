@@ -6,7 +6,7 @@ import path from "node:path"
 import type { Response } from "@playwright/test"
 
 import { preparerEngagementChecklist } from "./aide/checklist"
-import { envoyer } from "./aide/envoi"
+import { envoyer, envoyerSansFermeture } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
 import { ajouterMembreConnectable, statutAction, statutPointChecklistEnBase } from "./aide/session"
@@ -24,7 +24,8 @@ test("Check-lists · responsable : boîte, liste en phase Retour, coche, problè
   await page.getByRole("button", { name: /Boîte d'actions/ }).click()
   const boite = page.getByRole("dialog")
   await expect(boite.getByRole("heading", { name: "Créer les listes de l'engagement" })).toBeVisible()
-  await boite.getByRole("button", { name: "Accepter", exact: true }).click()
+  // Les listes se créent après la décision, dans la même requête : on attend la réponse avant de naviguer (envoi.ts).
+  await envoyerSansFermeture(page, boite.getByRole("button", { name: "Accepter", exact: true }))
   await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
 
   // 2. Préparation : les listes de l'engagement sont là, sous « Par engagement ».

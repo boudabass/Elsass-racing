@@ -25,7 +25,8 @@ const REPONSE_ACTION = (r: { request: () => { method: () => string; headers: () 
 // Accepte la proposition « Créer les listes » : les listes de l'engagement existent ensuite.
 async function accepterListes(page: Page, equipe: Equipe, entryId: string): Promise<void> {
   await page.getByRole("button", { name: /Boîte d'actions/ }).click()
-  await page.getByRole("dialog").getByRole("button", { name: "Accepter", exact: true }).click()
+  // Les listes se créent après la décision, dans la même requête : on attend la réponse avant de naviguer (envoi.ts).
+  await envoyerSansFermeture(page, page.getByRole("dialog").getByRole("button", { name: "Accepter", exact: true }))
   await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
 }
 
