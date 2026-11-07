@@ -89,6 +89,14 @@ test("captures · équipe en cartes et fiche personne (Statistiques, Licences), 
       await expect(page.getByText("N° N-2032", { exact: false }).first()).toBeVisible()
       await capturer(page, `equipe-fiche-licences-${taille.largeur}-${theme}.png`)
 
+      // Le champ « Nouvel ASA » du tiroir de licence (5.8b) : ouvert, puis fermé avant la suite.
+      await page.getByRole("button", { name: "Ajouter une licence", exact: true }).click()
+      await page.getByRole("button", { name: "Nouvel ASA", exact: true }).click()
+      await expect(page.getByLabel("Nom de la nouvelle ASA", { exact: true })).toBeVisible()
+      await capturer(page, `equipe-licence-nouvelle-asa-${taille.largeur}-${theme}.png`)
+      await page.keyboard.press("Escape")
+      await expect(page.getByRole("dialog")).toHaveCount(0)
+
       // Les écrans du menu de l'app : vivier, prochaine épreuve, binômes (à partir de la fiche, par clic).
       await menu.getByRole("link", { name: "Vivier", exact: true }).click()
       await expect(page.getByRole("heading", { name: "Vivier", exact: true })).toBeVisible()

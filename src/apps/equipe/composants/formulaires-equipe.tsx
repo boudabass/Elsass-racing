@@ -8,7 +8,7 @@ import { useState, type ReactNode } from "react"
 
 import { ChampFichier } from "@/components/formulaire/champ-fichier"
 import { TiroirAction } from "@/components/formulaire/tiroir"
-import { CHAMP } from "@/lib/classes-formulaire"
+import { CHAMP, LIEN } from "@/lib/classes-formulaire"
 
 import {
   ajouterEquipementAction,
@@ -154,6 +154,42 @@ function ChampDocumentLicence() {
   return <ChampFichier app="equipe" libelle="Document de la licence" valeur={fichier} name="documentFileId" onChange={(f) => setFichier(f?.id ?? null)} />
 }
 
+// Le choix d'ASA (5.8b) : un contact existant, ou « Nouvel ASA » qui ouvre un champ nom dans le même tiroir. Le champ
+// fermé ne part pas avec le formulaire : une seule des deux valeurs arrive au service.
+function ChampAsa({ asas, valeur }: { asas: Array<{ id: string; nom: string }>; valeur: string | null }) {
+  const [nouvelle, setNouvelle] = useState(false)
+  if (nouvelle) {
+    return (
+      <>
+        <Champ libelle="Nouvelle ASA" aide="Elle rejoint les contacts de la team et sera l'ASA de cette licence.">
+          {/* Même limite que le service (120 caractères). */}
+          <input name="nouvelAsaNom" aria-label="Nom de la nouvelle ASA" maxLength={120} className={CHAMP} />
+        </Champ>
+        <button type="button" onClick={() => setNouvelle(false)} className={LIEN}>
+          Choisir une ASA existante
+        </button>
+      </>
+    )
+  }
+  return (
+    <>
+      <Champ libelle="ASA" aide={asas.length === 0 ? "Aucune ASA parmi les contacts de la team." : "Le contact d'ASA de la licence, s'il est connu."}>
+        <select name="asaContactId" aria-label="ASA" defaultValue={valeur ?? ""} className={CHAMP}>
+          <option value="">Aucune</option>
+          {asas.map((asa) => (
+            <option key={asa.id} value={asa.id}>
+              {asa.nom}
+            </option>
+          ))}
+        </select>
+      </Champ>
+      <button type="button" onClick={() => setNouvelle(true)} className={LIEN}>
+        Nouvel ASA
+      </button>
+    </>
+  )
+}
+
 function champsLicence(valeurs: ValeursLicence | undefined, asas: Array<{ id: string; nom: string }>) {
   return (
     <>
@@ -183,16 +219,7 @@ function champsLicence(valeurs: ValeursLicence | undefined, asas: Array<{ id: st
       <Champ libelle="Valable jusqu'au" aide="Sans date de fin, la licence n'expire pas.">
         <input type="date" name="valableAu" defaultValue={jourPourChamp(valeurs?.valableAu ?? null)} className={CHAMP} />
       </Champ>
-      <Champ libelle="ASA" aide={asas.length === 0 ? "Aucune ASA parmi les contacts de la team." : "Le contact d'ASA de la licence, s'il est connu."}>
-        <select name="asaContactId" aria-label="ASA" defaultValue={valeurs?.asaContactId ?? ""} className={CHAMP}>
-          <option value="">Aucune</option>
-          {asas.map((asa) => (
-            <option key={asa.id} value={asa.id}>
-              {asa.nom}
-            </option>
-          ))}
-        </select>
-      </Champ>
+      <ChampAsa asas={asas} valeur={valeurs?.asaContactId ?? null} />
       <ChampDocumentLicence />
       <Champ libelle="Montant payé (€)" aide="Si tu le saisis, Budget propose la dépense. Une seule fois.">
         <input

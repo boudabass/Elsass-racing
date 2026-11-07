@@ -10,6 +10,7 @@ import { z } from "zod"
 
 import { jourDeParis } from "@/core/dates"
 import type { ContexteTeam } from "@/core/contexte"
+import { NOM_CONTACT_MAX, trouverOuCreerContact } from "@/core/contacts/contacts-serveur"
 import { rattacherFichier } from "@/core/fichiers/fichiers-serveur"
 import { creerTache, definirStatutTache, retirerTaches } from "@/core/taches/ecriture"
 import { exigerAcces } from "@/core/droits/garde-serveur"
@@ -42,6 +43,7 @@ import {
   statutLicence,
   TYPES_EQUIPEMENT,
   TYPES_LICENCE,
+  raisonChoixAsa,
   validiteCoherente,
   type TypeLicence,
 } from "./regles"
@@ -118,6 +120,13 @@ const baseLicence = {
   numero: texte(60),
   // Lien vers un contact de catégorie ASA (core_contact) : le service vérifie la catégorie.
   asaContactId: identifiant.nullable().optional(),
+  // Nouvelle ASA saisie dans la licence (5.8b) : le service la crée dans sa transaction. Jamais avec asaContactId.
+  nouvelAsaNom: z
+    .string()
+    .trim()
+    .min(1, "Donnez le nom de la nouvelle ASA.")
+    .max(NOM_CONTACT_MAX, `Le nom de l'ASA ne doit pas dépasser ${NOM_CONTACT_MAX} caractères.`)
+    .optional(),
   saison: texte(20),
   valableDu: jourCivil.nullable().optional(),
   valableAu: jourCivil.nullable().optional(),
@@ -257,6 +266,18 @@ async function verifierContactAsa(client: Client, ctx: ContexteTeam, contactId: 
   if (!contact) refus("Ce contact n'est pas une ASA de la team.")
 }
 
+// L'ASA d'une licence : une ASA existante, ou une nouvelle créée dans la transaction de la licence (5.8b). Jamais les deux.
+function verifierChoixAsa(donnees: { asaContactId?: string | null; nouvelAsaNom?: string }): void {
+  const raison = raisonChoixAsa(donnees)
+  if (raison) refus(raison)
+}
+
+// Renvoie l'id à poser sur la licence, ou undefined si la saisie ne touche pas à l'ASA (modification partielle).
+async function asaDeLicenceDans(tx: Tx, ctx: ContexteTeam, donnees: { asaContactId?: string | null; nouvelAsaNom?: string }): Promise<string | null | undefined> {
+  if (donnees.nouvelAsaNom !== undefined) return trouverOuCreerContact(tx, ctx, { nom: donnees.nouvelAsaNom, categorie: "asa" })
+  return donnees.asaContactId
+}
+
 function verifierValidite(valableDu: string | null | undefined, valableAu: string | null | undefined): void {
   if (!validiteCoherente(valableDu, valableAu)) refus("La fin de validité ne peut pas être avant le début.")
 }
@@ -288,11 +309,13 @@ export async function ajouterLicenceDans(ctx: ContexteTeam, personId: string, en
   verifierValidite(donnees.valableDu, donnees.valableAu)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
   await personneActiveDans(client, ctx, personId)
+  verifierChoixAsa(donnees)
   await verifierContactAsa(client, ctx, donnees.asaContactId)
 
   const id = newId()
   await avecReprisePourConflit(() =>
     executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+      const asaContactId = await asaDeLicenceDans(tx, ctx, donnees)
       await tx.equipeLicence.create({
         data: {
           id,
@@ -300,7 +323,7 @@ export async function ajouterLicenceDans(ctx: ContexteTeam, personId: string, en
           personId,
           type: donnees.type,
           numero: donnees.numero ?? null,
-          asaContactId: donnees.asaContactId ?? null,
+          asaContactId: asaContactId ?? null,
           saison: donnees.saison ?? null,
           valableDu: jourOptionnel(donnees.valableDu) ?? null,
           valableAu: jourOptionnel(donnees.valableAu) ?? null,
@@ -331,19 +354,21 @@ export async function modifierLicenceDans(ctx: ContexteTeam, id: string, entree:
   const avant = await licenceActiveDans(client, ctx, id)
   await exigerDossier(ctx, niveau, avant.personId)
   verifierValidite(valeurFinale(donnees.valableDu, jourDe(avant.valableDu)), valeurFinale(donnees.valableAu, jourDe(avant.valableAu)))
+  verifierChoixAsa(donnees)
   await verifierContactAsa(client, ctx, donnees.asaContactId)
 
-  const modifs = renseignes({
-    type: donnees.type,
-    numero: donnees.numero,
-    asaContactId: donnees.asaContactId,
-    saison: donnees.saison,
-    valableDu: jourOptionnel(donnees.valableDu),
-    valableAu: jourOptionnel(donnees.valableAu),
-    montantCents: donnees.montantCents,
-  })
   await avecReprisePourConflit(() =>
     executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
+      const asaContactId = await asaDeLicenceDans(tx, ctx, donnees)
+      const modifs = renseignes({
+        type: donnees.type,
+        numero: donnees.numero,
+        asaContactId,
+        saison: donnees.saison,
+        valableDu: jourOptionnel(donnees.valableDu),
+        valableAu: jourOptionnel(donnees.valableAu),
+        montantCents: donnees.montantCents,
+      })
       await tx.equipeLicence.update({ where: { id }, data: { ...modifs, rev: { increment: 1 }, updatedBy: ctx.userId } })
       if (donnees.documentFileId) {
         const pieceId = await attacherDocumentDans(tx, ctx, donnees.documentFileId, "licence", id)

@@ -42,6 +42,7 @@ export async function ajouterLicence(
   document?: string,
   montantPaye?: string,
   asa?: string,
+  nouvelleAsa?: string,
 ): Promise<void> {
   await ouvrirOnglet(page, "Licences")
   await page.getByRole("button", { name: "Ajouter une licence", exact: true }).click()
@@ -49,6 +50,11 @@ export async function ajouterLicence(
   await tiroir(page).getByLabel("Numéro", { exact: true }).fill(numero)
   await tiroir(page).getByLabel("Valable jusqu'au").fill(valableAu)
   if (asa) await tiroir(page).locator('select[name="asaContactId"]').selectOption({ label: asa })
+  // Nouvelle ASA (5.8b) : le champ nom s'ouvre dans le même tiroir, et l'ASA naît avec la licence.
+  if (nouvelleAsa) {
+    await tiroir(page).getByRole("button", { name: "Nouvel ASA", exact: true }).click()
+    await tiroir(page).getByLabel("Nom de la nouvelle ASA", { exact: true }).fill(nouvelleAsa)
+  }
   // Non exact : le libellé du champ enveloppé contient son aide (« Si tu le saisis, Budget propose la dépense… »).
   if (montantPaye) await tiroir(page).getByLabel("Montant payé (€)").fill(montantPaye)
   if (document) {

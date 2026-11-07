@@ -70,6 +70,8 @@ function saisieLicence(donnees: FormData): EntreeLicence {
     valableDu: texteOuNull(donnees, "valableDu"),
     valableAu: texteOuNull(donnees, "valableAu"),
     asaContactId: texteOuNull(donnees, "asaContactId"),
+    // Présent seulement quand le champ « Nouvelle ASA » est ouvert : sinon le formulaire ne l'envoie pas (5.8b).
+    nouvelAsaNom: donnees.has("nouvelAsaNom") ? texte(donnees, "nouvelAsaNom") : undefined,
     documentFileId: texteOuNull(donnees, "documentFileId"),
     montantCents: centimesDepuis(texte(donnees, "montant")),
   }

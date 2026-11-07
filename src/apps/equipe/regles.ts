@@ -184,6 +184,12 @@ export function validiteCoherente(valableDu: string | null | undefined, valableA
   return valableAu >= valableDu
 }
 
+// L'ASA d'une licence : un contact existant, ou une nouvelle ASA (5.8b), jamais les deux. Renvoie la raison du refus, ou null.
+// « nouvelAsaNom » absent = le formulaire ne touche pas à l'ASA nouvelle ; présent = le champ « Nouvel ASA » est ouvert.
+export function raisonChoixAsa(choix: { asaContactId?: string | null; nouvelAsaNom?: string }): string | null {
+  return choix.asaContactId && choix.nouvelAsaNom !== undefined ? "Choisis une ASA existante ou crée-la, pas les deux." : null
+}
+
 // ─── Listes fermées (955 §3). Identiques aux enums de prisma/schema.prisma et de la migration equipe_schema. ─
 
 export const ROLES_HABITUELS = ["pilote", "copilote", "assistance", "benevole"] as const

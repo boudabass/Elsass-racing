@@ -12,6 +12,7 @@ import type { ContexteTeam } from "@/core/contexte"
 import { type FicheSource, rattacherDepuisSource, rattacherFichier } from "@/core/fichiers/fichiers-serveur"
 import { exigerAcces } from "@/core/droits/garde-serveur"
 import { type Niveau } from "@/core/droits/niveaux"
+import { chercherContact, normaliserNom, trouverOuCreerContact } from "@/core/contacts/contacts-serveur"
 import { emettre } from "@/core/evenements/bus-serveur"
 import { newId } from "@/core/ids"
 import { executerPourTeam, prismaPourTeam } from "@/lib/prisma"
@@ -46,7 +47,7 @@ import {
   type ValeurModele,
 } from "./regles"
 
-export { ErreurPartenaires }
+export { ErreurPartenaires, normaliserNom }
 
 // --- Accès ----------------------------------------------------------------------------------
 
@@ -97,11 +98,6 @@ function versJourOuNull(jour: string | null | undefined): Date | null {
 
 function jourDe(date: Date | null): string | null {
   return date ? date.toISOString().slice(0, 10) : null
-}
-
-// Nom d'entreprise comparé sans casse ni espaces superflus : « Garage  Muller » = « garage muller ».
-export function normaliserNom(nom: string): string {
-  return nom.trim().replace(/\s+/g, " ").toLowerCase()
 }
 
 // Échéancier stocké en JSON : on relit seulement ce qui est bien formé.
@@ -290,11 +286,7 @@ export async function creerProspectDans(ctx: ContexteTeam, entree: EntreeProspec
   const donnees = schemaProspect.parse(entree)
   const client = prismaPourTeam(ctx.teamId, ctx.userId)
 
-  const contacts = await client.coreContact.findMany({
-    where: { teamId: ctx.teamId, deletedAt: null },
-    select: { id: true, nom: true, categories: true },
-  })
-  const existant = contacts.find((contact) => normaliserNom(contact.nom) === normaliserNom(donnees.entreprise)) ?? null
+  const existant = await chercherContact(ctx, donnees.entreprise)
 
   if (existant) {
     const dejaPartenaire = await client.partenairesPartner.findFirst({
@@ -305,28 +297,10 @@ export async function creerProspectDans(ctx: ContexteTeam, entree: EntreeProspec
   }
 
   const id = newId()
-  const contactId = existant?.id ?? newId()
   const personneId = donnees.contact ? newId() : null
 
   await executerPourTeam(ctx.teamId, ctx.userId, async (tx) => {
-    if (existant) {
-      const categories = existant.categories.includes("partenaire") ? existant.categories : [...existant.categories, "partenaire" as const]
-      await tx.coreContact.update({
-        where: { id: contactId },
-        data: { categories, rev: { increment: 1 }, updatedBy: ctx.userId },
-      })
-    } else {
-      await tx.coreContact.create({
-        data: {
-          id: contactId,
-          teamId: ctx.teamId,
-          nom: donnees.entreprise,
-          categories: ["partenaire"],
-          createdBy: ctx.userId,
-          updatedBy: ctx.userId,
-        },
-      })
-    }
+    const contactId = await trouverOuCreerContact(tx, ctx, { nom: donnees.entreprise, categorie: "partenaire" })
     if (donnees.contact && personneId) {
       await tx.corePerson.create({
         data: {

@@ -45,7 +45,7 @@ Si tu n'as qu'une heure, fais ces dix étapes. Chacune renvoie à la section dé
 ## Étape 3 : licence, ASA, document, casque
 
 1. Sur la fiche de Léa, onglet **Licences**, clique sur **Ajouter une licence** : type « Licence FFSA régionale », numéro, et une date **Valable jusqu'au** dans le passé ou dans le futur.
-2. Champ **ASA** : la liste ne contient que les contacts de la team de catégorie ASA. Sans contact ASA, l'aide dit « Aucune ASA parmi les contacts de la team. ». Choisis-en un si tu en as un, sinon « Aucune ».
+2. Champ **ASA** : la liste ne contient que les contacts de la team de catégorie ASA. Sans contact ASA, l'aide dit « Aucune ASA parmi les contacts de la team. ». Choisis-en un si tu en as un, sinon clique sur **Nouvel ASA**, tape son nom : le champ s'ouvre dans le même tiroir, l'ASA rejoint les contacts de la team et devient celle de la licence. Pour revenir à la liste, « Choisir une ASA existante ».
 3. Champ **Document de la licence** : envoie une photo ou un PDF. Sur la licence, « Voir le document de la licence » ouvre le fichier dans un nouvel onglet.
 4. La licence apparaît avec son état (valide, à renouveler ou expiré), sa date et son ASA. Une date passée donne « expiré » sur la carte (« Licence : expiré »), et le mot se lit même sans la couleur.
 5. Onglet **Équipement** : **Ajouter un équipement**, type « Casque », marque, et une fin d'homologation. Le casque apparaît.

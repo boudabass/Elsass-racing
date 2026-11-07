@@ -25,7 +25,6 @@ import { connecterParLien, tuilesDuQg } from "./aide/navigation"
 import {
   ajouterEquipier,
   ajouterMembreConnectable,
-  contactAsaEnBase,
   depenseBudgetParLibelle,
   depensesBudgetEnBase,
   propositionsDeLicenceEnBase,
@@ -167,10 +166,9 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
   let contexteAssistance: BrowserContext | undefined
   await test.step("1. Équipe : pilote et copilote, licence avec document joint et ASA, casque ; la dépense se décide dans Budget", async () => {
     piloteId = await creerPersonne(page, "Théo", "Pilote", "Pilote")
-    // Le contact ASA n'a pas d'écran de création : le test le pose en base, la licence le choisit dans son formulaire.
-    await contactAsaEnBase(equipe, "ASA test e2e")
-    // Licence payée (150 €) : Budget reçoit une proposition de dépense « Licence et ASA ». Le test compte en base, pas à l'écran.
-    await ajouterLicence(page, "Licence FFSA régionale", "L-PIL-5", `${ANNEE}-12-31`, PDF, "150", "ASA test e2e")
+    // Licence payée (150 €) avec une ASA créée depuis le champ « Nouvel ASA » (5.8b) : Budget reçoit une proposition de
+    // dépense « Licence et ASA ». Le test compte en base, pas à l'écran.
+    await ajouterLicence(page, "Licence FFSA régionale", "L-PIL-5", `${ANNEE}-12-31`, PDF, "150", undefined, "ASA test e2e")
     await expect(page.getByText("ASA : ASA test e2e")).toBeVisible()
     urlLicence = await page.locator('a[href^="/api/fichiers/"]').first().getAttribute("href")
     expect(urlLicence).toMatch(/^\/api\/fichiers\/[^/?#]+$/)

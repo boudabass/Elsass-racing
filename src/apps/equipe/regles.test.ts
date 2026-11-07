@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   binomesDePersonne,
   epreuvesAssistance,
+  raisonChoixAsa,
   epreuvesAssistanceIds,
   epreuvesDuPalier,
   estEquipage,
@@ -282,5 +283,18 @@ describe("voitDocumentsDuDossier", () => {
     expect(voitDocumentsDuDossier({ estSoi: false, niveau: "lecture" })).toBe(false)
     expect(voitDocumentsDuDossier({ estSoi: false, niveau: "ecriture" })).toBe(true)
     expect(voitDocumentsDuDossier({ estSoi: false, niveau: "gestion" })).toBe(true)
+  })
+})
+
+describe("raisonChoixAsa", () => {
+  it("accepte une ASA existante seule, une nouvelle seule, ou aucune", () => {
+    expect(raisonChoixAsa({ asaContactId: "c-1" })).toBeNull()
+    expect(raisonChoixAsa({ nouvelAsaNom: "ASA Alsace" })).toBeNull()
+    expect(raisonChoixAsa({ asaContactId: null, nouvelAsaNom: "ASA Alsace" })).toBeNull()
+    expect(raisonChoixAsa({})).toBeNull()
+  })
+
+  it("refuse les deux à la fois, avec la raison", () => {
+    expect(raisonChoixAsa({ asaContactId: "c-1", nouvelAsaNom: "ASA Alsace" })).toBe("Choisis une ASA existante ou crée-la, pas les deux.")
   })
 })
