@@ -765,3 +765,12 @@
 - Trois runs rouges en chaîne, tous corrigés dans le code de test. `f875cdd` : « Accepter » de « Créer les listes » suivi d'une navigation sans attendre la réponse serveur (cause probable, corrigée par `envoyerSansFermeture`, comme `accepterListes`) ; capture Remplacer où Escape ouvre la garde « Abandonner les modifications ? » (comportement voulu, le test le confirme). `7ab8c12` : vert, 186 e2e, 1266 unitaires.
 - Audit des captures : huit `garage-contacts-*` relues en 1440 et 360, sombre et clair ; une douzaine d'autres écrans du lot 5 relus. Le reste de l'audit n'est pas fait (voir `docs/tests.md`, passe 5.8). Constats mineurs notés, non corrigés : libellé « Désignation » sous l'en-tête du tiroir en 360 après le focus ; contraste de « Plus tard » à mesurer.
 - Test de John : étape 3 (ASA créée depuis la licence) et étape 17 (fournisseur créé depuis le champ) dans `docs/test-john-lot-5.md`.
+
+## 07/11/2026 : brief 5.9, priorité 1 « Bloquant » pour une épreuve proche
+
+- Une règle pure pour le rang bloquant (`src/core/actions/rang-obligation.ts`) : une épreuve qui commence au plus tard dans 7 jours (jour civil de Paris, J+7 compris), ou en cours. Une licence, une homologation ou un papier qui n'est pas valable le jour de l'épreuve passe au rang 1, même s'il est valable aujourd'hui. Forfait, abandon, arrivée et parti ne bloquent plus.
+- Émetteurs branchés : Équipe (licence et homologation du pilote ou du copilote) et Voiture (papiers du véhicule). L'action garde son `eventId`, et le libellé « Bloquant pour <épreuve> » nomme l'épreuve de l'action, pas la prochaine du calendrier.
+- Saison : rappel `payer_engagement` pour un engagement envisagé ou inscrit dans la fenêtre. Bouton-lien « Voir l'engagement » ; levé au paiement, au forfait, à l'annulation ou à la fin.
+- Constats : la bulle « Prochaine étape » n'est pas rendue par le QG (`prochaineEtape` est calculé, jamais affiché). Le libellé est donc porté par la carte de la boîte, seul écran où l'action bloquante se lit. Les recalculs ne se font qu'à l'ouverture du QG.
+- Reporté : pièce en zone rouge (Garage), papier manquant par type, Documents.
+- Tests : unitaires (fenêtre J-8, J-7, J0, en cours, chaque statut, deux épreuves), `db:verifier-priorites` adapté, e2e `e2e/bloquant-epreuve.spec.ts` (CI seulement).

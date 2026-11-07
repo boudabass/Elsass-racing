@@ -4,6 +4,7 @@ import { APPS } from "@/core/catalogue"
 import { deciderAction } from "@/core/actions/formulaires"
 import type { GroupeAction } from "@/core/actions/regroupement"
 import type { ActionBoite } from "@/core/actions/filtrage"
+import { PRIORITE, pourquoi } from "@/core/actions/priorites"
 import { LIEN } from "@/lib/classes-formulaire"
 
 import { ReporterAction } from "./reporter-action"
@@ -62,6 +63,8 @@ function CarteAction({ action }: { action: ActionBoite }) {
     <article id={`action-${action.id}`} className="scroll-mt-24 rounded-lg border border-bordure bg-surface p-4">
       <h3 className="text-lg font-semibold leading-snug">{action.titre}</h3>
       <p className="mt-1 text-sm text-texte-discret">{ligne}</p>
+      {/* Rang 1 (5.9) : le libellé dit pour quelle épreuve l'action bloque, en texte (jamais la couleur seule). */}
+      {action.priorite === PRIORITE.bloquant && <p className="mt-2 font-medium">{pourquoi(action.priorite, action.epreuveNom ?? undefined)}</p>}
       {action.contexte && <p className="mt-2 text-texte-discret">{action.contexte}</p>}
       {action.messageRefus && (
         <p role="alert" className="mt-2 rounded-md border border-etat-rouge px-3 py-2 text-sm text-etat-rouge">

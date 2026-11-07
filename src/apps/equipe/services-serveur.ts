@@ -6,6 +6,8 @@
 
 import { actionEcheanceProposable } from "@/core/actions/proposable-serveur"
 import { prioriteEcheance } from "@/core/actions/priorites"
+import { rangObligation } from "@/core/actions/rang-obligation"
+import { engagementsDesPersonnes } from "@/core/actions/rang-obligation-serveur"
 import { z } from "zod"
 
 import { jourDeParis } from "@/core/dates"
@@ -946,14 +948,29 @@ export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> 
     select: { id: true },
   })
 
+  // Engagements de chaque personne concernée (pilote ou copilote) : un document non valable le jour d'une épreuve proche est bloquant.
+  const engagements = await engagementsDesPersonnes(
+    client,
+    ctx,
+    [...licences.map((licence) => licence.personId), ...equipements.map((equipement) => equipement.personId)],
+    maintenant,
+  )
+
   for (const licence of licences) {
     const echeance = jourDe(licence.valableAu)
-    if (!echeance || statutLicence(licence.valableAu, maintenant) === "valide") continue
+    if (!echeance) continue
     const nom = `${licence.person.prenom} ${licence.person.nom}`
-    if (!(await echeanceDejaEmise(client, ctx, "equipe.licence_expire_bientot", "licenceId", licence.id, echeance))) {
+    const aRenouveler = statutLicence(licence.valableAu, maintenant) !== "valide"
+    // Valable aujourd'hui mais plus le jour d'une épreuve proche de la personne : rang 1 (5.9).
+    const bloquant = rangObligation({ valableJusquAu: licence.valableAu }, engagements.get(licence.personId) ?? [], maintenant)
+    if (!aRenouveler && !bloquant) {
+      await leverRenouvellementsDans(ctx, "licence_a_renouveler", licence.id)
+      continue
+    }
+    if (aRenouveler && !(await echeanceDejaEmise(client, ctx, "equipe.licence_expire_bientot", "licenceId", licence.id, echeance))) {
       await emettre(ctx, "equipe.licence_expire_bientot", chargeLicenceExpireBientot.parse({ personId: licence.personId, licenceId: licence.id, echeance }))
     }
-    // L'action suit la date à chaque recalcul : son rang passe de 9 à 2 le jour J (table core/actions/priorites.ts).
+    // L'action suit la date à chaque recalcul : son rang passe de 9 à 2 le jour J (table core/actions/priorites.ts), ou à 1 si bloquant.
     const cleUnicite = `licence:${licence.id}:${echeance}`
     if (responsables.length > 0 && (await actionEcheanceProposable(client, ctx, cleUnicite))) {
       await emettre(ctx, "equipe.action_requise", {
@@ -966,7 +983,8 @@ export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> 
         destinataires: { memberships: responsables.map((membre) => membre.id) },
         // Lien vers l'onglet Licences de la personne (5.6 §0) : l'action se lève au renouvellement.
         boutons: [{ cle: "renouveler", libelle: "Renouveler", lien: `/apps/equipe/personnes/${licence.personId}?onglet=licences` }],
-        priorite: prioriteEcheance(new Date(`${echeance}T00:00:00.000Z`), maintenant),
+        priorite: bloquant ? bloquant.priorite : prioriteEcheance(new Date(`${echeance}T00:00:00.000Z`), maintenant),
+        ...(bloquant ? { eventId: bloquant.eventId } : {}),
         niveauRequis: "gestion",
         cleRegroupement: "echeances_equipe",
       })
@@ -975,9 +993,15 @@ export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> 
 
   for (const equipement of equipements) {
     const echeance = jourDe(equipement.finHomologation)
-    if (!echeance || statutEquipement(equipement.finHomologation, maintenant) === "valide") continue
+    if (!echeance) continue
     const nom = `${equipement.person.prenom} ${equipement.person.nom}`
-    if (!(await echeanceDejaEmise(client, ctx, "equipe.homologation_expire_bientot", "equipementId", equipement.id, echeance))) {
+    const aRenouveler = statutEquipement(equipement.finHomologation, maintenant) !== "valide"
+    const bloquant = rangObligation({ valableJusquAu: equipement.finHomologation }, engagements.get(equipement.personId) ?? [], maintenant)
+    if (!aRenouveler && !bloquant) {
+      await leverRenouvellementsDans(ctx, "homologation_a_renouveler", equipement.id)
+      continue
+    }
+    if (aRenouveler && !(await echeanceDejaEmise(client, ctx, "equipe.homologation_expire_bientot", "equipementId", equipement.id, echeance))) {
       await emettre(
         ctx,
         "equipe.homologation_expire_bientot",
@@ -996,7 +1020,8 @@ export async function recalculerEcheancesDans(ctx: ContexteTeam): Promise<void> 
         destinataires: { memberships: responsables.map((membre) => membre.id) },
         // Lien vers l'onglet Équipement de la personne (5.6 §0) : l'action se lève au renouvellement.
         boutons: [{ cle: "renouveler", libelle: "Renouveler", lien: `/apps/equipe/personnes/${equipement.personId}?onglet=equipement` }],
-        priorite: prioriteEcheance(new Date(`${echeance}T00:00:00.000Z`), maintenant),
+        priorite: bloquant ? bloquant.priorite : prioriteEcheance(new Date(`${echeance}T00:00:00.000Z`), maintenant),
+        ...(bloquant ? { eventId: bloquant.eventId } : {}),
         niveauRequis: "gestion",
         cleRegroupement: "echeances_equipe",
       })

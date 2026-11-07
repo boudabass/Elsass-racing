@@ -129,11 +129,18 @@ describe("prochaine étape", () => {
     const actions = [
       action({ id: "p2", priorite: 2 }),
       action({ id: "p7", priorite: 7 }),
-      action({ id: "p1", priorite: 1 }),
+      action({ id: "p1", priorite: 1, epreuveNom: "Rallye du Florival" }),
     ]
     const etape = choisirProchaineEtape({ actions, maintenant: T0, prochaineEpreuve: epreuve, modeTerrain: false })
     expect(etape.genre === "action" && etape.action.id).toBe("p1")
     expect(etape.genre === "action" && etape.pourquoi).toBe("Bloquant pour Rallye du Florival")
+  })
+
+  it("le rang 1 nomme l'épreuve de l'action, pas la prochaine épreuve du calendrier", () => {
+    const prochaine = { nom: "Rallye du Florival", dateDebut: new Date(T0.getTime() + 24 * 60 * 60 * 1000) }
+    const actions = [action({ id: "p1", priorite: 1, epreuveNom: "Rallye de la Saxo" })]
+    const etape = choisirProchaineEtape({ actions, maintenant: T0, prochaineEpreuve: prochaine, modeTerrain: false })
+    expect(etape.genre === "action" && etape.pourquoi).toBe("Bloquant pour Rallye de la Saxo")
   })
 
   it("au-delà de 48 heures, la règle de l'épreuve ne s'applique pas", () => {

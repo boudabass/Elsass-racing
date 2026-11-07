@@ -70,7 +70,8 @@ export function choisirProchaineEtape({
       genre: "action",
       action,
       libelle: action.titre,
-      pourquoi: pourquoi(action.priorite, prochaineEpreuve?.nom),
+      // Le rang 1 nomme l'épreuve de l'action elle-même, pas la prochaine épreuve du calendrier.
+      pourquoi: pourquoi(action.priorite, action.epreuveNom ?? undefined),
     }
   }
 

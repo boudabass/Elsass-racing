@@ -7,6 +7,8 @@
 
 import { actionEcheanceProposable } from "@/core/actions/proposable-serveur"
 import { prioriteEcheance } from "@/core/actions/priorites"
+import { rangObligation, type EngagementPourRang } from "@/core/actions/rang-obligation"
+import { engagementsDuVehicule } from "@/core/actions/rang-obligation-serveur"
 import { z } from "zod"
 
 import type { ContexteTeam } from "@/core/contexte"
@@ -969,34 +971,44 @@ export async function recalculerPapiersDans(ctx: ContexteTeam): Promise<void> {
     where: { teamId: ctx.teamId, deletedAt: null, valableJusquAu: { not: null }, vehicle: { actif: true, deletedAt: null } },
     select: { id: true, vehicleId: true, type: true, libelle: true, valableJusquAu: true, vehicle: { select: { nomCourt: true } } },
   })
-  const aRappeler = papiers.flatMap((papier) => {
-    const statut = statutPapier(papier.valableJusquAu, maintenant)
-    return statut === "a_renouveler" || statut === "expire" ? [{ ...papier, statut }] : []
-  })
-  if (aRappeler.length === 0) return
+  // Engagements de chaque véhicule suivi : un papier non valable le jour d'une épreuve proche est bloquant (5.9).
+  const engagements = new Map<string, EngagementPourRang[]>()
+  for (const vehicleId of Array.from(new Set(papiers.map((papier) => papier.vehicleId)))) {
+    engagements.set(vehicleId, await engagementsDuVehicule(client, ctx, vehicleId, maintenant))
+  }
 
   const responsables = await client.coreMembership.findMany({
     where: { teamId: ctx.teamId, statut: "actif", deletedAt: null, role: "responsable" },
     select: { id: true },
   })
 
-  for (const papier of aRappeler) {
+  // Papiers dont l'action doit rester ouverte : à renouveler, ou bloquant pour une épreuve proche.
+  const aGarder = new Set<string>()
+  for (const papier of papiers) {
     const echeance = jourDe(papier.valableJusquAu)
     if (!echeance) continue
-    const dejaEmis = await client.coreDomainEvent.findFirst({
-      where: {
-        teamId: ctx.teamId,
-        nom: "voiture.papier_expire_bientot",
-        AND: [{ donnees: { path: ["paperId"], equals: papier.id } }, { donnees: { path: ["echeance"], equals: echeance } }],
-      },
-      select: { id: true },
-    })
+    const statut = statutPapier(papier.valableJusquAu, maintenant)
+    const aRenouveler = statut === "a_renouveler" || statut === "expire"
+    const bloquant = rangObligation({ valableJusquAu: papier.valableJusquAu }, engagements.get(papier.vehicleId) ?? [], maintenant)
+    if (!aRenouveler && !bloquant) continue
+    aGarder.add(papier.id)
+
     const type = libelleTypePapier(papier.type, papier.libelle)
-    const quand = papier.statut === "expire" ? `expiré depuis le ${dateCourte(echeance)}` : `expire le ${dateCourte(echeance)}`
-    if (!dejaEmis) {
-      await emettre(ctx, "voiture.papier_expire_bientot", chargePapierExpireBientot.parse({ vehicleId: papier.vehicleId, paperId: papier.id, type: papier.type, echeance }))
+    const quand = statut === "expire" ? `expiré depuis le ${dateCourte(echeance)}` : `expire le ${dateCourte(echeance)}`
+    if (aRenouveler) {
+      const dejaEmis = await client.coreDomainEvent.findFirst({
+        where: {
+          teamId: ctx.teamId,
+          nom: "voiture.papier_expire_bientot",
+          AND: [{ donnees: { path: ["paperId"], equals: papier.id } }, { donnees: { path: ["echeance"], equals: echeance } }],
+        },
+        select: { id: true },
+      })
+      if (!dejaEmis) {
+        await emettre(ctx, "voiture.papier_expire_bientot", chargePapierExpireBientot.parse({ vehicleId: papier.vehicleId, paperId: papier.id, type: papier.type, echeance }))
+      }
     }
-    // L'action suit la date à chaque recalcul : son rang passe de 9 à 2 le jour J (table core/actions/priorites.ts).
+    // L'action suit la date à chaque recalcul : son rang passe de 9 à 2 le jour J (table core/actions/priorites.ts), ou à 1 si bloquant.
     const cleUnicite = cleRappelPapier(papier.id, echeance)
     if (responsables.length === 0 || !(await actionEcheanceProposable(client, ctx, cleUnicite))) continue
     await emettre(ctx, "voiture.action_requise", {
@@ -1008,9 +1020,19 @@ export async function recalculerPapiersDans(ctx: ContexteTeam): Promise<void> {
       ficheId: papier.id,
       destinataires: { memberships: responsables.map((membre) => membre.id) },
       boutons: [{ cle: "vu", libelle: "Vu" }],
-      priorite: prioriteEcheance(new Date(`${echeance}T00:00:00.000Z`), maintenant),
+      priorite: bloquant ? bloquant.priorite : prioriteEcheance(new Date(`${echeance}T00:00:00.000Z`), maintenant),
+      ...(bloquant ? { eventId: bloquant.eventId } : {}),
       niveauRequis: "gestion",
       cleRegroupement: "papiers_a_renouveler",
     })
+  }
+
+  // Levée : une action ouverte dont le papier n'a plus lieu d'être (renouvelé, retiré, ou épreuve passée) disparaît.
+  const ouvertes = await client.coreAction.findMany({
+    where: { teamId: ctx.teamId, appOrigine: "voiture", type: "papier_a_renouveler", statut: "en_attente" },
+    select: { cleUnicite: true, ficheId: true },
+  })
+  for (const action of ouvertes) {
+    if (action.ficheId === null || !aGarder.has(action.ficheId)) await emettre(ctx, "voiture.action_levee", { cleUnicite: action.cleUnicite })
   }
 }

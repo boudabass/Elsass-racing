@@ -40,6 +40,8 @@ export const RANG_PAR_TYPE: Record<string, Priorite> = {
   liberer_emplacement: PRIORITE.proposition,
   cloture_saison_proposee: PRIORITE.proposition,
   marquer_engagement_paye: PRIORITE.proposition,
+  // Engagement envisagé ou inscrit, épreuve dans la fenêtre bloquante (rappel de Saison, rang 1, 960 §5).
+  payer_engagement: PRIORITE.bloquant,
   point_critique: PRIORITE.suggestion,
   tache_probleme: PRIORITE.suggestion,
   reconnaissance: PRIORITE.suggestion,
@@ -64,7 +66,7 @@ export const TYPES_A_ECHEANCE = ["cloture_engagements"] as const
 export const TYPES_OBLIGATION = ["licence_a_renouveler", "homologation_a_renouveler", "papier_a_renouveler", "renouveler_document"] as const
 
 // Jour civil « AAAA-MM-JJ » de Paris pour un instant.
-function jourParis(instant: Date): string {
+export function jourParis(instant: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(instant)
 }
 

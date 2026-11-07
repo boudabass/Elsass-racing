@@ -3,6 +3,7 @@
 // Calendrier : jours civils de Paris. Un rappel dont la clé existe déjà n'est jamais recréé,
 // même décidé : sauf la relance de validation, qui met à jour la même action.
 
+import { engagementDansFenetre } from "@/core/actions/rang-obligation"
 import { PRIORITE, prioriteEcheance } from "@/core/actions/priorites"
 import { jourDeParis } from "@/core/dates"
 import { jourCivil, type StatutEngagement, type ValidationResultat } from "./regles"
@@ -10,7 +11,14 @@ import { jourCivil, type StatutEngagement, type ValidationResultat } from "./reg
 export const DELAI_RELANCE_VALIDATION_MS = 48 * 60 * 60 * 1000
 const JOUR_MS = 24 * 60 * 60 * 1000
 
-export type TypeRappel = "cloture_engagements" | "reconnaissance" | "programme_du_jour" | "resultat_a_saisir" | "resultat_a_valider"
+export type TypeRappel =
+  | "cloture_engagements"
+  | "reconnaissance"
+  | "programme_du_jour"
+  | "resultat_a_saisir"
+  | "resultat_a_valider"
+  // Engagement envisagé ou inscrit, épreuve dans la fenêtre bloquante : rang 1 (960 §5), levé au paiement ou au retrait.
+  | "payer_engagement"
 
 // Qui reçoit le rappel : des rôles, des memberships précis, ou le cercle de validation (résultats).
 export type DestinatairesRappel = { kind: "roles"; roles: Array<"responsable" | "equipage"> } | { kind: "memberships" } | { kind: "validation" }
@@ -30,6 +38,9 @@ export interface RappelDu {
   relance: boolean
   // Memberships visés par « programme du jour » (équipage engagé).
   membershipsEquipage: string[]
+  // Boutons de l'action (par défaut « Compris ») et niveau requis pour la décider (par défaut lecture).
+  boutons?: Array<{ cle: string; libelle: string; lien?: string }>
+  niveauRequis?: "lecture" | "ecriture"
 }
 
 export interface EngagementRappel {
@@ -134,6 +145,29 @@ export function rappelsDues(epreuves: readonly EpreuveRappel[], maintenant: Date
     }
 
     for (const engagement of epreuve.engagements) {
+      // Engagement à payer : envisagé ou inscrit, épreuve dans la fenêtre bloquante (7 jours, en cours compris).
+      // Rang 1 (960 §5). Levé au paiement, au forfait ou à l'annulation, par l'émetteur (services-serveur.ts).
+      if (aVenir && (engagement.statut === "envisage" || engagement.statut === "inscrit")) {
+        const dansFenetre = engagementDansFenetre(
+          { eventId: epreuve.id, dateDebut: epreuve.dateDebut, dateFin: epreuve.dateFin, annulee: false, statut: engagement.statut },
+          maintenant,
+        )
+        if (dansFenetre) {
+          rappels.push({
+            ...cible,
+            entryId: engagement.id,
+            cle: `rappel:payer:${engagement.id}`,
+            type: "payer_engagement",
+            priorite: PRIORITE.bloquant,
+            titre: `Engagement à payer : ${epreuve.nom}`,
+            destinataires: { kind: "roles", roles: ["responsable"] },
+            // Un seul bouton-lien : il ne décide rien. « Plus tard » est celui de la carte (ReporterAction).
+            boutons: [{ cle: "voir", libelle: "Voir l'engagement", lien: `/apps/saison/engagements/${engagement.id}` }],
+            niveauRequis: "ecriture",
+          })
+        }
+      }
+
       // Résultat à saisir : engagement parti, sans résultat, à partir du lendemain de la fin.
       if (engagement.statut === "parti" && !engagement.resultat && ecartJours(aujourdhui, fin) >= 1) {
         rappels.push({

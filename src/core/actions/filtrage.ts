@@ -27,6 +27,8 @@ export interface ActionBoite {
   ficheType: string | null
   ficheId: string | null
   eventId: string | null
+  // Nom de l'épreuve de l'action (eventId), pour « Bloquant pour <épreuve> ». Absent ou null sans épreuve.
+  epreuveNom?: string | null
   priorite: number
   bloquant: boolean
   echeance: Date | null

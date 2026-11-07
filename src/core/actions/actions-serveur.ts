@@ -123,6 +123,13 @@ export async function listerActionsVisibles(ctx: ContexteTeam): Promise<ActionBo
     orderBy: [{ priorite: "asc" }, { echeance: "asc" }, { createdAt: "asc" }],
   })
 
+  // Nom de l'épreuve de chaque action liée à une épreuve : le rang 1 l'affiche (« Bloquant pour <épreuve> »).
+  const idsEpreuves = Array.from(new Set(lignes.flatMap((l) => (l.eventId ? [l.eventId] : []))))
+  const epreuves = idsEpreuves.length
+    ? await client.coreEvent.findMany({ where: { teamId: ctx.teamId, id: { in: idsEpreuves } }, select: { id: true, nom: true } })
+    : []
+  const nomEpreuve = new Map(epreuves.map((epreuve) => [epreuve.id, epreuve.nom]))
+
   const actions: ActionBoite[] = lignes.map((l) => ({
     messageRefus: l.messageRefus,
     id: l.id,
@@ -134,6 +141,7 @@ export async function listerActionsVisibles(ctx: ContexteTeam): Promise<ActionBo
     ficheType: l.ficheType,
     ficheId: l.ficheId,
     eventId: l.eventId,
+    epreuveNom: l.eventId ? (nomEpreuve.get(l.eventId) ?? null) : null,
     priorite: l.priorite,
     bloquant: l.bloquant,
     echeance: l.echeance,

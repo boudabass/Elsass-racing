@@ -31,6 +31,9 @@ if (!urlProprietaire) {
 const proprietaire = new PrismaClient({ adapter: new PrismaPg({ connectionString: urlProprietaire }) })
 const MIGRATION = "20261105100000_action_priorites"
 
+// Types de RANG_PAR_TYPE ajoutés après la migration jouée ici : elle ne les connaît pas, leur rang vient de l'émetteur.
+const TYPES_APRES_MIGRATION = ["payer_engagement"]
+
 class EcartPriorites extends Error {}
 
 // Fin volontaire de la transaction de contrôle : tout ce qu'elle a écrit est annulé.
@@ -106,7 +109,11 @@ async function main() {
         const apres = await lire()
 
         for (const [type, rang] of Object.entries(RANG_PAR_TYPE)) {
+          if (TYPES_APRES_MIGRATION.includes(type)) continue
           controle(`${type} prend le rang ${rang} de la table`, apres[cle(type, "fixe")] === rang, String(apres[cle(type, "fixe")]))
+        }
+        for (const type of TYPES_APRES_MIGRATION) {
+          controle(`${type} ajouté après la migration : la migration ne touche pas son rang (posé par l'émetteur)`, apres[cle(type, "fixe")] === PRIORITE.echeance_proche, String(apres[cle(type, "fixe")]))
         }
         for (const type of TYPES_A_ECHEANCE) {
           controle(`${type} : échéance du jour, rang 2`, apres[cle(type, "jour")] === PRIORITE.echeance_depassee, String(apres[cle(type, "jour")]))
