@@ -33,13 +33,22 @@ export async function ouvrirOnglet(page: Page, libelle: string): Promise<void> {
 }
 
 // Ajoute une licence à la fiche courante (onglet Licences). `document` : pièce jointe facultative (chemin d'un fichier).
-// `montantPaye` (euros, facultatif) : une licence payée propose une dépense à Budget.
-export async function ajouterLicence(page: Page, libelleType: string, numero: string, valableAu: string, document?: string, montantPaye?: string): Promise<void> {
+// `montantPaye` (euros, facultatif) : une licence payée propose une dépense à Budget. `asa` (nom d'un contact ASA, facultatif).
+export async function ajouterLicence(
+  page: Page,
+  libelleType: string,
+  numero: string,
+  valableAu: string,
+  document?: string,
+  montantPaye?: string,
+  asa?: string,
+): Promise<void> {
   await ouvrirOnglet(page, "Licences")
   await page.getByRole("button", { name: "Ajouter une licence", exact: true }).click()
   await tiroir(page).getByLabel("Type de licence", { exact: true }).selectOption({ label: libelleType })
   await tiroir(page).getByLabel("Numéro", { exact: true }).fill(numero)
   await tiroir(page).getByLabel("Valable jusqu'au").fill(valableAu)
+  if (asa) await tiroir(page).locator('select[name="asaContactId"]').selectOption({ label: asa })
   // Non exact : le libellé du champ enveloppé contient son aide (« Si tu le saisis, Budget propose la dépense… »).
   if (montantPaye) await tiroir(page).getByLabel("Montant payé (€)").fill(montantPaye)
   if (document) {

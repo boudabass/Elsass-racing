@@ -25,6 +25,9 @@ import { connecterParLien, tuilesDuQg } from "./aide/navigation"
 import {
   ajouterEquipier,
   ajouterMembreConnectable,
+  contactAsaEnBase,
+  depenseBudgetParLibelle,
+  depensesBudgetEnBase,
   propositionsDeLicenceEnBase,
   engagementsEnBase,
   lienPointChecklistEnBase,
@@ -38,7 +41,6 @@ import {
 } from "./aide/session"
 
 // Non couvert ici, à faire ou à reprendre ailleurs (rien n'est présumé vérifié) :
-// - étape 1 : l'ASA de la licence (aucun helper ne crée de contact ASA) et la dépense « Montant payé » décidée dans Budget ;
 // - étape 2 : l'équipage est choisi dans Saison, mais le test ne vérifie pas le panneau au-delà de la licence ;
 // - étape 5 : la licence d'une autre personne (404) et la photo d'une liste fermée (404) ne sont pas encore vérifiées ici ;
 //   le logo de Voiture (200) non plus ;
@@ -163,10 +165,13 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
   let urlLicence: string | null = null
   // Ouvert à l'étape 5, fermé en fin de test : ses requêtes gardent sa session d'assistance.
   let contexteAssistance: BrowserContext | undefined
-  await test.step("1. Équipe : pilote et copilote, licence avec document joint, casque", async () => {
+  await test.step("1. Équipe : pilote et copilote, licence avec document joint et ASA, casque ; la dépense se décide dans Budget", async () => {
     piloteId = await creerPersonne(page, "Théo", "Pilote", "Pilote")
+    // Le contact ASA n'a pas d'écran de création : le test le pose en base, la licence le choisit dans son formulaire.
+    await contactAsaEnBase(equipe, "ASA test e2e")
     // Licence payée (150 €) : Budget reçoit une proposition de dépense « Licence et ASA ». Le test compte en base, pas à l'écran.
-    await ajouterLicence(page, "Licence FFSA régionale", "L-PIL-5", `${ANNEE}-12-31`, PDF, "150")
+    await ajouterLicence(page, "Licence FFSA régionale", "L-PIL-5", `${ANNEE}-12-31`, PDF, "150", "ASA test e2e")
+    await expect(page.getByText("ASA : ASA test e2e")).toBeVisible()
     urlLicence = await page.locator('a[href^="/api/fichiers/"]').first().getAttribute("href")
     expect(urlLicence).toMatch(/^\/api\/fichiers\/[^/?#]+$/)
     await expect.poll(() => propositionsDeLicenceEnBase(equipe, "L-PIL-5")).toBe(1)
@@ -180,6 +185,21 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     copiloteId = await creerPersonne(page, "Nina", "Copilote", "Copilote")
     // La licence de la copilote expire avant l'épreuve : le point « Prêt pour l'épreuve ? » est ouvert (étape 2).
     await ajouterLicence(page, "Licence FFSA régionale", "L-COP-5", jourParis(-10))
+
+    // La proposition de dépense se décide dans Budget, « À confirmer » : une seule dépense, de 150,00 €, en catégorie « Licence et ASA ».
+    await retourAuQg(page)
+    await tuilesDuQg(page)
+      .filter({ has: page.getByRole("heading", { name: "Budget", exact: true }) })
+      .click()
+    await page.getByRole("link", { name: "À confirmer", exact: true }).click()
+    const carte = page.locator("li").filter({ has: page.getByRole("heading", { name: "Licence FFSA régionale", exact: true }) })
+    await expect(carte).toHaveCount(1)
+    await expect(carte.getByText(/150,00/)).toBeVisible()
+    await carte.getByRole("button", { name: "Confirmer", exact: true }).click()
+    await envoyer(page, page.getByRole("dialog").getByRole("button", { name: "Confirmer le mouvement", exact: true }))
+    await expect(page.getByRole("heading", { name: "Licence FFSA régionale", exact: true })).toHaveCount(0)
+    await expect.poll(async () => (await depenseBudgetParLibelle(equipe, "Licence FFSA régionale"))?.montant).toBe(15_000)
+    expect((await depensesBudgetEnBase(equipe)).filter((d) => d.libelle === "Licence FFSA régionale").length).toBe(1)
   })
 
   let entryId = ""

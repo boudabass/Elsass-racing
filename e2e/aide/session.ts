@@ -199,6 +199,16 @@ export function emettreEvenement(equipe: Equipe, nom: string, donnees: Record<st
 // Propositions de dépense de Budget issues d'une licence (budget_suggestion, origine_ref equipe_licence:<id>), non supprimées.
 // Budget propose la dépense ; elle n'entre dans les dépenses qu'à la décision. Une seule proposition par licence payée,
 // même après une nouvelle saisie de la licence (proposition idempotente par référence).
+// Contact ASA de la team (catégorie « asa »). Aucun écran ne le crée aujourd'hui : le test le pose en base, comme les fournisseurs.
+export async function contactAsaEnBase(equipe: Equipe, nom: string): Promise<string> {
+  const id = newId()
+  await bd().query(
+    `INSERT INTO core_contact (id, team_id, nom, categories, updated_at) VALUES ($1, $2, $3, ARRAY['asa']::core_contact_categorie[], now())`,
+    [id, equipe.teamId, nom],
+  )
+  return id
+}
+
 export async function propositionsDeLicenceEnBase(equipe: Equipe, numero: string): Promise<number> {
   const { rows } = await bd().query<{ total: number }>(
     `SELECT count(*)::int AS total
