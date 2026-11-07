@@ -210,6 +210,16 @@ export async function propositionsDeLicenceEnBase(equipe: Equipe, numero: string
   return rows[0].total
 }
 
+// Résultat d'un engagement en base, non supprimé : nombre de lignes (une seule par engagement, unique), validation et classement.
+export async function resultatEnBase(equipe: Equipe, entryId: string): Promise<{ n: number; validation: string | null; classement: number | null }> {
+  const { rows } = await bd().query<{ n: number; validation: string | null; classement: number | null }>(
+    `SELECT count(*)::int AS n, max(validation::text) AS validation, max(classement_general) AS classement
+     FROM saison_result WHERE team_id = $1 AND entry_id = $2 AND deleted_at IS NULL`,
+    [equipe.teamId, entryId],
+  )
+  return rows[0]
+}
+
 export async function montantPayeEnBase(equipe: Equipe, entryId: string): Promise<number | null> {
   const { rows } = await bd().query<{ montant: number | null }>(
     "SELECT montant_paye AS montant FROM saison_registration WHERE team_id = $1 AND entry_id = $2",

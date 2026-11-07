@@ -8,7 +8,15 @@ import type { BrowserContext, Page, Response } from "@playwright/test"
 import { preparerEpreuveChecklist } from "./aide/checklist"
 import { DOSSIER_CAPTURES } from "./aide/equipe"
 import { jourParis } from "./aide/dates"
-import { accesDocumentEnBase, documentEnBase, rattacherPersonneAuCompte } from "./aide/documents"
+import {
+  accesDocumentEnBase,
+  alerteDocumentEnBase,
+  documentEnBase,
+  echeanceEnBase,
+  journalOuverturesEnBase,
+  liensEnBase,
+  rattacherPersonneAuCompte,
+} from "./aide/documents"
 import { ajouterEquipement, ajouterLicence, choisirTheme, creerPersonne, ouvrirOnglet } from "./aide/equipe"
 import { envoyer, envoyerSansFermeture } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
@@ -21,6 +29,7 @@ import {
   engagementsEnBase,
   lienPointChecklistEnBase,
   passerEpreuveDansLePasseEnBase,
+  resultatEnBase,
   statutAction,
   statutActionTitreEnBase,
   statutPointChecklistEnBase,
@@ -31,7 +40,6 @@ import {
 // Non couvert ici, à faire ou à reprendre ailleurs (rien n'est présumé vérifié) :
 // - étape 1 : l'ASA de la licence (aucun helper ne crée de contact ASA) et la dépense « Montant payé » décidée dans Budget ;
 // - étape 2 : l'équipage est choisi dans Saison, mais le test ne vérifie pas le panneau au-delà de la licence ;
-// - étape 4 : le lien de partage (ouverture publique comptée, révocation, lien refusé) : documents-echeances-partages.spec.ts ;
 // - étape 5 : la licence d'une autre personne (404) et la photo d'une liste fermée (404) ne sont pas encore vérifiées ici ;
 //   le logo de Voiture (200) non plus ;
 // - étape 8 : l'ignorance d'une proposition (qui ne revient pas) n'est pas testée ;
@@ -109,6 +117,20 @@ async function accepterListes(page: Page, equipe: Equipe, entryId: string): Prom
   await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
   await page.keyboard.press("Escape")
 }
+
+// Statistiques de Théo (sa fiche, onglet Statistiques), par clics depuis le QG.
+async function ouvrirStatistiquesTheo(page: Page): Promise<void> {
+  await retourAuQg(page)
+  await tuilesDuQg(page)
+    .filter({ has: page.getByRole("heading", { name: "Équipe", exact: true }) })
+    .click()
+  await page.getByRole("link", { name: /Théo Pilote/ }).first().click()
+  await ouvrirOnglet(page, "Statistiques")
+  await expect(page.getByRole("heading", { name: "Statistiques", exact: true })).toBeVisible()
+}
+
+// Ligne du palier de la fiche : « N épreuves avant <palier> », le chiffre compte les épreuves, jamais les classements.
+const lignePalier = (page: Page) => page.locator("p", { hasText: /avant Confirmé$/ })
 
 // Roulage par le menu « + » du Garage (la boîte de la voiture passe en zone rouge au-delà du seuil).
 async function rouler(page: Page, kilometres: string): Promise<void> {
@@ -226,7 +248,7 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await expect(page.getByText("Logistique · fait")).toBeVisible()
   })
 
-  await test.step("4. Documents : une assurance à vingt jours, l'action de renouvellement sort par « Reporter »", async () => {
+  await test.step("4. Documents : une assurance à vingt jours, reportée, renouvelée, puis partagée par lien (ouverture comptée, révocation, lien refusé)", async () => {
     await retourAuQg(page)
     await tuilesDuQg(page)
       .filter({ has: page.getByRole("heading", { name: "Documents", exact: true }) })
@@ -240,7 +262,9 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await tiroir.getByLabel("Dossier", { exact: true }).selectOption({ label: "Assurances" })
     await tiroir.getByLabel("Date de validité", { exact: true }).fill(jourParis(20))
     await envoyer(page, tiroir.getByRole("button", { name: "Ajouter le document", exact: true }))
-    expect(await documentEnBase(equipe, "Assurance de l'association")).not.toBeNull()
+    const assurance = await documentEnBase(equipe, "Assurance de l'association")
+    expect(assurance).not.toBeNull()
+    const idAssurance = assurance?.id ?? ""
 
     await retourAuQg(page)
     await page.getByRole("button", { name: /Boîte d'actions/ }).click()
@@ -251,6 +275,82 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await reponse
     await expect(boite.getByText(/Renouveler Assurance de l'association/)).toHaveCount(0)
     await page.keyboard.press("Escape")
+
+    // Échéances : le document reporté reste dans « Bientôt », avec son lien « Renouveler ».
+    await tuilesDuQg(page)
+      .filter({ has: page.getByRole("heading", { name: "Documents", exact: true }) })
+      .click()
+    await expect(page.getByRole("heading", { name: "Coffre-fort", exact: true })).toBeVisible()
+    await page.getByRole("link", { name: "Échéances", exact: true }).click()
+    const bientot = page.locator("section").filter({ has: page.getByRole("heading", { name: /^Bientôt/ }) })
+    await expect(bientot.getByText("Assurance de l'association")).toBeVisible()
+
+    // « Renouveler » ouvre la fiche avec le tiroir d'ajout de fichier : un fichier, puis une validité d'un an.
+    await bientot.locator("li").filter({ hasText: "Assurance de l'association" }).getByRole("link", { name: "Renouveler", exact: true }).click()
+    await expect(page).toHaveURL(/renouveler=1/)
+    const tiroirVersion = page.getByRole("dialog")
+    await tiroirVersion.locator('input[type="file"]').setInputFiles(PDF)
+    await envoyer(page, tiroirVersion.getByRole("button", { name: "Enregistrer le fichier", exact: true }))
+    await page.getByRole("button", { name: "Modifier", exact: true }).click()
+    const tiroirModifier = page.getByRole("dialog")
+    await tiroirModifier.getByLabel("Date de validité", { exact: true }).fill(jourParis(365))
+    await envoyer(page, tiroirModifier.getByRole("button", { name: "Enregistrer", exact: true }))
+    expect(await echeanceEnBase(equipe, idAssurance)).toBe(jourParis(365))
+    // La date a changé : l'action de l'ancienne date n'est plus en attente, l'alerte est résolue en base.
+    await expect.poll(() => statutAction(equipe, `documents:${idAssurance}:${jourParis(20)}`)).not.toBe("en_attente")
+    expect((await alerteDocumentEnBase(equipe, idAssurance))?.resolue).toBe(true)
+
+    // Lien de partage sur ce même document : destinataire en texte, 7 jours par défaut, le lien ne s'affiche qu'une fois.
+    await retourAuQg(page)
+    await tuilesDuQg(page)
+      .filter({ has: page.getByRole("heading", { name: "Documents", exact: true }) })
+      .click()
+    await expect(page.getByRole("heading", { name: "Coffre-fort", exact: true })).toBeVisible()
+    await page.getByRole("link", { name: "Coffre-fort", exact: true }).click()
+    await page.getByRole("link", { name: /Assurances/ }).click()
+    await page.getByRole("link", { name: "Assurance de l'association" }).click()
+    await page.getByRole("button", { name: "Partager par lien", exact: true }).click()
+    const tiroirLien = page.getByRole("dialog")
+    await tiroirLien.getByLabel("Destinataire", { exact: true }).fill("Préfecture test e2e")
+    // Le tiroir reste ouvert après la création : il montre le lien. On attend seulement la réponse du serveur.
+    const reponseLien = page.waitForResponse((r) => r.request().method() === "POST" && r.request().headers()["next-action"] !== undefined)
+    await tiroirLien.getByRole("button", { name: "Créer le lien", exact: true }).click()
+    await reponseLien
+    await expect(tiroirLien.getByText("Copie le lien maintenant : il ne sera plus affiché.")).toBeVisible()
+    const texte = (await tiroirLien.locator("p.break-all").innerText()).trim()
+    const jeton = /\/d\/([A-Za-z0-9_-]{43})$/.exec(texte)?.[1] ?? ""
+    expect(jeton).not.toBe("")
+    const liens = await liensEnBase(equipe, idAssurance)
+    expect(liens).toHaveLength(1)
+    expect(liens[0].revoque).toBe(false)
+    const idLien = liens[0].id
+    await page.keyboard.press("Escape")
+
+    // Page publique, sans session : titre et validité, une ouverture comptée et une ligne de journal.
+    const anonyme = await browser.newContext()
+    const visiteur = await anonyme.newPage()
+    try {
+      await visiteur.goto(`/d/${jeton}`)
+      await expect(visiteur.getByRole("heading", { name: "Assurance de l'association", exact: true })).toBeVisible()
+      await expect(visiteur.getByText(/Lien valable jusqu/)).toBeVisible()
+      await expect.poll(() => journalOuverturesEnBase(equipe, idLien)).toBe(1)
+      expect((await liensEnBase(equipe, idAssurance))[0].ouvertures).toBe(1)
+
+      // Révocation depuis Partages : le même lien ne montre plus rien d'utile.
+      await page.getByRole("link", { name: "Partages", exact: true }).click()
+      await expect(page).toHaveURL(/\/apps\/documents\/partages$/)
+      await expect(page.getByRole("heading", { name: "Partages", exact: true, level: 1 })).toBeVisible()
+      await page.getByRole("list", { name: "Liens actifs" }).getByRole("button", { name: "Révoquer", exact: true }).click()
+      const tiroirRevoquer = page.getByRole("dialog")
+      await expect(tiroirRevoquer).toBeVisible()
+      await envoyer(page, tiroirRevoquer.getByRole("button", { name: "Révoquer le lien", exact: true }))
+      expect((await liensEnBase(equipe, idAssurance))[0].revoque).toBe(true)
+
+      await visiteur.goto(`/d/${jeton}`)
+      await expect(visiteur.getByText("Ce lien n'est plus valable.", { exact: true })).toBeVisible()
+    } finally {
+      await anonyme.close()
+    }
   })
 
   // Preuve principale du §3.1 : un fichier de dossier caché répond 404 à l'assistance, 200 une fois partagé, 404 après retrait.
@@ -432,7 +532,7 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await expect.poll(() => lienPointChecklistEnBase(equipe, titre)).toEqual({ lienType: "organe_garage", lienId: organes.boite })
   })
 
-  await test.step("9. Après l'épreuve : résultat saisi par l'équipage et validé par un autre membre dans Saison ; statistiques et Binômes à jour, une seule fois", async () => {
+  await test.step("9. Après l'épreuve : résultat saisi par le responsable et validé par un équipier dans Saison ; palier, statistiques et Binômes à jour, une seule fois", async () => {
     // Le paiement de l'engagement se pose avant le résultat, comme dans une vraie saison. Le code ne l'impose pas :
     // `saisirResultatDans` ne lit pas `payeLe`. Le montant dû n'a pas été saisi à l'étape 2 : le champ « Montant payé »
     // est vide et obligatoire, le navigateur bloque alors l'envoi (aucune requête). On le saisit donc ici.
@@ -458,6 +558,10 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     // Le bouton est donc affiché, et c'est un autre équipier qui valide plus bas, comme prévu par le parcours.
     await expect(page.getByRole("button", { name: "Valider", exact: true })).toHaveCount(1)
 
+    // Avant validation, Théo n'a aucune épreuve comptée : le palier « Confirmé » est à cinq épreuves.
+    await ouvrirStatistiquesTheo(page)
+    await expect(lignePalier(page)).toHaveText("5 épreuves avant Confirmé")
+
     // Un autre équipier le valide depuis « Résultats à valider », par clics depuis le QG.
     const validateur = await ajouterMembreConnectable(equipe, "equipage", "-b9")
     const contexteValidateur = await browser.newContext()
@@ -474,20 +578,38 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     await expect(valideur.locator("main").getByRole("link", { name: new RegExp(nomEpreuve) })).toHaveCount(0)
     await contexteValidateur.close()
 
-    // Les statistiques de Théo se lisent sur sa fiche (entrée directe : la navigation vers la liste des personnes n'apporte rien ici).
-    await retourAuQg(page)
-    await tuilesDuQg(page)
-      .filter({ has: page.getByRole("heading", { name: "Équipe", exact: true }) })
-      .click()
-    await page.getByRole("link", { name: /Théo Pilote/ }).first().click()
-    await ouvrirOnglet(page, "Statistiques")
-    await expect(page.getByRole("heading", { name: "Statistiques", exact: true })).toBeVisible()
+    // Les statistiques de Théo se lisent sur sa fiche, par clics depuis le QG.
+    await ouvrirStatistiquesTheo(page)
     const valeur = (libelle: string) => page.locator(`xpath=//dt[normalize-space(.)="${libelle}"]/following-sibling::dd`)
     await expect(valeur("Épreuves")).toHaveText("1")
     await expect(valeur("Arrivées")).toHaveText("1")
+    // Après validation, le palier ne compte qu'une épreuve de plus : il baisse de un (cinq, puis quatre).
+    await expect(lignePalier(page)).toHaveText("4 épreuves avant Confirmé")
     // Une seule fois : recharger ne compte pas l'épreuve une seconde fois.
     await page.reload()
     await expect(valeur("Épreuves")).toHaveText("1")
+
+    // Rejeu par le produit : contester le résultat, le corriger, le revalider. Le responsable revalide sa correction (règle
+    // « sauf responsable »). Ensuite : une épreuve, une arrivée, le même palier, une seule ligne de résultat en base. Un compte
+    // double serait un défaut de règle, à remonter avant toute correction.
+    await ouvrirEpreuveDansSaison(page, nomEpreuve)
+    await page.getByRole("link", { name: "Résultats", exact: true }).click()
+    await page.getByRole("button", { name: "Contester", exact: true }).click()
+    const tiroirContestation = page.getByRole("dialog")
+    await tiroirContestation.getByLabel("Pourquoi contester ce résultat", { exact: true }).fill("Erreur de saisie du classement")
+    await envoyer(page, tiroirContestation.getByRole("button", { name: "Envoyer la contestation", exact: true }))
+    await page.getByRole("button", { name: "Modifier le résultat", exact: true }).click()
+    const tiroirCorrection = page.getByRole("dialog")
+    await tiroirCorrection.getByLabel("Classement général", { exact: true }).fill("2")
+    await envoyer(page, tiroirCorrection.getByRole("button", { name: "Enregistrer le résultat", exact: true }))
+    const reponseRevalidation = page.waitForResponse(REPONSE_ACTION)
+    await page.getByRole("button", { name: "Valider", exact: true }).click()
+    await reponseRevalidation
+    await expect.poll(() => resultatEnBase(equipe, entryId)).toEqual({ n: 1, validation: "valide", classement: 2 })
+    await ouvrirStatistiquesTheo(page)
+    await expect(valeur("Épreuves")).toHaveText("1")
+    await expect(valeur("Arrivées")).toHaveText("1")
+    await expect(lignePalier(page)).toHaveText("4 épreuves avant Confirmé")
 
     // La fiche de Théo après validation, capturée avec les statistiques (le chiffre, pas seulement la liste des binômes).
     await capturerEtape(page, "etape-9-fiche-personne", async () => {
