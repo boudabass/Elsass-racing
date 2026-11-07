@@ -8,7 +8,15 @@ import { envoyer, envoyerSansFermeture } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { preparerAtelierSaxo } from "./aide/garage"
 import { connecterParLien } from "./aide/navigation"
-import { lienPointChecklistEnBase, statutAction, statutActionTitreEnBase, statutPointChecklistEnBase, type Equipe } from "./aide/session"
+import {
+  emettreEvenement,
+  lienPointChecklistEnBase,
+  propositionsDeTitreEnBase,
+  statutAction,
+  statutActionTitreEnBase,
+  statutPointChecklistEnBase,
+  type Equipe,
+} from "./aide/session"
 
 // Réponse d'une server action : à attendre après un envoi qui ne ferme pas de tiroir (cf. envoi.ts).
 const REPONSE_ACTION = (r: { request: () => { method: () => string; headers: () => Record<string, string> } }) =>
@@ -76,6 +84,43 @@ test("Pièce en zone rouge : le point « Remplacer la pièce » est proposé, ac
   // Dans la liste, le point est là, critique, avec son objet lié.
   await ouvrirPremiereListe(page)
   await expect(page.locator("li").filter({ hasText: titre }).first()).toBeVisible()
+})
+
+test("Proposition ignorée : elle sort de la boîte et ne revient pas quand le même événement est réémis", async ({ page, equipe }) => {
+  test.setTimeout(420_000)
+  const { entryId, vehicleId } = await preparerEngagementChecklist(equipe)
+  const organes = await preparerAtelierSaxo(equipe, vehicleId)
+  await connecterParLien(page, equipe)
+  await accepterListes(page, equipe, entryId)
+
+  // 16 000 km : la proposition « Remplacer la pièce : Boîte de vitesses » apparaît dans la boîte, en attente.
+  await rouler(page, "16000")
+  const titre = "Remplacer la pièce : Boîte de vitesses"
+  await page.goto("/apps/checklist")
+  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
+  const boite = page.getByRole("dialog")
+  const ligne = boite.locator("li").filter({ hasText: titre })
+  await expect(ligne.getByText(titre, { exact: true })).toBeVisible()
+
+  // Ignorée dans la boîte : la proposition passe à « ignorée », son action est décidée, et rien n'est ajouté à la liste.
+  await envoyerSansFermeture(page, ligne.getByRole("button", { name: "Ignorer", exact: true }))
+  await expect.poll(() => statutActionTitreEnBase(equipe, "proposition:", titre)).toBe("decidee")
+  await expect.poll(async () => (await propositionsDeTitreEnBase(equipe, titre)).map((p) => p.statut)).toEqual(["ignoree"])
+  expect(await lienPointChecklistEnBase(equipe, titre), "point ajouté après ignorance").toBeNull()
+  await page.keyboard.press("Escape")
+  await expect(boite).toHaveCount(0)
+
+  // Le même événement est réémis (même pièce, même véhicule) : l'écoute voit la proposition ignorée et ne crée ni
+  // proposition ni action. L'émission traite l'événement avant de rendre la main : pas d'attente à prévoir.
+  emettreEvenement(equipe, "garage.piece_zone_rouge", { vehicleComponentId: organes.boite, vehicleId })
+  const apres = await propositionsDeTitreEnBase(equipe, titre)
+  expect(apres, "une seule proposition, toujours ignorée").toEqual([{ type: "ajouter_point", statut: "ignoree", actions: 1 }])
+
+  // Et rien ne revient à l'écran après un rechargement de la boîte.
+  await page.goto("/apps/checklist")
+  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
+  await expect(page.getByRole("dialog").getByText(titre, { exact: true })).toHaveCount(0)
+  expect(await lienPointChecklistEnBase(equipe, titre), "point ajouté après réémission").toBeNull()
 })
 
 test("Réparation terminée sur l'organe d'un point : le point est proposé à cocher, accepté, il passe à fait", async ({ page, equipe }) => {

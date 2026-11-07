@@ -43,10 +43,10 @@ import {
 // - étape 2 : l'équipage est choisi dans Saison, mais le test ne vérifie pas le panneau au-delà de la licence ;
 // - étape 5 : la licence d'une autre personne (404) et la photo d'une liste fermée (404) ne sont pas encore vérifiées ici ;
 //   le logo de Voiture (200) non plus ;
-// - étape 8 : l'ignorance d'une proposition (qui ne revient pas) n'est pas testée : la proposition « zone rouge » suppose une
-//   liste avant départ déjà créée (étape 6), qu'un test dédié devrait reproduire ;
+// - étape 8 : l'ignorance d'une proposition (qui ne revient pas) est couverte par e2e/checklist-propositions.spec.ts,
+//   test « Proposition ignorée : elle sort de la boîte et ne revient pas… » ;
 // - étape 9 : « Ajouter au modèle » du débrief est couvert par e2e/checklist-debrief.spec.ts ;
-// - étape 10 : la fiche et l'historique de la personne retirée, au-delà de son nom, ne sont pas vérifiés ici.
+// - étape 10 : la fiche de la personne retirée (titre, « Ancien membre », Statistiques) est vérifiée à la fin de l'étape.
 
 const ANNEE = new Date().getFullYear() + 1
 const PDF = path.resolve("e2e/fichiers/preuve.pdf")
@@ -699,6 +699,13 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     // Le bouton porte le compteur : « Anciens membres (1) ».
     await page.getByRole("button", { name: /^Anciens membres/ }).click()
     await expect(page.getByRole("dialog").getByText("Lou Retiree", { exact: false })).toBeVisible()
+
+    // Sa fiche reste ouverte : le titre, la mention « Ancien membre », et l'historique (Statistiques) se lit toujours.
+    await page.getByRole("dialog").getByRole("link", { name: "Lou Retiree", exact: true }).click()
+    await expect(page.getByRole("heading", { name: "Lou Retiree", exact: true })).toBeVisible()
+    await expect(page.getByText("Ancien membre", { exact: true })).toBeVisible()
+    await page.getByRole("link", { name: "Statistiques", exact: true }).click()
+    await expect(page.locator("dl > div").filter({ has: page.getByText("Épreuves", { exact: true }) }).locator("dd")).toBeVisible()
   })
 
   // Fin du parcours : la session d'assistance ouverte à l'étape 5 se ferme ici.

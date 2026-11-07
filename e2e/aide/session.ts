@@ -236,6 +236,20 @@ export async function statutAction(equipe: Equipe, cleUnicite: string): Promise<
   return rows[0]?.statut ?? null
 }
 
+// Propositions des écoutes de Check-lists dont le libellé est ce titre : une ligne par proposition, avec son statut et le
+// nombre d'actions de la boîte qui la portent (cle_unicite « proposition:<id> »). Lecture seule.
+export async function propositionsDeTitreEnBase(equipe: Equipe, titre: string): Promise<Array<{ type: string; statut: string; actions: number }>> {
+  const { rows } = await bd().query<{ type: string; statut: string; actions: number }>(
+    `SELECT p.type::text AS type, p.statut::text AS statut,
+            (SELECT count(*)::int FROM core_action a
+              WHERE a.team_id = p.team_id AND a.cle_unicite = 'proposition:' || p.id::text AND a.deleted_at IS NULL) AS actions
+     FROM checklist_proposal p
+     WHERE p.team_id = $1 AND p.contenu->>'libelle' = $2 AND p.deleted_at IS NULL`,
+    [equipe.teamId, titre],
+  )
+  return rows
+}
+
 // Statut d'un point de liste Check-lists, par son libellé (le plus récent, non supprimé).
 export async function statutPointChecklistEnBase(equipe: Equipe, libelle: string): Promise<string | null> {
   const { rows } = await bd().query<{ statut: string }>(
