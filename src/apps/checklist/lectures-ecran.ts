@@ -55,12 +55,13 @@ export async function listesAvecPoints(epreuveId: string): Promise<ListeAvecPoin
 }
 
 // Prochaines épreuves (envisagées ou en cours) et épreuve affichée : celle demandée si elle est dans la liste, sinon la
-// prochaine. Null s'il n'y a aucune épreuve à venir.
+// prochaine. Une épreuve commencée et pas encore finie reste là (un rallye de plusieurs jours, le mode terrain en a besoin).
+// Null s'il n'y a aucune épreuve à venir.
 export async function pagePreparation(epreuveDemandee: string | undefined) {
   const { ctx, niveau } = await accesChecklist("lecture")
   const debut = new Date(`${jourParis(new Date())}T00:00:00Z`)
   const aVenir = await prismaPourTeam(ctx.teamId, ctx.userId).coreEvent.findMany({
-    where: { teamId: ctx.teamId, deletedAt: null, statut: { in: ["envisagee", "en_cours"] }, dateDebut: { gte: debut } },
+    where: { teamId: ctx.teamId, deletedAt: null, statut: { in: ["envisagee", "en_cours"] }, dateFin: { gte: debut } },
     orderBy: { dateDebut: "asc" },
     take: 8,
     select: { id: true, nom: true, dateDebut: true },
@@ -164,13 +165,14 @@ export async function pageModeles() {
   return { niveau, modeles: await modelesVisibles() }
 }
 
-// Débrief : une épreuve (celle demandée, sinon la plus récente déjà commencée), ses points non cochés, ses problèmes,
-// et les points ajoutés pendant l'épreuve, à reporter dans le modèle d'origine.
+// Débrief : une épreuve (celle demandée, sinon la plus récente déjà terminée), ses points non cochés, ses problèmes,
+// et les points ajoutés pendant l'épreuve, à reporter dans le modèle d'origine. Une épreuve en cours n'y entre pas : elle
+// reste dans Préparation jusqu'à sa fin.
 export async function pageDebrief(epreuveDemandee: string | undefined) {
   const { ctx, niveau } = await accesChecklist("lecture")
   const debut = new Date(`${jourParis(new Date())}T00:00:00Z`)
   const passees = await prismaPourTeam(ctx.teamId, ctx.userId).coreEvent.findMany({
-    where: { teamId: ctx.teamId, deletedAt: null, dateDebut: { lt: debut } },
+    where: { teamId: ctx.teamId, deletedAt: null, dateFin: { lt: debut } },
     orderBy: { dateDebut: "desc" },
     take: 8,
     select: { id: true, nom: true, dateDebut: true },
