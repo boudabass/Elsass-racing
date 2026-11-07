@@ -16,12 +16,15 @@ export function FormulaireChecklist({
   libelle,
   classe = BOUTON,
   enfants,
+  actif,
 }: {
   action: Action
   champsCaches?: Record<string, string>
   libelle: string
   classe?: string
   enfants?: ReactNode
+  // Choix en cours (statut d'un point) : le marqueur ✓ et aria-pressed se lisent, la couleur seule ne suffit pas.
+  actif?: boolean
 }) {
   const [etat, envoyer, enCours] = useActionState(action, null)
   return (
@@ -31,7 +34,12 @@ export function FormulaireChecklist({
       ))}
       {enfants}
       <div>
-        <button type="submit" className={classe} disabled={enCours}>
+        <button type="submit" className={classe} disabled={enCours} aria-pressed={actif}>
+          {actif && (
+            <span aria-hidden="true" className="mr-1">
+              ✓
+            </span>
+          )}
           {libelle}
         </button>
       </div>

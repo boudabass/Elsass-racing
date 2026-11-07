@@ -92,6 +92,7 @@ export function ContenuFichePoint({
                 champsCaches={{ pointId: point.id, statut }}
                 libelle={LIBELLES_STATUT_POINT[statut]}
                 classe={`${BOUTON_SECONDAIRE} ${point.statut === statut ? "border-marque font-medium" : ""}`}
+                actif={point.statut === statut}
               />
             ))}
           </div>
