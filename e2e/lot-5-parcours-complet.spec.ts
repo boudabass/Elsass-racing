@@ -640,6 +640,8 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     })
 
     await page.getByRole("navigation", { name: "Apps" }).getByRole("link", { name: "Équipe", exact: true }).click()
+    // Le menu de l'app n'est cliqué qu'une fois l'accueil de l'app affiché : sinon le clic part pendant la navigation (run 42328234137).
+    await expect(page.getByRole("heading", { name: "L'équipe", exact: true })).toBeVisible()
     await page.getByRole("navigation", { name: "Menu de Équipe" }).getByRole("link", { name: "Binômes", exact: true }).click()
     await expect(page.getByRole("heading", { name: "Binômes", exact: true })).toBeVisible()
     await expect(page.getByText("Théo Pilote", { exact: false }).first()).toBeVisible()
