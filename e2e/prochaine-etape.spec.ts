@@ -10,7 +10,9 @@ test("la prochaine étape ne flotte plus : ni sur ordinateur, ni sur téléphone
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto("/qg")
-  await expect(page.getByText("1 action à traiter")).toBeVisible()
+  // Le compte dépend de la date : l'épreuve de démonstration du 11/11 entre dans la fenêtre bloquante (5.9) et ajoute
+  // « Engagement à payer ». On vérifie qu'il y a des actions à traiter, pas leur nombre.
+  await expect(page.getByText(/\d+ actions? à traiter/).first()).toBeVisible()
   await expect(page.getByRole("link", { name: /Valider le résultat du Gaschney/ })).toHaveCount(0)
 
   await page.setViewportSize({ width: 360, height: 740 })

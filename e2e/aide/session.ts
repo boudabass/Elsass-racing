@@ -697,6 +697,14 @@ export async function engagerVehiculeEnBase(equipe: Equipe, eventId: string, veh
   return id
 }
 
+// Dossier d'inscription envoyé, pas encore payé : la fiche de l'engagement affiche le formulaire de paiement (Saison).
+export async function inscrireEngagementEnBase(equipe: Equipe, entryId: string): Promise<void> {
+  await bd().query(
+    `INSERT INTO saison_registration (id, team_id, entry_id, dossier_envoye_le, updated_at) VALUES ($1, $2, $3, now(), now())`,
+    [newId(), equipe.teamId, entryId],
+  )
+}
+
 // Équipage d'un engagement : pilote et copilote, par leur identifiant de personne (créées par l'interface).
 export async function definirEquipageEnBase(equipe: Equipe, entryId: string, piloteId: string, copiloteId: string): Promise<void> {
   await bd().query("UPDATE core_event_entry SET pilote_id = $1, copilote_id = $2, updated_at = now() WHERE id = $3 AND team_id = $4", [

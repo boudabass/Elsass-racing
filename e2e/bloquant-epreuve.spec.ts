@@ -15,6 +15,7 @@ import { preparerEpreuveChecklist } from "./aide/checklist"
 import {
   definirEquipageEnBase,
   engagerVehiculeEnBase,
+  inscrireEngagementEnBase,
   montantPayeEnBase,
   statutActionTitreEnBase,
 } from "./aide/session"
@@ -66,6 +67,8 @@ test("bloquant pour une épreuve proche : boîte, paiement de l'engagement, reno
   const { eventId, vehicleId } = await preparerEpreuveChecklist(equipe, { debutDans: 5 })
   const nomEpreuve = `Rallye Check-lists ${equipe.horodatage}`
   const entryId = await engagerVehiculeEnBase(equipe, eventId, vehicleId, "inscrit")
+  // Le dossier est envoyé, pas payé : le paiement se saisit sur la fiche de l'engagement (sans inscription, pas de formulaire).
+  await inscrireEngagementEnBase(equipe, entryId)
 
   await connecterParLien(page, equipe)
 
