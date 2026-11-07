@@ -6,13 +6,12 @@ import path from "node:path"
 
 import type { Page } from "@playwright/test"
 
-import { preparerEngagementChecklist } from "./aide/checklist"
+import { accepterListes, preparerEngagementChecklist } from "./aide/checklist"
 import { capturer, choisirTheme, DOSSIER_CAPTURES } from "./aide/equipe"
 import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { preparerAtelierSaxo } from "./aide/garage"
 import { connecterParLien } from "./aide/navigation"
-import { statutAction } from "./aide/session"
 
 // Hauteur du téléphone : assez haute pour que la boîte et la fiche tiennent sans être coupées par le tiroir.
 const BUREAU = { largeur: "1440", width: 1440, height: 900 }
@@ -38,9 +37,7 @@ test("captures · liaisons : fiche d'un point lié, boîte d'actions, Saison, 14
   await connecterParLien(page, equipe)
 
   // La proposition « Créer les listes » acceptée : les listes de l'engagement existent.
-  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
-  await page.getByRole("dialog").getByRole("button", { name: "Accepter", exact: true }).click()
-  await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
+  await accepterListes(page, equipe, entryId)
 
   await page.goto("/apps/checklist")
   await page.getByRole("region", { name: "Par engagement" }).getByRole("link").first().click()

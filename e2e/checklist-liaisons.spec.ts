@@ -3,22 +3,16 @@
 // l'avancement des check-lists à côté de l'indice, sans le changer.
 import type { Page, Response } from "@playwright/test"
 
-import { preparerEngagementChecklist } from "./aide/checklist"
+import { accepterListes, preparerEngagementChecklist } from "./aide/checklist"
 import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { preparerAtelierSaxo, ordresEnBase } from "./aide/garage"
 import { connecterParLien } from "./aide/navigation"
-import { lienPointChecklistEnBase, statutAction, statutActionTitreEnBase, statutPointChecklistEnBase, tachesPointChecklistEnBase, type Equipe } from "./aide/session"
+import { lienPointChecklistEnBase, statutActionTitreEnBase, statutPointChecklistEnBase, tachesPointChecklistEnBase } from "./aide/session"
 
 // Réponse d'une server action : à attendre après un envoi qui ne ferme pas de tiroir (cf. envoi.ts).
 const RESPONSE_ACTION = (r: Response) => r.request().method() === "POST" && r.request().headers()["next-action"] !== undefined
 
-// Accepte la proposition « Créer les listes » : les listes de l'engagement existent ensuite.
-async function accepterListes(page: Page, equipe: Equipe, entryId: string): Promise<void> {
-  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
-  await page.getByRole("dialog").getByRole("button", { name: "Accepter", exact: true }).click()
-  await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
-}
 
 async function ouvrirPremiereListe(page: Page): Promise<void> {
   await page.goto("/apps/checklist")

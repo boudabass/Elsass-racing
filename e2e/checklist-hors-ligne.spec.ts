@@ -1,23 +1,16 @@
 // Check-lists hors ligne (tâche 5.6b, brief §5) : une coche faite sans réseau reste sur l'appareil, puis part au retour
 // du réseau. Ce fichier tourne sur le projet « hors-ligne » (nom en -hors-ligne.spec.ts) : serveur de production, seul
 // projet où le service worker existe.
-import type { Page } from "@playwright/test"
 
-import { attendreServiceWorker, attendreTirageLocal, preparerEngagementChecklist } from "./aide/checklist"
+import { accepterListes, attendreServiceWorker, attendreTirageLocal, preparerEngagementChecklist } from "./aide/checklist"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
-import { ajouterMembreConnectable, ouvrirListesAssistanceEnBase, statutAction, statutPointChecklistEnBase, type Equipe, type Membre } from "./aide/session"
+import { ajouterMembreConnectable, ouvrirListesAssistanceEnBase, statutPointChecklistEnBase, type Membre } from "./aide/session"
 
 // Liste créée par le modèle de la team (aide preparerEngagementChecklist) : deux points, dont le premier est coché hors ligne.
 const POINT = "Triangle de présentation"
 const AUTRE_POINT = "Trousse de secours"
 
-// Accepte la proposition « Créer les listes » : les listes de l'engagement existent ensuite.
-async function accepterListes(page: Page, equipe: Equipe, entryId: string): Promise<void> {
-  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
-  await page.getByRole("dialog").getByRole("button", { name: "Accepter", exact: true }).click()
-  await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
-}
 
 test("Check-lists hors ligne : une coche faite sans réseau reste sur l'appareil, puis part au retour du réseau", async ({ page, equipe, context }) => {
   test.setTimeout(240_000)

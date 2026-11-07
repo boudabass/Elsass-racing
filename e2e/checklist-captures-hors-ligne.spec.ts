@@ -6,12 +6,12 @@
 // le projet « hors-ligne » (nom en -hors-ligne.spec.ts), seul où le service worker existe.
 import type { Page } from "@playwright/test"
 
-import { attendreServiceWorker, attendreTirageLocal, preparerEngagementChecklist } from "./aide/checklist"
+import { accepterListes, attendreServiceWorker, attendreTirageLocal, preparerEngagementChecklist } from "./aide/checklist"
 import { capturer, choisirTheme } from "./aide/equipe"
 import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
-import { statutAction, statutPointChecklistEnBase, type Equipe } from "./aide/session"
+import { statutPointChecklistEnBase } from "./aide/session"
 
 const BUREAU = { largeur: "1440", width: 1440, height: 900 }
 const TELEPHONE = { largeur: "360", width: 360, height: 740 }
@@ -32,9 +32,7 @@ test("captures · liste et mode terrain hors ligne, 1440 et 360 px, sombre et cl
   test.setTimeout(600_000)
   const { entryId } = await preparerEngagementChecklist(equipe)
   await connecterParLien(page, equipe)
-  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
-  await page.getByRole("dialog").getByRole("button", { name: "Accepter", exact: true }).click()
-  await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
+  await accepterListes(page, equipe, entryId)
 
   await page.goto("/apps/checklist")
   await page.getByRole("region", { name: "Par engagement" }).getByRole("link").first().click()

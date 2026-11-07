@@ -6,11 +6,11 @@ import path from "node:path"
 import type { Page } from "@playwright/test"
 
 import { capturer, choisirTheme } from "./aide/equipe"
-import { preparerEngagementChecklist } from "./aide/checklist"
+import { accepterListes, preparerEngagementChecklist } from "./aide/checklist"
 import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
-import { passerEpreuveDansLePasseEnBase, statutAction } from "./aide/session"
+import { passerEpreuveDansLePasseEnBase } from "./aide/session"
 
 const BUREAU = { largeur: "1440", width: 1440, height: 900 }
 const TELEPHONE = { largeur: "360", width: 360, height: 740 }
@@ -36,9 +36,7 @@ test("captures · préparation, liste, fiche, mode terrain, avertissement, débr
 
   // Données réelles, créées par l'interface : la proposition acceptée, deux listes, des points.
   await page.getByRole("button", { name: /Boîte d'actions/ }).click()
-  const boite = page.getByRole("dialog")
-  await boite.getByRole("button", { name: "Accepter", exact: true }).click()
-  await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
+  await accepterListes(page, equipe, entryId)
 
   // « Contrôles » (avant départ) porte les coches et le problème. « Test retour » (retour) reste vierge : c'est elle
   // qui porte l'avertissement, qui ne vaut que tant qu'aucune liste de retour n'est entamée.

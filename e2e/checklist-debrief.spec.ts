@@ -1,10 +1,10 @@
 // Débrief (tâche 5.6, §1.6) : un point ajouté par clic pendant l'épreuve se reporte dans le modèle d'origine de sa liste,
 // par « Ajouter au modèle ». L'épreuve commence aujourd'hui : un point créé maintenant est marqué « ajouté pendant l'épreuve ».
-import { preparerEngagementChecklist } from "./aide/checklist"
+import { accepterListes, preparerEngagementChecklist } from "./aide/checklist"
 import { envoyer } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { connecterParLien } from "./aide/navigation"
-import { passerEpreuveDansLePasseEnBase, statutAction } from "./aide/session"
+import { passerEpreuveDansLePasseEnBase } from "./aide/session"
 
 test("Check-lists · débrief : un point ajouté pendant l'épreuve part dans le modèle d'origine", async ({ page, equipe }) => {
   test.setTimeout(240_000)
@@ -12,9 +12,7 @@ test("Check-lists · débrief : un point ajouté pendant l'épreuve part dans le
   await connecterParLien(page, equipe)
 
   // La proposition est acceptée : les listes de l'engagement viennent du modèle de la team.
-  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
-  await page.getByRole("dialog").getByRole("button", { name: "Accepter", exact: true }).click()
-  await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
+  await accepterListes(page, equipe, entryId)
 
   // Un point ajouté par clic dans cette liste, pendant l'épreuve.
   await page.goto("/apps/checklist")

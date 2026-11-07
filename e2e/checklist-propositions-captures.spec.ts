@@ -3,23 +3,18 @@
 // (checklist-propositions-*) ; elles sont téléchargées du run, relues une à une, puis commitées à la main.
 import type { Page } from "@playwright/test"
 
-import { preparerEngagementChecklist } from "./aide/checklist"
+import { accepterListes, preparerEngagementChecklist } from "./aide/checklist"
 import { capturer, choisirTheme } from "./aide/equipe"
 import { envoyerSansFermeture } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { preparerAtelierSaxo } from "./aide/garage"
 import { connecterParLien } from "./aide/navigation"
-import { statutAction, statutActionTitreEnBase, type Equipe } from "./aide/session"
+import { statutActionTitreEnBase } from "./aide/session"
 
 const BUREAU = { largeur: "1440", width: 1440, height: 900 }
 const TELEPHONE = { largeur: "360", width: 360, height: 1000 }
 const TITRE = "Remplacer la pièce : Boîte de vitesses"
 
-async function accepterListes(page: Page, equipe: Equipe, entryId: string): Promise<void> {
-  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
-  await page.getByRole("dialog").getByRole("button", { name: "Accepter", exact: true }).click()
-  await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
-}
 
 async function rouler(page: Page, kilometres: string): Promise<void> {
   await page.goto("/qg")

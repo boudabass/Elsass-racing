@@ -4,6 +4,7 @@ import { expect, type Page } from "@playwright/test"
 // (lignes en base, puis saison.engagement_cree par le bus). La proposition « Créer les listes » vient ensuite
 // de l'app Check-lists, comme en production : le test la traite dans la boîte.
 import { jourParis } from "./dates"
+import { envoyerSansFermeture } from "./envoi"
 import type { Equipe } from "./session"
 import {
   ajouterEpreuveEnBase,
@@ -12,7 +13,22 @@ import {
   emettreEvenement,
   engagerVehiculeEnBase,
   preparerSaison,
+  statutAction,
 } from "./session"
+
+// Accepte la proposition « Créer les listes » de la boîte : les listes de l'engagement existent ensuite.
+export async function accepterListes(page: Page, equipe: Equipe, entryId: string): Promise<void> {
+  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
+  await accepterListesDansBoite(page, equipe, entryId)
+}
+
+// Même acceptation, boîte déjà ouverte (un test qui vérifie le titre avant de cliquer). La décision et la création des
+// listes se font dans la même requête : on attend la réponse avant de naviguer, sinon la navigation annule la requête
+// en vol (envoi.ts, et CLAUDE.md « Tests e2e »).
+export async function accepterListesDansBoite(page: Page, equipe: Equipe, entryId: string): Promise<void> {
+  await envoyerSansFermeture(page, page.getByRole("dialog").getByRole("button", { name: "Accepter", exact: true }))
+  await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
+}
 
 export interface EngagementChecklist {
   entryId: string

@@ -3,7 +3,7 @@
 // point propose de le cocher, accepté, il passe à fait. Rien n'est coché ni ajouté sans l'acceptation.
 import type { Page } from "@playwright/test"
 
-import { preparerEngagementChecklist } from "./aide/checklist"
+import { accepterListes, preparerEngagementChecklist } from "./aide/checklist"
 import { envoyer, envoyerSansFermeture } from "./aide/envoi"
 import { expect, test } from "./aide/fixtures"
 import { preparerAtelierSaxo } from "./aide/garage"
@@ -12,7 +12,6 @@ import {
   emettreEvenement,
   lienPointChecklistEnBase,
   propositionsDeTitreEnBase,
-  statutAction,
   statutActionTitreEnBase,
   statutPointChecklistEnBase,
   type Equipe,
@@ -22,13 +21,6 @@ import {
 const REPONSE_ACTION = (r: { request: () => { method: () => string; headers: () => Record<string, string> } }) =>
   r.request().method() === "POST" && r.request().headers()["next-action"] !== undefined
 
-// Accepte la proposition « Créer les listes » : les listes de l'engagement existent ensuite.
-async function accepterListes(page: Page, equipe: Equipe, entryId: string): Promise<void> {
-  await page.getByRole("button", { name: /Boîte d'actions/ }).click()
-  // Les listes se créent après la décision, dans la même requête : on attend la réponse avant de naviguer (envoi.ts).
-  await envoyerSansFermeture(page, page.getByRole("dialog").getByRole("button", { name: "Accepter", exact: true }))
-  await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
-}
 
 async function ouvrirPremiereListe(page: Page): Promise<void> {
   await page.goto("/apps/checklist")

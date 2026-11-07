@@ -5,7 +5,7 @@ import path from "node:path"
 
 import type { BrowserContext, Page, Response } from "@playwright/test"
 
-import { preparerEpreuveChecklist } from "./aide/checklist"
+import { accepterListesDansBoite, preparerEpreuveChecklist } from "./aide/checklist"
 import { DOSSIER_CAPTURES } from "./aide/equipe"
 import { jourParis } from "./aide/dates"
 import {
@@ -115,8 +115,7 @@ async function accepterListes(page: Page, equipe: Equipe, entryId: string): Prom
   await page.getByRole("button", { name: /Boîte d'actions/ }).click()
   const boite = page.getByRole("dialog")
   await expect(boite.getByRole("heading", { name: "Créer les listes de l'engagement" })).toBeVisible()
-  await boite.getByRole("button", { name: "Accepter", exact: true }).click()
-  await expect.poll(() => statutAction(equipe, `creer_listes:${entryId}`)).toBe("decidee")
+  await accepterListesDansBoite(page, equipe, entryId)
   await page.keyboard.press("Escape")
 }
 
