@@ -1303,13 +1303,14 @@ async function recalculerRappels(ctx: ContexteTeam, saisonId: string, maintenant
 
   const existantes = await client.coreAction.findMany({
     where: { teamId: ctx.teamId, appOrigine: "saison", cleUnicite: { startsWith: PREFIXE_RAPPEL } },
-    select: { cleUnicite: true },
+    select: { cleUnicite: true, statut: true },
   })
   const dejaCrees = new Set(existantes.map((action) => action.cleUnicite))
+  const enAttente = new Set(existantes.filter((action) => action.statut === "en_attente").map((action) => action.cleUnicite))
   const dus = rappelsDues(pourRappels, maintenant, dejaCrees)
 
   for (const rappel of dus) {
-    if (dejaCrees.has(rappel.cle) && !rappel.relance) continue
+    if (dejaCrees.has(rappel.cle) && !rappel.relance && !(rappel.rafraichir && enAttente.has(rappel.cle))) continue
     let destinataires: { roles?: string[]; memberships?: string[] }
     if (rappel.destinataires.kind === "roles") {
       destinataires = { roles: rappel.destinataires.roles }

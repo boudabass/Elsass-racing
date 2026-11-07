@@ -31,6 +31,8 @@ export interface RappelDu {
   priorite: number
   // Contexte de la carte, quand le rappel le précise (voiture et équipage pour un engagement à payer).
   contexte?: string
+  // Action rafraîchie à chaque recalcul tant qu'elle est en attente (contexte à jour), jamais réouverte si elle est décidée.
+  rafraichir?: boolean
   // Échéance du rappel (clôture des engagements) : la boîte affiche la date, et le rang suit la date au recalcul.
   echeance?: Date
   titre: string
@@ -169,6 +171,7 @@ export function rappelsDues(epreuves: readonly EpreuveRappel[], maintenant: Date
             priorite: PRIORITE.bloquant,
             titre: `Engagement à payer : ${epreuve.nom}`,
             ...(engagement.libelleContexte ? { contexte: engagement.libelleContexte } : {}),
+            rafraichir: true,
             destinataires: { kind: "roles", roles: ["responsable"] },
             // Un seul bouton-lien : il ne décide rien. « Plus tard » est celui de la carte (ReporterAction).
             boutons: [{ cle: "voir", libelle: "Voir l'engagement", lien: `/apps/saison/engagements/${engagement.id}` }],
