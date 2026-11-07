@@ -93,8 +93,7 @@ export function Tiroir({
           {sousTitre && <p className="-mt-1 text-sm text-texte-discret">{sousTitre}</p>}
           <SheetDescription className="sr-only">{titre}</SheetDescription>
         </div>
-        {/* Un champ amené à l'écran par le focus garde son libellé visible (sinon il passe sous le haut du corps, en 360). */}
-        <div className="flex min-h-0 flex-1 scroll-pt-12 flex-col gap-4 overflow-y-auto p-4">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">{children}</div>
         <div className="shrink-0 border-t border-bordure p-4">
           {demandeAbandon ? (
             <div className="flex flex-col gap-3">
