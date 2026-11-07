@@ -755,3 +755,13 @@
 - Statut d'un point dans le tiroir : lu aussi par `aria-pressed` et un `✓` masqué, pas par la seule couleur (commit local `3197050`).
 - Dette 5.0 (deux modifications successives hors ligne) : couverte par les tests unitaires de `moteur.test.ts`. P2025 : absent de ce run, cause non établie.
 - Reste hors parcours : étape 8 (proposition ignorée qui ne revient pas), étape 9 (« Ajouter au modèle » depuis le Débrief), étape 10 (fiche et historique de la personne retirée).
+
+## 07/11/2026 : tâche 5.8b, contacts créés depuis le champ, et fin de la passe 5.8
+
+- Contacts créés depuis le champ qui les demande, au lieu d'un écran dédié. Service du socle `src/core/contacts/contacts-serveur.ts` (`trouverOuCreerContact`, `chercherContact`, `contactDuChoix`) et champ partagé `src/components/formulaire/choix-contact.tsx` (liste, ou « Nouveau… » qui ouvre un champ nom dans le même tiroir). Un nom déjà connu est réutilisé, sans distinction de casse ; un contact créé n'est pas annulé si l'écriture qui suit refuse, il se réutilise au renvoi.
+- Licence (Équipe) : « Nouvelle ASA » crée l'ASA dans la transaction de la licence. Ce qui manquait en 5.8 (« aucun écran ne crée de contact ASA ») est levé. Le parcours du lot 5 crée l'ASA par l'écran.
+- Garage : fournisseur d'une pièce posée à un prix (Remplacer, pièce nouvelle, train de pneus), fournisseur d'une commande, prestataire d'un ordre. Même service, même champ. E2e `garage-contacts-champ.spec.ts`.
+- Passe 5.8 : étape 8 (une proposition ignorée ne revient pas) testée par `checklist-propositions.spec.ts`, en base ; étape 9 renvoyée à `checklist-debrief.spec.ts` ; étape 10 (fiche de l'ancien membre) dans le parcours.
+- Trois runs rouges en chaîne, tous corrigés dans le code de test. `f875cdd` : « Accepter » de « Créer les listes » suivi d'une navigation sans attendre la réponse serveur (cause probable, corrigée par `envoyerSansFermeture`, comme `accepterListes`) ; capture Remplacer où Escape ouvre la garde « Abandonner les modifications ? » (comportement voulu, le test le confirme). `7ab8c12` : vert, 186 e2e, 1266 unitaires.
+- Audit des captures : huit `garage-contacts-*` relues en 1440 et 360, sombre et clair ; une douzaine d'autres écrans du lot 5 relus. Le reste de l'audit n'est pas fait (voir `docs/tests.md`, passe 5.8). Constats mineurs notés, non corrigés : libellé « Désignation » sous l'en-tête du tiroir en 360 après le focus ; contraste de « Plus tard » à mesurer.
+- Test de John : étape 3 (ASA créée depuis la licence) et étape 17 (fournisseur créé depuis le champ) dans `docs/test-john-lot-5.md`.
