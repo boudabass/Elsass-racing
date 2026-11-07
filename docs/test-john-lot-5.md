@@ -153,7 +153,7 @@ Prérequis : une liste d'engagement (5.5a) acceptée, et ton téléphone connect
 3. Mettre un point sans objet lié en « Problème » : une tâche « Problème : <point> (<liste>) » est créée côté socle. Elle apparaît dans la boîte d'actions, et la tuile Check-lists du QG affiche « 1 tâche à faire » (la tâche est vérifiée en base par e2e ; la tuile reste à voir à l'écran). Quand le point sort de problème (coche, ou retour à un autre état), l'action sort de la boîte et la tâche passe à faite.
 4. Ajouter un point critique à une liste dont l'échéance est à 7 jours ou moins : la boîte propose une carte portant le libellé du point, avec la liste et l'échéance en contexte, et un seul bouton « Ouvrir la liste ». Cocher le point : l'action sort de la boîte. (Vérifié en e2e : `checklist-liaisons.spec.ts`.)
 5. Saison, « Prêt pour l'épreuve ? » : sous « À côté, sans effet sur l'indice », une ligne « Check-lists » donne l'avancement et les points critiques ouverts. L'indice ne bouge pas.
-6. Garage : un problème sur un point lié à un organe propose « Créer l'ordre » dans la boîte ; l'ordre ne se crée qu'à l'acceptation. (Vérifié en e2e : `checklist-liaisons.spec.ts`, « Lien à un organe ».) Reste à voir par John : l'affichage dans Travaux.
+6. Garage : un problème sur un point lié à un organe propose « Créer l'ordre » dans la boîte ; l'ordre ne se crée qu'à l'acceptation. (Vérifié en e2e : `checklist-liaisons.spec.ts`, « Lien à un organe ».) Travaux l'affiche : le parcours e2e du lot 5 (étape 7) le vérifie ; à toi de le voir à l'écran.
 
 ## Étape 16 : Check-lists, propositions des écoutes (5.7b)
 
@@ -168,7 +168,6 @@ Prérequis : une liste d'engagement (5.5a) acceptée, et ton téléphone connect
 - Check-lists hors ligne : pas d'ajout ni de retrait de point, pas de création de liste, pas de modèle, pas de débrief, pas de photo hors ligne.
 - Widgets de Check-lists sur le Tableau de bord : les lectures existent, l'affichage vient au lot 6.
 - Photo des personnes (les initiales tiennent lieu de photo pour l'instant).
-- Statistiques après un résultat validé : à vérifier quand la prochaine épreuve sera jouée.
 - Trophées affichés pour les personnes déjà présentes avant ce lot : leur choix n'a pas changé (seul le défaut des nouvelles personnes est coché).
 - Recherche globale dans les documents : pas encore branchée à l'index.
 - Saison ne prévient pas Check-lists quand le programme est publié (`saison.programme_publie`, non écouté) : préparer les listes d'une épreuve reste à faire à la main.

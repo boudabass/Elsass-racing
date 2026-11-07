@@ -744,3 +744,14 @@
 - Liste de test de John réécrite (parcours court, compte assistance, modèle avant engagement).
 - Run de référence (e65ce3e) : cinq échecs, tous corrigés. Le rang de la demande « marquer payé » a été fixé à 8 (proposition), sans échéance. Les obligations (licence, homologation, papier, document) n'ont plus d'échéance d'action : elles n'expirent pas, et leur rang suit la date de leur fiche. Seule la clôture des engagements expire après 30 jours.
 - Run vert 42120447845 (1ae5813) : 182 e2e, 1244 unitaires. Deux assertions de test corrigées (carte du point critique, plan ouvert par son dossier), pas de défaut produit. Restent : étapes 3, 7, 8 et 9 du parcours à écrire, étapes 1, 2, 4 et 5 à compléter ; captures des étapes 2, 7 et 9 ; audit écran par écran (boîte relue, deux points à décider) ; P2025 sans cause établie ; dette hors ligne mesurée seulement en unitaire. Voir `docs/tests.md` et `docs/plan-developpement.md`, section 5.8.
+
+## 07/11/2026 : vérification du lot 5 (tâche 5.8, suite et clôture de la passe)
+
+- Préparation et Débrief : une épreuve commencée et pas encore finie reste dans Préparation (filtre sur la fin, pas sur le début). Un test unitaire et un e2e dédié le couvrent (`checklist-epreuve-en-cours.spec.ts`).
+- Parcours e2e du lot 5 écrit jusqu'à l'étape 10 du brief. Étape 1 : licence avec ASA et dépense décidée dans Budget. Étape 4 : échéances, « Renouveler », lien de partage (ouverture publique comptée, révocation, lien refusé). Étape 9 : palier lu avant et après validation, rejeu contester/corriger/revalider, une seule épreuve et une seule arrivée en base. Run vert `42325725221` (`6725e09`) : 1252 unitaires, 183 e2e.
+- Un échec de passe (`42322446941`, étape 5) : défaut de test, l'étape 4 finissait sur la page Partages. Corrigé, pas de défaut de règle.
+- Constat produit, pas de test rouge : aucun écran ne crée de contact ASA (la catégorie `asa` n'est posée par aucun service). Le select ASA de la licence est donc vide en produit. Le parcours pose le contact en base, faute d'écran, et le dit dans son commentaire. À trancher avec l'orchestrateur, hors reportés.
+- Audit des captures : sept écrans relus en 360 et 1440 (boîte, Équipe, Documents, Check-lists, fiche personne après validation). Le constat « Ignorer en rouge » était déjà corrigé (`7fb8af4`) et se voit sur la capture. Le reste de l'audit n'est pas fait.
+- Statut d'un point dans le tiroir : lu aussi par `aria-pressed` et un `✓` masqué, pas par la seule couleur (commit local `3197050`).
+- Dette 5.0 (deux modifications successives hors ligne) : couverte par les tests unitaires de `moteur.test.ts`. P2025 : absent de ce run, cause non établie.
+- Reste hors parcours : étape 8 (proposition ignorée qui ne revient pas), étape 9 (« Ajouter au modèle » depuis le Débrief), étape 10 (fiche et historique de la personne retirée).
