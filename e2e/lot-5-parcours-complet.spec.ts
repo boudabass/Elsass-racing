@@ -371,6 +371,8 @@ test("lot 5 · parcours : Équipe, Saison, Documents, Check-lists, Garage, Équi
     } finally {
       await anonyme.close()
     }
+    // Fin d'étape au QG, comme les autres étapes : la révocation finit sur la page Partages.
+    await retourAuQg(page)
   })
 
   // Preuve principale du §3.1 : un fichier de dossier caché répond 404 à l'assistance, 200 une fois partagé, 404 après retrait.
